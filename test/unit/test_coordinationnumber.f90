@@ -43,7 +43,7 @@ subroutine test_ncoord_pbc3d_latticepoints(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
@@ -102,7 +102,7 @@ subroutine test_ncoord_pbc3d_latticepoints(error)
 
    allocate(cn(nat), dcndr(3, nat, nat), dcndL(3, 3, nat))
 
-   call init(latp, env, mol, 40.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 40.0_wp)  ! Fixed cutoff
    call latp%getLatticePoints(trans, 40.0_wp)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, &
@@ -160,7 +160,7 @@ subroutine test_ncoord_pbc3d_neighbourlist(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
@@ -222,7 +222,7 @@ subroutine test_ncoord_pbc3d_neighbourlist(error)
    allocate(neighs(nat))
    allocate(cn(nat), dcndr(3, nat, nat), dcndL(3, 3, nat))
 
-   call init(latp, env, mol, 40.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 40.0_wp)  ! Fixed cutoff
    call latp%getLatticePoints(trans, 40.0_wp)
    call init(neighList, len(mol))
    call neighList%generate(env, mol%xyz, 40.0_wp, trans, .false.)

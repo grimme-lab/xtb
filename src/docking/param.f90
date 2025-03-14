@@ -135,7 +135,9 @@ module xtb_docking_param
    integer, parameter :: p_atom_pot = 2
    !> Attractive atom-centered potential
    integer, parameter :: p_atom_att = 3 
-   !Wall pot for directed docking
+   !> Attractive atom-centered potential for QCG mode
+   integer, parameter :: p_atom_qcg = 4 
+   !> Wall pot for directed docking (Not used)
    integer, parameter :: p_wall_pot = 1 
    integer :: place_wall_pot
    !QCG mode (special treatment of wall potentials)
@@ -357,7 +359,7 @@ contains
 ! axis
 ! molw is the weigth, sum3 the CMA (all in a.u.)
 
-   subroutine axis(numat, nat, coord, sum3, sumw, eig, evec)
+   subroutine axis_docking(numat, nat, coord, sum3, sumw, eig, evec)
 
       integer, intent(in) ::numat, nat(numat)
       real(wp), intent(in) :: coord(3, *)
@@ -366,7 +368,7 @@ contains
       real(wp) :: t(6)
       real(wp) :: x(numat), y(numat), z(numat)
       real(wp) :: sumwx, sumwy, sumwz
-      real(wp) :: atmass
+      real(wp) :: atmass_dock
       integer :: i
       real(wp) ::  ams(107)
       data ams/1.00790d0, 4.00260d0, 6.94000d0, 9.01218d0,&
@@ -394,11 +396,11 @@ contains
       sumwz = 0.d0
 
       do i = 1, numat
-         atmass = ams(nat(i))
-         sumw = sumw + atmass
-         sumwx = sumwx + atmass*coord(1, i)
-         sumwy = sumwy + atmass*coord(2, i)
-         sumwz = sumwz + atmass*coord(3, i)
+         atmass_dock = ams(nat(i))
+         sumw = sumw + atmass_dock
+         sumwx = sumwx + atmass_dock*coord(1, i)
+         sumwy = sumwy + atmass_dock*coord(2, i)
+         sumwz = sumwz + atmass_dock*coord(3, i)
       end do
 
       sum3(1) = sumwx/sumw
@@ -416,19 +418,19 @@ contains
       end do
 
       do i = 1, numat
-         atmass = ams(nat(i))
-         t(1) = t(1) + atmass*(y(i)**2 + z(i)**2)
-         t(2) = t(2) - atmass*x(i)*y(i)
-         t(3) = t(3) + atmass*(z(i)**2 + x(i)**2)
-         t(4) = t(4) - atmass*z(i)*x(i)
-         t(5) = t(5) - atmass*y(i)*z(i)
-         t(6) = t(6) + atmass*(x(i)**2 + y(i)**2)
+         atmass_dock = ams(nat(i))
+         t(1) = t(1) + atmass_dock*(y(i)**2 + z(i)**2)
+         t(2) = t(2) - atmass_dock*x(i)*y(i)
+         t(3) = t(3) + atmass_dock*(z(i)**2 + x(i)**2)
+         t(4) = t(4) - atmass_dock*z(i)*x(i)
+         t(5) = t(5) - atmass_dock*y(i)*z(i)
+         t(6) = t(6) + atmass_dock*(x(i)**2 + y(i)**2)
       end do
 
       call rsp(t, 3, 3, eig, evec)
       eig = eig/sumw
 
-   end subroutine axis
+   end subroutine axis_docking
 
    subroutine cmadock(n, numat, nat, coord, sum3)
 
@@ -1223,6 +1225,7 @@ contains
       call init(comb, at, xyz)
       comb%chrg = molA%chrg + molB%chrg
       comb%uhf = molA%uhf + molB%uhf
+      atmass=comb%atmass !Setting global atmass array required in axis module
       deallocate (at)
       deallocate (xyz)
 

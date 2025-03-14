@@ -21,7 +21,7 @@ module xtb_peeq
    use xtb_mctc_la
    use xtb_xtb_data
    use xtb_chargemodel
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType, &
       & cutCoordinationNumber
    use xtb_disp_dftd4, only : d4_gradient
@@ -116,6 +116,8 @@ subroutine peeq &
    real(wp), allocatable :: selfEnergy(:, :)
    real(wp), allocatable :: dSEdcn(:, :)
    real(wp), allocatable :: dSEdq(:, :)
+   real(wp), allocatable :: Pa   (:,:)
+   real(wp), allocatable :: Pb   (:,:)
    integer :: rep_cn(3)
    integer :: nid
    integer, allocatable :: idnum(:)
@@ -267,7 +269,7 @@ subroutine peeq &
    neglect2=neglect*10.0_wp
    scfconv=1.e-6_wp*acc
 
-   call init(latp, env, mol, 60.0_wp)
+   call init_l(latp, env, mol, 60.0_wp)
 
 ! ---------------------------------------
 !  IMPORTANT FACT: H is given in eV
@@ -583,11 +585,30 @@ subroutine peeq &
 
 
    endif printing
+   
+   !--------------------------!
+   ! Wiberg-Mayer bond orders !
+   !--------------------------!
 
-! ------------------------------------------------------------------------
-!  get Wiberg bond orders
-   call get_wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,basis%fila2)
+   ! closed-shell !
+   if (wfn%nopen == 0) then
+      
+      call get_wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,basis%fila2)
+   
+   ! (restricted) open-shell !
+   else if (wfn%nopen > 0) then   
+         
+      allocate(Pa(basis%nao,basis%nao))
+      allocate(Pb(basis%nao,basis%nao))
+      
+      ! obtain alpha and beta spin densities !
+      call dmat(basis%nao, wfn%focca, wfn%C, Pa) 
+      call dmat(basis%nao, wfn%foccb, wfn%C, Pb) 
+      
+      call get_unrestricted_wiberg(mol%n, basis%nao, mol%at, mol%xyz, Pa, Pb ,S, wfn%wbo, &
+         & basis%fila2)
 
+   endif
 ! ---------------------------------------
 !  Save all the energy contributions
 ! ---------------------------------------
@@ -650,8 +671,7 @@ pure subroutine drep_grad(repData,mol,trans,erep,gradient,sigma)
    real(wp) :: dtmp
    real(wp), parameter :: rthr = 1600.0_wp
    real(wp) :: w,t(3)
-   integer  :: latrep(3),tx,ty,tz,itr
-   call get_realspace_cutoff(mol%lattice,rthr,latrep)
+   integer  :: tx,ty,tz,itr
    w = 1.0_wp
    ! initialize
    erep = 0.0_wp

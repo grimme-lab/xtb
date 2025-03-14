@@ -108,7 +108,7 @@ elemental function initFileHandle(name, status, unit, open) result(self)
 
 end function initFileHandle
 
-
+!> check for namespace and, if present, add it accordingly to the file name
 subroutine getName(self, file, filename)
    class(TIOHandler), intent(inout) :: self
    character(len=*), intent(in) :: file
@@ -436,6 +436,7 @@ end subroutine closeFile
 
 
 subroutine deleteFile(self, file, iostat)
+   ! Declaration section
    class(TIOHandler), intent(inout) :: self
    character(len=*), intent(in) :: file
    integer, intent(out), optional :: iostat
@@ -443,18 +444,23 @@ subroutine deleteFile(self, file, iostat)
    integer :: unit
    logical :: exist
    integer :: error
-
+   
+   ! Execution section
    unit = -1
    error = 0
 
    call self%getName(file, name)
+
    !$omp critical(io)
+      !! to restrict execution to 1 thread at a time  
    inquire(file=name, exist=exist)
 
    if (exist) then
       open(file=name, newunit=unit, status='old', iostat=error)
+         !! open existing file withh automatically chosen logical unit number
       if (error == 0) then
          call self%pushBack(TFileHandle(name, fileStatus%deleted, unit, .false.))
+            !! to record deletion in log   
          close(unit, status='delete', iostat=error)
       end if
    else

@@ -223,6 +223,32 @@ subroutine normalizeSolventName(solvent, input)
 
    solvent = lowercase(input)
 
+   !> Pick a consistent name to use for the solvents internally
+   select case(solvent)
+   case('acetonitrile','methylcyanide')
+     solvent='acetonitrile'
+   case('methylenechloride', 'dichloromethane', 'dcm', 'ch2cl2')
+     solvent='ch2cl2'
+   case('chloroform','chcl3','trichloromethane','tcm')
+     solvent='chcl3'
+   case('carbondisulfide','cs2')
+     solvent='cs2'
+   case('diethylether','ether')
+     solvent='ether'
+   case('dimethylformamide','dmf')
+     solvent='dmf'
+   case('dimethylsulfoxide','dmso')
+     solvent='dmso'
+   case('furane','furan')
+     solvent='furane'
+   case('nhexan','n-hexan','nhexane','n-hexane','hexane')
+     solvent='hexane'  
+   case('tetrahydrofuran','thf')
+     solvent='thf'
+   case('h2o','water')
+     solvent='water'
+   end select  
+     
 end subroutine normalizeSolventName
 
 
@@ -693,6 +719,10 @@ subroutine newSolvationModel(self, env, model, num)
       allocate(cosmo)
       call init_(cosmo, env, num, self%dielectricConst, self%nAng, self%bornScale, &
          & self%vdwRad, self%surfaceTension, self%probeRad, srcut)
+      if (self%tmcosmo) then
+         cosmo%tmcosmo=.true.
+         cosmo%wrvolume=.true.
+      end if
       call move_alloc(cosmo, model)
    else
       allocate(born)

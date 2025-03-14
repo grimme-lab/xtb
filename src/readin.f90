@@ -16,6 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_readin
+   
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_strings, only : value
    use xtb_type_environment, only : TEnvironment
@@ -34,11 +35,11 @@ module xtb_readin
 !  this function returns a logical and is always evaluated for its
 !  side effect (parsing the given string for its real/int/bool value)
    interface getValue
-   module procedure getIntValue
-   module procedure getIntArray
-   module procedure getRealValue
-   module procedure getRealArray
-   module procedure getBoolValue
+      module procedure getIntValue
+      module procedure getIntArray
+      module procedure getRealValue
+      module procedure getRealArray
+      module procedure getBoolValue
    end interface getValue
 
 contains
@@ -68,19 +69,23 @@ function xfind(name) result(fname)
 end function xfind
 
 !! ------------------------------------------------------------------[SAW]-
-!  wrapper around getline from the MCTC lib that strips comments
-!  automatically und removes all leading and trailing whitespace
+!>  wrapper around getline from the MCTC lib that strips comments
+!>  automatically und removes all leading and trailing whitespace
 subroutine strip_line(in,line,err)
+   
    use xtb_mctc_systools, only : getline
    implicit none
    integer,intent(in)  :: in
+      !! input file unit
    character(len=:),allocatable,intent(out) :: line
+      !! output line
    integer,intent(out) :: err
    integer :: ic
 
    call getline(in,line,iostat=err)
    if (err.ne.0) return
-!  check for comment characters
+   
+   !> check for comment characters
    ic = index(line,hash)
    if (ic.eq.1) then
       line = ''
@@ -88,6 +93,7 @@ subroutine strip_line(in,line,err)
    else if (ic.gt.1) then
       line = line(:ic-1)
    endif
+   !> to remove all leading and trailing whitespaces
    line = trim(adjustl(line))
 
 end subroutine strip_line
@@ -98,19 +104,25 @@ end subroutine strip_line
 !  files you plan to replace in the next step of you program.
 !  Funnily this subroutine exist way before strip_line...
 subroutine mirror_line(in,out,line,err)
+   
    use xtb_mctc_systools, only : getline
    implicit none
+   
    integer,intent(in)  :: in
    integer,intent(in)  :: out
    character(len=:),allocatable,intent(out) :: line
    integer,intent(out) :: err
+   
    integer :: ic
 
    call getline(in,line,iostat=err)
+      !! returns the line from input file 
    if (err.ne.0) return
+      !! iostat=-1 will return err=0
 !  now write the line to the copy, we write what we read, not what we see
 !  if (out.ne.-1) write(out,'(a)') trim(line)
-!  check for comment characters
+   
+   !> Check for comment characters
    ic = index(line,hash)
    if (ic.eq.1) then
       line = ''

@@ -18,51 +18,57 @@ module xtb_gfnff_ini
 
 contains
 
-subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
+subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accuracy)
       use xtb_mctc_accuracy, only : wp, sp
       use xtb_type_molecule
       use xtb_type_environment, only : TEnvironment
-      use xtb_gfnff_param, only : efield, gfnff_thresholds
+      use xtb_gfnff_param, only : gfnff_thresholds
       use xtb_gfnff_data, only : TGFFData
       use xtb_gfnff_topology, only : TGFFTopology
       use xtb_gfnff_generator, only : TGFFGenerator
       use xtb_gfnff_ini2
-      use xtb_gfnff_eg, only : gfnff_dlogcoord
-      use xtb_gfnff_mrec, only : mrecgff
+      use xtb_gfnff_eg, only : gfnff_dlogcoord, getCoordinationNumber
+      use xtb_gfnff_mrec, only : mrecgff, mrecgffPBC
       use xtb_gfnff_fraghess
       use xtb_restart
       use xtb_mctc_constants
-
+      use xtb_type_latticepoint
+      use xtb_gfnff_neighbor
       implicit none
       character(len=*), parameter :: source = 'gfnff_ini'
 !--------------------------------------------------------------------------------------------------
       type(TEnvironment), intent(inout) :: env
       type(TMolecule), intent(in) :: mol   ! # molecule type
+      type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
       type(TGFFTopology), intent(inout) :: topo
       type(TGFFGenerator), intent(in) :: gen
       type(TGFFData), intent(in) :: param
+      real(wp), intent(in) :: efield(3)
       real(wp), intent(in) :: accuracy
 
       logical, intent(in) :: pr            ! print flag
       logical, intent(in) :: makeneighbor  ! make a neigbor list or use existing one?
 !--------------------------------------------------------------------------------------------------
 
-      integer ati,atj,atk,i,j,k,l,lin,nn,ii,jj,kk,ll,m,rings,ia,ja,ij,ix,nnn,idum,ip,ji,no
+      integer ati,atj,atk,i,j,k,l,lin,nn,ii,jj,kk,ll,m,rings,ia,ja,ij,ix,nnn,idum,ip,ji,no,nbi
+      integer nni, nnj
       integer ineig,jneig,nrot,bbtyp,ringtyp,nn1,nn2,hybi,hybj,pis,ka,nh,jdum,hcalc,nc
       integer ringsi,ringsj,ringsk,ringl,npi,nelpi,picount,npiall,maxtors,rings4,nheav
       integer nm,maxhb,ki,n13,current,ncarbo,mtyp1,mtyp2
-      integer ind3(3),sr(20),cr(10,20),niel(86)
+      integer ind3(3),sr(20),cr(10,20),niel(103)
       integer qloop_count,nf,nsi,nmet,nhi,nhj,ifrag
       integer hbA,hbH,Bat,atB,Aat,Hat
       integer AHB_nr
       integer bond_hbn
+      integer iTr, iTr2, iTri,iTrj,iTrk,iTrDum,iTrlDum,iTrl,iTrtmp
+      real(wp) vTrl(3), vTrj(3), vTrk(3), vec(3), MaxCutOff
       interface
          integer function itabrow6(i)
             integer i
          end function
       end interface
 
-      real(wp) r0,ff,omega,f1,f2,phi,valijklff,ringf,fcn
+      real(wp) r0,ff,omega,omegaPBC,f1,f2,phi,valijklff,ringf,fcn
       real(wp) shift,dum,dum1,dum2,dum4,qafac,fqq,feta
       real(wp) sumppi,fpi,fxh,fijk,fsrb2,ees
       real(wp) fheavy,fn,eold,fctot,fij
@@ -82,13 +88,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       integer,allocatable :: itag(:)
       integer,allocatable :: piadr(:),piadr2(:),piadr3(:),piadr4(:)
       integer,allocatable :: itmp(:),sring(:,:),cring(:,:,:)
-      integer,allocatable :: ipis(:),pimvec(:),nbpi(:,:),piel(:)
-      integer,allocatable :: lin_AHB(:)
+      integer,allocatable :: ipis(:),pimvec(:),nbpi(:,:,:),piel(:)
+      integer,allocatable :: lin_AHB(:,:)
       integer,allocatable :: bond_hbl(:,:)
+      integer,allocatable :: bdum(:,:,:),cdum(:,:,:)
       real(wp),allocatable:: rab  (:)
       real(wp),allocatable:: sqrab(:)
       real(wp),allocatable:: cn   (:)
-      real(wp),allocatable:: dcn(:,:,:)
+      real(wp),allocatable:: dcn(:,:,:), dcndL(:,:,:)
       real(wp),allocatable:: dgam(:), dxi(:)
       real(wp),allocatable:: mchar(:)
       real(wp),allocatable:: rtmp (:)
@@ -97,11 +104,16 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       real(wp),allocatable:: Api(:,:),S(:,:),Pold(:,:),pibo(:),occ(:),eps(:)
       real(wp),allocatable:: pispop(:),pisea(:),pisip(:),apisave(:,:)
       real(sp),allocatable:: rabd(:,:)
+      real(wp),allocatable:: transVec(:,:)
+      type(TLatticePoint)  :: latPoint
+      integer, allocatable:: locarr(:,:), nbrngs(:,:)
+      integer :: cDbl(4,42), cd, cdi ! for checking double counting
+      logical :: tDbl
 
       character(len=255) atmp
       integer  :: ich, err
       real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
-      logical :: exitRun
+      logical :: exitRun, nb_call, adjLnAn
 
       call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
@@ -123,12 +135,10 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       allocate( cn(mol%n), source = 0.0d0 )
       allocate( sqrab(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( topo%hyb(mol%n), source = 0 )
-      allocate( topo%alphanb(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( rtmp(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( pbo(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( piadr(mol%n), source = 0 )
       allocate( piadr2(mol%n), source = 0 )
-      allocate( topo%bpair(mol%n*(mol%n+1)/2), source = 0 )
       allocate( itmp(mol%n), source = 0 )
       allocate( itag(mol%n), source = 0 )
       allocate( sring(20,mol%n), source = 0 )
@@ -157,7 +167,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       enddo
 
       write(env%unit,'(10x,"Pauling EN used:")')
-      do i=1,86
+      do i=1,103
          if(niel(i).gt.0) write(env%unit,'(10x,"Z :",i2,"  EN :",f6.2)') i,param%en(i)
       enddo
 
@@ -171,6 +181,20 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       write(env%unit,'(10x," ------------------------------------------------- ")')
       write(env%unit,*)
 
+      ! get translation vectors within maximum cutoff (at least central 27)
+      ! routine for generating the lattice vectors                 
+      call neigh%getTransVec(env,mol,60.0_wp)  ! needed for neigh%init_n -> filliTrSum
+      call env%check(exitRun)
+      if (exitRun) then
+         return
+      end if
+      !  initialize neighbor type
+      call neigh%init_n(mol, env)
+
+      ! allocate bond pair matrix and non bonded pair exponents 
+      allocate(neigh%bpair(mol%n,mol%n,neigh%numctr), source=0)
+      allocate(topo%alphanb(mol%n,mol%n,neigh%numctr+1), source = 0.0d0 )
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! distances and bonds
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -180,21 +204,27 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       pbo   = 0
       rab   = 0
       sqrab = 0
-      do i=1,mol%n
-         ati=mol%at(i)
-         kk=i*(i-1)/2
-         do j=1,i-1
-            atj=mol%at(j)
-            k=kk+j
-            sqrab(k)=(mol%xyz(1,i)-mol%xyz(1,j))**2+(mol%xyz(2,i)-mol%xyz(2,j))**2+(mol%xyz(3,i)-mol%xyz(3,j))**2
-            rab(k)  =sqrt(sqrab(k))
-            if(rab(k).lt.1.d-3) then
-               write(env%unit,*) i,j,ati,atj,rab(k)
-               call env%error("Particular close distance present", source)
-               exit
-            endif
-         enddo
-      enddo
+      !Get all distances
+      call neigh%getTransVec(env,mol,sqrt(hbthr2))
+
+      ! Transfer calculated distances in central cell to rab and sqrab 
+      do i=1, mol%n
+        ati=mol%at(i)
+        kk=i*(i-1)/2
+        do j=1, i-1 
+          atj=mol%at(j)
+          k=kk+j
+          rab(k) = NORM2(mol%xyz(:,i)-mol%xyz(:,j))
+          sqrab(k) = rab(k)**2 
+          if(rab(k).lt.1.d-3) then
+            write(env%unit,*) i,j,ati,atj,rab(k)
+            call env%error("Particular close distance present", source)
+            exit
+          endif
+        enddo                                                          
+      enddo                                                          
+
+
 
       call env%check(exitRun)
       if (exitRun) then
@@ -203,7 +233,22 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 
 !     Calculate CN and derivative
       allocate(dcn(3,mol%n,mol%n), source = 0.0d0 )
-      call gfnff_dlogcoord(mol%n,mol%at,mol%xyz,rab,cn,dcn,cnthr,param) ! dcn needed
+      if (mol%boundaryCondition.eq.0) then 
+        call gfnff_dlogcoord(mol%n,mol%at,mol%xyz,rab,cn,dcn,cnthr,param) ! dcn needed
+ 
+      else
+        vec=mol%lattice(:,1)+mol%lattice(:,2)                       
+        MaxCutOff = sqrt(norm2(vec)**2 +norm2(mol%lattice(:,3))**2 &
+          & -2*dot_product(vec, mol%lattice(:,3))) + 1.0_wp ! 
+        MaxCutOff = max(MaxCutoff, 60.0_wp) ! at least 60           
+
+        call init_l(latPoint, env, mol%lattice, mol%boundaryCondition, MaxCutOff)
+        call latPoint%getLatticepoints(transVec, MaxCutOff)
+        latPoint%ntrans = size(transVec, dim=2)
+        allocate(dcndL(3,3,mol%n),source = 0.0d0)
+        call getCoordinationNumber(mol, latPoint%nTrans, transVec, 40.0_wp, 5, cn, dcn, dcndL, param)   
+        deallocate(dcndL)
+      endif
       do i=1,mol%n
          dum2=0
          do j=1,mol%n
@@ -217,77 +262,120 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! neighbor list, hyb and ring info
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! check if Ln or An in coordinates
+      adjLnAn=.false.
+      do i=1, mol%n
+         if ((mol%at(i).ge.57.and.mol%at(i).le.71).or.(mol%at(i).ge.89.and.mol%at(i).le.103)) then
+            adjLnAn=.true.
+            exit
+         endif
+      enddo
 
       topo%qa = 0
       qloop_count = 0
+      nb_call = .false. ! gfnff_neigh was (already) called
 
 !111   continue
 !  do the loop only if factor is significant
-   do while (qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3)
+   do while ((qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3).or.adjLnAn)
 
       write(env%unit,'(10x,"----------------------------------------")')
       write(env%unit,'(10x,"generating topology and atomic info file ...")')
       call gfnff_neigh(env,makeneighbor,mol%n,mol%at,mol%xyz,rab,gen%rqshrink, &
-         & gen%rthr,gen%rthr2,gen%linthr,mchar,topo%hyb,itag,nbm,nbf,param,topo)
+         & gen%rthr,gen%rthr2,gen%linthr,mchar,topo%hyb,itag,param,topo,mol,neigh,nb_call)
+      nb_call = .true.
+
+      ! special treatment for hydrogen bound to Ln or An
+      if (adjLnAn.and.allocated(topo%qa).and.qloop_count.ne.0) then
+         call adjust_NB_LnH_AnH(param, mol, topo, neigh)
+         adjLnAn=.false.
+      endif
+      !> gfnff_topo adjustments
+      call gfnff_topo_changes(env, neigh)
 
       do i=1,mol%n
          imetal(i)=param%metal(mol%at(i))
-         if(topo%nb(20,i).le.4.and.param%group(mol%at(i)).gt.3) imetal(i)=0 ! Sn,Pb,Bi, with small CN are better described as non-metals
-      enddo
-
+         ! Sn,Pb,Bi, with small CN are better described as non-metals
+         ! The number of neighbors can only decrease from first to second qloop
+         if(sum(neigh%nb(neigh%numnb,i,:)).le.4.and.param%group(mol%at(i)).gt.3) imetal(i)=0     
+      enddo   
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! bonds (non bonded directly in EG)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-      topo%bpair=0
-      do i=1,mol%n
-         do j=1,topo%nb(20,i)
-            k=topo%nb(j,i)
-            topo%bpair(lin(k,i))=1
-         enddo
-      enddo
-      topo%nbond = sum(topo%bpair)
-      topo%nbond_blist = topo%nbond
-      allocate( topo%blist(2,topo%nbond), source = 0 )
-      allocate( btyp(topo%nbond), source = 0 )
-      allocate( pibo(topo%nbond), source = 0.0d0 )
-
-      pibo  = -99.
-      topo%nbond = 0
-      do i=1,mol%n
-         kk=i*(i-1)/2
-         do j=1,i-1
-            k=kk+j
-            if ( topo%bpair(k) .eq. 1 ) then  ! bonds
-                topo%nbond = topo%nbond +1
-                topo%blist(1,topo%nbond)=i
-                topo%blist(2,topo%nbond)=j
+      ! periodic setup
+      ! Get number of bonds, all bonds should be paired
+      ! For bonds to other cells only cells with translation vectors
+      !    with "positive" sign (in direction of axes) are considered 
+      allocate(bdum(mol%n, mol%n, neigh%numctr),source=0)
+      allocate(cdum(neigh%numnb, mol%n, neigh%numctr),source=0)
+      k=0
+      do i=1, mol%n
+        do iTr=1, neigh%numctr
+          do j=1, neigh%nb(neigh%numnb,i,iTr)
+            ! go through all neighbors l
+            l=neigh%nb(j,i,iTr)
+            if(bdum(l,i,iTr).eq.0)then
+              bdum(l,i,iTr)=1
+              bdum(i,l,neigh%iTrNeg(iTr))=1
+              cdum(j,i,iTr)=1
+              k=k+1
             endif
-         enddo
+          enddo
+        enddo
       enddo
+      neigh%nbond = k
+      neigh%nbond_blist=neigh%nbond
+      topo%nbond_blist=neigh%nbond
+      allocate( btyp(neigh%nbond), source = 0 )
+      allocate( pibo(neigh%nbond), source = 0.0d0 )
+      ! setup blist
+      allocate( neigh%blist(3,neigh%nbond), source = 0 ) !first dim now 3 for saving iTr
+      k=0
+      do i=1, mol%n
+        do iTr=1, neigh%numctr
+          do j=1, neigh%nb(neigh%numnb,i,iTr)
+            !
+            if(cdum(j,i,iTr).eq.1)then
+              !
+              k=k+1
+              neigh%blist(1,k) = neigh%nb(j,i,iTr) 
+              neigh%blist(2,k) = i
+              neigh%blist(3,k) = iTr
+            endif
+          enddo
+        enddo
+      enddo
+      if(allocated(bdum)) deallocate(bdum)
+      if(allocated(cdum)) deallocate(cdum)
+      !check blist
+      if (k.ne.neigh%nbond) then
+        call env%warning("Setup of blist not as expected, check your results.", source)
+      endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Hueckel setup for all first-row sp2 and sp atoms
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! setup list of all possible pi atoms
-      k=0
+      k=0  ! counts number of possible pi atoms
       piadr =0
       piadr2=0
       do i=1,mol%n ! setup loop
          piat =(topo%hyb(i).eq.1.or.topo%hyb(i).eq.2).and.pilist(mol%at(i)) ! sp or sp2 and CNOFS
          kk=0
-         do j=1,topo%nb(20,i)
-            jj=topo%nb(j,i)
-            if(mol%at(i).eq.8.and.mol%at(jj).eq.16.and.topo%hyb(jj).eq.5) then
-                                                             piat=.false.
-                                                             cycle ! SO3   is not a pi
-                                                             endif
-            if(topo%hyb(jj).eq.1.or.topo%hyb(jj).eq.2)  kk=kk+1         ! attached to sp2 or sp
+         do iTr=1, neigh%numctr
+           do j=1,neigh%nb(neigh%numnb,i,iTr)
+             jj=neigh%nb(j,i,iTr)
+             if(mol%at(i).eq.8.and.mol%at(jj).eq.16.and.topo%hyb(jj).eq.5) then
+               piat=.false.
+               cycle        ! SO3   is not a pi
+             endif
+             if(topo%hyb(jj).eq.1.or.topo%hyb(jj).eq.2)  kk=kk+1         ! attached to sp2 or sp
+           enddo
          enddo
          picon=kk.gt.0.and.nofs(mol%at(i))                     ! an N,O,F (sp3) on sp2
-         if(mol%at(i).eq. 7.and.topo%nb(20,i).gt.3) cycle           ! NR3-X is not a pi
+         if(mol%at(i).eq. 7.and.sum(neigh%nb(neigh%numnb,i,:)).gt.3) cycle           ! NR3-X is not a pi
          if(mol%at(i).eq.16.and.topo%hyb(i).eq.5  ) cycle           ! SO3   is not a pi
          if(picon.or.piat) then
             k=k+1
@@ -297,23 +385,25 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       enddo
       npiall=k
 ! make pi neighbor list
-      allocate( nbpi(20,npiall),pimvec(npiall), source = 0 )
+      allocate( nbpi(neigh%numnb,npiall,neigh%numctr),pimvec(npiall), source = 0 )
       nbpi=0
       do i=1,mol%n
          if(piadr2(i).eq.0) cycle
          ii=piadr2(i)
-         nbpi(20,ii)=0
-         do j=1,topo%nb(20,i)
-            k=topo%nb(j,i)
-            if(piadr2(k).gt.0)then
-               nbpi(20,ii)=nbpi(20,ii)+1
-               nbpi(nbpi(20,ii),ii)=piadr2(k)
-            endif
+         nbpi(neigh%numnb,ii,:)=0
+         do iTr=1, neigh%numctr
+           do j=1,neigh%nb(neigh%numnb,i,iTr)
+             k=neigh%nb(j,i,iTr)
+             if(piadr2(k).gt.0)then
+               nbpi(neigh%numnb,ii,iTr)=nbpi(neigh%numnb,ii,iTr)+1
+               nbpi(nbpi(neigh%numnb,ii,iTr),ii,iTr)=piadr2(k)
+             endif
+           enddo
          enddo
       enddo
 
 ! assign pi atoms to fragments
-      call mrecgff(npiall,nbpi,picount,pimvec)
+      call mrecgffPBC(npiall,neigh%numctr,neigh%numnb,nbpi,picount,pimvec)
       deallocate(nbpi)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -323,36 +413,29 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       dxi = 0 ! default none
       do i=1,mol%n
          ati=mol%at(i)
-         nn =topo%nb(20,i)
+         nn =sum(neigh%nb(neigh%numnb,i,:))
          if(nn.eq.0) cycle
-         ip =piadr2(i)
-         ji =topo%nb(1,i) ! first neighbor
-         nh =0
-         nm =0
-         do j=1,nn
-            if(mol%at(topo%nb(j,i)).eq.1)        nh=nh+1
-            if(imetal(  topo%nb(j,i) ).ne.0) nm=nm+1
-         enddo
-!     hydrogen
-!        if(ati.eq.1.and.nn.gt.1)                                                 dxi(i)=dxi(i)-nn*0.01
+           ip =piadr2(i)
+           call neigh%jth_nb(mol%n,mol%xyz,ji,1,i,iTrtmp)  ! ji is the first nb of i in cell iTr
+           nh =0
+           nm =0
+           do iTr=1, neigh%numctr
+             do j=1, neigh%nb(neigh%numnb,i,iTr)
+               if(mol%at(neigh%nb(j,i,iTr)).eq.1)  nh=nh+1
+               if(imetal(neigh%nb(j,i,iTr)).ne.0)  nm=nm+1
+             enddo
+           enddo
 !     boron
          if(ati.eq.5)                                                             dxi(i)=dxi(i)+nh*0.015
 !     carbon
          if(ati.eq.6.and.nn.eq.2.and.itag(i).eq.1)                                dxi(i)=-0.15 ! make carbene more negative
-!        if(ati.eq.6.and.nn.eq.2)then
-!           ki=topo%nb(2,i)
-!           if(mol%at(ki).eq.8.and.mol%at(ji).eq.8.and.topo%nb(20,ji).eq.1.and.topo%nb(20,ki).eq.1)then          ! free CO2
-!                                                                                 dxi(ki)=0.19 ! lower EN for O
-!                                                                                 dxi(ji)=0.19 !  "    "   "  "
-!           endif
-!        endif
-         if(ati.eq.6.and.nn.eq.1.and.mol%at(ji).eq.8.and.topo%nb(20,ji).eq.1)              dxi(ji)=0.15! free CO
-!     nitrogen
-!        if(ati.eq.7.and.nn.eq.1.and.mol%at(ji).eq.6)                                 dxi(i)=0.00  !CN
+         if(ati.eq.6.and.nn.eq.1.and.mol%at(ji).eq.8.and.neigh%nb(neigh%numnb,ji,iTrtmp).eq.1) then
+           dxi(ji)=0.15! free CO
+         endif
 !     oxygen / group 6
          if(ati.eq.8.and.nn.eq.1.and.ip.ne.0.and.mol%at(ji).eq.7.and.piadr2(ji).ne.0) dxi(i)= 0.05    ! nitro oxygen, otherwise NO2 HBs are too strong
          if(ati.eq.8.and.nn.eq.2.and.nh.eq.2)                                     dxi(i)=-0.02    ! H2O
-         if(param%group(ati).eq.6.and.nn.gt.2)                                          dxi(i)=dxi(i)+nn*0.005! good effect
+         if(param%group(ati).eq.6.and.nn.gt.2)                                    dxi(i)=dxi(i)+nn*0.005! good effect
          if(ati.eq.8.or.ati.eq.16)                                                dxi(i)=dxi(i)-nh*0.005
 !    fluorine / group 7
          if(param%group(ati).eq.7.and.ati.gt.9.and.nn.gt.1) then ! polyvalent Cl,Br ...
@@ -368,7 +451,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !     at this point for the non-geom. dep. charges qa with CN = nb
       do i=1,mol%n
          ati=mol%at(i)
-         dum =min(dble(topo%nb(20,i)),gen%cnmax)  ! limits it
+         dum =min(dble(sum(neigh%nb(neigh%numnb,i,:))),gen%cnmax)  ! limits it
 !                   base val  spec. corr.    CN dep.
          topo%chieeq(i)=-param%chi(ati) + dxi(i) + param%cnf(ati)*sqrt(dum)
          topo%gameeq(i)= param%gam(ati)
@@ -384,7 +467,12 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       write(env%unit,'(10x,"pair mat ...")')
-      call nbondmat(mol%n,topo%nb,topo%bpair)  ! get number of cov. bonds between atoms up to 4 bonds
+      ! get number of cov. bonds between atoms up to 4 bonds with pbc
+      if (qloop_count.eq.1) then
+      call nbondmat_pbc(mol%n,neigh%numnb,neigh%numctr,neigh%nb,&
+              & neigh%iTrNeg,neigh,neigh%bpair)
+      endif
+
       write(env%unit,'(10x,"computing topology distances matrix with Floyd-Warshall algo ...")')
       allocate( rabd(mol%n,mol%n), source = 0.0e0_sp)
       rabd = rabd_cutoff
@@ -392,38 +480,41 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !     they are used in the EEQ to determine qa (approximate topology charges)
       do i = 1, mol%n
         rabd(i, i) = 0.0
-        do j = 1, topo%nb(20, i)
-           k=topo%nb(j,i)
-           rabd(k, i) = param%rad(mol%at(i)) + param%rad(mol%at(k))
-           rabd(i, k) = rabd(k, i)
-        end do
+        do iTr=1, neigh%numctr
+          do k = 1, neigh%nb(neigh%numnb,i,iTr)
+            j=neigh%nb(k,i,iTr)
+            rabd(j, i) = param%rad(mol%at(i)) + param%rad(mol%at(j))
+            rabd(i, j) = rabd(j,i)
+          end do
+        enddo
       end do
+      ! get the other 1,x neighbors with the direct neighbors from above
       do k = 1, mol%n
-      do i = 1, mol%n
-         if (rabd(i, k) > gen%tdist_thr) cycle
-         do j = 1, mol%n
-            if (rabd(k, j) >  gen%tdist_thr) cycle
-            if (rabd(i, j) > (rabd(i, k) + rabd(k, j))) then
-                rabd(i, j) =  rabd(i, k) + rabd(k, j)
-            end if
-         end do
-      end do
+        do i = 1, mol%n
+           if (rabd(i, k) > gen%tdist_thr) cycle
+           do j = 1, mol%n
+              if (rabd(k, j) >  gen%tdist_thr) cycle !tdist_thr = 12.0
+              if (rabd(i, j) > (rabd(i, k) + rabd(k, j))) then
+                  rabd(i, j) =  rabd(i, k) + rabd(k, j) ! get at least 1,4 distances
+              end if
+           end do
+        end do
       end do
 
       do i=1,mol%n
-         do j=1,i-1
-            ij=lin(j,i)
-            if(rabd(j,i).gt.gen%tdist_thr) rabd(j,i)=rabd_cutoff ! values not properly considered
-            rtmp(ij) = gen%rfgoed1* rabd(j,i) / 0.52917726d0
-         enddo
+        do j=1,i-1
+          ij=lin(j,i)
+          if(rabd(j,i).gt.gen%tdist_thr) rabd(j,i)=rabd_cutoff ! values not properly considered
+          rtmp(ij) = gen%rfgoed1* rabd(j,i) / 0.52917726d0
+        enddo
       enddo
       deallocate(rabd)
 
       frag_charges_known=.false.
       write(env%unit,'(10x,"making topology EEQ charges ...")')
       if(topo%nfrag.le.1) then                           ! nothing is known
-!     first check for fragments
-      call mrecgff(mol%n,nbf,topo%nfrag,topo%fraglist)
+!     first check for fragments 
+      call mrecgffPBC(mol%n,neigh%numctr,neigh%numnb,neigh%nbf,topo%nfrag,topo%fraglist) 
       write(env%unit,'(10x,"#fragments for EEQ constrain: ",i0)') topo%nfrag
 !     read QM info if it exists
       call open_file(ich, 'charges', 'r')
@@ -479,7 +570,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          write(env%unit,*) 'trying auto detection of charge on 2 fragments:'
          topo%qfrag(1)=0
          topo%qfrag(2)=mol%chrg
-         call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,dum1,topo)
+         call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,dum1,topo)
          call env%check(exitRun)
          if (exitRun) then
             call env%error("Failed to generate charges", source)
@@ -487,7 +578,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          end if
          topo%qfrag(2)=0
          topo%qfrag(1)=mol%chrg
-         call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,dum2,topo)
+         call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,dum2,topo)
          call env%check(exitRun)
          if (exitRun) then
             call env%error("Failed to generate charges", source)
@@ -500,13 +591,13 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          write(env%unit,*) 'dEes      :',dum1-dum2
          write(env%unit,*) 'charge 1/2:',topo%qfrag(1:2)
       endif
-      else if (allocated(mol%pdb)) then ! frag_charges_known
+      else if (allocated(mol%pdb).and.qloop_count.eq.0) then ! frag_charges_known
          write(env%unit,'(10x,"#fragments for EEQ constrain from pdb file: ",i0)') topo%nfrag
          frag_charges_known=.true.
       endif
 
 !     make estimated, topology only EEQ charges from rabd values, including "right" fragment charge
-      call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,ees,topo)
+      call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,ees,topo)
       call env%check(exitRun)
       if (exitRun) then
          call env%error("Failed to generate charges", source)
@@ -529,7 +620,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          else                                               ! general case
          qtmp = topo%qa ! save the "right" ones
          qah  = topo%qa
-         call qheavy(mol%n,mol%at,topo%nb,qah) ! heavy atoms only ie H condensed to neighbor
+         ! heavy atoms only ie H condensed to neighbor
+         call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,qah) 
          do pis=1,picount ! loop over pi systems
             do k=1,npiall
                if(pimvec(k).eq.pis) then
@@ -540,14 +632,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
             enddo
             dum2=topo%qfrag(ifrag) ! save
             topo%qfrag(ifrag) = 0 ! make only this EEQ fragment neutral
-            call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,ees,topo) ! for neutral
+            call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,ees,topo) ! for neutral
             call env%check(exitRun)
             if (exitRun) then
                call env%error("Failed to generate charges", source)
                return
             end if
             topo%qfrag(ifrag) = dum2 ! back
-            call qheavy(mol%n,mol%at,topo%nb,topo%qa)
+            call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,topo%qa)
             dqa =qah-topo%qa ! difference charges upon ionization
             dum1=0
             dum=0
@@ -562,11 +654,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          endif
       endif
 
-      if(qloop_count.eq.0) itmp(1:mol%n)=topo%nb(20,1:mol%n)
+      if(qloop_count.eq.0) then
+        do i=1, mol%n
+        itmp(i)=sum(neigh%nb(neigh%numnb,i,:))
+        enddo
+      endif
       qloop_count=qloop_count+1
-      if(qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3) then  ! do the loop only if factor is significant
-
-         deallocate(topo%blist,btyp,pibo,pimvec)
+      if((qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3).or.adjLnAn) then  ! do the loop only if factor is significant
+         deallocate(btyp,pibo,pimvec,neigh%blist)
 !         goto 111
       endif
    end do
@@ -588,7 +683,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          if(mol%at(i).eq. 7)                 then
                                          ff=-0.13 ! N
            if(piadr(i).ne.0)             ff=-0.14
-           if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))ff=-0.16
+           if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))ff=-0.16
          endif
          if(mol%at(i).eq. 8)                 then
                                          ff=-0.15 ! O
@@ -610,7 +705,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !                   base val   spec. corr.
          topo%chieeq(i)=-param%chi(mol%at(i)) + dxi(i)
          topo%gameeq(i)= param%gam(mol%at(i)) +dgam(i)
-         if (amideH(mol%n,mol%at,topo%hyb,topo%nb,piadr2,i)) topo%chieeq(i) = topo%chieeq(i) - 0.02
+         if (amideH(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr2,i,neigh)) topo%chieeq(i) = topo%chieeq(i) - 0.02
          ff = 0
          if(mol%at(i).eq.6)       ff= 0.09
          if(mol%at(i).eq.7)       ff=-0.21
@@ -625,17 +720,33 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! get ring info (smallest ring size)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+allocate(nbrngs(neigh%numnb,mol%n), source=0)
+nbrngs=neigh%nbm(:,:,1)
+if (mol%npbc.ne.0) then
+  do i=1, mol%n
+    nni = neigh%nbm(neigh%numnb,i,1)
+    do iTr=2, neigh%numctr
+      do j=1, neigh%nbm(neigh%numnb,i,iTr)
+        ! append neighbors from other cells to cell one
+        nbrngs(nni+j,i) = neigh%nbm(j,i,iTr)
+        ! adjust number of nb
+        nbrngs(neigh%numnb,i)=nbrngs(neigh%numnb,i)+1
+      enddo
+      nni = nni + neigh%nbm(neigh%numnb,i,iTr)
+    enddo
+  enddo
+endif
       write(env%unit,'(10x,"rings ...")')
-!$omp parallel default(none) private(i,cr,sr) shared(mol,nbm,cring,sring)
+!$omp parallel default(none) private(i,cr,sr) shared(mol,neigh,nbrngs,cring,sring)
 !$omp do
       do i=1,mol%n
-         call getring36(mol%n,mol%at,nbm,i,cr,sr)
+         call getring36(mol%n,mol%at,neigh%numnb,neigh%numctr,nbrngs,i,cr,sr)
          cring(1:10,1:20,i)=cr(1:10,1:20)
          sring(     1:20,i)=sr(1:20)
       enddo
 !$omp end do
 !$omp end parallel
-      deallocate(nbm)
+      deallocate(neigh%nbm, nbrngs)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! bonded atom triples not included in
@@ -643,28 +754,36 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       idum=1000*mol%n
-      allocate( topo%b3list(3,idum), source = 0 )
+      allocate( topo%b3list(5,idum), source = 0 )
       topo%nbatm=0
       do i=1,mol%n
-         do j=1,i-1
-            ij=lin(j,i)
-            if(topo%bpair(ij).eq.3) then  ! 1,4 exclusion of back-pair makes it worse, 1,3 makes little effect
-            do m=1,topo%nb(20,j)
-               k=topo%nb(m,j)
-               topo%nbatm=topo%nbatm+1
-               topo%b3list(1,topo%nbatm)=i
-               topo%b3list(2,topo%nbatm)=j
-               topo%b3list(3,topo%nbatm)=k
-            enddo
-            do m=1,topo%nb(20,i)
-               k=topo%nb(m,i)
-               topo%nbatm=topo%nbatm+1
-               topo%b3list(1,topo%nbatm)=i
-               topo%b3list(2,topo%nbatm)=j
-               topo%b3list(3,topo%nbatm)=k
-            enddo
+        do j=1,i-1 ! 
+          do iTr=1,neigh%numctr
+            !if(iTr.eq.1.and.j.eq.i) cycle
+            if(neigh%bpair(j,i,iTr).eq.3) then  ! 1,4 exclusion of back-pair makes it worse, 1,3 makes little effect
+              do iTr2=1, neigh%numctr     
+                do m=1,neigh%nb(neigh%numnb,j,iTr2)
+                  k=neigh%nb(m,j,iTr2)
+                  topo%nbatm=topo%nbatm+1
+                  topo%b3list(1,topo%nbatm)=i                      !in central cell
+                  topo%b3list(2,topo%nbatm)=j
+                  topo%b3list(3,topo%nbatm)=k
+                  topo%b3list(4,topo%nbatm)=iTr                    !iTrj
+                  topo%b3list(5,topo%nbatm)=neigh%fTrSum(iTr,iTr2) !iTrk
+                enddo
+                do m=1,neigh%nb(neigh%numnb,i,iTr2)
+                  k=neigh%nb(m,i,iTr2)
+                  topo%nbatm=topo%nbatm+1
+                  topo%b3list(1,topo%nbatm)=i
+                  topo%b3list(2,topo%nbatm)=j
+                  topo%b3list(3,topo%nbatm)=k
+                  topo%b3list(4,topo%nbatm)=iTr
+                  topo%b3list(5,topo%nbatm)=iTr2
+                enddo
+              enddo
             endif
-         enddo
+          enddo  
+        enddo
       enddo
       if(topo%nbatm.gt.idum) then
          write(env%unit,*) idum,topo%nbatm
@@ -678,28 +797,41 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       do i=1,mol%n
-         ati=mol%at(i)
-         fn=1.0d0 + gen%nrepscal/(1.0d0+dble(topo%nb(20,i))**2)
-         dum1=param%repan(ati)*(1.d0 + topo%qa(i)*gen%qrepscal)*fn ! a small but physically correct decrease of repulsion with q
-         f1=zeta(ati,topo%qa(i))
-         do j=1,i-1
-            atj=mol%at(j)
-            fn=1.0d0 + gen%nrepscal/(1.0d0+dble(topo%nb(20,j))**2)
-            dum2=param%repan(atj)*(1.d0 + topo%qa(j)*gen%qrepscal)*fn
-            f2=zeta(atj,topo%qa(j))
-            ij=lin(j,i)
+        ati=mol%at(i)
+        fn=1.0d0 + gen%nrepscal/(1.0d0+dble(sum(neigh%nb(neigh%numnb,i,:)))**2)
+        dum1=param%repan(ati)*(1.d0 + topo%qa(i)*gen%qrepscal)*fn ! a small but physically correct decrease of repulsion with q
+        f1=zeta(ati,topo%qa(i))
+        do j=1,i
+          atj=mol%at(j)
+          fn=1.0d0 + gen%nrepscal/(1.0d0+dble(sum(neigh%nb(neigh%numnb,j,:))**2))
+          dum2=param%repan(atj)*(1.d0 + topo%qa(j)*gen%qrepscal)*fn
+          f2=zeta(atj,topo%qa(j))
+          ij=lin(j,i) ! for zetac6
+          do iTr=1, neigh%numctr
             ff = 1.0d0
             if(ati.eq.1.and.atj.eq.1) then
                ff = 1.0d0*gen%hhfac                     ! special H ... H case (for other pairs there is no good effect of this)
-               if(topo%bpair(ij).eq.3) ff=ff*gen%hh14rep     ! 1,4 case important for right torsion pot.
-               if(topo%bpair(ij).eq.2) ff=ff*gen%hh13rep     ! 1,3 case
+                 if(neigh%bpair(i,j,iTr).eq.3) ff=ff*gen%hh14rep     ! 1,4 case important for right torsion pot.
+                 if(neigh%bpair(i,j,iTr).eq.2) ff=ff*gen%hh13rep     ! 1,3 case
             endif
             if((ati.eq.1.and.param%metal(atj).gt.0).or.(atj.eq.1.and.param%metal(ati).gt.0)) ff=0.85 ! M...H
             if((ati.eq.1.and.atj.eq.6).or.(atj.eq.1.and.ati.eq.6))               ff=0.91 ! C...H, good effect
             if((ati.eq.1.and.atj.eq.8).or.(atj.eq.1.and.ati.eq.8))               ff=1.04 ! O...H, good effect
-            topo%alphanb(ij)=sqrt(dum1*dum2)*ff
+            topo%alphanb(i,j,iTr)=sqrt(dum1*dum2)*ff
             topo%zetac6(ij)=f1*f2  ! D4 zeta scaling using qref=0
-         enddo
+          enddo
+          ! setup alphanb for all i j that are "far" apart (at least one cell in between)
+          if (mol%npbc.ne.0) then
+            ff = 1.0d0
+            if(ati.eq.1.and.atj.eq.1) then
+               ff = 1.0d0*gen%hhfac       ! special H ... H case
+           endif
+           if((ati.eq.1.and.param%metal(atj).gt.0).or.(atj.eq.1.and.param%metal(ati).gt.0)) ff=0.85 ! M...H
+           if((ati.eq.1.and.atj.eq.6).or.(atj.eq.1.and.ati.eq.6))               ff=0.91 ! C...H, good effect
+           if((ati.eq.1.and.atj.eq.8).or.(atj.eq.1.and.ati.eq.8))               ff=1.04 ! O...H, good effect
+            topo%alphanb(i,j,neigh%numctr+1) = sqrt(dum1*dum2)*ff
+          endif
+        enddo
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -709,51 +841,61 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       !atom specific (not element) basicity parameters
       allocate( topo%hbbas(mol%n), source =1.0d0 )
       do i = 1,mol%n
-         nn=topo%nb(20,i)
+         nn=sum(neigh%nb(neigh%numnb,i,:))
          ati=mol%at(i)
          topo%hbbas(i)=param%xhbas(mol%at(i))
          ! Carbene:
          if(ati.eq.6.and.nn.eq.2.and.itag(i).eq.1) topo%hbbas(i) = 1.46
+         iTr=0
+         if (ati.eq.8.and.nn.eq.1) then
+           call neigh%nbLoc(mol%n, neigh%nb, i, locarr)
+           iTr = locarr(neigh%numnb,1)
+           deallocate(locarr)
+         endif
+         if(iTr.eq.0) cycle
          ! Carbonyl R-C=O
-         if(ati.eq.8.and.nn.eq.1.and.mol%at(topo%nb(nn,i)).eq.6) topo%hbbas(i) = 0.68
+         if(ati.eq.8.and.nn.eq.1.and.mol%at(neigh%nb(nn,i,iTr)).eq.6) topo%hbbas(i) = 0.68
          ! Nitro R-N=O
-         if(ati.eq.8.and.nn.eq.1.and.mol%at(topo%nb(nn,i)).eq.7) topo%hbbas(i) = 0.47
+         if(ati.eq.8.and.nn.eq.1.and.mol%at(neigh%nb(nn,i,iTr)).eq.7) topo%hbbas(i) = 0.47
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! make list of HB donor acidity
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      !atom specific (not element) basicity parameters
+      !atom specific (not element) acidity parameters
       allocate( topo%hbaci(mol%n), source =1.0d0 )
       do i = 1,mol%n
          topo%hbaci(i)=param%xhaci(mol%at(i))
       end do
-      do i = 1,mol%n
-         nn=topo%nb(1,i)
-         topo%hbaci(i)=param%xhaci(mol%at(i))
-         ! AmideH:
-         if (amideH(mol%n,mol%at,topo%hyb,topo%nb,piadr2,i)) topo%hbaci(nn) = topo%hbaci(nn) * 0.80
+      do i = 1,mol%n       
+         ! get first nb, iTr expected to be irrelevant since same in each cell
+         call neigh%jth_nb(mol%n,mol%xyz,nn,1,i,iTr)          !  R - N/C/O - H  ! terminal  H
+         if(nn.le.0) cycle  ! cycle if there is no nb
+         topo%hbaci(i)=param%xhaci(mol%at(i))   ! only first neighbor of interest
+         if (amideH(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr2,i,neigh)) &
+                 &topo%hbaci(nn) = topo%hbaci(nn) * 0.80
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! make list of ABs for HAB
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      allocate( topo%hbatHl(mol%n),topo%hbatABl(2,mol%n*(mol%n+1)/2), source = 0 )
+      allocate( topo%hbatHl(2,mol%n),topo%hbatABl(2,mol%n*(mol%n+1)/2), source = 0 )
 
       topo%nathbH=0
       do i=1,mol%n
          if(mol%at(i).ne.1)  cycle
          if(topo%hyb(i).eq.1) cycle      ! exclude bridging hydrogens from HB correction
          ff=gen%hqabthr
-         j=topo%nb(1,i)
+         call neigh%jth_nb(mol%n,mol%xyz,j,1,i,iTr)  ! get j, first neighbor of H when j is shifted to iTr
          if(j.le.0) cycle
          if(mol%at(j).gt.10) ff=ff-0.20                ! H on heavy atoms may be negatively charged
          if(mol%at(j).eq.6.and.topo%hyb(j).eq.3) ff=ff+0.05 ! H on sp3 C must be really positive 0.05
          if(topo%qa(i).gt.ff)then                       ! make list of HB H atoms but only if they have a positive charge
             topo%nathbH=topo%nathbH+1
-            topo%hbatHl(topo%nathbH)=i
+            topo%hbatHl(1,topo%nathbH)=i
+            topo%hbatHl(2,topo%nathbH)=iTr
          endif
       enddo
       write(env%unit,'(10x,"# H in HB",3x,i0)') topo%nathbH
@@ -779,46 +921,61 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 
 ! make ABX list
       m=0
-      do i=1,mol%n
-         do ia=1,topo%nb(20,i)
-            ix=topo%nb(ia,i)
+      do i=1,mol%n  ! potential A
+        do iTr=1, neigh%numctr
+          do ia=1,neigh%nb(neigh%numnb,i,iTr)
+            ix=neigh%nb(ia,i,iTr) ! potential X (P,S,Cl,As,Se,Br,Sb,Te and I)
             if(xatom(mol%at(ix))) then
-            if(mol%at(ix).eq.16.and.topo%nb(20,ix).gt.2) cycle ! no sulphoxide etc S
-            do j=1,mol%n
-               if(i.eq.j.or.j.eq.ix) cycle
-               if(topo%bpair(lin(j,ix)).le.3) cycle   ! must be A...B and not X-B i.e. A-X...B
-               if(param%xhbas(mol%at(j)).lt.1.d-6) cycle   ! B must be O,N,...
-               if(param%group(mol%at(j)).eq.4    ) then
-                  if(piadr2(j).eq.0.or.topo%qa(j).gt.0.05) cycle   ! must be a (pi)base
-               endif
-               m=m+1
-            enddo
+              if(mol%at(ix).eq.16.and.sum(neigh%nb(neigh%numnb,ix,:)).gt.2) cycle ! no sulphoxide etc S
+              do iTrj=1,neigh%numctr
+                do j=1,mol%n  ! loop over B:  from group 15 - group 17| in code group 5,6 or 7
+                   if((i.eq.j.and.iTrj.eq.1).or.(j.eq.ix.and.iTrj.eq.iTr)) cycle
+                   iTrDum=neigh%fTrSum(neigh%iTrNeg(iTrj),iTr) ! j and ix shifted -> need dummy
+                   if(iTrDum.gt.neigh%numctr.or.iTrDum.eq.-1) cycle  ! bpair cant handle this
+                   if(neigh%bpair(ix,j,iTrDum).le.3) cycle ! must be A...B and not X-B i.e. A-X...B
+                   if(param%xhbas(mol%at(j)).lt.1.d-6) cycle   ! B must be O,N,...
+                   if(param%group(mol%at(j)).eq.4    ) then
+                      if(piadr2(j).eq.0.or.topo%qa(j).gt.0.05) cycle   ! must be a (pi)base
+                   endif
+                   m=m+1
+                enddo
+              enddo
             endif
          enddo
+        enddo
       enddo
       topo%natxbAB=m
-      allocate(topo%xbatABl(3,topo%natxbAB), source = 0 )
+      allocate(topo%xbatABl(5,topo%natxbAB), source = 0 )
       m=0
       do i=1,mol%n
-         do ia=1,topo%nb(20,i)
-            ix=topo%nb(ia,i)
+        do iTr=1, neigh%numctr
+         do ia=1,neigh%nb(neigh%numnb,i,iTr)
+            ix=neigh%nb(ia,i,iTr)
             if(xatom(mol%at(ix))) then
-            if(mol%at(ix).eq.16.and.topo%nb(20,ix).gt.2) cycle ! no sulphoxide etc S
+            if(mol%at(ix).eq.16.and.sum(neigh%nb(neigh%numnb,ix,:)).gt.2) cycle ! no sulphoxide etc S
+            do iTrj=1,neigh%numctr
             do j=1,mol%n
-               if(i.eq.j.or.j.eq.ix) cycle
-               if(topo%bpair(lin(j,ix)).le.3) cycle  ! must be A...B and not X-B i.e. A-X...B
+               if(i.eq.j.and.iTrj.eq.1.or.j.eq.ix.and.iTrj.eq.iTr) cycle
+               iTrDum=neigh%fTrSum(neigh%iTrNeg(iTrj),iTr) ! j and ix shifted -> need dummy
+               if(iTrDum.gt.neigh%numctr.or.iTrDum.le.0) cycle  ! bpair cant handle this
+               if(neigh%bpair(ix,j,iTrDum).le.3) cycle  ! must be A...B and not X-B i.e. A-X...B
                if(param%xhbas(mol%at(j)).lt.1.d-6) cycle  ! B must be O,N,...
                if(param%group(mol%at(j)).eq.4    ) then
                   if(piadr2(j).eq.0.or.topo%qa(j).gt.0.05) cycle   ! must be a (pi)base
                endif
                m=m+1
-               topo%xbatABl(1,m)=i
-               topo%xbatABl(2,m)=j
-               topo%xbatABl(3,m)=ix
+               topo%xbatABl(1,m)=i    ! A
+               topo%xbatABl(2,m)=j    ! B
+               topo%xbatABl(3,m)=ix   ! X
+               topo%xbatABl(4,m)=iTrj ! iTrB
+               topo%xbatABl(5,m)=iTr  ! iTrX
+            enddo
             enddo
             endif
          enddo
+        enddo 
       enddo
+      call neigh%getTransVec(env,mol,sqrt(hbthr2))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! do Hueckel
@@ -885,13 +1042,15 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          Api(i,i)=gen%hdiag(mol%at(ii))+topo%qa(ii)*gen%hueckelp3-dble(piel(ii)-1)*gen%pilpf
       enddo
 !     loop over bonds for pair interactions
-      do i=1,topo%nbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
+      do i=1,neigh%nbond
+         jj =neigh%blist(1,i)
+         ii =neigh%blist(2,i)
+         iTr=neigh%blist(3,i)
          ia=piadr4(ii)
          ja=piadr4(jj)
          if(ia.gt.0.and.ja.gt.0) then
-            dum=1.d-9*rab(lin(ii,jj))                                 ! distort so that Huckel for e.g. COT localizes to right bonds
+            !dum=1.d-9*rab(lin(ii,jj))                                 ! distort so that Huckel for e.g. COT localizes to right bonds
+            dum=1.d-9*NORM2(mol%xyz(:,ii)-(mol%xyz(:,jj)+neigh%transVec(:,iTr)))  ! distort so that Huckel for e.g. COT localizes to right bonds
             dum=sqrt(gen%hoffdiag(mol%at(ii))*gen%hoffdiag(mol%at(jj)))-dum           ! better than arithmetic
             dum2=gen%hiter
             if(topo%hyb(ii).eq.1)                 dum2=dum2*gen%htriple        ! triple bond is different
@@ -918,23 +1077,33 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       if(pr)then
          write(env%unit,'(''Hueckel system :'',i3,'' charge : '',i3,'' ndim/Nel :'',2i5, &
      &         3x, ''eps(HOMO/LUMO)'',2f12.6)')pis,ipis(pis),npi,nelpi,pisip(pis),pisea(pis)
-         if(pisip(pis).gt.0.40) then
-            write(env%unit,*)'WARNING: probably wrong pi occupation. Second attempt with Nel=Nel-1!'
-            do i=1,mol%n
-               if(piadr4(i).ne.0) write(env%unit,*) 'at,nb,topo%hyb,Npiel:', i,mol%sym(i),topo%nb(20,i),topo%hyb(i),piel(i)
-            enddo
-            nelpi=nelpi-1
-            Api = Apisave
-            call gfnffqmsolve(.false.,Api,S,.false.,300.0d0,npi,0,nelpi,dum,occ,eps)  !diagonalize
-            call PREIG(6,occ,1.0d0,eps,1,npi)
-         endif
+      end if
+      if(pisip(pis).gt.0.40) then
+         write(env%unit,'(a,i0,a)')'WARNING: probably wrong pi occupation for system ',pis,'. Second attempt with Nel=Nel-1!'
+         do i=1,mol%n
+            if(piadr4(i).ne.0) write(env%unit,*) 'at,nb,topo%hyb,Npiel:', i,mol%sym(i),sum(neigh%nb(neigh%numnb,i,:)),topo%hyb(i),piel(i)
+         enddo
+         nelpi=nelpi-1
+         Api = Apisave
+         call gfnffqmsolve(.false.,Api,S,.false.,4000.0d0,npi,0,nelpi,dum,occ,eps)  !diagonalize
+         call PREIG(6,occ,1.0d0,eps,1,npi)
+         do i=1,npi  ! save IP/EA
+            if(occ(i).gt.0.5) then
+               pisip(pis)=eps(i)   ! IP
+               if(i+1.lt.npi)pisea(pis)=eps(i+1) ! EA
+            endif
+         enddo
+      if(pr)then
+         write(env%unit,'(''Hueckel system :'',i3,'' charge : '',i3,'' ndim/Nel :'',2i5, &
+     &         3x, ''eps(HOMO/LUMO)'',2f12.6)')pis,ipis(pis),npi,nelpi,pisip(pis),pisea(pis)
+      end if
       endif
 ! save BO
-      do i=1,topo%nbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
-         ia=piadr4(ii)
+      do i=1,neigh%nbond
+         jj =neigh%blist(1,i)
+         ii =neigh%blist(2,i)
          ja=piadr4(jj)
+         ia=piadr4(ii)
          if(ia.gt.0.and.ja.gt.0) then
             pibo(i)=Api(ja,ia)
             pbo(lin(ii,jj))=Api(ja,ia)
@@ -956,29 +1125,59 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       do i=1,mol%n
-         if(topo%hyb(i).eq.2 .and. piadr(i).eq.0 .and. topo%nb(20,i).eq.3 .and. param%group(mol%at(i)).eq.4)then ! C,Si,Ge... CN=3, no pi
-            jj=topo%nb(1,i)
-            kk=topo%nb(2,i)
-            ll=topo%nb(3,i)
-            phi=omega(mol%n,mol%xyz,i,jj,kk,ll)  ! the shitty second geom. dep. term GEODEP
+         if(topo%hyb(i).eq.2 .and. piadr(i).eq.0 .and. sum(neigh%nb(neigh%numnb,i,:)).eq.3 &
+                 &.and. param%group(mol%at(i)).eq.4)then ! C,Si,Ge... CN=3, no pi
+            ! get those 3 neighbors
+            call neigh%nbLoc(mol%n, neigh%nb, i, locarr)     
+            jj=0
+            kk=0
+            ll=0
+            if (size(locarr,dim=2).eq.1) then     ! all 3 in same cell
+              jj=locarr(1,1)
+              kk=locarr(2,1)
+              ll=locarr(3,1)
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,1)
+              iTrl=locarr(neigh%numnb,1)
+            elseif (size(locarr,dim=2).eq.2) then ! in 2 cells
+              jj=locarr(1,1)
+              kk=locarr(1,2)
+              ll=locarr(2,1)             !  guess its here
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,2)
+              iTrl=locarr(neigh%numnb,1)
+              if(ll.eq.0) then  ! if ll is still zero then it is in the other cell
+                ll=locarr(2,2) 
+                iTrl=locarr(neigh%numnb,2)
+              endif
+            else                                  ! in 3 cells
+              jj=locarr(1,1)
+              kk=locarr(1,2)
+              ll=locarr(1,3)
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,2)
+              iTrl=locarr(neigh%numnb,3)
+            endif
+            deallocate(locarr)
+            vTrl=neigh%transVec(:,iTrl)
+            vTrj=neigh%transVec(:,iTrj)
+            vTrk=neigh%transVec(:,iTrk)
+            phi=omegaPBC(mol%n,mol%xyz,i,jj,kk,ll,vTrl,vTrj,vTrk)  ! the shitty second geom. dep. term GEODEP
             if(abs(phi)*180./pi.gt.40.d0) topo%hyb(i) = 3  ! change to sp^3
          endif
       enddo
 
-!     if(pr)then
       write(env%unit,*)
       write(env%unit,'(2x,"atom   neighbors  erfCN metchar sp-hybrid imet pi  qest     coordinates")')
       do i=1,mol%n
          j = topo%hyb(i)
-         if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))  j=-topo%hyb(i)
+         if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))  j=-topo%hyb(i)
          if(mol%at(i).eq.6.and.itag(i).eq.1) j=-topo%hyb(i)
          write(env%unit,'(i5,2x,a2,3x,i4,3x,f5.2,2x,f5.2,8x,i2,3x,i2,3x,i2,2x,f6.3,3f12.6)') &
-     &             i,mol%sym(i),topo%nb(20,i),cn(i),mchar(i),j,imetal(i),piadr(i),topo%qa(i),mol%xyz(1:3,i)
+     &             i,mol%sym(i),sum(neigh%nb(neigh%numnb,i,:)),cn(i),mchar(i),j,imetal(i),piadr(i),topo%qa(i),mol%xyz(1:3,i)
       enddo
 
 !     compute fragments and charges for output (check for CT)
-!     call mrecgff(mol%n,topo%nb,nmol,piadr3)
-!     write(env%unit,*) 'Nmol',nmol
       if(pr)then
       write(env%unit,'(/,''molecular fragment  # atoms  topo charge'')')
       do i=1,topo%nfrag
@@ -1004,20 +1203,22 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 
       call gfnffrab(mol%n,mol%at,cn,rtmp)           ! guess RAB for output
 
-      topo%nbond_vbond = topo%nbond
-      allocate( topo%vbond(3,topo%nbond), source = 0.0d0 )
+      topo%nbond_vbond = neigh%nbond
+      allocate( neigh%vbond(3,neigh%nbond), source = 0.0d0)
 
       write(env%unit,*)
       write(env%unit,'(10x,"#atoms :",3x,i0)') mol%n
-      write(env%unit,'(10x,"#bonds :",3x,i0)') topo%nbond
+      write(env%unit,'(10x,"#bonds :",3x,i0)') neigh%nbond
       if(pr)then
       write(env%unit,*)
       write(env%unit,*) 'bond atoms        type  in ring    R      R0    piBO    fqq  kbond(tot)  alp'
       endif
 
-      do i=1,topo%nbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
+      do i=1,neigh%nbond
+         jj=neigh%blist(1,i)
+         ii=neigh%blist(2,i)
+         nni = sum(neigh%nb(neigh%numnb,ii,:))
+         nnj = sum(neigh%nb(neigh%numnb,jj,:))
          ij=lin(ii,jj)
          ia=mol%at(ii)
          ja=mol%at(jj)
@@ -1081,12 +1282,12 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
             if( (ia.eq.1.and.ja.eq.6) )then
                            call ringsatom(mol%n,jj,cring,sring,ringsj)
                            if(ringsj.eq.3)                 fxh=1.05    ! 3-ring CH
-                           if(ctype(mol%n,mol%at,topo%nb,piadr,jj).eq.1)fxh=0.95    ! aldehyd CH
+                           if(ctype(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,piadr,jj).eq.1)fxh=0.95    ! aldehyd CH
             endif
             if( (ia.eq.6.and.ja.eq.1) )then
                            call ringsatom(mol%n,ii,cring,sring,ringsi)
                            if(ringsi.eq.3)                 fxh=1.05    ! 3-ring CH
-                           if(ctype(mol%n,mol%at,topo%nb,piadr,ii).eq.1)fxh=0.95    ! aldehyd CH
+                           if(ctype(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii).eq.1)fxh=0.95    ! aldehyd CH
             endif
             if( (ia.eq.1.and.ja.eq.5) )                    fxh=1.10    ! BH
             if( (ja.eq.1.and.ia.eq.5) )                    fxh=1.10    !
@@ -1110,8 +1311,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                           fpi=1.0d0-gen%hueckelp2*(gen%bzref2 - pibo(i)) ! deepness
             endif
             if(ia.gt.10.and.ja.gt.10)then
-              fcn=fcn/(1.0d0+0.007*dble(topo%nb(20,ii))**2)
-              fcn=fcn/(1.0d0+0.007*dble(topo%nb(20,jj))**2)
+              fcn=fcn/(1.0d0+0.007*dble(nni)**2)
+              fcn=fcn/(1.0d0+0.007*dble(nnj)**2)
             endif
             qafac=topo%qa(ii)*topo%qa(jj)*70.0d0
             fqq=1.0d0+gen%qfacbm0*exp(-15.d0*qafac)/(1.0d0+exp(-15.d0*qafac))
@@ -1159,7 +1360,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                                                   fpi   =1.5d0
                                                   shift=-0.45d0
                                        endif
-                                       if(ia.eq.7.and.topo%nb(20,ii).ne.1)then
+                                       if(ia.eq.7.and.nni.ne.1)then
                                                   fpi   =0.4d0
                                                   shift= 0.47d0
                                        endif
@@ -1169,7 +1370,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                                                   fpi   =1.5d0
                                                   shift=-0.45d0
                                        endif
-                                       if(ja.eq.7.and.topo%nb(20,jj).ne.1)then
+                                       if(ja.eq.7.and.nnj.ne.1)then
                                                   fpi   =0.4d0
                                                   shift= 0.47d0
                                        endif
@@ -1180,14 +1381,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
             if(imetal(jj).eq.1.and.param%group(ja).le.2)shift=shift+gen%metal1_shift   !
             if(mtyp1     .eq.3)                   shift=shift+gen%metal3_shift   ! metal shift MG
             if(mtyp2     .eq.3)                   shift=shift+gen%metal3_shift   !
-            if(bbtyp.eq.6.and.param%metal(ia).eq.2)     shift=shift+gen%eta_shift*topo%nb(20,ii)! eta coordinated
-            if(bbtyp.eq.6.and.param%metal(ja).eq.2)     shift=shift+gen%eta_shift*topo%nb(20,jj)! eta coordinated
-            if(mtyp1.gt.0.and.mtyp1.lt.3) fcn=fcn/(1.0d0+0.100*dble(topo%nb(20,ii))**2)
-            if(mtyp2.gt.0.and.mtyp2.lt.3) fcn=fcn/(1.0d0+0.100*dble(topo%nb(20,jj))**2)
-            if(mtyp1.eq.3)                fcn=fcn/(1.0d0+0.030*dble(topo%nb(20,ii))**2)
-            if(mtyp2.eq.3)                fcn=fcn/(1.0d0+0.030*dble(topo%nb(20,jj))**2)
-            if(mtyp1.eq.4)                fcn=fcn/(1.0d0+0.036*dble(topo%nb(20,ii))**2)
-            if(mtyp2.eq.4)                fcn=fcn/(1.0d0+0.036*dble(topo%nb(20,jj))**2)
+            if(bbtyp.eq.6.and.param%metal(ia).eq.2)     shift=shift+gen%eta_shift*nni! eta coordinated
+            if(bbtyp.eq.6.and.param%metal(ja).eq.2)     shift=shift+gen%eta_shift*nnj! eta coordinated
+            if(mtyp1.gt.0.and.mtyp1.lt.3) fcn=fcn/(1.0d0+0.100*dble(nni)**2)
+            if(mtyp2.gt.0.and.mtyp2.lt.3) fcn=fcn/(1.0d0+0.100*dble(nnj)**2)
+            if(mtyp1.eq.3)                fcn=fcn/(1.0d0+0.030*dble(nni)**2)
+            if(mtyp2.eq.3)                fcn=fcn/(1.0d0+0.030*dble(nnj)**2)
+            if(mtyp1.eq.4)                fcn=fcn/(1.0d0+0.036*dble(nni)**2)
+            if(mtyp2.eq.4)                fcn=fcn/(1.0d0+0.036*dble(nnj)**2)
             if(mtyp1.eq.4.or.mtyp2.eq.4)then
               fsrb2=-gen%srb2*0.22! weaker, inverse EN dep. for TM metals
             else
@@ -1204,49 +1405,27 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          endif
 
 ! shift
-         topo%vbond(1,i) = gen%rabshift + shift   ! value for all bonds + special part
+         neigh%vbond(1,i) = gen%rabshift + shift   ! value for all bonds + special part
 
 ! RINGS prefactor
          if(rings.gt.0) ringf = 1.0d0 + gen%fringbo*(6.0d0-dble(rings))**2  ! max ring size is 6
 
 ! steepness
-         topo%vbond(2,i) =  gen%srb1*( 1.0d0 + fsrb2*(param%en(ia)-param%en(ja))**2 + gen%srb3*bstrength )
+         neigh%vbond(2,i) =  gen%srb1*( 1.0d0 + fsrb2*(param%en(ia)-param%en(ja))**2 + gen%srb3*bstrength )
 
 ! tot prefactor        atoms              spec     typ       qterm    heavy-M  pi   XH(3ring,OH...) CN for M
-         topo%vbond(3,i) = -param%bond(ia)*param%bond(ja) * ringf * bstrength * fqq * fheavy * fpi * fxh * fcn
+         neigh%vbond(3,i) = -param%bond(ia)*param%bond(ja) * ringf * bstrength * fqq * fheavy * fpi * fxh * fcn
 !        write(env%unit,*) bond(ia),bond(ja),ringf,bstrength,fqq,fheavy,fpi,fxh
 
 ! output
-         r0 = (rtmp(ij)+topo%vbond(1,i))*0.529167
+         r0 = (rtmp(ij)+neigh%vbond(1,i))*0.529167
          if(pr) write(env%unit,'(2a3,2i5,2x,2i5,2x,6f8.3)') &
-     &   mol%sym(ii),mol%sym(jj),ii,jj,bbtyp,rings,0.529167*rab(ij),r0,pibo(i),fqq,topo%vbond(3,i),topo%vbond(2,i)
+     &   mol%sym(ii),mol%sym(jj),ii,jj,bbtyp,rings,0.529167*rab(ij),r0,pibo(i),fqq,neigh%vbond(3,i),neigh%vbond(2,i)
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     scale FC if bond is part of hydrogen bridge
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!      do i=1,topo%nbond
-!         ii=topo%blist(1,i)
-!         jj=topo%blist(2,i)
-!         ia=mol%at(ii)
-!         ja=mol%at(jj)
-!         do j=1,topo%nathbAB
-!            hbA=topo%hbatABl(2,j)
-!            !O-H case:
-!            if (ia.eq.8.and.ja.eq.1.or.ia.eq.1.and.ja.eq.8) then
-!               if (ii.eq.hbA.or.jj.eq.hbA) then
-!                  topo%vbond(2,i) = topo%vbond(2,i) * 1.00
-!                  !topo%vbond(1,i) = topo%vbond(1,i) * 1.00
-!               end if
-!            !N-H case
-!          else if (ia.eq.7.and.ja.eq.1.or.ia.eq.1.and.ja.eq.7) then
-!               if (ii.eq.hbA.or.jj.eq.hbA) then
-!                  topo%vbond(2,i) = topo%vbond(2,i) * 1.00
-!                  !topo%vbond(1,i) = topo%vbond(1,i) * 1.00
-!               end if
-!            end if
-!         end do
-!      end do
 
       deallocate(rtmp)
 
@@ -1255,19 +1434,41 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       !Set up fix hblist just like for the HB term
-      call bond_hbset0(mol%n,mol%at,mol%xyz,sqrab,bond_hbn,topo,hbthr1,hbthr2)
-      allocate(bond_hbl(3,bond_hbn))
-      allocate(topo%nr_hb(topo%nbond), source=0)
-      call bond_hbset(mol%n,mol%at,mol%xyz,sqrab,bond_hbn,bond_hbl,topo,hbthr1,hbthr2)
-
+      allocate(topo%isABH(mol%n), source=.false.)
+      call bond_hbset0(mol%n,mol%at,mol%xyz,mol%npbc,bond_hbn,topo,neigh,hbthr1,hbthr2)
+      allocate(bond_hbl(6,bond_hbn))
+      allocate(neigh%nr_hb(neigh%nbond), source=0)
+      call bond_hbset(mol%n,mol%at,mol%xyz,mol%npbc,bond_hbn,bond_hbl,&
+           &           topo,neigh,hbthr1,hbthr2)
       !Set up AH, B and nr. of B list
-      call bond_hb_AHB_set0(mol%n,mol%at,topo%nbond,bond_hbn,bond_hbl,AHB_nr,topo)
-      allocate( lin_AHB(0:AHB_nr), source=0  )
-      call bond_hb_AHB_set1(mol%n,mol%at,topo%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo%bond_hb_nr,topo%b_max,topo)
-      allocate( topo%bond_hb_AH(2,topo%bond_hb_nr), source = 0 )
-      allocate( topo%bond_hb_B(topo%b_max,topo%bond_hb_nr), source = 0 )
+      call bond_hb_AHB_set0(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,neigh)
+      allocate( lin_AHB(4,0:AHB_nr), source=0  )
+      call bond_hb_AHB_set1(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo%bond_hb_nr,topo%b_max,topo,neigh)
+      allocate( topo%bond_hb_AH(4,topo%bond_hb_nr), source = 0 )
+      allocate( topo%bond_hb_B(2,topo%b_max,topo%bond_hb_nr), source = 0 )
       allocate( topo%bond_hb_Bn(topo%bond_hb_nr), source = 0 )
-      call bond_hb_AHB_set(mol%n,mol%at,topo%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo)
+      call bond_hb_AHB_set(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo,neigh)
+
+      ! create mapping from atom index to hb index, for AB and H seperately
+      allocate(topo%hb_mapABH(mol%n), source=0)
+      j=0 ! H counter
+      k=0 ! AB counter
+      do i=1, mol%n
+        ! check if atom i is A,B, or H
+        if (topo%isABH(i)) then
+           ! check if it is H
+           if (mol%at(i).eq.1) then
+              j = j + 1
+              topo%hb_mapABH(i) = j
+           ! then it is A or B
+           else
+              k = k + 1
+              topo%hb_mapABH(i) = k
+           end if
+        end if
+      end do
+      topo%hb_mapNAB=k
+      topo%hb_mapNH=j
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -1277,20 +1478,43 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 
       topo%nangl=0
       do i=1,mol%n
-         nn=topo%nb(20,i)                 ! take full set to include M-X-Y
-         if(nn.le.1) cycle
-         if(topo%nb(20,i).gt.6) cycle     ! no highly coordinated atom
+         nn=sum(neigh%nb(neigh%numnb,i,:))                  ! take full set to include M-X-Y
+         if(nn.le.1) cycle                                  !
+         if(nn.gt.6) cycle     ! no highly coordinated atom
+         cDbl=0 ! cDbl stores j,k,iTr,iTr2 that were already considered
+         cdi=0
          ati=mol%at(i)
-         do j=1,nn
-            do k=1,j-1
-               jj=topo%nb(j,i)
-               kk=topo%nb(k,i)
-               atj=mol%at(jj)
-               atk=mol%at(kk)
-               fijk=param%angl(ati)*param%angl2(atj)*param%angl2(atk)
-               if(fijk.lt.gen%fcthr) cycle     ! too small
-               topo%nangl=topo%nangl+1
-            enddo
+         do iTr=1, neigh%numctr
+           do j=1,neigh%nb(neigh%numnb,i,iTr)
+             do iTr2=1, neigh%numctr !
+               do k=1, j ! 
+               if (iTr.eq.iTr2.and.k.eq.j) cycle  !dont use same atom as both neighbors
+                 jj=neigh%nb(j,i,iTr)
+                 kk=neigh%nb(k,i,iTr2)
+                 if (kk.eq.0) cycle  !only j goes over nb so k or kk might be "out of bounds"
+                 atj=mol%at(jj)
+                 atk=mol%at(kk)
+                 fijk=param%angl(ati)*param%angl2(atj)*param%angl2(atk)
+                 if(fijk.lt.gen%fcthr) cycle     ! too small
+                 ! check for double counting
+                 tDbl=.false.
+                 do cd=1, 42
+                   if(cDbl(1,cd).eq.0) exit
+                   if(cDbl(1,cd).eq.kk.and.cDbl(2,cd).eq.jj.and.cDbl(3,cd).eq.iTr2.and.cDbl(4,cd).eq.iTr) then
+                     tDbl=.true.
+                     exit
+                   endif
+                 enddo
+                 if(tDbl) cycle
+                 cdi=cdi+1
+                 cDbl(1,cdi)=jj
+                 cDbl(2,cdi)=kk
+                 cDbl(3,cdi)=iTr
+                 cDbl(4,cdi)=iTr2
+                 topo%nangl=topo%nangl+1
+               enddo
+             enddo
+           enddo
          enddo
       enddo
 
@@ -1301,24 +1525,45 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       endif
 
       topo%nangl_alloc = topo%nangl
-      allocate( topo%alist(3,topo%nangl), source = 0 )
+      allocate( topo%alist(5,topo%nangl), source = 0 )
       allocate( topo%vangl(2,topo%nangl), source = 0.0d0 )
       topo%nangl=0
-      do i=1,mol%n
-         nn=topo%nb(20,i)
-         if(nn.le.1) cycle
-         if(topo%nb(20,i).gt.6) cycle
-         ii=i
-         ati=mol%at(i)
-         do j=1,nn
-            do k=1,j-1
-               jj=topo%nb(j,i)
-               kk=topo%nb(k,i)
+      do i=1,mol%n  ! start angl_loop
+        nn=sum(neigh%nb(neigh%numnb,i,:))
+        if(nn.le.1) cycle  ! no angle with only one neighbor
+        if(nn.gt.6) cycle  ! no highly coordinated systems
+        cDbl=0 ! cDbl(j,k,iTr,iTr2) with iTr->j and iTr2->k
+        cdi=0
+        ii=i
+        ati=mol%at(i)
+        do iTr=1, neigh%numctr
+          do j=1,nn
+            do iTr2=1, neigh%numctr
+              do k=1,j
+               if (iTr.eq.iTr2.and.k.eq.j) cycle !dont use same atom as both neighbors
+               jj=neigh%nb(j,i,iTr)
+               kk=neigh%nb(k,i,iTr2)
+               if (kk.eq.0.or.jj.eq.0) cycle !only j goes over nb so k or kk might be "out of bounds"
                atj=mol%at(jj)
                atk=mol%at(kk)
                fijk=param%angl(ati)*param%angl2(atj)*param%angl2(atk)
                if(fijk.lt.gen%fcthr) cycle     ! too small
-               call bangl(mol%xyz,jj,i,kk,phi)
+               ! check for double counting
+               tDbl=.false.
+               do cd=1, 42
+                 if(cDbl(1,cd).eq.0) exit
+                 if(cDbl(1,cd).eq.kk.and.cDbl(2,cd).eq.jj.and.cDbl(3,cd).eq.iTr2.and.cDbl(4,cd).eq.iTr) then
+                   tDbl=.true.
+                   exit
+                 endif
+               enddo
+               if(tDbl) cycle
+               cdi=cdi+1
+               cDbl(1,cdi)=jj
+               cDbl(2,cdi)=kk
+               cDbl(3,cdi)=iTr
+               cDbl(4,cdi)=iTr2
+               call banglPBC(1,mol%xyz,jj,i,kk,iTr,iTr2,neigh,phi)
                if(param%metal(ati).gt.0.and.phi*180./pi.lt.60.) cycle ! skip eta cases even if CN < 6 (e.g. CaCp+)
                feta=1.0d0
                if(imetal(ii).eq.2.and.itag(jj).eq.-1.and.piadr(jj).gt.0) feta=0.3d0       ! eta coord.
@@ -1349,8 +1594,10 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                if(piadr(kk).ne.0)npi=npi+1
                topo%nangl=topo%nangl+1
                topo%alist(1,topo%nangl)=ii
-               topo%alist(2,topo%nangl)=jj
-               topo%alist(3,topo%nangl)=kk
+               topo%alist(2,topo%nangl)=jj  ! jj is shifted to iTr
+               topo%alist(3,topo%nangl)=kk  ! kk is shifted to iTr2
+               topo%alist(4,topo%nangl)=iTr  
+               topo%alist(5,topo%nangl)=iTr2 
                call ringsbend(mol%n,ii,jj,kk,cring,sring,rings)
                triple=(topo%hyb(ii).eq.1 .or. topo%hyb(jj).eq.1) .or. &
      &                (topo%hyb(ii).eq.1 .or. topo%hyb(kk).eq.1)
@@ -1448,14 +1695,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                if(ati.eq.7.and.topo%hyb(i).eq.3)then
 !                 in pi system
                   if(npi.gt.0)then
-                                                                 if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))then
+                                                               if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))then
                                                                    r0=115.
                                                                    f2=1.2d0
-                                                                 else
+                                                               else
                                                                    sumppi=pbo(lin(ii,jj))+pbo(lin(ii,kk))
                                                                    r0=113.
                                                                    f2=1.d0-sumppi*0.7d0 ! must be -!
-                                                                 endif
+                                                               endif
                   else
                                                                  r0=104. ! sat. pyr. N, steep around 106
                                                                  f2=0.40 ! 1.0 is better for NH3
@@ -1548,13 +1795,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                topo%vangl(1,topo%nangl)=r0*pi/180.
                fbsmall=(1.0d0-gen%fbs1*exp(-0.64*(topo%vangl(1,topo%nangl)-pi)**2))
 
-!                          central*neigbor charge spec. met.  small angle corr.
+!              central*neigbor charge spec. met.  small angle corr.
                topo%vangl(2,topo%nangl)= fijk * fqq * f2 * fn * fbsmall * feta
-!              write(env%unit,*) param%angl(ati),param%angl2(atj),param%angl2(atk), param%angl(ati)*param%angl2(atj)*param%angl2(atk), fqq,f2,fn,fbsmall
                if(pr)write(env%unit,'(3i5,2x,3f8.3,l2,i4)') ii,jj,kk,r0,phi*180./pi,topo%vangl(2,topo%nangl),picon,rings
+              enddo
             enddo
-         enddo
-      enddo
+          enddo
+        enddo
+      enddo  ! end angl_loop 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -1563,32 +1811,37 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       topo%ntors=sum(piadr)+mol%n
-      do m=1,topo%nbond
-         ii=topo%blist(1,m)
-         jj=topo%blist(2,m)
+      do m=1,neigh%nbond
+         ii=neigh%blist(1,m)
+         jj=neigh%blist(2,m)
+         nni=sum(neigh%nb(neigh%numnb,ii,:))
+         nnj=sum(neigh%nb(neigh%numnb,jj,:))
          if(btyp(m).eq.3.or.btyp(m).eq.6)           cycle ! no sp-sp or metal eta
          if(param%tors(mol%at(ii)).lt.0.or.param%tors(mol%at(jj)).lt.0) cycle ! no negative values
          if(param%tors(mol%at(ii))*param%tors(mol%at(jj)).lt.1.d-3)     cycle ! no small values
-         if(param%metal(mol%at(ii)).gt.1.and.topo%nb(20,ii).gt.4)  cycle ! no HC metals
-         if(param%metal(mol%at(jj)).gt.1.and.topo%nb(20,jj).gt.4)  cycle !
-         topo%ntors=topo%ntors+topo%nb(20,ii)*topo%nb(20,jj)*2 ! upper limit
+         if(param%metal(mol%at(ii)).gt.1.and.nni.gt.4)  cycle ! no HC metals
+         if(param%metal(mol%at(jj)).gt.1.and.nnj.gt.4)  cycle !
+         topo%ntors=topo%ntors+nni*nnj*2 ! upper limit
       enddo
       maxtors=topo%ntors
       if(pr) write(env%unit,*) 'torsion atoms        nrot   rings    phi0    phi      FC'
 
       topo%ntors_alloc = topo%ntors
-      allocate( topo%tlist(5,topo%ntors), source = 0 )
+      allocate( topo%tlist(8,topo%ntors), source = 0 )
       allocate( topo%vtors(2,topo%ntors), source = 0.0d0 )
       topo%ntors=0
-      do m=1,topo%nbond
-         ii=topo%blist(1,m)
-         jj=topo%blist(2,m)
+      do m=1,neigh%nbond
+         jj=neigh%blist(1,m)
+         ii=neigh%blist(2,m)
+         iTrj=neigh%blist(3,m)
+         nni=sum(neigh%nb(neigh%numnb,ii,:))
+         nnj=sum(neigh%nb(neigh%numnb,jj,:))
          if(btyp(m).eq.3.or.btyp(m).eq.6) cycle    ! metal eta or triple
          fij=param%tors(mol%at(ii))*param%tors(mol%at(jj))             ! atom contribution, central bond
          if(fij.lt.gen%fcthr)                 cycle
          if(param%tors(mol%at(ii)).lt.0.or.param%tors(mol%at(jj)).lt.0) cycle ! no negative values
-         if(param%metal(mol%at(ii)).gt.1.and.topo%nb(20,ii).gt.4)  cycle ! no HC metals
-         if(param%metal(mol%at(jj)).gt.1.and.topo%nb(20,jj).gt.4)  cycle !
+         if(param%metal(mol%at(ii)).gt.1.and.nni.gt.4)  cycle ! no HC metals
+         if(param%metal(mol%at(jj)).gt.1.and.nnj.gt.4)  cycle !
          fqq=1.0d0+abs(topo%qa(ii)*topo%qa(jj))*gen%qfacTOR      ! weaken it for e.g. CF-CF and similar
          call ringsbond(mol%n,ii,jj,cring,sring,rings) ! i and j in same ring
          lring=.false.
@@ -1598,28 +1851,36 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          if(mol%at(ii).eq.6.and.mol%at(jj).eq.6) ccij=.true.
          nhi=1
          nhj=1
-         do ineig=1,topo%nb(20,ii)
-            if(mol%at(topo%nb(ineig,ii)).eq.1) nhi=nhi+1
+         do iTr=1, neigh%numctr
+           do ineig=1, neigh%nb(neigh%numnb,ii,iTr)
+             if(mol%at(neigh%nb(ineig,ii,iTr)).eq.1) nhi=nhi+1
+           enddo
          enddo
-         do jneig=1,topo%nb(20,jj)
-            if(mol%at(topo%nb(jneig,jj)).eq.1) nhj=nhj+1
+         do iTr=1, neigh%numctr
+           do jneig=1, neigh%nb(neigh%numnb,jj,iTr)
+             if(mol%at(neigh%nb(jneig,jj,iTr)).eq.1) nhj=nhj+1
+           enddo
          enddo
          fij=fij*(dble(nhi)*dble(nhj))**0.07 ! n H term
          ! amides and alpha carbons in peptides/proteins
-         if (alphaCO(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii,jj)) fij = fij * 1.3d0
-         if (amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii).and.topo%hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.3d0
-         if (amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,jj).and.topo%hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.3d0
+         if (alphaCO(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii,jj)) fij = fij * 1.3d0
+         if (amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii).and.topo%hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.3d0
+         if (amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,jj).and.topo%hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.3d0
          ! hypervalent
          if(btyp(m).eq.4)                                                                   fij = fij * 0.2d0
-!        loop over neighbors of ij
-         do ineig=1,topo%nb(20,ii)
-            kk=topo%nb(ineig,ii)
-            if(kk.eq.jj) cycle
-            do jneig=1,topo%nb(20,jj)
-               ll=topo%nb(jneig,jj)
-               if(ll.eq.ii) cycle
-               if(ll.eq.kk) cycle
-               if(chktors(mol%n,mol%xyz,ii,jj,kk,ll)) cycle  ! near 180
+!     loop over neighbors of ij
+       do iTrk=1, neigh%numctr
+         do ineig=1,neigh%nb(neigh%numnb,ii,iTrk) 
+           kk=neigh%nb(ineig,ii,iTrk)  !neighbors of ii that are not jj
+           if(kk.eq.jj.and.iTrk.eq.iTrj) cycle
+           do iTrlDum=1, neigh%numctr 
+             do jneig=1,neigh%nb(neigh%numnb,jj,iTrlDum)
+               ll=neigh%nb(jneig,jj,iTrlDum)   !neighbors of jj that are neither ii or kk
+               iTrl=neigh%fTrSum(iTrlDum,iTrj) ! ll has to be shifted if jj is shifted
+               if(iTrl.eq.-1.or.iTrl.gt.neigh%numctr) cycle
+               if(ll.eq.ii.and.iTrl.eq.1) cycle
+               if(ll.eq.kk.and.iTrl.eq.iTrk) cycle
+               if(chktors(mol%n,mol%xyz,ii,jj,kk,ll,iTrj,iTrk,iTrl,neigh)) cycle  ! near 180
                fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))       ! outer kl term
                if(mol%at(kk).eq.7.and.piadr(kk).eq.0) fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))*0.5
                if(mol%at(ll).eq.7.and.piadr(ll).eq.0) fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))*0.5
@@ -1627,7 +1888,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                if(param%tors(mol%at(kk)).lt.0.or.param%tors(mol%at(ll)).lt.0) cycle ! no negative values
                f1 = gen%torsf(1)
                f2 = 0.0d0
-               fkl=fkl*(dble(topo%nb(20,kk))*dble(topo%nb(20,ll)))**(-0.14)  ! CN term
+               fkl=fkl*(dble(sum(neigh%nb(neigh%numnb,kk,:)))*dble(sum(neigh%nb(neigh%numnb,ll,:))))**(-0.14)  ! CN term
 
 !-----------------------
 ! definitions come here
@@ -1650,10 +1911,11 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                       if ( rings4 .eq. 5 .and. ringl.eq.rings4 .and.notpicon) then; nrot=6; phi =30.d0; f1=gen%fr5; endif
                       if ( rings4 .eq. 6 .and. ringl.eq.rings4 .and.notpicon) then; nrot=3; phi =60.d0; f1=gen%fr6; endif
                     endif
-                    if ( rings4.eq.0 .and. btyp(m).eq.1 .and. &
-                                 topo%nb(20,kk).eq.1.and.topo%nb(20,ll).eq.1) then; nrot=6; phi =30.d0; f1=0.30; endif
+                    if ( rings4.eq.0 .and. btyp(m).eq.1 .and. sum(neigh%nb(neigh%numnb,kk,:)).eq.1&
+                            &.and.sum(neigh%nb(neigh%numnb,ll,:)).eq.1) then; nrot=6; phi =30.d0; f1=0.30; endif
                     if(btyp(m).eq.2 .and. rings.eq.5 .and. mol%at(ii)*mol%at(jj).eq.42) then
-                       if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii).or.amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,jj)) f1=5.  ! improving CB7
+                       if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii).or.&
+                               &amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,jj)) f1=5.  ! improving CB7
                     endif
                else
 ! ACYCLIC
@@ -1727,6 +1989,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                   topo%tlist(3,topo%ntors)=jj
                   topo%tlist(4,topo%ntors)=kk
                   topo%tlist(5,topo%ntors)=nrot
+                  topo%tlist(6,topo%ntors)=iTrl
+                  topo%tlist(7,topo%ntors)=iTrj
+                  topo%tlist(8,topo%ntors)=iTrk
                   topo%vtors(1,topo%ntors)=phi*pi/180.0d0
                   topo%vtors(2,topo%ntors)=fctot
 !                 printout
@@ -1750,6 +2015,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                   topo%tlist(2,topo%ntors)=ii
                   topo%tlist(3,topo%ntors)=jj
                   topo%tlist(4,topo%ntors)=kk
+                  topo%tlist(6,topo%ntors)=iTrl
+                  topo%tlist(7,topo%ntors)=iTrj
+                  topo%tlist(8,topo%ntors)=iTrk
                   topo%tlist(5,topo%ntors)=1
                   topo%vtors(1,topo%ntors)=pi
                   topo%vtors(2,topo%ntors)= ff * fij * fkl *fqq
@@ -1757,9 +2025,11 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
      &            ii,jj,kk,ll,topo%tlist(5,topo%ntors),rings,topo%vtors(1,topo%ntors)*180./pi,phi*180./pi,topo%vtors(2,topo%ntors)
                endif
 
-            enddo ! neighbors ij
-         enddo
-      enddo ! bond loop
+               enddo ! neighbors ij
+             enddo
+           enddo
+         enddo ! bond loop
+       enddo  
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -1768,46 +2038,95 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if(pr) write(env%unit,*) 'out-of-plane atoms          phi0    phi      FC'
       do i=1,mol%n
-         if(topo%nb(20,i).ne.3) cycle
+         if(sum(neigh%nb(neigh%numnb,i,:)).ne.3) cycle
          if(piadr(i).eq.0) then
             if(      mol%at(i) .ne.7) cycle
          endif
          topo%ntors=topo%ntors+1
-         jj=topo%nb(1,i)
-         kk=topo%nb(2,i)
-         ll=topo%nb(3,i)
+            ! get those 3 neighbors
+            call neigh%nbLoc(mol%n, neigh%nb, i, locarr)     
+            jj=0
+            kk=0
+            ll=0
+            iTrl=0
+            if (size(locarr,dim=2).eq.1) then     ! all 3 in same cell
+              jj=locarr(1,1)
+              kk=locarr(2,1)
+              ll=locarr(3,1)
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,1)
+              iTrl=locarr(neigh%numnb,1)
+            elseif (size(locarr,dim=2).eq.2) then ! in 2 cells
+              jj=locarr(1,1)
+              kk=locarr(1,2)
+              ll=locarr(2,1)             !  guess its here
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,2)
+              iTrl=locarr(neigh%numnb,1)
+              if(ll.eq.0) then
+                ll=locarr(2,2) ! if ll was zero its in this cell
+                iTrl=locarr(neigh%numnb,2)
+              endif
+            else                                  ! in 3 cells
+              jj=locarr(1,1)
+              kk=locarr(1,2)
+              ll=locarr(1,3)
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,2)
+              iTrl=locarr(neigh%numnb,3)
+            endif
+            deallocate(locarr)
 !        sort atoms according to distance to central atom such that the same inversion angle def. always results
-         sdum3(1)=rab(lin(i,jj))
-         sdum3(2)=rab(lin(i,kk))
-         sdum3(3)=rab(lin(i,ll))
+         sdum3(1)=NORM2(mol%xyz(:,i)-(mol%xyz(:,jj)+neigh%transVec(:,iTrj)))
+         sdum3(2)=NORM2(mol%xyz(:,i)-(mol%xyz(:,kk)+neigh%transVec(:,iTrk)))
+         sdum3(3)=NORM2(mol%xyz(:,i)-(mol%xyz(:,ll)+neigh%transVec(:,iTrl)))
          ind3(1)=jj
          ind3(2)=kk
          ind3(3)=ll
-         call ssort(3,sdum3,ind3)
-         jj=ind3(1)
-         kk=ind3(2)
+         call ssort(3,sdum3,ind3) 
+         sdum3(1)=NORM2(mol%xyz(:,i)-(mol%xyz(:,jj)+neigh%transVec(:,iTrj)))
+         sdum3(2)=NORM2(mol%xyz(:,i)-(mol%xyz(:,kk)+neigh%transVec(:,iTrk)))
+         sdum3(3)=NORM2(mol%xyz(:,i)-(mol%xyz(:,ll)+neigh%transVec(:,iTrl)))
+         jj=ind3(1)  ! assign sorted indices
+         kk=ind3(2) 
          ll=ind3(3)
+         ! now sort iTr's
+         ind3(1)=iTrj
+         ind3(2)=iTrk
+         ind3(3)=iTrl
+         call ssort(3,sdum3,ind3) 
+         iTrj=ind3(1)
+         iTrk=ind3(2)
+         iTrl=ind3(3)
+         ! save to tlist
          topo%tlist(1,topo%ntors)=i
          topo%tlist(2,topo%ntors)=jj
          topo%tlist(3,topo%ntors)=kk
          topo%tlist(4,topo%ntors)=ll
+         topo%tlist(6,topo%ntors)=iTrl
+         topo%tlist(7,topo%ntors)=iTrj
+         topo%tlist(8,topo%ntors)=iTrk
          if(piadr(i).eq.0.and.mol%at(i).eq.7) then  ! sat N case
            r0=80.0d0
            ff=0.60d0
            topo%tlist(5,topo%ntors)=-1
            topo%vtors(1,topo%ntors)=r0*pi/180. ! double min at +/- phi0
            topo%vtors(2,topo%ntors)=0.0d0
-           do m=1,topo%nb(20,i)
-              idum=topo%nb(m,i)
-              topo%vtors(2,topo%ntors)=topo%vtors(2,topo%ntors)+ff*sqrt(param%repz(mol%at(idum)))  ! NX3 has higher inv barr. than NH3
+           do iTr=1, neigh%numctr
+             do m=1,neigh%nb(neigh%numnb,i,iTr)
+               idum=neigh%nb(m,i,iTr)
+               topo%vtors(2,topo%ntors)=topo%vtors(2,topo%ntors)+ff*sqrt(param%repz(mol%at(idum)))  ! NX3 has higher inv barr. than NH3
+             enddo
            enddo
          else
            ncarbo=0
            nf    =0
-           do m=1,topo%nb(20,i)
-              idum=topo%nb(m,i)
-              if(mol%at(idum).eq.8.or.mol%at(idum).eq.16) ncarbo=ncarbo+1
-              if(param%group(mol%at(idum)).eq.7           ) nf    =nf    +1
+           do iTr=1, neigh%numctr
+             do m=1,neigh%nb(neigh%numnb,i,iTr)
+               idum=neigh%nb(m,i,iTr)
+               if(mol%at(idum).eq.8.or.mol%at(idum).eq.16) ncarbo=ncarbo+1
+               if(param%group(mol%at(idum)).eq.7           ) nf    =nf    +1
+             enddo
            enddo
            fqq=1.0d0+topo%qa(i)*5.0d0
            topo%tlist(5,topo%ntors)=0         ! phi0=0 case (pi)
@@ -1823,7 +2142,10 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
            if(mol%at(i).eq.7.and.ncarbo.gt.0)             topo%vtors(2,topo%ntors)=topo%vtors(2,topo%ntors)*10./f2 ! no pi dep
          endif
 !        printout
-         phi=omega(mol%n,mol%xyz,i,jj,kk,ll)
+         vTrl=neigh%transVec(:,iTrl)
+         vTrj=neigh%transVec(:,iTrj)
+         vTrk=neigh%transVec(:,iTrk)
+         phi=omegaPBC(mol%n,mol%xyz,i,jj,kk,ll,vTrl,vTrj,vTrk)
          if(pr)write(env%unit,'(4i5,7x,3f8.3)') i,jj,kk,ll,topo%vtors(1,topo%ntors)*180./pi,phi*180./pi,topo%vtors(2,topo%ntors)
       enddo
 
@@ -1833,13 +2155,12 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 ! all done
 
       topo%maxsystem = 5000
-      !if(mol%n.gt.800)then
       block
          use xtb_setparam, only : set, p_modh_old
 
          if (set%mhset%model == p_modh_old) then
-            call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,topo%nb, &
-               & topo%ispinsyst,topo%nspinsyst,topo%nsystem,env)
+         call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,neigh%numnb,neigh%numctr,neigh%nb, &
+            & topo%ispinsyst,topo%nspinsyst,topo%nsystem,env)
          else
             topo%nsystem=1
          endif
@@ -1847,7 +2168,28 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 
 
       write(env%unit,'(10x,"#optfrag :",3x,i0)') topo%nfrag
-      !write(env%unit,*) '#optfrag :',nsystem
+
+      ! check if triple bonded carbon is present (for torsion term)
+      nn=0
+      do i=1, mol%n
+        if (mol%at(i).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.2) then
+          do j=1, 2
+            nbi=0
+            call neigh%jth_nb(mol%n,mol%xyz,nbi,j,i,iTr)  ! nbi is the jth nb of i in cell iTr
+            if (nbi.eq.0) cycle
+            if (mol%at(nbi).eq.6.and.sum(neigh%nb(neigh%numnb,nbi,:)).eq.2) then
+              nn = nn + 1
+            endif
+          enddo
+        endif
+      enddo
+      nn = nn/2
+      allocate(topo%sTorsl(6, nn), source=0)
+      topo%nstors = nn
+      if (nn.ne.0) then
+        ! fix double counting
+        call specialTorsList(nn, mol, topo, neigh, topo%sTorsl)
+      endif
 
       if(pr)then
       write(env%unit,*)
@@ -1856,6 +2198,182 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       endif
 
 contains
+
+! remove hydrogen bonds from topology if bound to Ln or An and topo%qa(H)>-0.0281
+subroutine adjust_NB_LnH_AnH(param, mol, topo, neigh)
+  type(TGFFData), intent(in) :: param
+  type(TMolecule), intent(in) :: mol   ! # molecule type
+  type(TGFFTopology), intent(in) :: topo
+  type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
+  integer nb_tmp(neigh%numnb)
+  integer :: i,iTr,iTrH,idx,inb,l,k,m,nnb,count_idx
+  real(wp), parameter :: qthr = -0.0281_wp ! charge threshold
+
+  ! loop over all atoms
+  do i=1, mol%n
+    ! only apply changes for Ln and An
+    if ((mol%at(i).ge.57.and.mol%at(i).le.71).or.(mol%at(i).ge.89.and.mol%at(i).le.103)) then
+      ! loop over all cells
+      do iTr=1, neigh%numctr
+        ! loop over all neighbors
+        nnb = neigh%nb(neigh%numnb, i, iTr)
+        idx=0
+        do count_idx=1, nnb
+          idx = idx + 1
+          inb=neigh%nb(idx,i,iTr) ! atom index of neighbor of i
+          if (inb.eq.0) cycle
+          ! check if neighbor is H
+          if (mol%at(inb).eq.1) then
+            ! remove hydrogen as neighbor if charge is gt threshold
+            if (topo%qa(inb).gt.qthr) then
+              ! setup copy of neighbor list for this An or Ln
+              nb_tmp = neigh%nb(:,i,iTr)
+              nb_tmp(neigh%numnb) = neigh%nb(neigh%numnb,i,iTr) - 1
+              nb_tmp(idx) = 0
+              ! reset neigh%nb
+              neigh%nb(1:neigh%numnb-2,i,iTr)=0
+              ! update neigh%nb with copied nb list
+              neigh%nb(neigh%numnb,i,iTr) = nb_tmp(neigh%numnb) ! number neighbors
+              l=0
+              do k=1, neigh%numnb-2
+                if (nb_tmp(k).ne.0) then
+                  l = l + 1
+                  neigh%nb(l,i,iTr) = nb_tmp(k)
+                end if
+              enddo
+              ! setup copy of neighbor list for this H
+              do iTrH=1, neigh%numctr
+                do k=1, neigh%nb(neigh%numnb,inb,iTrH)
+                  if (neigh%nb(k,inb,iTrH).eq.i) then
+                     nb_tmp = neigh%nb(:,inb,iTrH)
+                     nb_tmp(neigh%numnb) = neigh%nb(neigh%numnb,inb,iTrH) - 1
+                     nb_tmp(k) = 0
+                     ! reset neigh%nb
+                     neigh%nb(1:neigh%numnb-2,inb,iTrH)=0
+                     ! update neigh%nb with copied nb list
+                     neigh%nb(neigh%numnb,inb,iTrH) = nb_tmp(neigh%numnb) ! number neighbors
+                     l=0
+                     do m=1, neigh%numnb-2
+                       if (nb_tmp(m).ne.0) then
+                         l = l + 1
+                         neigh%nb(l,inb,iTrH) = nb_tmp(m)
+                       end if
+                     enddo
+                  endif
+                enddo
+              enddo
+              ! since the current element was removed from neigh%nb, idx should be reduced by one
+              idx = idx - 1
+            end if ! if topo%qa < -0.0282
+          end if
+        enddo
+      enddo
+    end if
+  enddo
+
+end subroutine adjust_NB_LnH_AnH
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! special treatment for rotation around carbon triple bonds
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! requested for obtaining diphenylacetylene torsion potential
+! also applied for e.g. divinylacetylene
+
+! Check for triple bonded carbon (Ci and Cnbi) and setup list for calculating
+!  torsion potential using dehidral angle between C1 C2 C3 C4
+! C--C1                C--C
+!      \              /
+!       C2--Ci-Cnbi--C3
+!      /             \
+! C-- C               C4--C
+!
+! using C1=ii, C2=jj, C3=kk, C4=ll
+subroutine specialTorsList(nst, mol, topo, neigh, sTorsList)
+  integer, intent(in) :: nst
+  type(TMolecule), intent(in) :: mol   ! # molecule type
+  type(TGFFTopology), intent(in) :: topo
+  type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
+  integer, intent(inout) :: sTorsList(6, nst)
+  integer :: i,j,k,ii,jj,kk,ll,idx,iTr,nbi,nbk
+  logical :: iiok, llok
+  ! initialize variables
+  idx=0
+  ii=-1
+  jj=-1
+  kk=-1
+  ll=-1
+
+  do i=1, mol%n
+    ! carbon with two neighbors bonded to other carbon* with two neighbors
+    if (mol%at(i).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.2) then
+        do j=1, 2
+          call neigh%jth_nb(mol%n,mol%xyz,nbi,j,i,iTr)  ! nbi is the jth nb of i in cell iTr
+          if (nbi.eq.0.or.iTr.eq.0) cycle
+          if (mol%at(nbi).eq.6.and.sum(neigh%nb(neigh%numnb,nbi,:)).eq.2) then  ! *other carbon
+            ! check carbon triple bond distance
+            if (NORM2(mol%xyz(1:3,i)-mol%xyz(1:3,nbi)).le.2.37) then
+              ! at this point we know that i and nbi are carbons bonded through triple bond
+              ! check C2 and C3
+              do k=1, 2  ! C2 is other nb of Ci
+                nbk=0
+                call neigh%jth_nb(mol%n,mol%xyz,nbk,k,i,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                if (nbk.ne.nbi.and.nbk.ne.0.and.mol%at(nbk).eq.6) then
+                  jj=nbk ! C2 index
+                endif
+              enddo
+              do k=1, 2  ! C3 is other nb of Cnbi
+                nbk=0
+                call neigh%jth_nb(mol%n,mol%xyz,nbk,k,nbi,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                if (nbk.ne.i.and.nbk.ne.0.and.mol%at(nbk).eq.6) then
+                  kk=nbk ! C3 index
+                endif
+              enddo
+              if (jj.eq.-1.or.kk.eq.-1) then
+                exit ! next atom i
+              endif
+              ! check C1 through C4 are sp2 carbon
+              if (topo%hyb(jj).eq.2.and.topo%hyb(kk).eq.2 &
+              &   .and.mol%at(jj).eq.6.and.mol%at(kk).eq.6) then
+                iiok=.false.
+                llok=.false.
+                ! which of the two valid neighbors is picked as C1 depends
+                !  on atom sorting in input file !!! The last one in file.
+                do k=1, sum(neigh%nb(neigh%numnb,jj,:))
+                  nbk=0
+                  call neigh%jth_nb(mol%n,mol%xyz,nbk,k,jj,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                  if (topo%hyb(k).eq.2.and.mol%at(k).eq.6.and.sum(neigh%nb(neigh%numnb,k,:)).eq.3.and. &
+                     & nbk.ne.i.and.nbk.ne.0) then
+                    ii=nbk
+                    iiok=.true.
+                  endif
+                enddo
+                ! which of the two valid neighbors is picked as C4 depends
+                !  on atom sorting in input file !!! The last one in file.
+                do k=1, sum(neigh%nb(neigh%numnb,kk,:))
+                  nbk=0
+                  call neigh%jth_nb(mol%n,mol%xyz,nbk,k,jj,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                  if (topo%hyb(k).eq.2.and.mol%at(k).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.3.and. &
+                     & nbk.ne.nbi.and.nbk.ne.0) then
+                    ll=nbk
+                    llok=.true.
+                  endif
+                enddo
+                if (nbi.gt.i.and.iiok.and.llok) then ! to avoid double counting
+                  idx = idx + 1
+                  sTorsList(1, idx) = ii  ! C1
+                  sTorsList(2, idx) = jj  ! C2
+                  sTorsList(3, idx) = i   ! Ci
+                  sTorsList(4, idx) = nbi ! Cnbi
+                  sTorsList(5, idx) = kk  ! C3
+                  sTorsList(6, idx) = ll  ! C4
+                endif
+              endif ! C1-C4 are sp2 carbon
+            endif  ! CC distance
+          endif  ! other carbon
+        enddo
+    endif ! is carbon with nnb=2
+  enddo
+end subroutine specialTorsList
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1869,14 +2387,16 @@ use xtb_mctc_accuracy, only : wp
    real(wp),intent(in) :: q
 
    real(wp)           :: zeta,qmod
-   real(wp),parameter :: zeff(86) = (/ &
+   real(wp),parameter :: zeff(103) = (/ &
    &   1,                                                 2,  & ! H-He
    &   3, 4,                               5, 6, 7, 8, 9,10,  & ! Li-Ne
    &  11,12,                              13,14,15,16,17,18,  & ! Na-Ar
    &  19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,  & ! K-Kr
    &   9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,  & ! Rb-Xe
    &   9,10,11,30,31,32,33,34,35,36,37,38,39,40,41,42,43,  & ! Cs-Lu
-   &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26/)  ! Hf-Rn
+   &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26, &  ! Hf-Rn
+   &   9,10,11,30,31,32,33,34,35,36,37,38,39,40,41,42,43  & ! Fr-Lr
+   &/)
 !! Semiempirical Evaluation of the GlobalHardness of the Atoms of 103
 !! Elements of the Periodic Table Using the Most Probable Radii as
 !! their Size Descriptors DULAL C. GHOSH, NAZMUL ISLAM 2009 in
@@ -1885,7 +2405,7 @@ use xtb_mctc_accuracy, only : wp
 !! values in the paper multiplied by two because
 !! (ii:ii)=(IP-EA)=d^2 E/dN^2 but the hardness
 !! definition they use is 1/2d^2 E/dN^2 (in Eh)
-   real(wp),parameter :: c(1:86) = (/ &
+   real(wp),parameter :: c(1:103) = (/ &
   &0.47259288_wp,0.92203391_wp,0.17452888_wp,0.25700733_wp,0.33949086_wp,0.42195412_wp, & ! H-C
   &0.50438193_wp,0.58691863_wp,0.66931351_wp,0.75191607_wp,0.17964105_wp,0.22157276_wp, & ! N-Mg
   &0.26348578_wp,0.30539645_wp,0.34734014_wp,0.38924725_wp,0.43115670_wp,0.47308269_wp, & ! Al-Ar
@@ -1900,7 +2420,11 @@ use xtb_mctc_accuracy, only : wp
   &0.25932503_wp,0.27676094_wp,0.29418231_wp,0.31159587_wp,0.32902274_wp,0.34592298_wp, & ! Ho-Hf
   &0.36388048_wp,0.38130586_wp,0.39877476_wp,0.41614298_wp,0.43364510_wp,0.45104014_wp, & ! Ta-Pt
   &0.46848986_wp,0.48584550_wp,0.12526730_wp,0.14268677_wp,0.16011615_wp,0.17755889_wp, & ! Au-Po
-  &0.19497557_wp,0.21240778_wp/)
+  &0.19497557_wp,0.21240778_wp,& ! At, Rn
+  &0.07263133_wp,0.09421788_wp,0.09920108_wp,0.10418429_wp,0.14235212_wp,0.16393866_wp, & ! Fr-U
+  &0.18675998_wp,0.22370039_wp,0.25113742_wp,0.25026279_wp,0.28843797_wp,0.31002451_wp, & ! Np-Cf
+  &0.33159636_wp,0.35316820_wp,0.36822807_wp,0.39634864_wp,0.40135389_wp & ! Es-Lr
+  &/)
 
    intrinsic :: exp
 
@@ -1913,6 +2437,40 @@ use xtb_mctc_accuracy, only : wp
 
 end function zeta
 
+
 end subroutine gfnff_ini
+
+subroutine gfnff_topo_changes(env, neigh)
+   use xtb_type_environment, only : TEnvironment
+   use xtb_gfnff_neighbor, only : TNeigh
+   use xtb_setparam
+   type(TEnvironment), intent(inout) :: env
+   type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
+   character(len=*), parameter :: source = 'gfnff_ini'
+   integer :: int_tmp(40)
+   integer :: i,j,idx,iTr,d1,d2,numnb,nnb
+
+   ! only do something if there are changes stored in set%ffnb
+   if(allocated(set%ffnb)) then
+      ! check if hardcoded size of ffnb is still up to date
+      if (size(set%ffnb, dim=1).ne.neigh%numnb) call env%error('The array set%ffnb has not been adjusted to changes in neigh%numnb.', source)
+      ! there should not be any "-1" in set%ffnb anymore, if it was set up correctly
+      if (any(set%ffnb.eq.-1)) call env%error('GFN-FF neighbor list could not be adjusted!', source)
+      d2=size(set%ffnb, dim=2)
+      do i=1, d2
+         if (set%ffnb(1,i).eq.-1) exit
+         idx=set%ffnb(1,i)
+         int_tmp = set%ffnb(2:41,i)
+         neigh%nb(1:40,idx,1) = int_tmp
+         neigh%nb(neigh%numnb,idx,1) = set%ffnb(42,i)
+      end do
+      write(env%unit,*) ''
+      write(env%unit,*) 'The neighborlist has been adjusted according to the input file.'
+      write(env%unit,*) ''
+   end if
+
+
+end subroutine gfnff_topo_changes
+
 
 end module xtb_gfnff_ini

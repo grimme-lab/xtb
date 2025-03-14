@@ -153,8 +153,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
       qhl(1:nat,2)=0
    endif
 
-   allocate(cca(nao*nao),xcen(n),lneigh(4,n),aneigh(2,n))
-   allocate(d(n,n),ecent(n,4),eiga(n),qcent(n,3),ecent2(n,4))
+   allocate(lneigh(4,n),aneigh(2,n), source=0)
+   allocate(cca(nao*nao),xcen(n), source=0.0_wp)
+   allocate(d(n,n),ecent(n,4),eiga(n),qcent(n,3),ecent2(n,4), source=0.0_wp)
 
    ! do only occ. ones
    cca=0
@@ -276,7 +277,6 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    if(set%pr_local) write(*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'
    if(set%pr_local) write(*,*) 'LMO Fii/eV  ncent    charge center   contributions...'
    if(set%pr_local) call open_file(iscreen,'xtbscreen.xyz','w')
-
    allocate(tmpq(nat,n))
    tmpq(1:nat,1:n)=qmo(1:nat,1:n)
    maxlp=0
@@ -321,10 +321,11 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
          call lmotype(nat,at,xyz,ecent(i,1),ecent(i,2),ecent(i,3), &
          &                imem(1),imem(2),xcen(i),.true.,pithr,jdum)
       endif
-      if(set%pr_local) write(*,'(i5,1x,a5,2f7.2,3f10.5,12(i5,a2,'':'',f6.2))')  &
+      if(set%pr_local) then 
+      write(*,'(i5,1x,a5,2f7.2,3f10.5,12(i5,2x,a2,'':'',f6.2))')  &
       &   i,lmostring(jdum),autoev*f(i),xcen(i),ecent(i,1:3), &
       &   (imem(j),toSymbol(at(imem(j))),qmo(j,i),j=1,idum)
-
+      end if
       !        write + LP/pi as H for protonation search
       if(set%pr_local) then
          if(jdum.gt.1) then
@@ -494,13 +495,12 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
          enddo
       enddo
       new=k
-
-      if(set%pr_local) call close_file(iscreen)
-
       deallocate(wbo)
 
-
    endif
+
+   if(set%pr_local) call close_file(iscreen)
+
    !ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
    !> If the normal xtb mode is used with --lmo, set%pr_local is true and
@@ -651,6 +651,7 @@ subroutine mocent(n,ndim,ihomo,x,s,qmo,xcen,aoat2)
 end subroutine mocent
 
 SUBROUTINE lmosort(ncent,ihomo,imo,imem,qmo)
+   IMPLICIT INTEGER(I-N)
    IMPLICIT REAL*8(A-H,O-Z)
    dimension qmo(ncent,ihomo)
    dimension imem(ncent)
@@ -676,6 +677,7 @@ SUBROUTINE lmosort(ncent,ihomo,imo,imem,qmo)
 end subroutine lmosort
 
 SUBROUTINE lmosort2(n,eps,d,ecent)
+   IMPLICIT INTEGER(I-N)
    IMPLICIT REAL*8(A-H,O-Z)
    dimension d(n,n), eps(n), ecent(n,3)
 

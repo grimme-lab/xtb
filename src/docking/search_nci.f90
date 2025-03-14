@@ -48,10 +48,14 @@ module xtb_docking_search_nci
    & gff_print, gfnff_param_dealloc
    use xtb_constrain_param, only: read_userdata
    use xtb_fixparam
-   use xtb_disp_ncoord, only: ncoord_gfn, ncoord_erf
+   use xtb_disp_ncoord, only: ncoord_gfn, ncoord_erf, ncoord_d3
    use xtb_scc_core, only: iniqshell
    use xtb_eeq, only: goedecker_chrgeq
    use xtb_basis, only: newBasisset
+   use xtb_gfnff_neighbor, only: TNeigh
+   use xtb_io_writer, only : writeMolecule
+   use xtb_mctc_filetypes, only : generateFileName
+   use xtb_iniq, only: iniqcn
    implicit none
 
    private
@@ -123,13 +127,13 @@ contains
       real(wp) :: dx_rg, dy_rg, dz_rg, xx1_rg, yy1_rg, zz1_rg
       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
       real(wp) :: dum3(3, 3), dum2(3), dum(3), pmass, rmin, mvec(3, 14)
-      real(wp) :: rmsd(n_opt*(n_opt + 1)/2)
       real(wp) :: dx2, dy2, dz2
       real*4   :: r4
       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
       integer :: kk = 0
       integer :: m1, m2, m3, l, nn, ndim, ll, kkk, kkkk, mfrag, maxlow, nclust, ierr
       integer :: mm1, mm2, mm3, maxpock, icssym
+      integer :: sig_count
       integer, allocatable :: atfrag(:), molvec(:), iatnum(:)
       real(wp), allocatable :: xyzfrag(:, :)
       logical :: tooclose
@@ -141,6 +145,7 @@ contains
       class(TCalculator), allocatable :: calc
       type(TGFFCalculator) :: gff_calc
       type(TGFFTopology) :: topo_backup, topo_xTB
+      type(TNeigh) :: neigh_backup
       type(TTopology) :: bonds 
       !> Parameterfile
       character(len=:), allocatable :: pfile
@@ -172,6 +177,8 @@ contains
       real(wp) :: tmp_e
       !> Minimumposition
       integer :: minpos
+      !> For outprint
+      character(len=:),allocatable :: extension, fin_name
 
       !> Parameter
       real(wp), parameter :: pi2 = 2*3.14159265358979_wp
@@ -192,14 +199,14 @@ contains
       write (env%unit, *) '|         Starting Energy Screening          |'
       write (env%unit, *) '=============================================='
       write (env%unit, *)
-      if (.not. fulle) write (env%unit, *) ' Fast Mode selected (recommended)'
+      if (.not. fulle) write (env%unit, *) ' No ATM term employed (recommended)'
       if (.not. fulle) write (env%unit, *) ' If ATM term should be included, use -atm option.'
       if (.not. fulle) write (env%unit, *)
 
 !     just output
-      call axis(n1, at1, xyz1, dum, pmass, dum2, dum3)
+      call axis_docking(n1, at1, xyz1, dum, pmass, dum2, dum3)
       r1 = sqrt(dum2(1) + dum2(2) + dum2(3))
-      call axis(n2, at2, xyz2, dum, pmass, dum2, dum3)
+      call axis_docking(n2, at2, xyz2, dum, pmass, dum2, dum3)
       r2 = sqrt(dum2(1) + dum2(2) + dum2(3))
       call rcma(n1, xyz1, at1, n2, xyz2, at2, r, rmin)
       write (env%unit, '('' Method for final opts.    :'',1x,a  )') optlvl
@@ -233,12 +240,15 @@ contains
       if (optlvl == 'gfn0') fnv = xfind(p_fname_param_gfn0)
       if (optlvl == 'gfn1') fnv = xfind(p_fname_param_gfn1)
       call newCalculator(env, comb, calc, fnv, restart, acc)
+      call env%checkpoint("Could not setup single-point calculator")
       call initDefaults(env, calc, comb, gsolvstate_iff)
+      call env%checkpoint("Could not setup defaults")
       write(*,*) 'initialization done'
 
       select type (calc)
       type is (TGFFCalculator)
          topo_backup = calc%topo !topo is from molA and molB that are far away
+         neigh_backup = calc%neigh
       end select
       pr = .false.
       initial_sp = .true.
@@ -493,7 +503,7 @@ contains
             ! xyztmp contains now each gridpoint belonging to fragment i
             ! same for attmp (anyway always probe_atom_type)
             ! determine size (=R) of gridpoint cluster belonging to fragment i
-            call axis(k, attmp, xyztmp, dum, pmass, dum2, dum3)
+            call axis_docking(k, attmp, xyztmp, dum, pmass, dum2, dum3)
             r = sqrt(dum2(1) + dum2(2) + dum2(3))
 
             !> check if moleculeB is small enough to fit in gridpoint cluster of fragmen i
@@ -536,8 +546,8 @@ contains
             type is (TGFFCalculator)
                call restart_gff(env, comb, calc)
                !Keeping Fragments and charges
-               calc%topo%nbond = topo_backup%nbond
-               calc%topo%nb = topo_backup%nb
+               calc%neigh%nbond = neigh_backup%nbond
+               calc%neigh%nb = neigh_backup%nb
                calc%topo%qfrag = topo_backup%qfrag
                calc%topo%qa = topo_backup%qa
                calc%topo%fraglist = topo_backup%fraglist
@@ -592,7 +602,9 @@ contains
 
          l = 0
          do j = 1, 14
-            if (cssym .and. mvec(icssym, j) .lt. 0) cycle ! exclude sym. equiv.
+            if (cssym) then
+               if(mvec(icssym, j) .lt. 0) cycle ! exclude sym. equiv.
+            end if
             r = stepr4
             if (j .gt. 6) r = stepr4/sqrt(3.)
             dum2(1:3) = mvec(1:3, j)*r !mvec just vector in every direction in 3D
@@ -765,7 +777,7 @@ contains
 
       call doubles(ll, ndim, 3.0d0, 0.1d0, found)    ! Sorting out doubles
       call sort6(ll, found)
-      if(debug) call wrc3('xtbiff_best_before_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
+      if(debug) call wrc3('best_before_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
 
       write (*, *)
       write (*, *) '  Interaction energy of lowest structures so far in kcal/mol:'
@@ -780,18 +792,23 @@ contains
 !      end do
 
       if (debug) then
-         call wrc2('xtbiff_genstart.xyz', 1, n1, n2, at1, at2, xyz1, xyz2,&
+         call wrc2('genstart.xyz', 1, n1, n2, at1, at2, xyz1, xyz2,&
                    &maxparent, found)
       end if
 
 !-------------------------------------------------------------- start genetic optimization
+      !Set how many structure to consider for convergence
+      if (n_opt == 0) then
+         sig_count = 15
+      else
+         sig_count = n_opt
+      end if
 
       write (*, *) '------------------------------'
       write (*, *) 'genetic optimization algorithm'
       write (*, *) '------------------------------'
       write (*, *) '  cycle  Eint/kcal/mol  average Eint'
       do icycle = 1, maxgen
-
          !$omp parallel do default(none) &
          !$omp shared(env,found2,maxparent,found,n,n1,n2,at1,at2,neigh,&
          !$omp xyz1,xyz2,q1,q2,c6ab,z1,z2,nl1,nl2,l1,l2,cl1,cl2,qdr1,qdr2,cn1,cn2,&
@@ -802,9 +819,9 @@ contains
             do j = 1, maxparent
                ii = (i - 1)*maxparent + j
                call crossover(0.00d0, f)
-              displ(1:6) = found(1:6, i)*f(1:6) + found(1:6, j)*(1.0d0 - f(1:6))
+               displ(1:6) = found(1:6, i)*f(1:6) + found(1:6, j)*(1.0d0 - f(1:6))
                if (i .ne. j) call rand6(0.5d0, 1.0d0, 1.0d0, displ)   ! mutation only on childs
-          call iff_e(env, n, n1, n2, at1, at2, neigh, xyz1, xyz2, q1, q2, c6ab,&
+               call iff_e(env, n, n1, n2, at1, at2, neigh, xyz1, xyz2, q1, q2, c6ab,&
                                &z1, z2, nl1, nl2, l1, l2, cl1, cl2,&
                                &qdr1, qdr2,&
                                &cn1, cn2, alp1, alp2, alpab, qct1, qct2,&
@@ -817,24 +834,40 @@ contains
          !$omp end parallel do
 
          ii = maxparent**2
-         call doubles(ii, ndim, 3.0d0, 0.10d0, found2)          ! SETING
+         call doubles(ii, ndim, 3.0d0, 0.10d0, found2)          ! SETTING
          call sort6(ii, found2)
 
          found = found2
-         if (debug) call wrc3('xtbiff_best_after_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
+         if (n_opt == 0) then
+            call wrc2('structures_after_gen.xyz', 0, n1, n2, at1, at2, xyz1,&
+            & xyz2, 15, found)
+         else if (debug) then 
+            call wrc2('structures_after_gen.xyz', 0, n1, n2, at1, at2, xyz1,&
+            & xyz2, n_opt, found)
+         end if
+         call wrc3('best_after_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
 
          av = sum(found(7, 1:maxparent))/float(maxparent)
          sig = 0
-         do i = 1, n_opt
+         do i = 1, sig_count
             sig = sig + (found(7, i) - av)**2
          end do
-         sig = sqrt(sig/float(n_opt - 1))
+         sig = sqrt(sig/float(sig_count - 1))
          write(*,'(4x,i0,7x,F7.1,5x,F8.1,5x)')&
          &icycle, found(7, 1), av
          if (sig .lt. 0.3d0) exit
 !     LOOP END ------
       end do
       call stop_timing(4)
+
+!     Stop here, if no final optimizations should be done
+      if (n_opt == 0) then
+         write(env%unit, *)
+         write(env%unit, *) "  Skipping geometry optimizations due to user request."
+         write(env%unit, *) "  The best structure after screening can be found on best_after_gen.xyz."
+         write(env%unit, *) "  More structures after screening can be found on structures_after_gen.xyz."
+         return
+      end if
 !-------------------------------------------------------------- end genetic optimization
 
       !> Check if ensemble runtype is requested
@@ -852,9 +885,7 @@ contains
 
 !-------------------------------------------------------------- final optimization
 
-      if (debug) then
-         call open_file(iopt, 'optimizing_structures.xyz', 'w')
-      end if
+      call open_file(iopt, 'optimized_structures.xyz', 'w')
       call open_file(itemp, 'opt_tmp', 'w')
       tmp_unit = env%unit
       env%unit = itemp
@@ -876,16 +907,18 @@ contains
          do j = 1, molA%n
             comb%xyz(1:3, j) = molA%xyz(1:3, j) !comb overwritten with A, as it is changed upon geo_opt
          end do
+
          counter = 0
          do j = molA%n + 1, molA%n + molB%n
             counter = counter + 1
             comb%xyz(1:3, j) = xyz_tmp(1:3, counter) !combined molA and shifted molB
          end do
+
          select type (calc)
          type is (TGFFCalculator)
             call restart_gff(env, comb, calc)
-            calc%topo%nbond = topo_backup%nbond
-            calc%topo%nb = topo_backup%nb
+            calc%neigh%nbond = neigh_backup%nbond
+            calc%neigh%nb = neigh_backup%nb
             calc%topo%qfrag = topo_backup%qfrag
             calc%topo%qa = topo_backup%qa
             calc%topo%fraglist = topo_backup%fraglist
@@ -907,22 +940,17 @@ contains
          end do
          final_e(icycle) = etot
 
-         if (debug) then
-            write (iopt, '(i0)') comb%n
-            write (iopt, '(f20.14)') etot
-            do j = 1, comb%n
-               write (iopt, '(a4,2x,3f20.14)') comb%sym(j), comb%xyz(:, j)*autoang
-            end do
-         end if
+         write (iopt, '(i0)') comb%n
+         write (iopt, '(f20.14)') etot
+         do j = 1, comb%n
+            write (iopt, '(a4,2x,3f20.14)') comb%sym(j), comb%xyz(:, j)*autoang
+         end do
          found(7, i) = etot
       end do
 
       env%unit = tmp_unit
       call remove_file(itemp)
-
-      if (debug) then
-         call close_file(iopt)
-      end if
+      call close_file(iopt)
 
       !> Include pocket structure if present
       if (pocket_grid) then
@@ -949,14 +977,32 @@ contains
       end do
       call close_file(ifinal)
 
-      call open_file(ifinal, 'best.xyz', 'w')
-      write (ifinal, '(i0)') comb%n
-      write (ifinal, '(f20.14)') final_e(1)
-      do j = 1, comb%n
-         write (ifinal, '(a4,2x,3f20.14)') comb%sym(j), xyz_opt(1, j, 1)*autoang, &
-         &                                 xyz_opt(2, j, 1)*autoang, xyz_opt(3, j, 1)*autoang
-      end do
+      call remove_file(iopt)
+
+      ! Write best structure in format of the largest input molecule
+      comb%xyz(:,:) = xyz_opt(:,:,1)
+      if(molA%n >= molB%n) then
+         comb%ftype=molA%ftype
+      else
+         comb%ftype=molB%ftype
+      end if
+      call generateFileName(fin_name, 'best', '', comb%ftype)
+      call open_file(ifinal, fin_name, 'w')
+      call writeMolecule(comb, ifinal, energy=final_e(1))
       call close_file(ifinal)
+      !If not xyz then best.xyz is written to not have api break
+      if(comb%ftype /= 1)then
+         call open_file(ifinal, 'best.xyz', 'w')
+         write (ifinal, '(i0)') comb%n
+         write (ifinal, '(f20.14)') final_e(1)
+         do j = 1, comb%n
+            write (ifinal, '(a4,2x,3f20.14)') comb%sym(j), xyz_opt(1, j, 1)*autoang, &
+            &                                 xyz_opt(2, j, 1)*autoang, xyz_opt(3, j, 1)*autoang
+         end do
+         call close_file(ifinal)
+      end if
+
+
       call delete_file(set%opt_logfile)
 
       !> Printout Interaction Energy
@@ -1029,6 +1075,7 @@ contains
 
       !> Read the constrain again with new xyz only if necessary
       if (constraint_xyz) then
+         nconstr=0 !Reset number of constraints for distance, angle, and dihedral
          call read_userdata(xcontrol, env, mol)
          call constrain_xTB_gff(env, mol)
       end if
@@ -1039,22 +1086,26 @@ contains
       call remove_file(itopo)
       call open_file(itopo, 'charges', 'r')
       call remove_file(itopo)
-      call open_file(itopo, 'gfnff_adjacency', 'r')
-      call remove_file(itopo)
       call calc%topo%zero
       calc%update = .true.
       call gfnff_param_dealloc(calc%topo)
       call newD3Model(calc%topo%dispm, mol%n, mol%at)
       call gfnff_set_param(mol%n, calc%gen, calc%param)
-      if (.not. allocated(calc%topo%nb)) allocate (calc%topo%nb(20, mol%n), source=0)
-      if (.not.allocated(calc%topo%qfrag)) &
-              & allocate( calc%topo%qfrag(mol%n), source = 0.0d0 )
-      if (.not.allocated(calc%topo%fraglist)) &
-              & allocate( calc%topo%fraglist(mol%n), source = 0 )
+      if (allocated(calc%neigh%nb)) deallocate(calc%neigh%nb)
+      allocate (calc%neigh%nb(calc%neigh%numnb, mol%n, calc%neigh%numctr), source=0)
+      if (allocated(calc%topo%qfrag)) deallocate(calc%topo%qfrag)
+      allocate( calc%topo%qfrag(mol%n), source = 0.0d0 )
+      if (allocated(calc%topo%fraglist)) deallocate(calc%topo%fraglist)
+      allocate( calc%topo%fraglist(mol%n), source = 0 )
+      if (allocated(calc%neigh%iTrUsed)) deallocate(calc%neigh%iTrUsed)
+      if (allocated(calc%neigh%bpair)) deallocate(calc%neigh%bpair)
+      if (allocated(calc%neigh%blist)) deallocate(calc%neigh%blist)
+      if (allocated(calc%neigh%vbond)) deallocate(calc%neigh%vbond)
+      if (allocated(calc%neigh%nr_hb)) deallocate(calc%neigh%nr_hb)
       calc%topo%qfrag(1) = set%ichrg
       calc%topo%qfrag(2:mol%n) = 0.0_wp
       call gfnff_ini(env, .false., ini, mol, calc%gen,&
-           &         calc%param, calc%topo, calc%accuracy)
+           &         calc%param, calc%topo, calc%neigh, set%efield, calc%accuracy)
 
    end subroutine restart_gff
 
@@ -1081,6 +1132,7 @@ contains
 !            deallocate(wpot(i)%list)
             if(allocated(wpot(i)%list)) deallocate(wpot(i)%list)
          end do
+         nconstr=0 !Reset number of constraints for distance, angle, and dihedral
          call read_userdata(xcontrol, env, mol)
          call constrain_xTB_gff(env, mol)
       end if
@@ -1097,15 +1149,30 @@ contains
       calc%maxiter = set%maxscciter
 
       call chk%wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
+      ! Make sure number of electrons is initialized an multiplicity is consistent
+      chk%wfn%nel = nint(sum(mol%z) - mol%chrg)
+      chk%wfn%nopen = mol%uhf
+      if (chk%wfn%nopen == 0 .and. mod(chk%wfn%nel, 2) /= 0) chk%wfn%nopen = 1
+
       !> EN charges and CN
-      call ncoord_gfn(mol%n, mol%at, mol%xyz, cn)
+      if (set%gfn_method < 2) then
+         call ncoord_d3(mol%n, mol%at, mol%xyz, cn)
+      else
+         call ncoord_gfn(mol%n, mol%at, mol%xyz, cn)
+      end if
       if (mol%npbc > 0) then
          chk%wfn%q = real(set%ichrg, wp)/real(mol%n, wp)
       else
-         call ncoord_erf(mol%n, mol%at, mol%xyz, cn)
-         call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(set%ichrg,wp),cn,dcn,chk%wfn%q,dq,er,g,&
-                             & .false., .false., .false.)
-         chk%wfn%q = real(set%ichrg, wp)/real(mol%n, wp)
+            if (set%guess_charges == p_guess_gasteiger) then
+               call iniqcn(mol%n, mol%at, mol%z, mol%xyz, set%ichrg, 1.0_wp, chk%wfn%q, cn, set%gfn_method, .true.)
+            else if (set%guess_charges == p_guess_goedecker) then
+               call ncoord_erf(mol%n, mol%at, mol%xyz, cn)
+               call goedecker_chrgeq(mol%n, mol%at, mol%xyz, real(set%ichrg, wp), cn, dcn, chk%wfn%q, dq, er, g, &
+                                     .false., .false., .false.)
+            else
+               call ncoord_gfn(mol%n, mol%at, mol%xyz, cn)
+               chk%wfn%q = real(set%ichrg, wp) / real(mol%n, wp)
+            end if
       end if
       !> initialize shell charges from gasteiger charges
       call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,chk%wfn%q,chk%wfn%qsh,set%gfn_method)

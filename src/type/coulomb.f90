@@ -27,7 +27,7 @@ module xtb_type_coulomb
    use xtb_coulomb_ewald
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule, len
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
    implicit none
    private
@@ -284,8 +284,8 @@ subroutine setupBoundaryConditions(self, env, lattice, alpha, tolerance)
          return
       end if
 
-      call init(self%rLatPoint, env, lattice, self%boundaryCondition, self%rCutoff)
-      call init(self%gLatPoint, env, recLat, self%boundaryCondition, self%gCutoff)
+      call init_l(self%rLatPoint, env, lattice, self%boundaryCondition, self%rCutoff)
+      call init_l(self%gLatPoint, env, recLat, self%boundaryCondition, self%gCutoff)
       call init(self%wsCell, self%natom)
    end select
 

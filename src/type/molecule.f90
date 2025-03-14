@@ -35,7 +35,8 @@ module xtb_type_molecule
    use mctc_io_structure, only : structure_type, new_structure
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_boundaryconditions, only : boundaryCondition
-   use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength, getIdentity
+   use xtb_mctc_symbols, only : toNumber, toSymbol, getIdentity
+   use xtb_type_wsc
    use xtb_type_topology
    use xtb_type_fragments
    use xtb_type_buffer
@@ -73,7 +74,7 @@ module xtb_type_molecule
       integer  :: boundaryCondition = boundaryCondition%cluster
 
       !> Element symbols
-      character(len=symbolLength), allocatable :: sym(:)
+      character(len=:), allocatable :: sym(:)
 
       !> Ordinal numbers
       integer, allocatable :: at(:)
@@ -110,6 +111,9 @@ module xtb_type_molecule
 
       !> Volume of unit cell
       real(wp) :: volume = 0.0_wp
+
+      !> Wigner--Seitz cell
+      type(tb_wsc) :: wsc
 
       !> File type of the input
       integer  :: ftype = 0
@@ -157,6 +161,8 @@ module xtb_type_molecule
 
       procedure :: align_to_principal_axes
 
+      procedure ::  copy => copyMolecule
+
    end type TMolecule
 
 
@@ -186,9 +192,27 @@ module xtb_type_molecule
 contains
 
 
+!> Copy molecule type
+subroutine copyMolecule(self,mol0)
+
+   class(TMolecule), intent(out) :: self
+   type(TMolecule), intent(in) :: mol0
+
+      Call init(self, mol0%at, mol0%sym, mol0%xyz, mol0%chrg, mol0%uhf, &
+           & mol0%lattice, mol0%pbc)
+end subroutine copyMolecule
+
 !> Constructor for the molecular structure type
 subroutine initMolecule &
      & (mol, at, sym, xyz, chrg, uhf, lattice, pbc)
+
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
 
    type(TMolecule), intent(out) :: mol
    integer, intent(in) :: at(:)
@@ -200,21 +224,23 @@ subroutine initMolecule &
    logical, intent(in), optional :: pbc(:)
 
    integer, allocatable :: id(:)
-   character(len=symbolLength), allocatable :: sTmp(:)
    integer :: nAt, nId, iAt, iId
 
    nAt = min(size(at, dim=1), size(xyz, dim=2), size(sym, dim=1))
 
    call mol%allocate(nAt)
-
+   
+   mol%lattice = 0.0_wp
    if (present(lattice)) then
-      mol%lattice = lattice
-   else
-      mol%lattice = 0.0_wp
+      if (size(lattice).ne.0) mol%lattice = lattice
    end if
 
    if (present(pbc)) then
-      mol%pbc = pbc
+      if (size(pbc) == 1) then
+         mol%pbc = (/pbc, pbc, pbc/)
+      else
+         mol%pbc = pbc
+      end if
       mol%npbc = count(pbc)
       if (any(pbc)) then
          mol%boundaryCondition = boundaryCondition%pbc3d
@@ -254,6 +280,8 @@ subroutine initMolecule &
 
    call mol%update
 
+   call generate_wsc(mol, mol%wsc)
+
 end subroutine initMolecule
 
 
@@ -268,11 +296,11 @@ subroutine initMoleculeNumbers &
    real(wp), intent(in), optional :: lattice(3, 3)
    logical, intent(in), optional :: pbc(3)
 
-   character(len=4), allocatable :: sym(:)
+   character(len=:), allocatable :: sym(:)
    integer :: nAt
 
    nAt = min(size(at, dim=1), size(xyz, dim=2))
-   allocate(sym(nAt))
+   allocate(character(len=len(toSymbol(1))) :: sym(nAt))
    sym(:) = toSymbol(at(:nAt))
 
    call init(mol, at, sym, xyz, chrg, uhf, lattice, pbc)
@@ -438,7 +466,8 @@ subroutine allocate_molecule(self,n)
    self%n = n
    allocate( self%id(n),          source = 0 )
    allocate( self%at(n),          source = 0 )
-   allocate( self%sym(n),         source = '    ' )
+   allocate( character(len=80) :: self%sym(n))
+   self%sym(:) = repeat(' ', 80)
    allocate( self%xyz(3,n),       source = 0.0_wp )
    allocate( self%abc(3,n),       source = 0.0_wp )
    allocate( self%dist(n,n),      source = 0.0_wp )
@@ -476,9 +505,12 @@ end subroutine deallocate_molecule
 subroutine update(self)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
-   implicit none
-   class(TMolecule),intent(inout) :: self  !< molecular structure information
 
+   implicit none
+   class(TMolecule),intent(inout) :: self  
+      !! molecular structure information
+   
+   !> For periodic calculations
    if (self%npbc > 0) then
       call dlat_to_cell(self%lattice,self%cellpar)
       call dlat_to_rlat(self%lattice,self%rec_lat)
@@ -486,19 +518,22 @@ subroutine update(self)
 
       call self%wrap_back
    endif
-
+   
    call self%calculate_distances
 
 end subroutine update
 
 !> calculates all distances for molecular structures and minimum
-!  image distances for peridic structures
+!> image distances for periodic structures
 subroutine mol_calculate_distances(self)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
+   
    implicit none
-   class(TMolecule),intent(inout) :: self !< molecular structure information
+   class(TMolecule),intent(inout) :: self 
+      !! molecular structure information
    integer :: i,j
+   
    if (self%npbc > 0) then
       do i = 1, self%n
          do j = 1, i-1
@@ -518,6 +553,7 @@ subroutine mol_calculate_distances(self)
          self%dist(i,i) = 0.0_wp
       enddo
    endif
+
 end subroutine mol_calculate_distances
 
 !> get all nuclear charges
@@ -554,6 +590,8 @@ pure elemental integer function ncore(at)
      ncore=68
   elseif(at.le.86)then
      ncore=78
+  elseif(at.le.103)then
+     ncore=86
   endif
 end function ncore
 end subroutine mol_set_nuclear_charge

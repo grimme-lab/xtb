@@ -14,19 +14,11 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+# Some user-configurable features
 option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" TRUE)
-if(NOT DEFINED "${PROJECT_NAME}-dependeny-method")
-  set(
-    "${PROJECT_NAME}-dependency-method"
-    "subproject" "cmake" "pkgconf" "fetch"
-  )
-endif()
+option(WITH_TBLITE "Use tblite library as backend for xTB" TRUE)
+option(WITH_CPCMX "Use CPCM-X solvation library for xTB" TRUE)
 
-set(
-  module-dir
-  "${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
-)
-set(module-dir "${module-dir}" PARENT_SCOPE)
 
 # Set build type as CMake does not provide defaults
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -41,29 +33,36 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   )
 endif()
 
+# Add modules to the CMake build 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
+
+# specify module installation directory
 install(
   DIRECTORY
   "${CMAKE_CURRENT_SOURCE_DIR}/modules/"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 
+# Compiler-specific configurations 
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
-  set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
-  set(bounds "-fbounds-check")
+  set(dialects "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
+  set(bounds "-fbounds-check -ffpe-trap=invalid,zero,overflow")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+  set(dialects "-axAVX2 -r8 -traceback")
+  set(bounds "-check all -fpe0")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
+  set(dialects "-Mbackslash -Mallocatable=03 -r8 -traceback")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "LLVMFlang")
+  set(dialects "-fdefault-real-8 -fdefault-double-8")
 endif()
-if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
-  set(dialect "-axAVX2 -r8 -traceback")
-  set(bounds "-check bounds")
-endif()
-if(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
-  set(dialect "-Mbackslash -Mallocatable=03 -r8 -traceback")
-endif()
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}" PARENT_SCOPE)
 
-# Populate xtb_version.fh
+# Customize compiler flags
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialects}" PARENT_SCOPE)
+
+
+# Populate xtb_version.fh with metadata
 set(version ${PROJECT_VERSION})
 execute_process(COMMAND git rev-parse HEAD
   RESULT_VARIABLE git_return
@@ -73,11 +72,11 @@ if(git_return)
 else()
   string(REGEX REPLACE "\n$" "" commit ${commit})
 endif()
-string(TIMESTAMP date "%m/%d/%Y")
+string(TIMESTAMP date "%Y/%m/%d")
 set(author $ENV{USERNAME})
 set(origin ${CMAKE_HOST_SYSTEM_NAME})
 configure_file(
   "${PROJECT_SOURCE_DIR}/assets/templates/version.f90"
-  "${PROJECT_BINARY_DIR}/xtb_version.fh"
+  "${PROJECT_BINARY_DIR}/include/xtb_version.fh"
   @ONLY
 )

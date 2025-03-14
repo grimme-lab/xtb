@@ -15,12 +15,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-if(NOT TARGET "test-drive::test-drive")
-  find_package("test-drive" REQUIRED)
-endif()
-
+# allocate dir
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
+# collect source files
 set(
   tests
   "atomlist"
@@ -38,42 +36,57 @@ set(
   "iff"
   "latticepoint"
   "molecule"
+  "oniom"
+  "dipro"
   "pbc-tools"
   "peeq"
   "repulsion"
   "symmetry"
+  "tblite"
   "thermo"
+  "vertical"
   "wsc"
+  "cpx"
 )
+
 set(
   test-srcs
   "main.f90"
   "molstock.f90"
 )
+
 foreach(t IN LISTS tests)
   string(MAKE_C_IDENTIFIER ${t} t) 
   list(APPEND test-srcs "test_${t}.f90")
 endforeach()
+# add PTB explicitly since it is not part of the tests list (different ending)
+list(APPEND test-srcs "test_ptb.F90")
 
+
+# executable
 add_executable(
   "${PROJECT_NAME}-tester"
   "${test-srcs}"
 )
+
 target_link_libraries(
   "${PROJECT_NAME}-tester"
   PRIVATE
-  "lib-${PROJECT_NAME}-static"
-  "test-drive::test-drive"
+  "lib-${PROJECT_NAME}-static" # static xtb
+  "test-drive::test-drive"     # testing framework
 )
+
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include")
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
+endif()
+
 set_target_properties(
   "${PROJECT_NAME}-tester"
   PROPERTIES
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
-if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include")
-  make_directory("${CMAKE_CURRENT_BINARY_DIR}/include")
-endif()
 
+# test-drive 
 foreach(t IN LISTS tests)
   add_test("${PROJECT_NAME}/${t}" "${PROJECT_NAME}-tester" "${t}")
   set_tests_properties(
@@ -82,8 +95,15 @@ foreach(t IN LISTS tests)
     ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
   )
 endforeach()
+# add PTB explicitly since it is not part of the tests list
+add_test("${PROJECT_NAME}/ptb" "${PROJECT_NAME}-tester" "ptb")
+set_tests_properties(
+  "${PROJECT_NAME}/ptb"
+  PROPERTIES
+  ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
+)
 
-
+# xtb 
 set(XTB-EXE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}")
 
 add_test("xtb/Argparser_print_version" ${XTB-EXE} --version)

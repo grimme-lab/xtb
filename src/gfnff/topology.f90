@@ -32,6 +32,7 @@ module xtb_gfnff_topology
       integer  :: nbond
       integer  :: nangl
       integer  :: ntors
+      integer  :: nstors
       integer  :: nathbH
       integer  :: nathbAB
       integer  :: natxbAB
@@ -51,22 +52,21 @@ module xtb_gfnff_topology
       integer  :: read_file_type
 
       !lists
-      integer,allocatable ::     nb(:,:)   ! neighbors nb(20,i) is the # neigbors
       integer,allocatable ::     hyb(:)   ! hybridization of every atom
-      integer,allocatable ::    bpair(:)   ! # of cov. between atoms
       integer,allocatable ::  blist(:,:)   ! bonded atoms
       integer,allocatable ::  alist(:,:)   ! angles
       integer,allocatable ::  tlist(:,:)   ! torsions
       integer,allocatable :: b3list(:,:)   ! bond atm
+      integer,allocatable :: sTorsl(:,:)
       !-----------------------------------------------
       integer,allocatable :: nr_hb(:)      ! Nr. of H bonds per O-H or N-H bond
       integer,allocatable :: bond_hb_AH(:,:) ! A, H atoms in bonds that are also part of HBs
-      integer,allocatable :: bond_hb_B(:,:)  ! B atoms in bonds that are also part of HBs
+      integer,allocatable :: bond_hb_B(:,:,:)  ! B atoms in bonds that are also part of HBs
       integer,allocatable :: bond_hb_Bn(:)   ! Nr. of B atoms for one AH bond pair
       !-----------------------------------------------
       integer,allocatable :: hbatABl(:,:)  ! AB atoms for HB
       integer,allocatable :: xbatABl(:,:)  ! AB atoms for XB
-      integer,allocatable :: hbatHl (:)    ! H  atoms for HB
+      integer,allocatable :: hbatHl (:,:)    ! H  atoms for HB
       integer,allocatable :: fraglist(:)   ! atoms in molecular fragments (for EEQ)
       integer,allocatable :: qpdb  (:)     ! atomic charge in residues from PDB file
 
@@ -77,13 +77,17 @@ module xtb_gfnff_topology
       real(wp),allocatable:: chieeq(:)     ! atomic ENs for EEQ
       real(wp),allocatable:: gameeq(:)     ! atomic gamma for EEQ
       real(wp),allocatable:: alpeeq(:)     ! atomic alpha for EEQ, squared
-      real(wp),allocatable:: alphanb(:)    ! non-bonded exponent for atom pairs
+      real(wp),allocatable:: alphanb(:,:,:)    ! non-bonded exponent for atom pairs
       real(wp),allocatable::    qa(:)      ! estimated atomic charges (fixed and obtained from topology EEQ)
       real(wp),allocatable::    xyze0(:,:) ! atom xyz, starting geom. (for Efield energy)
       real(wp),allocatable:: zetac6(:)     ! D4 scaling factor product
       real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
       real(wp),allocatable:: hbbas (:)     ! HB donor atom basicity
       real(wp),allocatable:: hbaci (:)     ! HB acceptor atom acidity
+      integer, allocatable:: hb_mapABH(:)  ! mapping of indices from all atoms to only AB and H separately
+      logical, allocatable:: isABH(:)      ! logical set to true if the atom is part of a hydrogen bond
+      integer :: hb_mapNAB                 ! number of AB atoms that are part of a hydrogen bond
+      integer :: hb_mapNH                  ! number of H atoms that are part of a hydrogen bond
 
       integer, allocatable  :: ispinsyst(:,:)
       integer, allocatable  :: nspinsyst(:)
@@ -101,6 +105,8 @@ module xtb_gfnff_topology
 
    ! logicals for GFN-FF topology list printout
    type :: TPrintTopo
+     logical :: etot    = .false.
+     logical :: gnorm   = .false.
      logical :: nb      = .false.
      logical :: bpair   = .false.
      logical :: alist   = .false.
@@ -110,7 +116,7 @@ module xtb_gfnff_topology
      logical :: vbond   = .false.
      logical :: vangl   = .false.
      logical :: hbbond  = .false.
-     logical :: eeq  = .false.
+     logical :: eeq     = .false.
      logical :: warning = .false.
 
    contains
@@ -152,7 +158,7 @@ function any(self) result(tf)
 
   tf = self%nb.or.self%bpair.or.self%alist.or.self%blist.or. &
      & self%tlist.or.self%vtors.or.self%vbond.or.self%vangl.or. &
-     & self%hbbond.or.self%eeq
+     & self%hbbond.or.self%eeq.or.self%etot.or.self%gnorm
 end function any
 
 end module xtb_gfnff_topology

@@ -25,30 +25,42 @@ module xtb_gfnff_calculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart
+   use xtb_type_wsc, only : tb_wsc
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
    use xtb_sphereparam
    use xtb_metadynamic
    use xtb_constrainpot
-   use xtb_gfnff_param, only : make_chrg,gff_print
+   use xtb_gfnff_param, only : gff_print
    use xtb_gfnff_data, only : TGFFData
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
    use xtb_gfnff_generator, only : TGFFGenerator
    use xtb_gfnff_eg
+   use xtb_type_latticepoint
+   use xtb_gfnff_neighbor
+   use xtb_pbc_tools
    implicit none
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
    private
 
    public :: TGFFCalculator, newGFFCalculator
 
 
-   !> Calculator interface for xTB based methods
+   !> calculator interface for xTB based methods
    type, extends(TCalculator) :: TGFFCalculator
 
       type(TGFFData) :: param
       type(TGFFGenerator) :: gen
       type(TGFFTopology) :: topo
+      type(TNeigh) :: neigh
       logical :: update
       integer :: version
 
@@ -70,6 +82,7 @@ contains
 
 
 subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
+   
    use xtb_gfnff_param
    use xtb_gfnff_setup, only : gfnff_setup
    use xtb_disp_dftd4, only : newD3Model
@@ -100,19 +113,22 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
 
    call calc%topo%zero
    calc%update = .true.
-   ! global accuracy factor similar to acc in xtb used in SCF
+
+   ! global accuracy factor similar to acc in xtb used in SCF !
    calc%accuracy = 0.1_wp
    if (mol%n > 10000) then
       calc%accuracy = 2.0_wp
    end if
 
-   !> Obtain the parameter file
+   ! obtain the parameter file !
    call open_file(ich, fname, 'r')
    exist = ich /= -1
    if (exist) then
       call gfnff_read_param(ich, calc%param)
-      call close_file(ich)
-   else ! no parameter file, try to load internal version
+      call close_file(ich) 
+      
+   ! no parameter file, try to load internal version !
+   else
       call gfnff_load_param(calc%version, calc%param, exist)
       if (.not.exist) then
          call env%error('Parameter file '//fname//' not found!', source)
@@ -123,7 +139,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    call newD3Model(calc%topo%dispm, mol%n, mol%at)
 
    call gfnff_setup(env, set%verbose, restart, mol, &
-      & calc%gen, calc%param, calc%topo, calc%accuracy, calc%version)
+      & calc%gen, calc%param, calc%topo, calc%neigh, calc%accuracy, set%efield, calc%version)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -134,7 +150,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
 end subroutine newGFFCalculator
 
 
-
+!> GFN-FF wrapper for the single point energy evaluation  
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
 
@@ -182,8 +198,24 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical, parameter :: ccm = .true.
    logical :: exitRun
    logical :: pr
+   
+   !> GFN-FF geometry optimization
+   logical :: optpr
 
-   call mol%update
+   !-------!
+   ! setup !
+   !-------!
+
+   ! update mol type
+   if (mol%npbc > 0) then
+     call dlat_to_cell(mol%lattice,mol%cellpar)
+     call dlat_to_rlat(mol%lattice,mol%rec_lat)
+     mol%volume = dlat_to_dvol(mol%lattice)
+     call generate_wsc(mol,mol%wsc)
+   else
+     call mol%update
+   endif
+   call mol%calculate_distances
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp
@@ -196,12 +228,24 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       call newBornModel(self%solvation, env, solvation, mol%at)
    end if
 
-   ! ------------------------------------------------------------------------
-   !  actual calculation
+   ! to distinguish optimization, final sp and sp ! 
+   if ((set%runtyp.eq.p_run_opt).or. &
+      &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
+      &   (set%runtyp.eq.p_run_metaopt)) then
+      optpr = printlevel < 2
+   else
+      optpr = .false.
+   endif
+   
    pr = gff_print .and. printlevel > 0
-   call gfnff_eg(env,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
-      & self%update,self%version,self%accuracy)
+   
+   !--------------------!
+   ! actual calculation !
+   !--------------------!
+
+   call gfnff_eg(env,mol,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,sigma, &
+      & gradient,energy,results,self%param,self%topo,self%neigh,chk%nlist,set%efield,solvation,&
+      & self%update,self%version,self%accuracy,minpr=optpr)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -209,32 +253,28 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       return
    end if
 
-   ! ------------------------------------------------------------------------
-   !  post processing of gradient and energy
-
-   ! ------------------------------------------------------------------------
-   !  various external potentials
+   ! ---------------------------------------!
+   ! post processing of gradient and energy !
+   !----------------------------------------!
+   ! various external potentials !
    call constrain_pot(potset,mol%n,mol%at,mol%xyz,gradient,efix)
    call constrpot   (mol%n,mol%at,mol%xyz,gradient,efix)
    call cavity_egrad(mol%n,mol%at,mol%xyz,efix,gradient)
    call metadynamic (metaset,mol%n,mol%at,mol%xyz,efix,gradient)
    call metadynamic (rmsdset,mol%n,mol%at,mol%xyz,efix,gradient)
 
-   ! ------------------------------------------------------------------------
-   !  fixing of certain atoms
-   !  print*,abs(efix/etot)
+   ! fixing of certain atoms !
    energy = energy + efix
    results%e_total = energy
    results%gnorm = norm2(gradient)
    if (fixset%n.gt.0) then
       do i=1, fixset%n
-         !print*,i,fixset%atoms(i)
          gradient(1:3,fixset%atoms(i))=0
       enddo
    endif
 
-   if (printlevel.ge.2) then
-      ! start with summary header
+   if (printlevel.ge.2)  then
+      ! start with summary header !
       if (.not.set%silent) then
          write(env%unit,'(9x,53(":"))')
          write(env%unit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
@@ -265,15 +305,24 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          call print_charges(ich,mol%n,chk%nlist%q)
          call close_file(ich)
       end if
-   endif
+    
+    else if (set%mode_extrun .eq. p_ext_oniom) then
+      write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
+      write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
+    
+    endif
 
 end subroutine singlepoint
 
 subroutine print_gfnff_results(iunit,res_gff,verbose,lsolv)
+   
    use xtb_type_data
-   integer, intent(in) :: iunit ! file handle (usually output_unit=6)
+   
+   !> file handle (usually output_unit=6)
+   integer, intent(in) :: iunit 
    type(scc_results),    intent(in) :: res_gff
    logical,intent(in) :: verbose,lsolv
+   
    write(iunit,outfmt) "bond energy       ", res_gff%e_bond, "Eh   "
    write(iunit,outfmt) "angle energy      ", res_gff%e_angl, "Eh   "
    write(iunit,outfmt) "torsion energy    ", res_gff%e_tors, "Eh   "
@@ -306,6 +355,8 @@ subroutine writeInfo(self, unit, mol)
 
    select case(set%mode_extrun)
    case(p_ext_gfnff)
+     call gfnff_header(unit,self%version)
+   case(p_ext_mcgfnff)
      call gfnff_header(unit,self%version)
    end select
 

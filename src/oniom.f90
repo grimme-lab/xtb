@@ -14,7 +14,10 @@
 ! You should have received a copy of the GNU Lesser General Public Licen
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+!> Implementaion of the ONIOM method
+!> publication: https://doi.org/10.1039/D3CP02178E (further reference) 
 module xtb_oniom
+
    use xtb_mctc_accuracy, only: wp
    use xtb_mctc_convert, only: aatoau
    use xtb_type_atomlist, only: TAtomlist, len
@@ -34,39 +37,44 @@ module xtb_oniom
    implicit none
    private
 
-   public :: TOniomCalculator, newOniomCalculator, oniom_input
-
+   public :: TOniomCalculator, newOniomCalculator, oniom_input, calculateCharge
+   
+   !> To handle CML arguments
    type :: oniom_input
       character(len=:), allocatable :: first_arg
       character(len=:), allocatable :: second_arg
-      character(len=:), allocatable :: chrg
-   end type oniom_input
+   
+      end type oniom_input
+   
+   !> ONIOM calculator 
+   type, extends(TCalculator) :: TOniomCalculator 
 
-   type, extends(TCalculator) :: TOniomCalculator !> new calculator type
-
-      !> The method specified by the usernan
+      !> methods specified by the user, or default: gfnff, gfn2
       integer :: method_low, method_high
 
-      !> Charge, if present
-      integer :: chrg_real, chrg_model
+      !> charge for inner region
+      integer :: chrg_model
+         ! rewrite
 
-      type(TAtomList) :: list !> list of atoms in inner region
+      !> inner region list
+      type(TAtomList) :: list 
 
-      !> QM 1, low level, whole region
+      !> whole region, low-level 
       class(TCalculator), allocatable :: real_low
 
-      !> QM 1, low level, inner region
+      !> inner region, low-level
       class(TCalculator), allocatable :: model_low
 
-      !> QM 2, high level, inner region
+      !> inner region, high-level
       class(TCalculator), allocatable :: model_high
 
-      !> Index list of the inner region
+      !> index list of the inner region
       integer, allocatable :: idx(:)
-
-      !> Bond topology
+      
+      !> topology used for cutting bonds
       type(TTopology), allocatable :: topo
 
+      !> wavefunctions for inner region calculations
       type(TRestart) :: chk_low, chk_high
 
    contains
@@ -87,256 +95,325 @@ module xtb_oniom
       module procedure :: new_coordinates
    end interface
 
+
 contains
 
-!> Create new calculator
+!> create ONIOM Calcultor
 subroutine newOniomCalculator(self, env, mol, input)
-   !> Calculator instance
+   
+   implicit none
+   
+   !> new ONIOM calculator
    type(TOniomCalculator), intent(out) :: self
-   !> Computation environment
+   
+   !> calculation environment
    type(TEnvironment), intent(inout) :: env
-   !> Molecular structure data
+   
+   !> molecular structure data
    type(TMolecule), intent(in) :: mol
-   !> Restart checkpoint
-   !type(TRestart), intent(inout) :: chk
-   !> Input for Oniom calculation
+   
+   !> cml input
    type(oniom_input), intent(in) :: input
-
+   
    type(TxTBCalculator), allocatable :: xtb
    type(TOrcaCalculator), allocatable :: orca
    type(TGFFCalculator), allocatable :: gff
    integer :: icol
    integer :: i
    
-   
-   !> Method identification
+   !--------------!
+   ! method setup !
+   !--------------!
+
+   ! methods explicitly specified !
    if (allocated(input%first_arg)) then
-      !! if methods specified
+      
       icol = index(input%first_arg, ':')
       if (icol == 0) then
          call env%error("Invalid method '"//input%first_arg//"' provided")
          return
       end if
+
       self%method_high = string_to_id(input%first_arg(:icol - 1))
       self%method_low = string_to_id(input%first_arg(icol + 1:))
+      
       if (self%method_high < 0 .or. self%method_high > 5) then
-         call env%error("Invalid inner method")
+         call env%error("Invalid high-level method")
          return
       end if
+      
       if (self%method_low < 0 .or. self%method_low > 3) then
-         call env%error("Invalid outer method")
+         call env%error("Invalid low-level method")
          return
       end if
+   
+   ! default, gfn2:gfnff !
    else
-      !! default, gfn2:gfnff
+
       self%method_high = 2
       self%method_low = 3
-   end if
-
-
+   
+   endif
+   
+   ! write user-defined inner region list as raw string into array !
    self%list = TAtomList(list=input%second_arg)
    call self%list%to_list(self%idx)
 
-   if (len(self%list) == 0) then
-      call env%error("No atoms in inner region '"//input%second_arg//"'")
+   if (len(self%list) .eq. 0 .or. self%list%error) then
+      call env%error("Invalid inner region: '"//input%second_arg//"'")
       return
    end if
 
-   ! Check if the user-defined inner region is valid
+   ! check inner region !
    if (any(self%idx < 1) .or. any(self%idx > mol%n)) then
-      call env%error('The inner region specification is not correct')
+      call env%error('Out of bound inner region')
       return
    end if
 
-   ! The allocation of new calculator
+   ! whole region calculator ! 
    select case (self%method_low)
+   
+   ! gfn1/2 !
    case default
       allocate (xtb)
       call newXTBCalculator(env, mol, xtb, method=self%method_low)
       call move_alloc(xtb, self%real_low)
 
+   ! gfnff !
    case (3)
       allocate (gff)
-      call newGFFCalculator(env, mol, gff, "", .false.)
+      call newGFFCalculator(env, mol, gff, ".param_gfnff.xtb", .false.)
       call move_alloc(gff, self%real_low)
 
    end select
 
 end subroutine newOniomCalculator
 
+!> 3 singlepoint energy calculations
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradient, sigma, hlgap, results)
 
-   !? Is it right? What is inside init function? What interface/module procedure do?
+   use xtb_io_writer
+   use xtb_mctc_filetypes, only : fileType
    use xtb_xtb_calculator, only: TxTBCalculator
-   use xtb_setmod, only: set_chrg
 
+   implicit none
+   
+   !> instance of TOniomCalculator
    class(TOniomCalculator), intent(inout) :: self
-
+   
+   !> calculation environment      
    type(TEnvironment), intent(inout) :: env
-
+   
+   !> molecular structure data
    type(TMolecule), intent(inout) :: mol
-
+   
+   !> restart data wrapper
    type(TRestart), intent(inout) :: chk
-
-   integer, intent(in) :: printlevel !> Print level for IO
-
+   
+   !> print level for IO
+   integer, intent(in) :: printlevel 
+   
+   !> if restarted
    logical, intent(in) :: restart
-
+   
+   
+   !> ONIOM total energy
    real(wp), intent(out) :: energy
-
+   
+   !> ONIOM gradients
    real(wp), intent(out) :: gradient(:, :)
-
-   real(wp), intent(out) :: sigma(:, :) !> Strain derivatives
-
+   
+   !> strain derivatives
+   real(wp), intent(out) :: sigma(:, :) 
+   
+   !> HOMO-LUMO gap
    real(wp), intent(out) :: hlgap
-
+   
+   !> final output stream
    type(scc_results), intent(out) :: results
-
-   type(TxTBCalculator), allocatable :: tmp !> Creating dummy object
-   type(scc_results) :: results_low, results_high
+   
+   
+   ! temporary storages !
+   type(TxTBCalculator), allocatable :: tmp 
    type(TGFFCalculator), allocatable :: gff
    type(TOrcaCalculator), allocatable :: orca
    type(TTMCalculator), allocatable :: turbo
+   
+   ! for inner region high- and low-level calculation !
+   type(scc_results) :: results_low, results_high
    type(TMolecule) :: inner_mol
-   logical :: exitRun
    real(wp), allocatable :: gradient_low(:, :), gradient_high(:, :)
    real(wp) :: energy_model_low, energy_model_high, hlgap_low, hlgap_high
    real(wp) :: sigma_low(3, 3), sigma_high(3, 3)
-   integer :: i
-   !type(TRestart), allocatable :: chk0
 
-   ! Check whether the calculator is initialized
+   !> arrays for matmul of gradient matrix and Jacobian  
+   real(wp),allocatable :: arr_gh(:), arr_gl(:)
+   
+   !> Jacobian matrix
+   real(wp), allocatable :: jacobian(:,:)
+   
+   integer,allocatable :: idx2(:)
+   integer :: i, coord_unit
+   logical :: exitRun
+
+   ! check whether the calculator is initialized !
    if (.not. allocated(self%real_low)) then
       call env%error("Outer region calculator not provided")
       return
    end if
 
-   ! Forward solvation to outer region
+   ! forward solvation to outer region !
    if (allocated(self%solvation)) then
       call move_alloc(self%solvation, self%real_low%solvation)
    end if
+   
+   !-------------------------!
+   ! whole system, low-level !
+   !-------------------------!
 
-   ! Check whether the low-level calculator needs a wavefunction
-   if (.not.allocated(chk%wfn%qsh)) then
-   !   print *, 'overwritten' - for restart
-      select type(xtb => self%real_low)
-      type is(TxTBCalculator)
-         call newWavefunction(env, mol, xtb, chk)
-      end select
-   end if
+   if (.not.set%oniom_settings%cut_inner) then
+      
+      if (printlevel > 0) then
+         write(env%unit,'(a)')
+         write(env%unit,'(2x,72("-"))')
+         write (env%unit, '(/6x,a/)') "Singlepoint calculation of whole system with low-level method"
+         write(env%unit,'(2x,72("-"))')
+         write(env%unit,'(a)')
+      endif
 
+      call self%real_low%singlepoint(env, mol, chk, printlevel, restart, &
+         & energy, gradient, sigma, hlgap, results)
+   
+   endif
+   
+   ! creating Linked Atoms !
+   call self%cutbond(env, mol, chk, self%topo, inner_mol,jacobian,idx2)
+   
+   ! define inner region charge !
+   inner_mol%chrg = real(set%oniom_settings%innerchrg)
 
-   ! Perform calculation on outer region
-   call self%real_low%singlepoint(env, mol, chk, printlevel, restart, &
-       & energy, gradient, sigma, hlgap, results)
-
-   !> check for charges
-   call calculateCharge(self, env, mol, chk)
-
-
-   !> Creating Linked atoms
-   call self%cutbond(env, mol, chk, self%topo, inner_mol)
+   ! --cut flag termination !
+   if (set%oniom_settings%cut_inner) then
+      
+      write(env%unit,'(a)')
+      write(env%unit,'(2x,72("-"))')
+      write(env%unit,'(2x,"|",24x,a,1x,i0,22x,"|")') "INNER REGION CHARGE = ", nint(inner_mol%chrg)
+      write(env%unit,'(2x,72("-"))')
+      write(env%unit,'(a)')
+      call terminate(0)
+   
+   endif
+    
    call env%check(exitRun)
    if (exitRun) then
-      call env%error("Could not create linked atoms")
+      call env%error("Could not create the linked atoms")
       return
    end if
-   inner_mol%chrg = float(self%chrg_model)
 
-   ! Inner region, low method
+   !-------------------------!
+   ! inner region, low-level !
+   !-------------------------!
+   
    if (.not. allocated(self%model_low)) then
-
-      if (printlevel > 0) &
-         write (env%unit, '(/a/)') "Initializing low level method"
 
       select case (self%method_low)
       case default
          call env%error("Invalid low-level inner method")
+         return
 
+      ! gfn1/2 !
       case (1, 2)
-
          allocate (tmp)
          call newXTBCalculator(env, inner_mol, tmp, method=self%method_low)
          call move_alloc(tmp, self%model_low)
 
+      ! gfnff !
       case (3)
-
          allocate (gff)
-         call newGFFCalculator(env, inner_mol, gff, "", .false.)
+         call newGFFCalculator(env, inner_mol, gff, ".param_gfnff.xtb", .false.)
          call move_alloc(gff, self%model_low)
-
+      
       end select
       
-      if (allocated(self%real_low%solvation)) then
-         allocate(self%model_low%solvation)
-         self%model_low%solvation = self%real_low%solvation
-      end if
       call env%check(exitRun)
       if (exitRun) then
-         call env%error("Could not setup low level method")
+         call env%error("Could not setup low-level method")
          return
       end if
+   
    end if
+  
+   !--------------------------!
+   ! inner region, high-level !
+   !--------------------------!
 
-   select type (calc => self%model_low)
-   type is (TxTBCalculator)
-      call newWavefunction(env, inner_mol, calc, self%chk_low)
-   end select
-
-   ! Inner region, high method
    if (.not. allocated(self%model_high)) then
 
-      if (printlevel > 0) &
-         write (env%unit, '(/a/)') "Initializing high level method"
-
       select case (self%method_high)
+      case default
+         call env%error("Invalid high-level inner method")
+         return
+      
+      ! gfn1/2 !
       case (1, 2)
          allocate (tmp)
          call newXTBCalculator(env, inner_mol, tmp, method=self%method_high)
          call move_alloc(tmp, self%model_high)
 
+      ! gfnff !
       case (3)
-
          allocate (gff)
-         call newGFFCalculator(env, inner_mol, gff, "", .false.)
+         call newGFFCalculator(env, inner_mol, gff, ".param_gfnff.xtb", .false.)
          call move_alloc(gff, self%model_high)
 
+      ! orca !
       case (4)
-
          allocate (orca)
-         call newOrcaCalculator(orca, env, set%ext_orca)
+         call newOrcaCalculator(orca, env, set%ext_orca,oniom=.true.)
          call move_alloc(orca, self%model_high)
 
-      case (5)
-
+      ! turbomole !
+      case (5)  
          allocate (turbo)
          call newTMCalculator(turbo, 1, 1)
          call move_alloc(turbo, self%model_high)
+         
+         ! to copy coord file into origin.coord !
+         call protectCoord(env)
 
       end select
       
-      if (allocated(self%real_low%solvation)) then
-         
-         allocate(self%model_high%solvation)
-         self%model_high%solvation = self%real_low%solvation
-      end if
       call env%check(exitRun)
       if (exitRun) then
-         call env%error("Could not setup high level method")
+         call env%error("Could not setup high-level method")
          return
       end if
 
    end if
+ 
+   ! setup partial and shell charges for gnf1/2 !
+   if (.not.allocated(self%chk_low%wfn%qsh)) then
+      select type (calc => self%model_low)
+      type is (TxTBCalculator)
+         call newWavefunction(env, inner_mol, calc, self%chk_low)
+      end select
+   end if
+   if (.not.allocated(self%chk_high%wfn%qsh)) then
+      select type (calc => self%model_high)
+      type is (TxTBCalculator)
+         call newWavefunction(env, inner_mol, calc, self%chk_high)
+      end select
+   end if
+   
 
-   select type (calc => self%model_high)
-   type is (TxTBCalculator)
-      call newWavefunction(env, inner_mol, calc, self%chk_high)
-   end select
-
-   !> Inner region low method, actual calculatoin
-
-   if (printlevel > 0) &
-      write (env%unit, '(/a/)') "SP of inner region with low method"
+   ! SP: inner region low-level !
+   if (printlevel > 0) then
+      write(env%unit,'(a)')
+      write(env%unit,'(2x,72("-"))')
+      write (env%unit, '(/6x,a/)') "Singlepoint calculation of inner region with low-level method"
+      write(env%unit,'(2x,72("-"))')
+      write(env%unit,'(a)')
+   endif
 
    allocate (gradient_low(3, inner_mol%n))
    energy_model_low = 0.0_wp
@@ -345,10 +422,15 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    call self%model_low%singlepoint(env, inner_mol, self%chk_low, printlevel, restart, &
        & energy_model_low, gradient_low, sigma_low, hlgap_low, results_low)
 
-   !> Inner region high method, actual calculatoin
 
-   if (printlevel > 0) &
-      write (env%unit, '(/a/)') "SP of inner region with high method"
+   ! SP: inner region high-level !
+   if (printlevel > 0) then
+      write(env%unit,'(a)')
+      write(env%unit,'(2x,72("-"))')
+      write (env%unit, '(/6x,a/)') "Singlepoint calculation of inner region with high-level method"
+      write(env%unit,'(2x,72("-"))')
+      write(env%unit,'(a)')
+   endif
 
    allocate (gradient_high(3, inner_mol%n))
    energy_model_high = 0.0_wp
@@ -356,50 +438,95 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
    call self%model_high%singlepoint(env, inner_mol, self%chk_high, printlevel, restart, &
        & energy_model_high, gradient_high, sigma_high, hlgap_high, results_high)
+   
 
-   results%dipole = results%dipole + results_high%dipole - results_low%dipole
-   energy = energy + energy_model_high - energy_model_low !> The actual Oniom energy
-   do i = 1, size(self%idx)
-      gradient(:, self%idx(i)) = gradient(:, self%idx(i)) + gradient_high(:, i) - gradient_low(:, i)
-   end do
+   ! write opt logs for inner region !
+   if (set%oniom_settings%logs)then
+      call writeMolecule(inner_mol, set%oniom_settings%ilog1, format=filetype%xyz,energy=energy_model_low)
+      call writeMolecule(inner_mol, set%oniom_settings%ilog2, format=filetype%xyz,energy=energy_model_high)
+   endif
 
+
+   results%dipole = results%dipole + results_high%dipole - results_low%dipole 
+   sigma = sigma - sigma_low + sigma_high
+   results%hl_gap = hlgap - hlgap_low + hlgap_high
+
+   !----------------!
+   ! Postprocessing !
+   !----------------!
+
+   ! ONIOM energy / reference formula (1,2) !
+   energy = energy + energy_model_high - energy_model_low
    results%e_total = energy
+   
+   ! [gradient*Jacobian] with forward and backward transformation !
+   call matrix_to_array(gradient_high,arr_gh)
+   call matrix_to_array(gradient_low,arr_gl)
+   
+   arr_gh=matmul(jacobian,arr_gh)
+   arr_gl=matmul(jacobian,arr_gl)
+   
+   call array_to_matrix(arr_gh,gradient_high)
+   call array_to_matrix(arr_gl,gradient_low)
+   
+
+   ! ONIOM gradients !
+   do i = 1, size(idx2)
+      gradient(:, idx2(i)) = gradient(:, idx2(i)) + gradient_high(:, i) - gradient_low(:, i) 
+   end do 
+   results%gnorm=norm2(gradient)   
+   deallocate(gradient_high)
+   deallocate(gradient_low)
 
 end subroutine singlepoint
 
 !> Evaluate hessian by finite difference for all atoms
-subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
+subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
+
    character(len=*), parameter :: source = "extern_oniom_hessian"
-   !> Single point calculator
+   
+   !> single point calculator
    class(TOniomCalculator), intent(inout) :: self
-   !> Computation environment
+   
+   !> computation environment
    type(TEnvironment), intent(inout) :: env
-   !> Molecular structure data
+   
+   !> molecular structure data
    type(TMolecule), intent(in) :: mol0
-   !> Restart data
+   
+   !> restart data
    type(TRestart), intent(in) :: chk0
-   !> List of atoms to displace
+   
+   !> list of atoms to displace
    integer, intent(in) :: list(:)
-   !> Step size for numerical differentiation
+   
+   !> step size for numerical differentiation
    real(wp), intent(in) :: step
-   !> Array to add Hessian to
+   
+   !> array to add Hessian to
    real(wp), intent(inout) :: hess(:, :)
-   !> Array to add dipole gradient to
+   
+   !> array to add dipole gradient to
    real(wp), intent(inout) :: dipgrad(:, :)
+   !> Array to add polarizability gradient to
+   real(wp), intent(inout), optional :: polgrad(:, :)
+
+   real(wp), allocatable :: jacobian(:,:)
+   integer,allocatable :: idx2(:)
 
    integer :: ii, jj, ic, jc, im, jm
    real(wp), allocatable :: hess_model(:, :), dipgrad_model(:, :)
    type(TMolecule) :: mol_model
    integer, allocatable :: list_model(:)
 
-   ! Compute complete hessian for outer region
+   ! compute complete hessian for outer region !
    call self%real_low%hessian(env, mol0, chk0, list, step, &
        & hess, dipgrad)
 
    !call chk0%wfn%allocate(mol0%n,chk0%basis%nshell,chk0%real_low%basis%nao)
-   print*,"cutbond"
-   ! Creating Linked atoms
-   call self%cutbond(env, mol0, chk0, self%topo, mol_model)
+   
+   ! create linked atoms !
+   call self%cutbond(env, mol0, chk0, self%topo, mol_model,jacobian,idx2)
    mol_model%chrg = float(self%chrg_model)
    list_model = [(ii, ii = 1, size(self%idx))]
 
@@ -447,161 +574,423 @@ subroutine writeInfo(self, unit, mol)
 
    class(TOniomCalculator), intent(in) :: self
 
-   integer, intent(in) :: unit !> unit for I/O
-
-   type(Tmolecule), intent(in) :: mol !> molecular structural data
+   !> unit for I/O
+   integer, intent(in) :: unit
+   
+   !> molecular structural data
+   type(Tmolecule), intent(in) :: mol
 
 end subroutine writeInfo
 
-subroutine cutbond(self, env, mol, chk, topo, inner_mol)
+!> create inner region
+subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
 
-   !> to initialize mol object
    use xtb_type_molecule, only: init
-
-   !> To get topology info from wfn
    use xtb_topology, only: makeBondTopology, topologyToNeighbourList
+   use xtb_io_writer
+   use xtb_mctc_filetypes, only : fileType
+   
+   implicit none
+   character(len=*), parameter :: source = "xtb_oniom_cutbond" 
 
-   !> actual calculator
+   !> polymorphic calculator
    class(TOniomCalculator), intent(in) :: self
-
-   !> Environment
+   
+   !> calculation environment
    type(TEnvironment), intent(inout) :: env
-
-   !> Wavefunction
+   
+   !> wavefunction wrapper
    type(TRestart), intent(in) :: chk
-
-   !>  Molecular data storage
+   
+   !> molecular structure data 
    type(TMolecule), intent(in) :: mol
-
-   !> Inner region geometry
+   
+   !> inner region mol str data
    type(TMolecule), intent(inout) :: inner_mol
-
-   !> Some buffer geometry
-   type(TMolecule) :: cash
-
+   
    !> topology info
    type(TTopology), allocatable, intent(inout) :: topo
+   
+   !> jacobian matrix 
+   real(wp), allocatable, intent(inout) :: jacobian(:,:)
+   
+   !> list of inner region atom indices + host atoms
+   integer, allocatable, intent(out) :: idx2(:)
+  
+   
+   !> outer region geometry
+   type(TMolecule), allocatable :: outer_mol
 
-   !> neighbour lists
+   !> neighbour list
    type(TNeighbourList) :: neighList
-
-   integer :: i, j, n, k, pre_last,iterator
-
-   !> Arrays for inner region atoms and their atomic numbers
-   integer, allocatable :: at(:), at2(:)
-   real(wp), allocatable :: xyz(:, :), xyz2(:, :)
-   logical :: inside
+      
+   !> pair-wise indices for cutbound  
+   integer, allocatable :: brokenBondPairs(:,:)
+   
+   integer, allocatable :: at(:), at_out(:)
    integer, allocatable :: bonded(:, :)
+   real(wp), allocatable :: xyz(:, :), xyz_out(:, :)
+   character(len=:),allocatable :: fname_inner
+   
+   !> if the both bonded atoms are inside the inner region
+   logical :: inside
+   
+   !> control output
+   logical :: set1 = .true.
+   logical :: set2 = .true.
+
+   !> number of LAs
+   integer :: nla
+
+   integer :: i, j, k, pre_last, pre_last_out, iterator
+   integer :: io
+
+   !> initial no. atoms in inner & outer regions
+   integer :: in, out
+
+   !> loop indices
+   integer :: in_itr, out_itr
+
+   !-------!
+   ! SETUP !
+   !-------!
+
    inside = .FALSE.
+   
+   ! initial number of atoms in inner/outer region without LAs !
+   in = len(self%list)
+   out = mol%n - in 
+   in_itr = 1
+   out_itr = 1
+   nla = 0
 
-   n = len(self%list)
-   allocate (at2(size(self%idx)))
-   allocate (xyz2(3, size(self%idx)))
-   allocate (at(n))
-   allocate (xyz(3, n))
+   ! allocate accordingly the basic molecular data !
+   allocate (at(in))
+   allocate (xyz(3, in))
+   allocate (at_out(out))
+   allocate (xyz_out(3, out))
 
-   !> Assignment of initial inner region
-   do i = 1, size(self%idx)
-      at(i) = mol%at(self%idx(i))
-      at2(i) = mol%at(self%idx(i))
-      xyz(:, i) = mol%xyz(:, self%idx(i))
-      xyz2(:, i) = mol%xyz(:, self%idx(i))
-   end do
-
-   !> To identify bonded atoms and save them into an array + iterator
+   ! save inner region list in the matching array !
+   idx2=self%idx
+   
+   ! divide initial mol into inner and outer regions !
+   do i = 1, mol%n
+      if (in_itr <= size(self%idx)) then
+         if (i==self%idx(in_itr)) then
+            at(in_itr) = mol%at(i)
+            xyz(:, in_itr) = mol%xyz(:, i)
+            in_itr = in_itr + 1
+         else
+            at_out(out_itr) = mol%at(i)
+            xyz_out(:, out_itr) = mol%xyz(:, i)
+            out_itr = out_itr + 1
+         endif
+      else
+         at_out(out_itr) = mol%at(i)
+         xyz_out(:, out_itr) = mol%xyz(:, i)
+         out_itr = out_itr + 1
+      endif
+   enddo 
+ 
+ 
+   ! initialiaze jacobian as identity !
+   call create_jacobian(jacobian,at)
+   
+   ! identify bonded atoms and save them into an array + assign iterator !
    select type (calc => self%real_low)
+   class default
+      call env%error("Topology information could not be derived from the given calculator",source)
+      return
+
+   ! gfnff !
    type is (TGFFCalculator)
-      bonded = calc%topo%blist !> automatic allocation
+      
+      ! bonded atom list !
+      bonded = calc%neigh%blist
+      
+      ! number of bonds !
       iterator = size(bonded,2)
 
+   ! gfn1/2 !
    type is (TxTBCalculator)
       if (.not. allocated(topo)) then
          allocate (topo)
-         call makeBondTopology(topo, mol, chk%wfn%wbo) !> return assigned topo%list
 
-         call topologyToNeighbourList(topo, neighList, mol) !> return neighList
+         ! return assigned topo%list !
+         call makeBondTopology(topo, mol, chk%wfn%wbo) 
+         
+         ! return neighList !
+         call topologyToNeighbourList(topo, neighList, mol) 
+      
       end if
+
       allocate (bonded(2, len(topo)))
       do i = 1, len(topo)
          bonded(:, i) = topo%list(1:2, i)
       end do
+      
       iterator = size(bonded,2)
+   
    end select
-   !> Actual bond cutting and creating linked atom
+
+   !-----------!
+   ! ALGORITHM !
+   !-----------!
+
+   ! iterate for all atoms in the user-provided list !
    do i = 1, size(self%idx)
+
+      ! iterate through pair of atoms that are bonded !
       do j = 1, iterator
+
+         ! if atom in the list is bonded !
          if (bonded(1, j) == self%idx(i)) then
+
+            ! iterate again through the list !
             do k = 1, size(self%idx)
+               
+               ! inside inner region !
                if (self%idx(k) == bonded(2, j)) then
                   inside = .TRUE.
                end if
+
             end do
+
+            ! bond is broken !
             if (.not. inside) then
-               select type (calc => self%real_low)
-               class default
-                  call checkfororder(env, mol, self%idx(i), bonded(2, j), bond=topo%list(3, j))
-               type is (TGFFCalculator)
-                  call checkfororder(env, mol, self%idx(i), bonded(2, j), hybrid=calc%topo%hyb)
-               end select
-               pre_last = size(at)
+               
+               if (.not.set%oniom_settings%ignore_topo) then
+
+                  ! check if single bond is broken  !
+                  select type (calc => self%real_low)
+                  class default
+                     call checkfororder(env, mol, self%idx(i), bonded(2, j), bond=topo%list(3, j))
+                  type is (TGFFCalculator)
+                     call checkfororder(env, mol, self%idx(i), bonded(2, j), hybrid=calc%topo%hyb)
+                  end select
+               
+               endif
+
+               ! adjust ordinal numbers !
                call resize(at)
-               at(pre_last + 1) = 1
+               call resize(idx2)
+               call resize(at_out)
+         
+               ! save index of the host atom -> jacobian ! 
+               idx2(size(idx2)) = bonded(2,j)
+
+               ! assign new atom as H !
+               at(size(at)) = 1
+               at_out(size(at_out)) = 1
+               
+               ! number of LAs !
+               nla = nla + 1
+               
+               ! adjust coordinate matrix !
                call resize(xyz)
-               call coord(mol, xyz, at(pre_last), self%idx(i), bonded(2, j))
+               call resize(xyz_out)
+      
+               ! increment Jacobian ! 
+               call resize_jacobian(jacobian)   
+               
+               ! determine new position of added H atom !
+               call coord(env,mol,xyz,xyz_out,self%idx(i),bonded(2,j),jacobian,i)
+               
             end if
+            
             inside = .FALSE.
+         
+         ! if atom in the list is bonded !
          else if (bonded(2, j) == self%idx(i)) then
+            
+            ! iterate again through the list !
             do k = 1, size(self%idx)
+                  
+               ! inside inner region !
                if (self%idx(k) == bonded(1, j)) then
                   inside = .TRUE.
                end if
+
             end do
+
+            ! bond is broken !
             if (.not. inside) then
-               select type (calc => self%real_low)
-               class default
-                  call checkfororder(env, mol, self%idx(i), bonded(1, j), bond=topo%list(3, j))
-               type is (TGFFCalculator)
-                  call checkfororder(env, mol, self%idx(i), bonded(1, j), hybrid=calc%topo%hyb)
-               end select
-               pre_last = size(at)
+               
+               if (.not.set%oniom_settings%ignore_topo) then
+                  
+                  ! check if single bond ! 
+                  select type (calc => self%real_low)   
+                  class default
+                     call checkfororder(env, mol, self%idx(i), bonded(1, j), bond=topo%list(3, j))
+                  type is (TGFFCalculator)
+                     call checkfororder(env, mol, self%idx(i), bonded(1, j), hybrid=calc%topo%hyb)
+                  end select
+               
+               endif
+
+               ! adjust ordinal numbers !
                call resize(at)
-               at(pre_last + 1) = 1
+               call resize(at_out)
+               call resize(idx2)
+               
+               ! save index of the host atom -> jacobian ! 
+               idx2(size(idx2)) = bonded(1,j)
+               
+               ! assign new atom as H !
+               at(size(at)) = 1
+               at_out(size(at_out)) = 1
+               
+               ! number of LAs !
+               nla = nla + 1
+               
+               ! adjust coordinate matrix !
                call resize(xyz)
-               call coord(mol, xyz, at(pre_last), self%idx(i), bonded(1, j))
+               call resize(xyz_out)
+               
+               ! increment Jacobian matrix !
+               call resize_jacobian(jacobian)   
+               
+               ! determine new position of added H atom !
+               call coord(env,mol, xyz, xyz_out, self%idx(i), bonded(1, j),jacobian,i)
+            
             end if
+
             inside = .FALSE.
+         
          end if
       end do
    end do
-    !call init(cash,at2,xyz2)
+
+   !----------------!
+   ! POSTPROCESSING !
+   !----------------!
+   
+   ! outer region saturation !
+   if (set%oniom_settings%outer) then
+      
+      ! initialize !
+      allocate(outer_mol)
+      call init(outer_mol, at_out, xyz_out)
+
+      ! create Xmol file !
+      call open_file(io, "outer_region.xyz", "w")
+      call writeMolecule(outer_mol, io, filetype%xyz)
+      call close_file(io)
+   
+      ! check LAs postions !
+      if (set2) call check_dist(outer_mol,env,nla)
+   
+   end if
+   
+   ! initialize inner region mol !
    call init(inner_mol, at, xyz)
-    !block
-    !use xtb_io_writer
-    !use xtb_mctc_filetypes, only : fileType
-    !integer :: io
-    !call open_file(io, "inner-region_with_h.xyz", "w")
-    !call writeMolecule(inner_mol, io, filetype%xyz)
-    !call close_file(io)
-    !stop
-    !end block
+   
+   ! check LAs postions !
+   if (set1) call check_dist(inner_mol,env,nla)
+  
+   ! to distinguish cases with/without SP !
+   if (set%oniom_settings%cut_inner) then
+      fname_inner = "inner_region_without_h.xyz" 
+   else
+      fname_inner = "inner_region.xyz"
+   endif
+
+   ! create Xmol file for inner region !
+   call open_file(io, fname_inner, "w")
+   call writeMolecule(inner_mol, io, filetype%xyz)
+   call close_file(io) 
+   
+   call env%checkpoint("ONIOM is terminated")
+
+   set1 = .false.
+   set2 = .false.  
 
 end subroutine cutbond
 
-subroutine new_atom(at)
+subroutine check_dist(mol, env, nla)
 
+   use xtb_mctc_convert, only : aatoau
+
+   !> source
+   character(len=*), parameter :: source = "check_dist"
+
+   !> molecular structure
+   type(TMolecule), intent(in) :: mol 
+
+   !> calculation environment 
+   type(TEnvironment), intent(inout) :: env
+
+   !> LA's  indices
+   integer, intent(in) :: nla
+
+
+   !> warning message
+   character(len=:), allocatable :: warn
+   
+   !> ordinal numbers as characters 
+   character(len=3) :: dummy1, dummy2
+
+   !> minimal allowed distance
+   real(wp) :: min_dist
+
+   !> loop indices
+   integer :: i,j
+
+   !> inner/outer region with LA's
+   integer :: regsize_saturated
+
+   !> inner/outer region without LA's 
+   integer :: regsize_raw
+
+   ! calculate the start and end iterator for loop !
+   regsize_raw = mol%n - nla + 1
+   regsize_saturated = mol%n
+
+   ! H2 bond length !
+   min_dist = 0.74 * aatoau   
+
+   ! check all LA's !
+   do i = regsize_raw, regsize_saturated
+      do j = 1, regsize_saturated
+         if (i.ne.j) then
+            if (mol%dist(j,i) < min_dist) then
+               write (dummy1, '(I3)') i
+               write (dummy2, '(I3)') j
+               warn = "The distance b/n atoms "//dummy1//" (LA) and " &
+                     & //dummy2//" is less then min," &
+                     & //achar(10) //"please examine carefully your cutout region"  
+               call env%warning(warn,source)
+            endif
+         endif
+      enddo
+   enddo
+
+end subroutine check_dist
+
+!> increase atomic number array by 1 
+subroutine new_atom(at)
+   
+   implicit none
    integer, allocatable, intent(inout) :: at(:)
    integer, allocatable :: tmp2(:)
-   allocate (tmp2(size(at) + 1))
-   tmp2(:size(at)) = at(:size(at))
-   deallocate (at)
-   call move_alloc(tmp2, at)
+
+   if (.not. allocated(at)) then
+      allocate(at(1))
+   else
+      allocate (tmp2(size(at) + 1))
+      tmp2(:size(at)) = at(:size(at))
+      deallocate (at)
+      call move_alloc(tmp2, at)
+   endif
 
 end subroutine new_atom
 
+!> increase coordinate matrix  by 1 
 subroutine new_coordinates(xyz)
-
-   real, allocatable :: xyz(:, :)
-   real, allocatable :: tmp1(:, :)
+   
+   implicit none
+   real(wp), allocatable :: xyz(:,:)
+   real(wp), allocatable :: tmp1(:,:)
    integer :: atom_num
 
    atom_num = size(xyz, 2)
@@ -612,51 +1001,453 @@ subroutine new_coordinates(xyz)
 
 end subroutine new_coordinates
 
-!call coord(mol, xyz, pre_last, at(self%idx(i)), self%idx(i), bonded(1, j))
-subroutine newcoord(mol, xyz,  at, idx1, idx2)
+!> create identity matrix 
+subroutine create_jacobian(matrix,at)
+   
+   implicit none
+   real(wp),allocatable :: matrix(:,:)
+   integer,intent(in) :: at(:)
+   integer :: i, j
 
+   allocate (matrix(size(at)*3,size(at)*3))
+   do i=1,size(at)*3
+      do j=1,size(at)*3
+         if (i==j) then
+            matrix(i,j)=1.0_wp
+         else
+            matrix(i,j)=0.0_wp
+         endif
+      enddo
+   enddo
+   
+end subroutine create_jacobian
+
+!> increase matrix dimensionality
+! (3 new entries in diagonal and subsequent increase) !
+subroutine resize_jacobian(matrix)
+   
+   implicit none
+   real(wp), allocatable :: matrix(:,:)
+   
+   !> temporary storage
+   real(wp), allocatable :: tmp(:,:)
+   
+   !> current number of coordinates
+   integer :: coord_num
+
+   coord_num = size(matrix,1)
+
+   allocate(tmp(coord_num+3,coord_num+3))
+   tmp(:coord_num,:coord_num) = matrix(:coord_num,:coord_num)
+   deallocate(matrix)
+   call move_alloc(tmp, matrix)
+
+end subroutine resize_jacobian
+
+!> calculate new postion for LA and corresponding J
+subroutine newcoord(env,mol,xyz,xyz_out,idx1,idx2,jacobian,connectorPosition)
+   
+   implicit none
+   
+   !> name of error producer routine
+   character(len=*), parameter :: source = "oniom_newcoord"
+   
+   !> calculation environment 
+   type(TEnvironment), intent(inout) :: env
+   
+   !> molecular structure data
    type(TMolecule), intent(in) :: mol
-
+   
+   !> inreg coordinate matrix 
    real(wp), intent(inout) :: xyz(:, :)
-
-   !integer, intent(in) :: pre_last
-
-   integer, intent(in) :: at, idx1, idx2
-
-   real(wp) :: dist, prefactor
+   
+   !> outreg coordinate matrix
+   real(wp), intent(inout) :: xyz_out(:, :)
+   
+   !> connector (one that stays in the inner region)
+   integer, intent(in) :: idx1
+   
+   !> host (one that is substitued) 
+   integer, intent(in) :: idx2
+   
+   !> jacobian maxtrix
+   real(wp), intent(inout) :: jacobian(:,:)
+   
+   !> ordinal number of connector atom in mol%at
+   integer, intent(in) :: connectorPosition
+   
+   !> standard bond length between LAC(linked atom connector)-H
+   real(wp) :: dist 
+   
+   !> standard bond length between LAC(linked atom connector)-LAH(linked atom host)
+   real(wp) :: dist2
+   
+   !> scaling parameter
+   real(wp) :: prefactor
+   
+   !> squared vector length
+   real(wp) :: dist_12
+   
+   !> cleaved atom pair coordinates
    real(wp) :: xyz1(3), xyz2(3)
 
-   select case (at)
-   case default
-      dist = 1.09*aatoau
-      !> Carbon
-   case (6)
-      dist = 1.09*aatoau
-      !> Oxygen
-   case (8)
-      dist = 0.964*aatoau
-      !> Nitrogen
-   case (7)
-      dist = 1.024*aatoau
-      !> Phosphorus
-   case (15)
-      dist = 1.414*aatoau
-      !> Sulfur
-   case (16)
-      dist = 1.389*aatoau
-   end select
-
+   !> message for default parameter
+   character(len=:), allocatable :: warning
+   
+   !> message for auto-switching between derived and fixed modes 
+   character(len=:), allocatable :: warning2
+   
+   !> default is used
+   logical :: def
+   
+   !> control warnings
+   logical, save :: rep=.false.
+   
+   !> ordinal numbers as characters 
+   character(len=3) :: dummy1, dummy2
+   
+   !> difference between new and old coordinates
+   real(wp) :: xyz_difference(3)
+   
+   integer :: i,j,k
+   
+   !-------!
+   ! SETUP !
+   !-------!
+   
+   write (dummy1, '(I3)') mol%at(idx1)
+   write (dummy2, '(I3)') mol%at(idx2)
+   
+   def = .false.
+   warning = "Atoms "//dummy1//" and "//dummy2//" are not accounted in the parameter suite(S,P,N,C,O), the default distance values will be used."
+   warning2 = "The distance between atoms "//dummy1//" and "//dummy2//" is almost the same, switching to fixed regime"
+   
+   ! coordinates of connector atom !
    xyz1 = mol%xyz(:, idx1)
-   xyz2 = mol%xyz(:, idx2)
-   prefactor = dist/sqrt(sum((xyz1 - xyz2)**2))
 
-   !> new H coordinates
+   ! coordinates of host atom !
+   xyz2 = mol%xyz(:, idx2) 
+   
+   dist_12=sum((xyz1 - xyz2)**2)
+
+   ! identify average bond distances !
+   ! b/n connector-H and connector-host !
+   select case (mol%at(idx1))
+   case default
+      def = .true.
+      
+      ! C-H, def !
+      dist = 1.084*aatoau
+      ! C-C, def !
+      dist2 = 1.528*aatoau
+   
+   ! H !
+   case (1) 
+      
+      ! H-H !    
+      dist = 0.740*aatoau
+      
+      select case (mol%at(idx2))
+      case default
+         dist2 = 1.084*aatoau
+         def = .true.
+      case(1)
+         ! H-H !
+         dist2 = 0.740*aatoau
+      case (6)
+         ! H-C !
+         dist2 = 1.084*aatoau
+      case (8)
+         ! H-O !
+         dist2 = 0.964*aatoau
+      case (7)
+         ! H-N !
+         dist2 = 1.024*aatoau
+      case (15)
+         ! H-P !
+         dist2 = 1.414*aatoau
+      case (16)
+         ! H-S !
+         dist2 = 1.389*aatoau
+      end select
+   
+   ! C !
+   case (6)
+      
+      ! C-H !
+      dist = 1.084*aatoau
+      
+      select case (mol%at(idx2))
+      case default
+         dist2 = 1.528*aatoau
+         def = .true.
+      case(1)
+         ! C-H !
+         dist2 = 1.084*aatoau
+      case (6)
+         ! C-C !
+         dist2 = 1.528*aatoau
+      case (8)
+         ! C-O !
+         dist2 = 1.430*aatoau
+      case (7)
+         ! C-N !
+         dist2 = 1.475*aatoau
+      case (15)
+         ! C-P !
+         dist2 = 1.860*aatoau
+      case (16)
+         ! C-S !
+         dist2 = 1.750*aatoau
+      end select
+    
+   ! N !
+    case (7)
+      
+      ! N-H !
+      dist = 1.024*aatoau
+      
+      select case (mol%at(idx2))
+      case default
+         dist2 = 1.470*aatoau
+         def = .true.
+      case(1)
+         ! N-H !
+         dist2 = 1.024*aatoau
+      case (6)
+         ! N-C !
+         dist2 = 1.475*aatoau
+      case (8)
+         ! N-O !
+         dist2 = 1.360*aatoau
+      case (7)
+         ! N-N !
+         dist2 = 1.470*aatoau
+      case (15)
+         ! N-P !
+         dist2 = 1.770*aatoau
+      case (16)
+         ! N-S !
+         dist2 = 1.650*aatoau
+      end select
+
+  
+   ! O !
+   case (8)
+      
+      ! O-H !
+      dist = 0.964*aatoau
+
+      select case (mol%at(idx2))
+      case default
+         dist2 = 1.450*aatoau
+         def = .true.
+      case(1)
+         ! O-H !
+         dist2 = 0.964*aatoau
+      case (6)
+         ! O-C !
+         dist2 = 1.430*aatoau
+      case (8)
+         ! O-O !
+         dist2 = 1.450*aatoau
+      case (7)
+         ! O-N !
+         dist2 = 1.360*aatoau
+      case (15)
+         ! O-P !
+         dist2 = 1.750*aatoau
+      case (16)
+         ! O-S !
+         dist2 = 1.500*aatoau
+      end select
+
+   ! P !
+   case (15)
+      
+      ! P-H !
+      dist = 1.414*aatoau
+      
+      select case (mol%at(idx2))
+      case default
+         dist2 = 1.770*aatoau
+         def = .true.
+      case(1)
+         ! P-H !
+         dist2 = 1.414*aatoau
+      case (6)
+         ! P-C !
+         dist2 = 1.860*aatoau
+      case (8)
+         ! P-O !
+         dist2 = 1.750*aatoau
+      case (7)
+         ! P-N !
+         dist2 = 1.770*aatoau
+      endselect
+
+   ! S !
+   case (16)
+      
+      ! S-H !
+      dist = 1.389*aatoau
+      
+      select case (mol%at(idx2))
+      case default
+         dist2 = 1.650*aatoau
+         def = .true.
+      case(1)
+         ! S-H !
+         dist2 = 1.389*aatoau
+      case (6)
+         ! S-C !
+         dist2 = 1.750*aatoau
+      case (8)
+         ! S-O !
+         dist2 = 1.500*aatoau
+      case (7)
+         ! S-N !
+         dist2 = 1.650*aatoau
+      case (16)
+         ! S-S !
+         dist2 = 2.040*aatoau
+      endselect
+
+   end select 
+   
+   ! derived mode !
+   if (set%oniom_settings%derived) then
+      
+      prefactor = dist/sqrt(dist_12)
+   
+   ! fixed mode !
+   else
+      
+      prefactor = dist/dist2 
+      
+      ! default values !
+      if(def.and. .not.rep) then
+         rep=.true.
+         call env%warning(warning,source)
+      endif
+   endif
+
+   ! LA coordinates / reference formula (3) !
    xyz(:, size(xyz, 2)) = xyz1 + (xyz2 - xyz1) * prefactor
+   xyz_out(:,size(xyz_out,2)) = xyz2 + (xyz1 - xyz2) * prefactor 
+      
+   ! determine the difference between LA and LAH cooordinates !
+   ! (yes -> change from derived to fixed) ! 
+   xyz_difference=xyz2-xyz(:,size(xyz,2))
+   if (all(xyz_difference<1.0E-5).and.set%oniom_settings%derived) then 
+      set%oniom_settings%derived=.false.
+      call env%warning(warning2,source)
+      prefactor = dist/dist2 
+   endif
+
+   ! take derivatives !
+   call derivative(jacobian,connectorPosition,size(xyz,2),prefactor,mol%xyz,idx1,idx2,dist_12,set%oniom_settings%derived)
 
 end subroutine newcoord
 
+!> increment Jacobian matrix for newly added atoms
+subroutine derivative(jacobian,con,link,prefactor,xyz,idx1,idx2,dist_12,derived)
+   
+   implicit none
+   
+   !> jacobian matrix
+   real(wp), intent(inout) :: jacobian(:,:)
+   
+   !> position of connector atom 
+   integer,intent(in) :: con
+   
+   !> position of linked atom 
+   integer, intent(in) :: link
+
+   !> scaling factor 
+   real(wp),intent(in) :: prefactor
+   
+   !> square of distance vector
+   real(wp),intent(in) :: dist_12
+
+   !> coordinates of whole molecule
+   real(wp),intent(in) :: xyz(:,:)
+   
+   !> connector (one that stays in inner region)
+   integer, intent(in) :: idx1
+   
+   !> host (one that is substitued)
+   integer, intent(in) :: idx2
+   
+   !> fix value of prefactor variable
+   logical, intent(in) :: derived
+   
+   !> account for all 3 coordinates in J matrix
+   integer :: con3, link3
+   
+   !> save the positions of changed matrix elements
+   integer :: counter1(3), counter2(3)
+   
+   integer :: i, j
+   
+   !-------!
+   ! SETUP !
+   !-------!
+
+   con3=con*3
+   link3=link*3
+   
+   do i=1,3
+      counter1(i)=con3-i+1
+      counter2(i)=link3-i+1
+   enddo
+   
+   ! nullify all new matrix elements !
+   jacobian(counter2(3):,:) = 0.0_wp
+   jacobian(:,counter2(3):) = 0.0_wp
+
+   !-------------------------!
+   ! JACOBIAN INCREMENTATION !
+   !-------------------------!
+   do i=1,3
+      
+      ! fixed mode / reference ESI formula (3,4) !
+      if(.not.derived) then
+         jacobian(counter1(i),counter2(i)) = 1 - prefactor
+         jacobian(counter2(i),counter2(i)) = prefactor
+      
+      ! derived mode / reference ESI formula (6,7) !
+      else
+
+         ! x coordinate !
+         if (i==1) then
+            jacobian(counter2(i),counter2(i)) = prefactor * ( (xyz(2,idx1)-xyz(2,idx2)**2) & 
+                                                            & + ((xyz(3,idx1)-xyz(3,idx2))**2)  ) / dist_12
+         
+         ! y coordinate !
+         else if (i==2) then
+            jacobian(counter2(i),counter2(i)) = prefactor * ( (xyz(1,idx1)-xyz(1,idx2)**2) & 
+                                                            & + ((xyz(3,idx1)-xyz(3,idx2))**2)  ) / dist_12
+         
+         ! z coordinate !
+         else
+            jacobian(counter2(i),counter2(i)) = prefactor * ( (xyz(1,idx1)-xyz(1,idx2)**2) & 
+                                                            & + ((xyz(2,idx1)-xyz(2,idx2))**2)  ) / dist_12
+         
+         endif
+         
+         jacobian(counter1(i),counter2(i)) = 1.0_wp - prefactor * (1.0_wp - (((xyz(i,idx2)-xyz(i,idx1))**2) / dist_12 ))
+      
+      endif
+   
+   enddo
+   
+end subroutine derivative
+
+!> assign methods
 function string_to_id(string) result(id)
 
+   implicit none
    character(len=*), intent(in) :: string
    integer :: id
 
@@ -668,10 +1459,8 @@ function string_to_id(string) result(id)
       id = 2
    case ('gfn1')
       id = 1
-      !> FF
    case ('gfnff')
       id = 3
-      !> how it is specified in program??
    case ('orca')
       id = 4
    case ('turbomole')
@@ -680,20 +1469,32 @@ function string_to_id(string) result(id)
 
 end function string_to_id
 
+!> check bond order
 subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
-
-   character(len=*), parameter :: source = 'oniom_cutbond'
-
+   
+   implicit none
+   
+   !> name of error producer routine
+   character(len=*), parameter :: source = 'xtb_oniom_checkfororder' 
+   
+   !> hybridization info from GFN-FF; topo%hyb
    integer, intent(in), optional :: hybrid(:)
-
+   
+   !> wiberg bond orders 
    integer, intent(in), optional :: bond
-
+   
+   !> calculation environment 
    type(TEnvironment), intent(inout) :: env
-
+   
+   !> molecular structure data
    type(TMolecule), intent(in) :: mol
+   
+   !> connector (one that stays in inner region)
+   integer, intent(in) :: idx1
 
-   integer, intent(in) :: idx1, idx2
-
+   !> host (one that is substitued)
+   integer, intent(in) :: idx2
+   
    character(len=:), allocatable :: warning
    integer :: b
    character(len=5) :: dummy1, dummy2
@@ -701,6 +1502,7 @@ subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
    write (dummy1, '(I5)') idx1
    write (dummy2, '(I5)') idx2
    warning = "You are cutting a bond with the order higher than 1 between "//dummy1//" and "//dummy2
+   
    if (present(bond)) then
       if (bond > 1) then
          call env%error(warning, source)
@@ -717,43 +1519,121 @@ subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
 
 end subroutine checkfororder
 
-subroutine calculateCharge(self, env, mol, chk)
-
-   character(len=*), parameter :: source = 'charge for inner region'
-
+!> automatic inner region charge determination
+function calculateCharge(self, env, mol, chk) result(chrg_model)
+   
+   implicit none
+   
+   !> name of error producer routine
+   character(len=*), parameter :: source = 'xtb_oniom_calculateCharge'
+   
+   !> polymorhic calculator
    class(TOniomCalculator), intent(inout) :: self
-
+   
+   !> calculation environment
    type(TEnvironment), intent(inout) :: env
-
+   
+   !> molecular structure data
    type(TMolecule), intent(in) :: mol
-
+   
+   !> wavefuntion wrapper
    type(TRestart), intent(in) :: chk
-
-   integer :: i, j, n, k, pre_last
-   integer, allocatable :: at(:)
+   
+   !> inner region charge
    real(wp) :: charge
+   
+   integer :: i, j, n, k, pre_last
+   integer :: chrg_model
+   integer, allocatable :: at(:)
 
    charge = 0.0_wp
 
    select type (calc => self%real_low)
+   
+   ! gfnff !
    type is (TGFFCalculator)
-
       do i = 1, size(self%idx)
          charge = charge + calc%topo%qa(self%idx(i))
-
       end do
-     type is (TxTBCalculator)
-     do i = 1, size(self%idx)
-         charge = charge + chk%wfn%q(self%idx(i))
-     end do
 
-    class default
-        call env%error("Not possible to calculate with external methods for real region", source)
-        return
-    end select
+   ! GFN1/2 !
+   type is (TxTBCalculator)
+      do i = 1, size(self%idx)
+         charge = charge + chk%wfn%q(self%idx(i))         
+      end do
 
-    self%chrg_model = nint(charge)
+   class default
+      call env%error("Not possible to calculate with external methods for real region", source)
+      return
+   end select
+      
+   chrg_model = nint(charge)
 
-end subroutine calculateCharge
+end function calculateCharge
+
+!> transform matrix into 1-dim array
+subroutine matrix_to_array(mtrx,arr)
+   
+   implicit none
+   real(wp), intent(in) :: mtrx (:,:)
+   real(wp), allocatable, intent(out) :: arr(:)
+   integer :: i, j, k
+
+   allocate(arr(size(mtrx,1)*size(mtrx,2)))
+   
+   k=1
+   do i=1, size(mtrx,2)
+      do j=1, size(mtrx,1)
+         arr(k)=mtrx(j,i)
+         k=k+1
+      enddo
+   enddo
+
+end subroutine matrix_to_array
+
+!> transform 1-dim array to matrix
+subroutine array_to_matrix(arr,mtrx)
+   
+   implicit none
+   real(wp), intent(out) :: mtrx (:,:)
+   real(wp), allocatable, intent(inout) :: arr(:)
+   integer :: i, j, k
+   
+   k=1
+   do i=1, size(mtrx,2)
+      do j=1, size(mtrx,1)
+         mtrx(j,i)=arr(k)
+         k=k+1
+      enddo
+   enddo
+
+   deallocate(arr)
+
+end subroutine array_to_matrix
+   
+!> create origin.coord (if coord exist)
+subroutine protectCoord(env)
+   
+   use xtb_readin, only : mirror_line
+   implicit none
+   character(len=*),parameter :: source = "xtb_oniom_protectCoord"
+   type(TEnvironment),intent(inout) :: env
+   integer :: cunit, new_cunit, err
+   character(len=:),allocatable :: line
+   logical :: exist
+
+   inquire(file='coord',exist=exist)
+   if(exist) then   
+      call open_file(cunit,'coord','r')
+      call open_file(new_cunit,'origin.coord','w')
+      do
+         call mirror_line(cunit,new_cunit,line,err)
+         if(is_iostat_end(err)) exit
+      enddo
+      call env%warning("coord file will be renamed as unopt.coord",source)
+
+   endif
+
+end subroutine protectCoord
 
 end module xtb_oniom

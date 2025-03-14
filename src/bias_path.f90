@@ -282,7 +282,7 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
       enddo
       factor2= factor2 + alp_change
    enddo bias_loop
-
+   
    !! ------------------------------------------------------------------------
    ! output and find path yielding product
    !! ------------------------------------------------------------------------

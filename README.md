@@ -14,7 +14,7 @@ This is the offical repository of the `xtb` program package developed by the Gri
 
 ## Installation
 
-[![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI)](https://github.com/grimme-lab/xtb/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/grimme-lab/xtb/fortran-build.yml?branch=main)](https://github.com/grimme-lab/xtb/actions)
 
 Statically linked binaries (Intel Compiler) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest), a version for Linux (Intel 18.0.2, GLIBC 2.19) and Windows (Intel 2022) is provided.
 The `xtb` program and library are packaged on conda-forge for Linux (x86\_64, aarch64, ppc64le) and MacOS (x86\_64, arm64).
@@ -25,17 +25,42 @@ Bleeding edge releases (Linux only) of the latest source from this repository ar
 This projects supports two build systems, meson and CMake.
 A short guide on the usage of each is given here, follow the linked instructions for a more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
 
+**Compilers**: 
+  1. ifort(<=2021.10.0), icc(<=2021.10.0)
+  2. gfortran, gcc
+
 
 ### Meson
 
-Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.51 or newer.
+Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.62 or newer.
 To use the default backend of meson you have to install [ninja](https://ninja-build.org/) version 1.7 or newer.
 
 ```bash
 export FC=ifort CC=icc
-meson setup build --buildtype release --optimization 2
+meson setup build --buildtype release --optimization 2 -Dfortran_link_args="-qopenmp"
 ninja -C build test
 ```
+
+> [!IMPORTANT]
+> Compilation with `meson` on macOS differs slightly from the protocol for Linux-based systems. Different BLAS libraries can lead to deviating results in rare cases – please stick to the following instructions.
+
+<details>
+  <summary><b>Setting up meson on macOS</b></summary>
+
+#### Compiling with meson on macOS
+
+1. **Use Homebrew for Package Management**: Install dependencies like `gcc`, `gfortran`, and `openblas` using Homebrew.
+[Further information](https://brew.sh/) on how to setup `brew`.
+Example:
+   ```bash
+   brew install gcc gfortran openblas
+   ```
+2. **meson setup call with appropriate environment variables**: Use the following adapted `meson setup` call to compile `xtb` on macOS. Obviously, the paths to the libraries might differ on your system.
+   ```bash
+   LDFLAGS="-L/opt/homebrew/opt/openblas/lib" CPPFLAGS="-I/opt/homebrew/opt/openblas/include" FC=gfortran-14 CC=gcc-14 meson setup _build --buildtype release -Dlapack=openblas
+   ```
+</details>
+<br>
 
 Make sure the testsuite is running without errors.
 
@@ -96,7 +121,7 @@ conda search xtb --channel conda-forge
 
 [![Documentation Status](https://readthedocs.org/projects/xtb-docs/badge/?version=latest)](https://xtb-docs.readthedocs.io/en/latest/?badge=latest)
 
-The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
+The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/).
 
 
 ## Contributing
@@ -121,7 +146,7 @@ features reality:
 - S. Dohm ([@thch-dohm](https://github.com/thch-dohm))
 - S. Ehlert ([@awvwgk](https://github.com/awvwgk))
 - S. Ehrlich
-- I. Gerasimov ([@FulgurIgor](https://github.com/fulgurigor))
+- I. Gerasimov ([@foxtran](https://github.com/foxtran))
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - C. Hölzer ([@hoelzerC](https://github.com/hoelzerc))
 - A. Katbashev ([@Albkat](https://github.com/albkat))
@@ -170,10 +195,19 @@ for GFN-FF:
 - S. Spicher and S. Grimme, *Angew. Chem. Int. Ed.*, **2020**, 59, 15665–15673
   DOI: [10.1002/anie.202004239](https://doi.org/10.1002/anie.202004239)
 
+for PTB:
+- S. Grimme, M. Müller, A. Hansen, *J. Chem. Phys.* **2023**, 158, 124111.
+  DOI: [10.1063/5.0137838](https://doi.org/10.1063/5.0137838)
+
 for GBSA and ALPB implicit solvation:
 - S. Ehlert, M. Stahn, S. Spicher, S. Grimme,
   *J. Chem. Theory Comput.*, **2021**, 17, 4250-4261
   DOI: [10.1021/acs.jctc.1c00471](https://doi.org/10.1021/acs.jctc.1c00471)
+
+for ddCOSMO and CPCM-X implicit solvation:
+- M.Stahn, S. Ehlert, S. Grimme,
+  *J. Phys. Chem. A*, **2023**, XX, XXX-XXX
+  DOI: [10.1021/acs.jpca.3c04382](https://doi.org/10.1021/acs.jpca.3c04382)
 
 for DFT-D4:
 - E. Caldeweyher, C. Bannwarth and S. Grimme, *J. Chem. Phys.*, **2017**, 147, 034112.
@@ -201,7 +235,11 @@ for metadynamics refer to:
   
 for SPH calculations refer to:
 - S. Spicher and S. Grimme, *J. Chem. Theory Comput.*, **2021**, 17, 1701–1714.
-  DOI: [10.1021/acs.jctc.0c01306](https://doi.org/10.1021/acs.jctc.0c01306)  
+  DOI: [10.1021/acs.jctc.0c01306](https://doi.org/10.1021/acs.jctc.0c01306) 
+
+for ONIOM refer to:
+- C. Plett, A. Katbashev, S. Ehlert, S. Grimme, M. Bursch, *Phys. Chem. Chem. Phys.*, **2023**, 25, 17860-17868.
+  DOI: [10.1039/D3CP02178E](https://doi.org/10.1039/D3CP02178E)
 
 All references are available in [bibtex format](./assets/references.bib).
 

@@ -28,6 +28,7 @@ module xtb_docking_set_module
    use xtb_type_atomlist
    use xtb_mctc_strings, only : parse
    use xtb_setmod
+   use xtb_mctc_convert, only : autokcal
 
    implicit none
 
@@ -129,7 +130,7 @@ contains
       character(len=:),allocatable,intent(out) :: line
       character(len=:),allocatable :: key
       character(len=:),allocatable :: val
-      integer :: ie
+      integer :: ie, ia
       logical :: exitRun
       do
          call getline(id,line,err)
@@ -139,12 +140,18 @@ contains
    
          ! find the first colon
          ie = index(line,colon)
-         if ((line.eq.'')) cycle
-         if (ie .eq. 0) then! cycle
+         ia = index(line,equal)
+         if ((line == '')) cycle
+         if (ie == 0 .AND. ia == 0) then !Only if no : or = is in string
             call set_logicals(env, line)
-         else
-            key = trim(line(:ie-1))
-            val = trim(adjustl(line(ie+1:)))
+         else 
+            if (ia /= 0) then
+               key = trim(line(:ia-1))
+               val = trim(adjustl(line(ia+1:)))
+            else
+               key = trim(line(:ie-1))
+               val = trim(adjustl(line(ie+1:)))
+            end if
             call handler(env,key,val,nat,at,idMap,xyz)
             call env%check(exitRun)
             if (exitRun) then
@@ -242,6 +249,11 @@ contains
    
       integer  :: narg
       character(len=p_str_length),dimension(p_arg_length) :: argv
+
+      logical, save :: set1 = .true.
+      logical, save :: set2 = .true.
+      logical, save :: set3 = .true.
+      logical, save :: set4 = .true.
    
       call atl%resize(nat)
 
@@ -254,6 +266,9 @@ contains
       endif
       select case(key)
       case default ! ignore, don't even think about raising them
+      case('scaling factor')
+         if (getValue(env,val,ddum).and.set1) directedset%fc = ddum
+         set1 = .false.
       case('elements')
          call atl%new
          do idum = 1, narg
@@ -292,6 +307,16 @@ contains
          call atl%to_list(list)
          directedset%atoms = list
          directedset%n = size(list)
+      case('expo')
+         if (getValue(env,val,ddum).and.set2) directedset%expo(1) = ddum
+         set2 = .false.
+      case('prefac')
+         !Prefactor is given in kcal, but xtb energies are in hartree
+         if (getValue(env,val,ddum).and.set3) directedset%val(1) = ddum / autokcal
+         set3 = .false.
+      case('midpoint')
+         if (getValue(env,val,ddum).and.set4) directedset%expo(2) = ddum
+         set4 = .false.
       end select
       call write_set_directed(env%unit)
    
@@ -320,6 +345,7 @@ contains
       logical, save :: set13 = .true.
       logical, save :: set14 = .true.
       logical, save :: set15 = .true.
+      logical, save :: set16 = .true.
       select case (key)
       case default ! do nothing
         call env%warning("the key '"//key//"' is not recognized by scc", source)
@@ -356,11 +382,9 @@ contains
          set8 = .false.
       case('qcg')
          if (set8) then
+            !The following setups will become obsolete with next Crest version
             maxparent = 50      ! # of parents in gene pool 100
             maxgen = 7          ! # of generations 10
-!            mxcma = 250         ! R points in CMA search 1000
-!            stepr = 4.0         ! R grid step in Bohr 2.5
-!            stepa = 60          ! angular grid size in deg. 45
             n_opt = 5          ! # of final grad opts 15
             qcg = .true.
          end if
@@ -386,6 +410,11 @@ contains
       case('repulsive')
          if (set15) directed_type = p_atom_pot
          set15 = .false.
+      case('solv_tool')
+         if (set16) directed_type = p_atom_qcg
+         allocate(directedset%expo(2), source=0.0_wp)
+         allocate(directedset%val(1), source=0.0_wp)
+         set16 = .false.
       end select
    end subroutine set_logicals
 

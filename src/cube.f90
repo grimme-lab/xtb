@@ -59,7 +59,7 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
 
    integer i,j,k,m,nm,ii,jj,iii,jjj,npri,nprj,primstart(nbf),nexp
    integer iat,jat,xst,yst,zst,cou,iprimcount,jprimcount,iiii,jjjj
-   real*8 thr,thr3,intcut,intcut2
+   real*8 thr,thr3,intcut,intcut2,boff
    real*8 w0,w1,t0,t1,r,r2,val,rab,ccc,gridp(3),xyza(3),xyzb(3),dr3
    real*8 step,px,py,pz,xinc,yinc,zinc,nx,ny,nz,vv(1),v,est,nfod
    real*8 f1,f2,dx1,dy1,dz1,dx2,dy2,dz2,r1,dum,r1xy,r2xy
@@ -71,6 +71,7 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
    write(*,*)'cube file module (SG, 7/16)'
    thr = set%cube_pthr ! Dmat pre-screen
    step= set%cube_step ! grid step (Bohr)
+   boff= set%cube_boff ! bound offset
    intcut=8.00d0   ! primitive cut
    intcut2=2.0d0*intcut
 
@@ -118,15 +119,16 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
    enddo
    write(*,'('' cube_pthr     : '',f7.3)')set%cube_pthr
    write(*,'('' cube_step     : '',f7.3)')set%cube_step
+   write(*,'('' cube_boundoffset     : '',f7.3)')set%cube_boff
    write(*,'('' non-zero P (%): '',f7.3,''   nmat:'',i8)') &
    & 100.*float(nm)/float(nbf*(nbf+1)/2),nm
 
-   px=maxval(xyz(1,1:n))+3.0
-   py=maxval(xyz(2,1:n))+3.0
-   pz=maxval(xyz(3,1:n))+3.0
-   nx=minval(xyz(1,1:n))-3.0
-   ny=minval(xyz(2,1:n))-3.0
-   nz=minval(xyz(3,1:n))-3.0
+   px=maxval(xyz(1,1:n))+boff
+   py=maxval(xyz(2,1:n))+boff
+   pz=maxval(xyz(3,1:n))+boff
+   nx=minval(xyz(1,1:n))-boff
+   ny=minval(xyz(2,1:n))-boff
+   nz=minval(xyz(3,1:n))-boff
    write(*,*)'Grid Boundaries (x y z) :'
    write(*,*)px,py,pz
    write(*,*)nx,ny,nz

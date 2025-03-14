@@ -15,53 +15,37 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!in gfnff_ini:
-!      integer, parameter :: maxsystem = 50
-!      integer :: ispinsyst  (10*n,maxsystem)
-!      integer :: nspinsyst  (maxsystem)
-!      integer :: nsystem
-!      call fragmentize(n,at,xyz,maxsystem, 400, rab, nb, ispinsyst, nspinsyst, nsystem)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 module xtb_gfnff_fraghess
 !$ use omp_lib
-   use xtb_gfnff_mrec, only : mrecgff
+   use xtb_gfnff_mrec, only : mrecgff, mrecgffPBC
    implicit none
 
    interface
-     function shortest_distance(nspin, start, goal, neighbours, input_distances, visited, precessor)
+     function shortest_distance(nspin, start, goal, numnb, neighbours, input_distances, visited, precessor)
         use xtb_mctc_accuracy, only : wp
         implicit none
         real(wp)             :: shortest_distance
         integer, intent(in)  :: nspin
         integer, intent(in)  :: start
         integer, intent(in)  :: goal
-        integer, intent(in)  :: neighbours(20, nspin)
+        integer, intent(in)  :: numnb
+        integer, intent(in)  :: neighbours(numnb, nspin, 1)
         real(wp), intent(in) :: input_distances(nspin, nspin)
         logical, intent(out) :: visited(nspin)
         integer, intent(out) :: precessor(nspin)
-        integer  :: current
-        integer  :: neighbour
-        integer  :: i_neighbours
-        integer  :: bonds
-        real(wp) :: alt_dist
-        real(wp) :: distance(nspin)
       end function shortest_distance
-      subroutine eigsort4(lab,ew,u)
+      subroutine eigsort4(lab,u,ew)
          use xtb_mctc_accuracy, only : sp
          implicit none
-         integer  :: ii,k, j, i
-         real(sp) :: pp, hilf
-         integer  :: lab
-         real(sp) :: ew(lab)
-         real(sp) :: u(lab,lab)
+         integer,  intent(in)    :: lab
+         real(sp), intent(inout) :: u(lab,lab)
+         real(sp), intent(inout) :: ew(lab)
       end subroutine eigsort4
     end interface
 
    contains
 
-     subroutine fragmentize(nspin, at, xyz, maxsystem, maxmagnat, jab, neigh, ispinsyst, nspinsyst, nsystem, env)
+     subroutine fragmentize(nspin, at, xyz, maxsystem, maxmagnat, jab, numnb, numctr, neigh, ispinsyst, nspinsyst, nsystem, env)
         use xtb_mctc_accuracy, only : wp, sp
         use xtb_type_environment, only: TEnvironment
         implicit none
@@ -70,7 +54,8 @@ module xtb_gfnff_fraghess
         integer,  intent(in)  :: nspin                              ! # of atoms in the whole system
         integer,  intent(in)  :: maxsystem                          ! maximum # of fragments
         integer,  intent(in)  :: maxmagnat                          ! maximum # of atoms per fragment
-        integer,  intent(in)  :: neigh(20, nspin)                   ! neighbour list
+        integer,  intent(in)  :: numnb, numctr
+        integer,  intent(in)  :: neigh(numnb, nspin, numctr)        ! neighbour list
         integer,  intent(in)  :: at(nspin)                          ! atom nunber
         real(wp), intent(in)  :: xyz(3,nspin)                       ! xyz coordinates
         real(wp), intent(in)  :: jab(nspin*(nspin + 1)/2)           ! distances between pairs A and B
@@ -122,8 +107,6 @@ module xtb_gfnff_fraghess
            return
         end if
 
-!       open (55, file="fragment.out")
-
         nci_frag_size = 50
         fragcount = 0
         fragvec = 0
@@ -132,7 +115,7 @@ module xtb_gfnff_fraghess
         grid = 0
         equal = .false.
 
-        call mrecgff(nspin, neigh, fragcount, fragvec)
+        call mrecgffPBC(nspin,numctr, numnb, neigh, fragcount, fragvec)
 
         nsystem = maxval(fragvec)
 
@@ -237,13 +220,12 @@ module xtb_gfnff_fraghess
            !Find largest distance:
            maxdist = maxval(rmaxab, mask=assigned)
            maxdistatoms = maxloc(rmaxab, mask=assigned)
-           !        write( *, * ) "maxdistatoms", maxdistatoms
 
            !If a Path is found between A and B
            if (maxdist < huge(1.0_wp)) then
 
               !get shortest Path from A to B
-              cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), neigh, magdist, visited, precessor)
+              cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), numnb, neigh, magdist, visited, precessor)
               current = maxdistatoms(2)
 
               !loop while A and B are still connected
@@ -270,7 +252,7 @@ module xtb_gfnff_fraghess
                  magdist(max_linkatoms(2), max_linkatoms(1)) = huge(1.0_wp)
 
                  !Get next-shortest Path:
-                 cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), neigh, magdist, visited, precessor)
+                 cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), numnb, neigh, magdist, visited, precessor)
                  current = maxdistatoms(2)
               end do ! cur_dist < huge(1.0_wp)
 
@@ -282,7 +264,7 @@ module xtb_gfnff_fraghess
            !Split into subsystems:
            !Overwrite old spinsystem:
 
-           cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), neigh, magdist, visited, precessor)
+           cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), numnb, neigh, magdist, visited, precessor)
            nspinsyst(ass) = count(visited)
            ispinsyst(:, ass) = 0
            k = 1
@@ -294,7 +276,7 @@ module xtb_gfnff_fraghess
            end do ! End Loop over  i from 1 to count(visited)
 
            !add new spinsystem
-           cur_dist = shortest_distance(nspin, maxdistatoms(2), maxdistatoms(1), neigh, magdist, visited, precessor)
+           cur_dist = shortest_distance(nspin, maxdistatoms(2), maxdistatoms(1), numnb, neigh, magdist, visited, precessor)
            nsystem = nsystem + 1
            nspinsyst(nsystem) = count(visited)
            k = 1
@@ -313,15 +295,6 @@ module xtb_gfnff_fraghess
             end if
         end do ! End loop: while nspinsyst(ass) > maxmagnat
 
-
-!        write fragment.out file for visualization
-!        do i = 1, nsystem !loop über separierte systeme
-!           write (55, *) "System ", i, "mit atomen", nspinsyst(i)
-!           do j = 1, nspinsyst(i)
-!              write (55, *) ispinsyst(j, i)
-!           end do
-!        end do
-!        close (55)
 
      end subroutine fragmentize
 
@@ -431,7 +404,7 @@ end module xtb_gfnff_fraghess
 !start and goal are integers, determining the index in xyz
 !https://de.wikipedia.org/wiki/Dijkstra-Algorithmus
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-function shortest_distance(nspin, start, goal, neighbours, input_distances, visited, precessor)
+function shortest_distance(nspin, start, goal, numnb, neighbours, input_distances, visited, precessor)
    use xtb_mctc_accuracy, only : wp, sp
    implicit none
    !Dummy Arguments:
@@ -439,7 +412,8 @@ function shortest_distance(nspin, start, goal, neighbours, input_distances, visi
    integer, intent(in)  :: nspin
    integer, intent(in)  :: start
    integer, intent(in)  :: goal
-   integer, intent(in)  :: neighbours(20, nspin)
+   integer, intent(in)  :: numnb
+   integer, intent(in)  :: neighbours(numnb, nspin, 1)
    real(wp), intent(in) :: input_distances(nspin, nspin)
    logical, intent(out) :: visited(nspin)
    integer, intent(out) :: precessor(nspin)
@@ -479,8 +453,8 @@ function shortest_distance(nspin, start, goal, neighbours, input_distances, visi
          exit
       else
          !loop over all neighbours of current atom
-         do i_neighbours = 1, neighbours(20, current)
-            neighbour = neighbours(i_neighbours, current)
+         do i_neighbours = 1, neighbours(numnb, current, 1)
+            neighbour = neighbours(i_neighbours, current, 1)
             if (.not.visited(neighbour)) then
                !distanzupdate
                alt_dist = distance(current) + input_distances(current, neighbour)
@@ -504,9 +478,9 @@ subroutine eigsort4(lab,u,ew)
    integer  :: ii,k, j, i
    real(sp) :: pp, hilf
 
-   integer, intent(in)    :: lab
-   real(sp), intent(inout) :: ew(lab)
+   integer,  intent(in)    :: lab
    real(sp), intent(inout) :: u(lab,lab)
+   real(sp), intent(inout) :: ew(lab)
 
    do ii = 2, lab
       i = ii - 1

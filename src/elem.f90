@@ -17,6 +17,7 @@
 
 
 subroutine elem(key1, nat)
+   implicit integer (i-n)
    implicit double precision (a-h,o-z)
    character(len=*) :: key1
    character(len=2) :: e

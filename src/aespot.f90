@@ -741,6 +741,34 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
 
 end subroutine molmom
 
+! molqdip: computes molecular dipole moments from charge only
+! n           : # of atoms
+! xyz(3,n)    : cartesian coordinates
+! q(n)        : atomic partial charges
+subroutine molqdip(iunit,n,xyz,q)
+   use xtb_mctc_convert
+   implicit none
+   integer, intent(in) :: iunit
+   integer, intent(in) :: n
+   real(wp), intent(in)  :: xyz(:,:),q(:)
+   real(wp) rr1(3), dip
+   integer i,j
+   rr1 = 0.0_wp
+   write(iunit,'(a)')
+   do i = 1,n
+      do j = 1,3
+         rr1(j) = rr1(j)+q(i)*xyz(j,i)
+      enddo
+   enddo
+   dip = sqrt(rr1(1)**2+rr1(2)**2+rr1(3)**2)
+   write(iunit,'(a)',advance='yes')'molecular dipole:'
+   write(iunit,'(a)',advance='no')'                 '
+   write(iunit,'(a)',advance='yes') &
+      & 'x           y           z       tot (Debye)'
+   write(iunit,'(a,4f12.3)') ' q only: ',rr1(1:3),dip*autod
+
+end subroutine molqdip
+
 ! gradient evaluation from
 ! cumulative atomic multipole moment interactions: all interactions up to r**-3
 ! nat         : # of atoms

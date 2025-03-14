@@ -192,6 +192,7 @@ subroutine write_set_opt(ictrl)
       case default;            write(ictrl,'("unknown")')
       case(p_engine_rf);       write(ictrl,'("rf")')
       case(p_engine_lbfgs);    write(ictrl,'("lbfgs")')
+      case(p_engine_pbc_lbfgs);    write(ictrl,'("pbc_lbfgs")')
       case(p_engine_inertial); write(ictrl,'("inertial")')
       end select
    end if
@@ -259,6 +260,7 @@ subroutine write_set_md(ictrl)
    write(ictrl,'(3x,"hmass=",i0)') set%md_hmass
    write(ictrl,'(3x,"shake=",i0)') set%shake_mode
    write(ictrl,'(3x,"sccacc=",g0)') set%accu_md
+   write(ictrl,'(3x,"forcewrrestart=",i0)') bool2int(set%forcewrrestart)
 end subroutine write_set_md
 
 subroutine write_set_siman(ictrl)
@@ -707,20 +709,24 @@ subroutine close_set(ictrl)
    call close_file(ictrl)
 end subroutine close_set
 
+!> Read xcontrol file
 subroutine rdcontrol(fname,env,copy_file)
+   
    use xtb_readin, only : find_new_name
    use xtb_splitparam,  only : maxfrag
    use xtb_scanparam,   only : maxconstr,maxscan
    use xtb_sphereparam, only : maxwalls
    implicit none
+   
    character(len=*), parameter :: source = 'set_rdcontrol'
    character(len=*),intent(in)  :: fname
    type(TEnvironment), intent(inout) :: env
+   logical,intent(in),optional  :: copy_file
+   
    character(len=:),allocatable :: line
    character(len=:),allocatable :: key
    character(len=:),allocatable :: val
    character(len=:),allocatable :: newname
-   logical,intent(in),optional  :: copy_file
    integer :: i
    integer :: id
    integer :: ic
@@ -733,6 +739,7 @@ subroutine rdcontrol(fname,env,copy_file)
    logical :: exitRun
 
    if (present(copy_file)) then
+      !! in case of "--copy" command line argument
       do_copy=copy_file
    else
       do_copy=.false.
@@ -746,31 +753,40 @@ subroutine rdcontrol(fname,env,copy_file)
 
    if (do_copy) then
       newname = find_new_name(fname)
+         !!  newname = #1.fname
 !     newunit would be nice to have here, but it would always open to a
 !     negative number, currently I'm checking for a negative number in
 !     in mirror_line to avoid copying to another unit, so I go with unit 41
       call open_file(copy,newname,'w')
    else
-      copy = -1 ! deactivate copy in mirror_line
+      copy = -1 
+         !! deactivate copy in mirror_line
    endif
 
 
 !  read first line before the readloop starts, I have to do this
 !  to avoid using backspace on id (dammit Turbomole format)
    call mirror_line(id,copy,line,err)
+      !! to read a line id-unit, and copy it to copy-unit
    readflags: do
-      !  check if there is a $ in the *first* column
+      !! check if there is a $ in the *first* column
       if (index(line,flag).eq.1) then
          select case(line(2:))
-         ! logical
+         !> logical
          case('fit'     ); call set_fit;      call mirror_line(id,copy,line,err)
+         case('derived'     ); call set_derived;      call mirror_line(id,copy,line,err)
          case('samerand'); call set_samerand; call mirror_line(id,copy,line,err)
          case('cma'     ); call set_cma;      call mirror_line(id,copy,line,err)
-         ! data
+         !> data
          case('cube'     ); call rdblock(env,set_cube,    line,id,copy,err,ncount)
          case('write'    ); call rdblock(env,set_write,   line,id,copy,err,ncount)
          case('gfn'      ); call rdblock(env,set_gfn,     line,id,copy,err,ncount)
+         case('ffnb'     )
+            ! dynamic allocation of ffnb array requires reading fname before calling rdblock
+            call alloc_ffnb(env, fname)
+            call rdblock(env,set_ffnb,    line,id,copy,err,ncount)
          case('scc'      ); call rdblock(env,set_scc,     line,id,copy,err,ncount)
+         case('oniom'    ); call rdblock(env,set_oniom,   line,id,copy,err,ncount)
          case('opt'      ); call rdblock(env,set_opt,     line,id,copy,err,ncount)
          case('hess'     ); call rdblock(env,set_hess,    line,id,copy,err,ncount)
          case('md'       ); call rdblock(env,set_md,      line,id,copy,err,ncount)
@@ -786,7 +802,7 @@ subroutine rdcontrol(fname,env,copy_file)
          case('path'     ); call rdblock(env,set_path,    line,id,copy,err,ncount)
          case('reactor'  ); call rdblock(env,set_reactor, line,id,copy,err,ncount)
          case('stm'      ); call rdblock(env,set_stm,     line,id,copy,err,ncount)
-         ! data + user data which is read later, but we start counting here
+         !> data + user data which is read later, but we start counting here
          case('fix'      ); call rdblock(env,set_fix,     line,id,copy,err,ncount)
          case('wall'     ); call rdblock(env,set_wall,    line,id,copy,err,ncount)
                             maxwalls = maxwalls + ncount
@@ -797,20 +813,26 @@ subroutine rdcontrol(fname,env,copy_file)
                             maxconstr = maxconstr + ncount
          case('split'    ); call rdblock(env,set_split,   line,id,copy,err,ncount)
                             maxfrag = maxfrag + ncount
-         ! legacy
+         !> legacy
          case('set'      ); call rdsetbl(env,set_legacy,line,id,copy,err)
-         case default ! unknown keyword -> ignore, we don't raise them
-         !  except for chrg and spin which you actually can set here
-         !  read them here because select case might not catch them that easy
+         
+         ! unknown keyword -> ignore, we don't raise them !
+         ! except for chrg and spin which you actually can set here !
+         ! read them here because select case might not catch them that easy !
+         case default 
             if (index(line(2:),'chrg').eq.1) call set_chrg(env,line(7:))
             if (index(line(2:),'spin').eq.1) call set_spin(env,line(7:))
-!           get a new line
+            
+            ! get a new line !
             call mirror_line(id,copy,line,err)
          end select
-      else ! not a keyword -> ignore
+      
+      ! not a keyword -> ignore !
+      else 
          call mirror_line(id,copy,line,err)
       endif
-   !  check for end of file, which I will tolerate as alternative to $end
+      
+      ! check for end of file (= $end)
       if (is_iostat_end(err)) exit readflags
 !     if (index(line,flag_end).ne.0) exit readflags ! compatibility reasons
       call env%check(exitRun)
@@ -818,10 +840,12 @@ subroutine rdcontrol(fname,env,copy_file)
          call env%error("processing of data group failed", source)
          exit
       end if
+
    enddo readflags
 
    if (do_copy) call close_file(copy)
    call close_file(id)
+
 end subroutine rdcontrol
 
 subroutine rdsetbl(env,handler,line,id,copy,err)
@@ -850,17 +874,21 @@ subroutine rdsetbl(env,handler,line,id,copy,err)
       val = trim(adjustl(line(ie+1:)))
       call handler(env,key,val)
       call env%check(exitRun)
+      
       if (exitRun) then
          call env%error("handler could not process input", source)
          return
       end if
+
    enddo
 
 end subroutine rdsetbl
 
+!> to read blocks of certain instruction ($)
+!> in other words options of certain flag
 subroutine rdblock(env,handler,line,id,copy,err,ncount)
+   
    implicit none
-   character(len=*), parameter :: source = 'set_rdblock'
    type(TEnvironment), intent(inout) :: env
    procedure(handlerInterface) :: handler
    integer,intent(in) :: id
@@ -868,29 +896,37 @@ subroutine rdblock(env,handler,line,id,copy,err,ncount)
    integer,intent(out) :: err
    integer,intent(out) :: ncount
    character(len=:),allocatable,intent(out) :: line
+   
+   character(len=*), parameter :: source = 'set_rdblock'
    character(len=:),allocatable :: key
    character(len=:),allocatable :: val
    integer :: ie
    logical :: exitRun
+   
    ncount = 0
    do
       call mirror_line(id,copy,line,err)
-      if (is_iostat_end(err)) return
-      if (index(line,flag).ne.0) return
-
-      ! find the equal sign
-      ie = index(line,equal)
-      if (line.eq.'') cycle ! skip empty lines
-      ncount = ncount + 1   ! but count non-empty lines first
+      
+      if (is_iostat_end(err)) return      ! check if EOF !
+      if (index(line,flag).ne.0) return   ! check if new flag !
+      
+      ie = index(line,equal)              ! find the equal sign !
+      if (line.eq.'') cycle               ! skip empty lines !
+      ncount = ncount + 1                 ! but count non-empty lines first !
+      
       if (ie.eq.0) cycle
+      
       key = trim(line(:ie-1))
       val = trim(adjustl(line(ie+1:)))
+      
       call handler(env,key,val)
       call env%check(exitRun)
+      
       if (exitRun) then
          call env%error("handler could not process input", source)
          return
       end if
+   
    enddo
 
 end subroutine rdblock
@@ -901,7 +937,7 @@ subroutine set_exttyp(typ)
    logical,save :: set1 = .true.
    if (.not.set1) return
    select case(typ)
-   case default ! do nothing
+   case default ! do nothing !
       call raise('S',typ//' is no valid exttyp (internal error)')
 
    case('vtb')
@@ -910,6 +946,8 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_eht
    case('xtb')
       set%mode_extrun = p_ext_xtb
+   case('tblite')
+      set%mode_extrun = p_ext_tblite
    case('orca')
       set%mode_extrun = p_ext_orca
    case('driver')
@@ -924,10 +962,15 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_mopac
    case('ff')
       set%mode_extrun = p_ext_gfnff
+   case('mcff')
+      set%mode_extrun = p_ext_mcgfnff
    case('iff')
       set%mode_extrun = p_ext_iff
+   case('ptb')
+      set%mode_extrun = p_ext_ptb
    end select
    set1 = .false.
+
 end subroutine set_exttyp
 
 subroutine set_geopref(typ)
@@ -936,7 +979,7 @@ subroutine set_geopref(typ)
    logical,save :: set1 = .true.
    if (.not.set1) return
    select case(typ)
-   case default ! do nothing
+   case default ! do nothing !
       call raise('S',typ//' is no valid geometry format (internal error)')
 
    case('sdf')
@@ -954,6 +997,29 @@ subroutine set_geopref(typ)
    set1 = .false.
 end subroutine set_geopref
 
+subroutine set_raman(env,val)
+   
+   implicit none 
+   character(len=*), parameter :: source = 'set_raman' 
+   type(TEnvironment), intent(inout) :: env
+   character(len=*), intent(in) :: val
+   real(wp) :: idum
+
+   logical, save :: set1 = .true.
+   logical, save :: set2 = .true.
+   
+   if (set1) then
+      if (getValue(env,val,idum)) set%ptbsetup%raman_temp = idum 
+      set1 =.false.
+   else if (set2) then
+      if (getValue(env,val,idum)) then
+         idum=10**7/idum
+         set%ptbsetup%raman_lambda = idum 
+         set2 =.false.
+      endif
+   endif
+   
+end subroutine set_raman
 subroutine set_runtyp(typ)
    implicit none
    character(len=*),intent(in) :: typ
@@ -963,9 +1029,10 @@ subroutine set_runtyp(typ)
       return
    endif
    select case(typ)
-   case default ! do nothing
+   case default ! do nothing !
       call raise('E',typ//' is no valid runtyp (internal error)')
-
+   case ('prescc')
+      set%runtyp = p_run_prescc
    case('scc')
       set%runtyp = p_run_scc
 
@@ -1015,9 +1082,37 @@ subroutine set_runtyp(typ)
    set1 = .false.
 end subroutine set_runtyp
 
+subroutine set_elprop(typ)
+   implicit none
+   character(len=*),intent(in) :: typ
+
+   select case(typ)
+   case default ! do nothing !
+      call raise('E',typ//' is no valid runtyp (internal error)')
+   case('alpha')
+      set%elprop = p_elprop_alpha
+   case('polar')
+      set%elprop = p_elprop_alpha
+   case('raman')
+      set%elprop = p_elprop_alpha
+      call set_runtyp('hess')
+   case('ir')
+      set%elprop = p_elprop_dipole
+   case('dipole')
+      set%elprop = p_elprop_dipole
+   end select
+
+end subroutine set_elprop
+
+subroutine set_derived
+   implicit none
+   set%oniom_settings%derived = .true.
+end subroutine set_derived
+
 subroutine set_fit
    implicit none
    set%fit = .true.
+   set%acc = 0.2_wp
 end subroutine set_fit
 
 subroutine set_cma
@@ -1040,23 +1135,70 @@ subroutine set_define
    set%define = .true.
 end subroutine set_define
 
-subroutine set_chrg(env,val)
+!-----------------------------------
+! Just cut molecule in ONIOM rotuine
+!-----------------------------------
+subroutine set_cut
    implicit none
+   set%oniom_settings%cut_inner = .true.
+end subroutine set_cut
+
+
+!> charge initialization
+!> Priority: cml -> xcontrol -> .CHRG
+subroutine set_chrg(env,val)
+
+   implicit none
+   
+   !> name of error producer routine
    character(len=*), parameter :: source = 'set_chrg'
+   
+   !> calculation environment 
    type(TEnvironment), intent(inout) :: env
+   
+   !> charge value
    character(len=*),intent(in) :: val
+   
    integer  :: err
    integer  :: idum
+   integer  :: ind, idum1, idum2
    logical,save :: set1 = .true.
+   
+
    if (set1) then
-      if (getValue(env,val,idum)) then
-         set%ichrg = idum
+
+      set%clichrg = .true.
+      ind = index(val,":")
+      
+      ! oniom inner:outer !
+      if (ind.ne.0) then
+         if (getValue(env,val(:ind-1),idum1) .and. &
+            & getValue(env,val(ind+1:),idum2)) then
+            set%oniom_settings%fixed_chrgs = .true.
+            set%oniom_settings%innerchrg = idum1
+            set%ichrg = idum2
+         else
+            call env%error('Charge could not be read from your argument',source)
+         endif
+      
+      ! conventional !
       else
-         call env%error('Charge could not be read from your argument',source)
+         
+         ! char into int !
+         if (getValue(env,val,idum)) then
+            set%ichrg = idum
+         else
+            call env%error('Charge could not be read from your argument',source)
+         endif
+         
+     
       endif
    endif
+
    set1 = .false.
+
 end subroutine set_chrg
+
 
 subroutine set_spin(env,val)
    implicit none
@@ -1078,7 +1220,6 @@ end subroutine set_spin
 
 
 subroutine set_efield(env, val)
-   use xtb_gfnff_param, only : efield
    implicit none
    character(len=*), parameter :: source = 'set_efield'
    type(TEnvironment), intent(inout) :: env
@@ -1088,13 +1229,14 @@ subroutine set_efield(env, val)
    logical,save :: set1 = .true.
    if (set1) then
       if (getValue(env,val,idum)) then
-         efield = idum
+         set%efield = idum
       else
          call env%error('E-field could not be read from your argument', source)
       endif
    endif
    set1 = .false.
 end subroutine set_efield
+
 
 
 subroutine set_write(env,key,val)
@@ -1363,6 +1505,158 @@ subroutine set_gfn(env,key,val)
    end select
 end subroutine set_gfn
 
+! determine number of GFN-FF neighbor list changes in control file
+! and allocate set%ffnb accordingly
+subroutine alloc_ffnb(env, fname)
+   type(TEnvironment), intent(inout) :: env
+   character(len=*),intent(in)  :: fname
+   character(len=*), parameter :: source = 'alloc_ffnb'
+   character(len=:),allocatable :: line
+
+   integer :: id, ie, err
+   logical :: is_ffnb_block = .false.
+   integer :: copy = -1
+   integer :: n_changes = 0 ! number of atoms that neigh%nb should be adjusted for
+
+   call open_file(id,fname,'r')
+   if (id.eq.-1) then
+      call env%warning("could not find '"//fname//"'", source)
+      return
+   endif
+   ! read first line
+   call mirror_line(id,copy,line,err)
+   ! read control file and check
+   count_n:do
+      ! check if the $ffnb block has been reached
+      if (line(1:5).eq."$ffnb".or.is_ffnb_block) then
+         is_ffnb_block = .true.
+         call mirror_line(id,copy,line,err)
+         if (is_iostat_end(err)) exit count_n     ! check if EOF !
+         if (index(line,flag).ne.0) exit count_n  ! check if new flag !
+         ie = index(line,equal)              ! find the equal sign !
+         if (ie.eq.0) cycle                  ! cycle if there is no equal sign
+         n_changes = n_changes + 1
+      else ! otherwise read the next line
+         call mirror_line(id,copy,line,err)
+         if (is_iostat_end(err)) exit count_n     ! check if EOF !
+      end if
+   end do count_n
+   if (.not.allocated(set%ffnb)) allocate(set%ffnb(42,n_changes), source=-1)
+
+end subroutine alloc_ffnb
+
+
+subroutine set_ffnb(env,key,val)
+   implicit none
+   character(len=*), parameter :: source = 'set_ffnb'
+   type(TEnvironment), intent(inout) :: env
+   character(len=*),intent(in) :: key
+   character(len=*),intent(in) :: val
+   integer :: i,j,k,l
+   integer :: i_start,i_end,i_ffnb
+   logical :: nonb
+
+   k=1 ! start at 1 since first entry of ffnb is the atom index that the following NBs belong to
+   i_start=1
+   i_end=1
+   i_ffnb=0
+   nonb = .false. ! expect that the atom should have neighbors
+   do i=1, len(val)
+      ! get next empty row in ffnb and read atom index into first entry
+      if (val(i:i).eq.":") then
+         do j=1,size(set%ffnb, dim=2)
+           if (set%ffnb(1,j).eq.-1 .and. i_ffnb.eq.0) then
+              i_ffnb = j ! index of next empty row
+              l=i-1
+              ! we take care of ":" and "," and trust read() to handle whitespaces
+              read(val(1:l), *) set%ffnb(1,j)
+              i_start=i+1
+              exit
+           endif
+         enddo
+      endif
+      ! read the neighbors into ffnb now
+      if (val(i:i).eq.",") then
+         k = k + 1
+         i_end=i-1
+         read(val(i_start:i_end), *) set%ffnb(k,i_ffnb)
+         ! if the first neighbor index (k=2) is zero the atom (k=1) has no neighbors
+         if (set%ffnb(k,i_ffnb) == 0 .and. k == 2) then
+           nonb = .true.
+         endif
+         i_start=i+1
+      endif
+      ! read the last neighbor into ffnb
+      if (i.eq.len(val)) then
+         k = k + 1
+         read(val(i_start:), *) set%ffnb(k,i_ffnb)
+         ! if the first neighbor index (k=2) is zero the atom (k=1) has no neighbors
+         if (set%ffnb(k,i_ffnb) == 0 .and. k == 2) then
+           nonb = .true.
+         endif
+         ! set rest of ffnb to 0
+         set%ffnb(k+1:41, i_ffnb) = 0
+      endif
+   enddo
+   if (nonb) then
+     set%ffnb(2:,i_ffnb) = 0
+   else
+     set%ffnb(42,i_ffnb) = k - 1 ! number of neighbors of atom set%ffnb(1,i_ffnb) 
+   endif
+
+end subroutine set_ffnb
+
+!> set ONIOM functionality
+subroutine set_oniom(env,key,val)
+   
+   implicit none
+   
+   !> pointer to the error routine
+   character(len=*), parameter :: source =  'set_oniom'
+   
+   !> calculation environment
+   type(TEnvironment), intent(inout) :: env
+   
+   !> parsed key
+   character(len=*), intent(in) :: key
+   
+   !> key=val
+   character(len=*), intent(in) :: val
+   
+   logical :: ldum
+   logical, save :: set1 = .true.
+   logical, save :: set2 = .true.
+   logical, save :: set3 = .true.
+   logical, save :: set4 = .true.
+   logical, save :: set5 = .true.
+   
+   select case(key)
+   case default
+      call env%warning("the key '"//key//"' is not recognized by oniom",source)
+   case('inner logs')
+      if (getValue(env,val,ldum).and.set1) set%oniom_settings%logs = .true.
+      set1=.false.
+   
+   case('derived k')
+      if (getValue(env,val,ldum).and.set2) set%oniom_settings%derived = .true.
+      set2=.false.
+
+   case('silent')
+      if (getValue(env,val,ldum).and.set3) set%oniom_settings%silent = .true.
+      set3=.false.
+   
+   case('ignore topo')
+      if (getValue(env,val,ldum).and.set4) set%oniom_settings%ignore_topo = .true.
+      set4=.false.
+
+   case('outer')
+      if (getValue(env,val,ldum).and.set5) set%oniom_settings%outer = .true.
+      set5 = .false.
+   
+   end select
+
+end subroutine set_oniom
+
 subroutine set_scc(env,key,val)
    implicit none
    character(len=*), parameter :: source = 'set_scc'
@@ -1380,7 +1674,7 @@ subroutine set_scc(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by scc",source)
-   case('temp')
+   case('etemp','temp')
       if (getValue(env,val,ddum).and.set1) set%eTemp = ddum
       set1 = .false.
    case('broydamp')
@@ -1398,7 +1692,7 @@ subroutine set_scc(env,key,val)
          set%guess_charges = p_guess_multieq
       endif
       set3 = .false.
-   case('maxiterations')
+   case('iterations','maxiterations')
       if (getValue(env,val,idum).and.set4) then
          if (idum.le.0) then
             call env%warning('negative SCC-Iterations make no sense',source)
@@ -1523,6 +1817,7 @@ subroutine set_opt(env,key,val)
          case default; call env%warning("engine '"//val//"' is not implemented",source)
          case('rf','ancopt');      set%opt_engine = p_engine_rf
          case('lbfgs','l-ancopt'); set%opt_engine = p_engine_lbfgs
+         case('pbc_lbfgs');        set%opt_engine = p_engine_pbc_lbfgs
          case('inertial','fire');  set%opt_engine = p_engine_inertial
          end select
       end if
@@ -1670,6 +1965,7 @@ subroutine set_md(env,key,val)
    logical,save :: set10= .true.
    logical,save :: set11= .true.
    logical,save :: set12= .true.
+   logical,save :: set13= .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by md",source)
@@ -1744,6 +2040,9 @@ subroutine set_md(env,key,val)
    case('restart')
       if (getValue(env,val,ldum).and.set11) set%restart_md = ldum
       set11 = .false.
+   case('forcewrrestart')
+      if (getValue(env,val,ldum).and.set13) set%forcewrrestart = ldum
+      set13 = .false.
    end select
 end subroutine set_md
 
@@ -1879,6 +2178,8 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
    logical,save :: set7 = .true.
+   logical,save :: set8 = .true.
+   logical,save :: set9 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
@@ -1932,6 +2233,15 @@ subroutine set_gbsa(env,key,val)
    case('cosmo')
       if (getValue(env,val,ldum).and.set7) set%solvInput%cosmo = ldum
       set7 = .false.
+   case('tmcosmo')
+      if (getValue(env,val,ldum).and.set8) then
+         set%solvInput%cosmo = ldum
+         set%solvInput%tmcosmo = .true.
+      end if
+      set8 = .false.
+   case('cpcmx')
+      if (set9) set%solvInput%cpxsolvent = val
+      set9 = .false.
    end select
 end subroutine set_gbsa
 
@@ -1992,6 +2302,7 @@ subroutine set_cube(env,key,val)
    logical,save :: set1 = .true.
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
+   logical,save :: set4 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by cube",source)
@@ -2005,6 +2316,9 @@ subroutine set_cube(env,key,val)
       call env%warning("the key 'cal' has been removed",source)
 !      if (getValue(env,val,idum).and.set3) cube_cal = idum
 !      set3 = .false.
+   case('boff')
+      if (getValue(env,val,ddum).and.set4) set%cube_boff = ddum
+      set4 = .false.
    end select
 end subroutine set_cube
 
@@ -2068,12 +2382,15 @@ subroutine set_symmetry(env,key,val)
    end select
 end subroutine set_symmetry
 
+!> Options for $external
 subroutine set_external(env,key,val)
+   
    implicit none
-   character(len=*), parameter :: source = 'set_external'
    type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
+   
+   character(len=*), parameter :: source = 'set_external'
    integer  :: err
    integer  :: idum
    real(wp) :: ddum
@@ -2086,6 +2403,7 @@ subroutine set_external(env,key,val)
    logical,save :: set6 = .true.
    logical,save :: set7 = .true.
    logical,save :: set8 = .true.
+   
    select case(key)
    case default
       call env%warning("the key '"//key//"' is not recognized by external",source)
@@ -2110,7 +2428,11 @@ subroutine set_external(env,key,val)
    case('turbodir')
       if (set7) set%ext_turbo%path = val
       set7 = .false.
+   case ('cefine')
+      if (set8) set%ext_turbo%input_string = val
+      set8 = .false.
    end select
+
 end subroutine set_external
 
 subroutine set_fix(env,key,val)

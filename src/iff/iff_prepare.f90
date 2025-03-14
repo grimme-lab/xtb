@@ -124,6 +124,8 @@ contains
 
       allocate (cn(mol%n), g(3, mol%n))
 
+      er = 0.0_wp
+
       set%pr_lmo = .true.
       set%silent = .true.
 
@@ -193,7 +195,7 @@ contains
       !> the SP
       call singlepoint &
          &       (env, mol, chk, calc, egap, set%etemp, set%maxscciter, 2,&
-         &        exist, lgrad, acc, etot, g, sigma, res)
+         &        .false., lgrad, acc, etot, g, sigma, res)
 
       set%pr_lmo = .false.
 

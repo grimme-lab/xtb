@@ -49,6 +49,10 @@
 !>    ellipsoid: auto,<list>
 !>    ellipsoid: <real>,<real>,<real>,all
 !>    ellipsoid: <real>,<real>,<real>,<list>
+!>    sandwich: auto,all
+!>    sandwich: auto,<list>
+!>    sandwich: <real>,all
+!>    sandwich: <real>,<list>
 !> $scan
 !>    ...
 !> $end
@@ -452,12 +456,19 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       potset%pos%n = size(list)
    case('atoms')
       call atl%new(val)
-      if (atl%get_error()) then
-         call env%warning('something is wrong in the fixing list',source)
-         return
+      if (val.eq."all") then
+         allocate(list(nat))
+         do i=1,nat
+            list(i)=i
+         enddo 
+      else
+         if (atl%get_error()) then
+            call env%warning('something is wrong in the fixing list',source)
+            return
+         endif
+         if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
+         call atl%to_list(list)
       endif
-      if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
-      call atl%to_list(list)
       potset%pos%atoms = list
       potset%pos%n = size(list)
 
@@ -948,8 +959,8 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
    type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
-   integer  :: idum
-   real(wp) :: ddum,darray(3)
+   integer  :: idum,i
+   real(wp) :: ddum,darray(3),min_z,max_z
    logical  :: ldum
    integer  :: list(nat),nlist
    integer  :: tlist(nat),ntlist
@@ -978,7 +989,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
    case default ! ignore, don't even think about raising them
    case('sphere')
       if (narg.lt.2) then
-         call env%warning("Not enough arguments to set up a spherical wall",source)
+         call env%error("Not enough arguments to set up a spherical wall",source)
          return
       endif
    !  part 1: get the sphere radius
@@ -1000,11 +1011,11 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          do iarg = 2, narg
             if (getListValue(env,trim(argv(iarg)),tlist,ntlist)) then
                if (nlist+ntlist.gt.nat) then
-                  call env%warning("Too many atoms in list for spherical wall.",source)
+                  call env%error("Too many atoms in list for spherical wall.",source)
                   return ! something went wrong
                endif
                if (maxval(tlist(:ntlist)).gt.nat) then
-                  call env%warning("Attempted to wall in a non-existing atom",source)
+                  call env%error("Attempted to wall in a non-existing atom",source)
                   cycle ! skip crappy input
                endif
                list(nlist+1:nlist+ntlist) = tlist
@@ -1016,12 +1027,12 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          enddo
          call set_sphere_radius(radius,center,nlist,list)
       endif
-      write(env%unit,'("spherical wallpotenial with radius",'//&
+      write(env%unit,'("spherical wallpotential with radius",'//&
          '1x,f12.7,1x,"Å")') radius*autoaa
 
    case('ellipsoid')
       if (narg.lt.4) then
-         call env%warning("Not enough arguments to set up an ellipsoidal wall",source)
+         call env%error("Not enough arguments to set up an ellipsoidal wall",source)
          return
       endif
    !  part 1: get ellipsoid axis
@@ -1050,11 +1061,11 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          do iarg = 4, narg
             if (getListValue(env,trim(argv(iarg)),tlist,ntlist)) then
                if (nlist+ntlist.gt.nat) then
-                  call env%warning("Too many atoms in list for spherical wall.",source)
+                  call env%error("Too many atoms in list for spherical wall.",source)
                   return ! something went wrong
                endif
                if (maxval(tlist(:ntlist)).gt.nat) then
-                  call env%warning("Attempted to wall in a non-existing atom",source)
+                  call env%error("Attempted to wall in a non-existing atom",source)
                   cycle ! skip crappy input
                endif
                list(nlist+1:nlist+ntlist) = tlist
@@ -1068,6 +1079,70 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
       endif
       write(env%unit,'("ellipsoidal wallpotenial with radii",'//&
          '3(1x,f12.7,1x,"Å"))') radii*autoaa
+
+   case('sandwich')
+      if (narg.lt.2) then
+         call env%error("Not enough arguments to set up sandwich walls",source)
+         return
+      endif
+   !  part 1: get the sandwich distance
+      wpot%sandwich = .true.
+      set%do_cma_trafo = .true.
+      center = 0.0_wp
+!      number_walls=1
+      call get_sphere_radius(nat,at,xyz,center,radius,do_trafo=.true.)
+      if (trim(argv(1)).eq.'auto') then
+            radius=(maxval(xyz(3,:))-minval(xyz(3,:)))/2.0_wp ! need to set $cma in xcontrol, not done automatically
+            wpot(1)%radius=radius
+      else
+            if (getValue(env,trim(argv(1)),ddum)) then
+                radius = ddum !in Bohr!!!
+                wpot(1)%radius=radius
+            else
+                call env%error("Undefined arguments for sandwich: ... in your xcontrol file!",source)
+                return ! something went wrong
+            endif
+      endif
+   
+   !  part 2: get atoms 
+      if (trim(argv(2)).eq.'all') then
+         call set_sphere_radius(radius,center)
+      else
+         do iarg = 2, narg
+            if (getListValue(env,trim(argv(iarg)),tlist,ntlist)) then
+               if (nlist+ntlist.gt.nat) then
+                  call env%error("Too many atoms in list for spherical wall.",source)
+                  return ! something went wrong
+               endif
+               if (maxval(tlist(:ntlist)).gt.nat) then
+                  call env%error("Attempted to wall in a non-existing atom.",source)
+                  cycle ! skip crappy input
+               endif
+               list(nlist+1:nlist+ntlist) = tlist
+               nlist = nlist + ntlist
+
+               !get auto sandwich distance for list of atoms
+               max_z = 0.0_wp
+               min_z = 0.0_wp
+               do i = 1, nat
+                  if (any(list == i)) then
+                     max_z = max(max_z, xyz(3,i))
+                     min_z = min(min_z, xyz(3,i))
+                  end if
+               end do
+               radius=(max_z - min_z)/2.0_wp
+               wpot(1)%radius=radius
+
+            else
+               ! warning already generated by get_list_value
+               return ! something went wrong
+            endif
+         enddo
+         call set_sphere_radius(radius,center,nlist,list)
+      endif
+
+      write(env%unit,'("sandwich wallpotential with radius in A (diameter=2*radius+2*4A safety buffer) ",'//&
+         '1x,f12.7,1x,"Å")') radius*autoaa
 
    end select
 
@@ -1152,6 +1227,7 @@ subroutine set_split(env,key,val,nat,at,idMap,xyz)
 end subroutine set_split
 
 subroutine set_hess(env,key,val,nat,at,idMap,xyz)
+   use xtb_type_atomlist, only : TAtomList
    use xtb_splitparam
    implicit none
    character(len=*), parameter :: source = 'userdata_hess'
@@ -1163,14 +1239,12 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
    type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
-   integer  :: idum
-   real(wp) :: ddum
-   logical  :: ldum
-   integer  :: i,j
+   type(TAtomList) :: atl
    integer, allocatable :: list(:)
-
-   integer  :: narg
+   real(wp) :: ddum
+   integer  :: i,j,idum,iat,narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
+   character(len=256) :: warningstring
 
    call parse(val,comma,argv,narg)
    if (set%verbose) then
@@ -1204,15 +1278,26 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
       endif
       do i = 1, narg, 2
          j = i+1
-         if (getValue(env,trim(argv(i)),idum).and.&
-             getValue(env,trim(argv(j)),ddum)) then
-            if (idum.gt.nat) then
-               call env%warning('Attempted setting atom mass not present in system.',source)
+         if (getValue(env,trim(argv(j)),ddum)) then
+            call atl%new(argv(i))
+            if (atl%get_error()) then
+               call env%warning('something is wrong in the mass list',source)
                cycle
             endif
-            atmass(idum) = ddum
-            write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
-               'mass of atom ',idum,' changed to',atmass(idum)
+            call atl%to_list(list)
+            do idum = 1, size(list)
+               iat = list(idum)
+               if (iat.gt.nat) then
+                  write(warningstring, '(a, i0, a)') 'Attempted setting atom mass for atom ', &
+                     & iat, ' that is not present in system.'
+                  call env%warning(trim(warningstring), source)
+                  cycle
+               endif
+               atmass(iat) = ddum
+               write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
+                  & 'mass of atom ',iat,' changed to',atmass(iat)
+            enddo
+            call atl%destroy()
          endif
       enddo
    case('scale mass')
@@ -1221,15 +1306,26 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
       endif
       do i = 1, narg, 2
          j = i+1
-         if (getValue(env,trim(argv(i)),idum).and.&
-             getValue(env,trim(argv(j)),ddum)) then
-            if (idum.gt.nat) then
-               call env%warning('Attempted scaling atom not present in system.',source)
+         if (getValue(env,trim(argv(j)),ddum)) then
+            call atl%new(argv(i))
+            if (atl%get_error()) then
+               call env%warning('something is wrong in the mass list',source)
                cycle
             endif
-            atmass(idum) = atmass(idum)*ddum
-            write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
-               'mass of atom ',idum,' changed to',atmass(idum)
+            call atl%to_list(list)
+            do idum = 1, size(list)
+               iat = list(idum)
+               if (iat.gt.nat) then
+                  write(warningstring, '(a, i0, a)') 'Attempted setting atom mass for atom ', &
+                  & iat, ' that is not present in system.'
+                  call env%warning(trim(warningstring), source)
+                  cycle
+               endif
+               atmass(iat) = atmass(iat)*ddum
+               write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
+                  'mass of atom ',iat,' changed to',atmass(iat)
+            enddo
+            call atl%destroy()
          endif
       enddo
    end select
@@ -1506,6 +1602,7 @@ subroutine set_legacy(env,key,val,nat,at,idMap,xyz)
 !   case('scan')
    case('ellips'); call set_wall(env,'ellipsoid',val,nat,at,idMap,xyz)
    case('sphere'); call set_wall(env,'sphere',val,nat,at,idMap,xyz)
+   case('sandwich'); call set_wall(env,'sandwich',val,nat,at,idMap,xyz)
    case('fix'); call set_fix(env,'atoms',val,nat,at,idMap,xyz)
    case('atomlist+'); call set_metadyn(env,'atoms',val,nat,at,idMap,xyz)
    end select

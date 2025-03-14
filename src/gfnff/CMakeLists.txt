@@ -35,6 +35,7 @@ list(APPEND srcs
   "${dir}/neighbourlist.f90"
   "${dir}/shake_module.f90"
   "${dir}/struc_converter.f90"
+  "${dir}/neighbor.f90"
   "${dir}/topology.f90"
 )
 

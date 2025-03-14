@@ -145,7 +145,7 @@ end subroutine getSelfEnergy2D
 !  determine, which contribute to potential
 subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy, &
       & intcut, caoshell, saoshell, nprim, primcount, alp, cont, &
-      & sint, dpint, qpint, H0)
+      & sint, dpint, qpint, H0, H0_noovlp)
    implicit none
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
@@ -179,6 +179,8 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    real(wp),intent(out) :: qpint(6,nao,nao)
    !> Core Hamiltonian
    real(wp),intent(out) :: H0(:)
+   !> Core Hamiltonian without overlap contribution
+   real(wp),intent(out) :: H0_noovlp(:)
 
 
    integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij
@@ -199,6 +201,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
 
    ! integrals
    H0(:) = 0.0_wp
+   H0_noovlp(:) = 0.0_wp
    sint = 0.0_wp
    dpint = 0.0_wp
    qpint = 0.0_wp
@@ -213,7 +216,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    !$omp& jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq,shpoly, &
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
    !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij,itr) &
-   !$omp shared(sint,dpint,qpint,H0)
+   !$omp shared(sint,dpint,qpint,H0,H0_noovlp)
    do iat = 1, nat
       ra(1:3) = xyz(1:3,iat)
       izp = at(iat)
@@ -276,6 +279,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
                         jao = jj+saoshell(jsh,jat)
                         ij = lin(iao, jao)
                         H0(ij) = H0(ij) + hav * shpoly * ss(jj, ii)
+                        H0_noovlp(ij) = H0_noovlp(ij) + hav * shpoly
                         !sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
                         sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
                         !dpint(:, iao, jao) = dpint(:, iao, jao) + dd(:, jj, ii)
@@ -300,7 +304,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
 
    ! diagonal elements
    !$omp parallel do default(none) schedule(dynamic) &
-   !$omp shared(H0, sint, dpint, qpint) &
+   !$omp shared(H0, H0_noovlp, sint, dpint, qpint) &
    !$omp shared(nat, xyz, at, nShell, hData, saoshell, selfEnergy, caoshell, &
    !$omp& point, intcut, nprim, primcount, alp, cont) &
    !$omp private(iat, ra, izp, ish, ishtyp, iao, i, ii, icao, naoi, iptyp, &
@@ -315,6 +319,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
             ii = i*(1+i)/2
             sint(i,i) = 1.0_wp + sint(i,i)
             H0(ii) = H0(ii) + selfEnergy(ish, iat)
+            H0_noovlp(ii) = H0_noovlp(ii) + selfEnergy(ish, iat)
          end do
 
          icao = caoshell(ish,iat)
@@ -611,7 +616,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    real(wp) tmp1,tmp2,tmp3,step,step2,step3,s00r,s00l,s00,alpj
    real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f,ci,cj,alpi,rij2,ab,est
    real(wp) f1,f2,point(3),tmp(6,6),rij(3),ri(3),rj(3)
-   real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
+   real(wp) ral(3,3),rar(3,3),rbl(3,3),pre
    real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
    real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
    integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,jshmax
@@ -633,7 +638,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    !$omp private(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp,ij, &
    !$omp& icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp,dCN, &
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
-   !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
+   !$omp& mli,mlj,dum,dumdum,tmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
    !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
    !$omp reduction(+:g,sigma,dhdcn)
    do iat = 1,nat
@@ -709,7 +714,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                            & +sdqg(ixyz, 2:4, jj,ii)*vd(1:3,jat) )
                         qtmp = Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
                            & +sdqg(ixyz, 5:10,jj,ii)*vq(1:6,jat) )
-                        g_xyz(ixyz) = g_xyz(ixyz)+stmp+dtmp+qtmp
+                        g_xyz(ixyz) = g_xyz(ixyz)+dtmp+qtmp
 
                      enddo ! ixyz
 

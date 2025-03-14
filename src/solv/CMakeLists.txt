@@ -30,6 +30,8 @@ list(APPEND srcs
   "${dir}/model.f90"
   "${dir}/sasa.f90"
   "${dir}/state.f90"
+  "${dir}/cpx.F90"
+  "${dir}/ddvolume.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

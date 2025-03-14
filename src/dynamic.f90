@@ -174,10 +174,11 @@ subroutine md(env,mol,chk,calc, &
 
    real(wp) :: step,eel1,tstep,taut,xlam2,accu,driftthr
    real(wp) :: Ekin,tmass,f,mintime
-   real(wp) :: Tinit,Tav,T,epav,ekav,dav,cma(3),bave,bavt,dum2
+   real(wp) :: Tinit,Tav,T,epav,ekav,dav,cma(3),bave,bavt
    real(wp) :: dum,edum,eerror,xx(10),molmass,slope,maxtime
    real(wp) :: tstep0,tmax,nfreedom,t0,w0,t1,w1,ep_prec,rege(4)
    real(wp) :: tors(mol%n),be(3),b0(3),tor,dip(3)
+   real(wp) :: rcoord(3)
    logical  :: ex,thermostat,restart,confdump,equi,gmd,ldum
 
    integer :: i,j,k,ic,jc,ia,ja,ii,jj,ndum,cdump,nmax,ibin
@@ -200,12 +201,13 @@ subroutine md(env,mol,chk,calc, &
    integer :: ich,trj,pdb,imdl
    logical :: exist
 
+   ! Displace reference geometry by 1e-6
+   real(wp), parameter :: atom_displacement = 1.0e-6_wp
+
    type(metadyn_setvar) :: metasetlocal
    real(wp) :: emtd
    real(wp) :: metatime
    metatime = 0.0_wp
-
-
 
    call delete_file('xtbmdok')
 
@@ -342,10 +344,22 @@ subroutine md(env,mol,chk,calc, &
       endif
       if (metasetlocal%nstruc.eq.0) then
          do i = 1, mol%n
-            do j = 1, 3
-               call random_number(dum2)
-               metasetlocal%xyz(j,i,1) = mol%xyz(j,i) + 1.0e-6_wp*dum2
+            ! Generate randomly displaced geometry
+            do
+               ! Generate numbers in [0,1]
+               call random_number(rcoord)
+               ! Convert numbers to [-1, 1]
+               rcoord = 2.0_wp*rcoord-1.0_wp
+               ! Ensure that displacement is large enough so that it
+               ! can be normalized to the unit sphere
+               if(norm2(rcoord) >= 1e-8) then
+                  exit
+               endif
             enddo
+            ! Normalize displacement to the unit sphere
+            rcoord = rcoord/norm2(rcoord)
+            ! Assign displaced geometry
+            metasetlocal%xyz(:,i,1) = mol%xyz(:,i) + atom_displacement*rcoord
          enddo
          metasetlocal%nstruc = 1
       else
@@ -533,7 +547,9 @@ subroutine md(env,mol,chk,calc, &
             call writeMolecule(mol, pdb, fileType%pdb, number=imdl, &
                & energy=epot, gnorm=res%gnorm)
          end if
-         !call wrmdrestart(mol%n,mol%xyz,velo)
+         if (set%forcewrrestart) then
+            call wrmdrestart(mol%n,mol%xyz,velo)
+         endif
       endif
       !! ========================================================================
 

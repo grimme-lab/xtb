@@ -1,0 +1,4 @@
+[wrap-git]
+directory = numsa
+url = https://github.com/grimme-lab/numsa
+revision = head
