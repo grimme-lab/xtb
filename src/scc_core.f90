@@ -89,7 +89,7 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
       call h0scal(hData,il,jl,izp,jzp,valao2(i).ne.0,valao2(j).ne.0, &
       &           km)
       km = km*(2*sqrt(aoexp(i)*aoexp(j))/(aoexp(i)+aoexp(j)))**hData%wExp
-      hav = 0.5d0*(hdii+hdjj)* &
+      hav = 0.5_wp*(hdii+hdjj)* &
       &      shellPoly(hData%shellPoly(il, iZp), hData%shellPoly(jl, jZp), &
       &                hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
       H0(k) = S(j,i)*km*hav
@@ -185,7 +185,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       jj=aoat2(j)
       dum=S(j,i)
       ! CAMM potential
-      eh1=0.50d0*dum*(vs(ii)+vs(jj))*autoev
+      eh1=0.50_wp*dum*(vs(ii)+vs(jj))*autoev
       H(j,i)=H(j,i)+eh1
       H(i,j)=H(j,i)
    enddo
@@ -196,11 +196,11 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       k=lin(j,i)
       ii=aoat2(i)
       jj=aoat2(j)
-      eh1=0.0d0
+      eh1=0.0_wp
       do l=1,3
          eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
       enddo
-      eh1=0.50d0*eh1*autoev
+      eh1=0.50_wp*eh1*autoev
       H(i,j)=H(i,j)+eh1
       H(j,i)=H(i,j)
    enddo
@@ -211,13 +211,13 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       ii=aoat2(i)
       jj=aoat2(j)
       k=lin(j,i)
-      eh1=0.0d0
+      eh1=0.0_wp
       ! note: these come in the following order
       ! xx, yy, zz, xy, xz, yz
       do l=1,6
          eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
       enddo
-      eh1=0.50d0*eh1*autoev
+      eh1=0.50_wp*eh1*autoev
       H(i,j)=H(i,j)+eh1
       H(j,i)=H(i,j)
    enddo
@@ -446,16 +446,16 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    if(ihomo+1.le.ndim.and.ihomo.ge.1)egap=emo(ihomo+1)-emo(ihomo)
    ! automatic reset to small value
-   if(egap.lt.0.1.and.iter.eq.0) broydamp=0.03
+   if(egap.lt.0.1_wp.and.iter.eq.0) broydamp=0.03_wp
 
    ! Fermi smearing
-   if(et.gt.0.1)then
+   if(et.gt.0.1_wp)then
       ! convert restricted occ first to alpha/beta
       if(nel.gt.0) then
          call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
       else
-         focca=0.0d0
-         foccb=0.0d0
+         focca=0.0_wp
+         foccb=0.0_wp
          ihomoa=0
          ihomob=0
       endif
@@ -541,7 +541,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
          omegap=egap
          ! monopoles only
          do i=1,nshell
-            qsh(i)=damp*qsh(i)+(1.0d0-damp)*q_in(i)
+            qsh(i)=damp*qsh(i)+(1.0_wp-damp)*q_in(i)
          enddo
          if (present(aes)) then
             ! CAMM
@@ -549,27 +549,27 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
             do i=1,n
                do j=1,3
                   k=k+1
-                  dipm(j,i)=damp*dipm(j,i)+(1.0d0-damp)*q_in(k)
+                  dipm(j,i)=damp*dipm(j,i)+(1.0_wp-damp)*q_in(k)
                enddo
                do j=1,6
                   k=k+1
-                  qp(j,i)=damp*qp(j,i)+(1.0d0-damp)*q_in(k)
+                  qp(j,i)=damp*qp(j,i)+(1.0_wp-damp)*q_in(k)
                enddo
             enddo
          end if
-         if(eel-eold.lt.0) then
-            damp=damp*1.15
+         if(eel-eold.lt.0.0_wp) then
+            damp=damp*1.15_wp
          else
             damp=damp0
          endif
-         damp=min(damp,1.0)
-         if(egap.lt.1.0)damp=min(damp,0.5)
+         damp=min(damp,1.0_wp)
+         if(egap.lt.1.0_wp)damp=min(damp,0.5_wp)
       endif
 
    else
 
       ! Broyden mixing
-      omegap=0.0d0
+      omegap=0.0_wp
       call broyden(nbr,q_in,qlast_in,dq,dqlast,iter,thisiter,broydamp,omega,df,u,a)
       qsh(1:nshell)=q_in(1:nshell)
       if (present(aes)) then
@@ -634,11 +634,11 @@ subroutine h0scal(hData,il,jl,izp,jzp,valaoi,valaoj,km)
       return
    endif
    if(.not.valaoi.and.valaoj) then
-      km=0.5*(hData%kScale(jl-1,jl-1)+hData%kDiff)
+      km=0.5_wp*(hData%kScale(jl-1,jl-1)+hData%kDiff)
       return
    endif
    if(.not.valaoj.and.valaoi) then
-      km=0.5*(hData%kScale(il-1,il-1)+hData%kDiff)
+      km=0.5_wp*(hData%kScale(il-1,il-1)+hData%kDiff)
    endif
 
 
@@ -712,8 +712,8 @@ pure function shellPoly(iPoly,jPoly,iRad,jRad,xyz1,xyz2)
 
    r=rab/rr
 
-   rf1=1.0d0+0.01_wp*iPoly*r**a
-   rf2=1.0d0+0.01_wp*jPoly*r**a
+   rf1=1.0_wp+0.01_wp*iPoly*r**a
+   rf2=1.0_wp+0.01_wp*jPoly*r**a
 
    shellPoly= rf1*rf2
 
@@ -928,8 +928,8 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    else
 !                                                     call timing(t0,w0)
 !     go to MO basis using trafo(X) from first iteration (=full diag)
-      call blas_gemm('N','N',ndim,ndim,ndim,1.d0,H,ndim,X,ndim,0.d0,P,ndim)
-      call blas_gemm('T','N',ndim,ndim,ndim,1.d0,X,ndim,P,ndim,0.d0,H,ndim)
+      call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,H,ndim,X,ndim,0.0_wp,P,ndim)
+      call blas_gemm('T','N',ndim,ndim,ndim,1.0_wp,X,ndim,P,ndim,0.0_wp,H,ndim)
 !                                                     call timing(t1,w1)
 !                       call prtime(6,1.5*(t1-t0),1.5*(w1-w0),'3xdgemm')
 !                                                     call timing(t0,w0)
@@ -938,7 +938,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                call prtime(6,t1-t0,w1-w0,'pseudodiag')
 
 !     C = X C', P=scratch
-      call blas_gemm('N','N',ndim,ndim,ndim,1.d0,X,ndim,H,ndim,0.d0,P,ndim)
+      call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,X,ndim,H,ndim,0.0_wp,P,ndim)
 !     save and output MO matrix in AO basis
       H = P
    endif
@@ -979,21 +979,21 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
       e_fermi = eig(nel+1)
    else
       ! In all other cases the Fermi energy starts as the midpoint between HOMO and LUMO
-      e_fermi = 0.5*(eig(nel)+eig(nel+1))
+      e_fermi = 0.5_wp*(eig(nel)+eig(nel+1))
 
       ! With this we can refine it to meet the definition at the current temperture
       occt=nel
       do ncycle = 1, 200  ! this loop would be possible instead of gotos
-         total_number = 0.0
-         total_dfermi = 0.0
+         total_number = 0.0_wp
+         total_dfermi = 0.0_wp
          do i = 1, norbs
-            fermifunct = 0.0
+            fermifunct = 0.0_wp
             if((eig(i)-e_fermi)/bkt.lt.50) then
-               fermifunct = 1.0/(exp((eig(i)-e_fermi)/bkt)+1.0)
+               fermifunct = 1.0_wp/(exp((eig(i)-e_fermi)/bkt)+1.0_wp)
                dfermifunct = exp((eig(i)-e_fermi)/bkt) / &
-               &       (bkt*(exp((eig(i)-e_fermi)/bkt)+1.0)**2)
+               &       (bkt*(exp((eig(i)-e_fermi)/bkt)+1.0_wp)**2)
             else
-               dfermifunct = 0.0
+               dfermifunct = 0.0_wp
             end if
             occ(i) = fermifunct
             total_number = total_number + fermifunct
@@ -1013,10 +1013,10 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    fod=0
    s  =0
    do i=1,norbs
-      if(occ(i).gt.thr.and.1.0d00-occ(i).gt.thr) &
-      &   s=s+occ(i)*log(occ(i))+(1.0d0-occ(i))*log(1.0d00-occ(i))
+      if(occ(i).gt.thr.and.1.0_wp-occ(i).gt.thr) &
+      &   s=s+occ(i)*log(occ(i))+(1.0_wp-occ(i))*log(1.0_wp-occ(i))
       if (eig(i).lt.e_fermi) then
-         fod=fod+1.0d0-occ(i)
+         fod=fod+1.0_wp-occ(i)
       else
          fod=fod+      occ(i)
       endif
@@ -1043,17 +1043,17 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
    if(mod(nel,2).eq.0)then
       ihomo=nel/2
       do i=1,ihomo
-         focc(i)=2.0d0
+         focc(i)=2.0_wp
       enddo
       if(2*ihomo.ne.nel) then
          ihomo=ihomo+1
-         focc(ihomo)=1.0d0
+         focc(ihomo)=1.0_wp
          if(nopen.eq.0)nopen=1
       endif
       if(nopen.gt.1)then
          do i=1,nopen/2
-            focc(ihomo-i+1)=focc(ihomo-i+1)-1.0
-            focc(ihomo+i)=focc(ihomo+i)+1.0
+            focc(ihomo-i+1)=focc(ihomo-i+1)-1.0_wp
+            focc(ihomo+i)=focc(ihomo+i)+1.0_wp
          enddo
       endif
 !  odd nel
@@ -1061,15 +1061,15 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
       na=nel/2+(nopen-1)/2+1
       nb=nel/2-(nopen-1)/2
       do i=1,na
-         focc(i)=focc(i)+1.
+         focc(i)=focc(i)+1.0_wp
       enddo
       do i=1,nb
-         focc(i)=focc(i)+1.
+         focc(i)=focc(i)+1.0_wp
       enddo
    endif
 
    do i=1,ndim
-      if(focc(i).gt.0.99) ihomo=i
+      if(focc(i).gt.0.99_wp) ihomo=i
    enddo
 
 end subroutine occ
@@ -1093,7 +1093,7 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
    if(mod(nel,2).eq.0)then
       ihomo=nel/2
       do i=1,ihomo
-         focc(i)=2
+         focc(i)=2.0_wp
       enddo
       if(2*ihomo.ne.nel) then
          ihomo=ihomo+1
@@ -1102,8 +1102,8 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
       endif
       if(nopen.gt.1)then
          do i=1,nopen/2
-            focc(ihomo-i+1)=focc(ihomo-i+1)-1
-            focc(ihomo+i)=focc(ihomo+i)+1
+            focc(ihomo-i+1)=focc(ihomo-i+1)-1.0_wp
+            focc(ihomo+i)=focc(ihomo+i)+1.0_wp
          enddo
       endif
 !  odd nel
@@ -1120,17 +1120,17 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
 
    do i=1,ndim
       if(focc(i).eq.2)then
-         focca(i)=1.0d0
-         foccb(i)=1.0d0
+         focca(i)=1.0_wp
+         foccb(i)=1.0_wp
       endif
-      if(focc(i).eq.1)focca(i)=1.0d0
+      if(focc(i).eq.1)focca(i)=1.0_wp
    enddo
 
    ihomoa=0
    ihomob=0
    do i=1,ndim
-      if(focca(i).gt.0.99) ihomoa=i
-      if(foccb(i).gt.0.99) ihomob=i
+      if(focca(i).gt.0.99_wp) ihomoa=i
+      if(foccb(i).gt.0.99_wp) ihomob=i
    enddo
 
 end subroutine occu
@@ -1224,10 +1224,10 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    allocate(Ptmp_b(ndim,ndim))
 
    ! P^(alpha) * S !
-   call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,Pa,ndim,S,ndim,0.0d0,Ptmp_a,ndim)
+   call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,Pa,ndim,S,ndim,0.0_wp,Ptmp_a,ndim)
    
    ! P^(beta) * S !
-   call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,Pb,ndim,S,ndim,0.0d0,Ptmp_b,ndim)
+   call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,Pb,ndim,S,ndim,0.0_wp,Ptmp_b,ndim)
    
    wb = 0
    do i = 1, n
@@ -1241,8 +1241,8 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
                enddo
             enddo
          endif
-         wb(i,j) = 2*xsum
-         wb(j,i) = 2*xsum
+         wb(i,j) = 2.0_wp*xsum
+         wb(j,i) = 2.0_wp*xsum
       enddo
    enddo
    deallocate(Ptmp_a)
@@ -1414,7 +1414,7 @@ subroutine lpop(n,nao,aoat,lao,occ,C,f,q,ql)
    real(wp)  cc
 
    do i=1,nao
-      if(occ(i).lt.1.d-8) cycle
+      if(occ(i).lt.1.0e-8_wp) cycle
       do j=1,nao
          cc=f*C(j,i)*C(j,i)*occ(i)
          jj=aoat(j)
@@ -1447,13 +1447,13 @@ subroutine iniqshell(xtbData,n,at,z,nshell,q,qsh,gfn_method)
    k=0
    do i=1,n
       iat=at(i)
-      ntot=-1.d-6
+      ntot=-1.0e-6_wp
       do m=1,xtbData%nShell(iat)
          l=xtbData%hamiltonian%angShell(m,iat)
          k=k+1
          zshell=xtbData%hamiltonian%referenceOcc(m,iat)
          ntot=ntot+zshell
-         if(ntot.gt.z(i)) zshell=0
+         if(ntot.gt.z(i)) zshell=0.0_wp
          fracz=zshell/z(i)
          qsh(k)=fracz*q(i)
       enddo
@@ -1482,7 +1482,7 @@ subroutine setzshell(xtbData,n,at,nshell,z,zsh,e,gfn_method)
    e=0.0_wp
    do i=1,n
       iat=at(i)
-      ntot=-1.d-6
+      ntot=-1.0e-6_wp
       do m=1,xtbData%nShell(iat)
          l=xtbData%hamiltonian%angShell(m,iat)
          k=k+1
@@ -1490,7 +1490,7 @@ subroutine setzshell(xtbData,n,at,nshell,z,zsh,e,gfn_method)
 !         lsh(k)=l
 !         ash(k)=i
          ntot=ntot+zsh(k)
-         if(ntot.gt.z(i)) zsh(k)=0
+         if(ntot.gt.z(i)) zsh(k)=0.0_wp
          e=e+xtbData%hamiltonian%selfEnergy(m,iat)*zsh(k)
       enddo
    enddo
