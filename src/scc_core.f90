@@ -459,12 +459,8 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
          ihomoa=0
          ihomob=0
       endif
-      if (ihomoa+1.le.ndim) then
-         call fermismear(.false.,ndim,ihomoa,et,emo,focca,nfoda,efa,ga)
-      endif
-      if (ihomob+1.le.ndim) then
-         call fermismear(.false.,ndim,ihomob,et,emo,foccb,nfodb,efb,gb)
-      endif
+      call fermismear(.false.,ndim,ihomoa,et,emo,focca,nfoda,efa,ga)
+      call fermismear(.false.,ndim,ihomob,et,emo,foccb,nfodb,efb,gb)
       focc = focca + foccb
    else
       ga = 0.0_wp
@@ -962,38 +958,57 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    real(wp),intent(out) :: e_fermi
    logical, intent(in)  :: prt
 
-   real(wp) :: boltz,bkt,occt,total_number,thr
+   real(wp) :: bkt,occt,total_number
    real(wp) :: total_dfermi,dfermifunct,fermifunct,s,change_fermi
-
-   parameter (boltz = kB*autoev)
-   parameter (thr   = 1.d-9)
+   real(wp), parameter :: boltz = kB*autoev
+   real(wp), parameter :: thr   = 1e-9_wp
+   real(wp), parameter :: sqrttiny = sqrt(tiny(1.0_wp))
    integer :: ncycle,i,j,m,k,i1,i2
 
    bkt = boltz*t
 
-   e_fermi = 0.5*(eig(nel)+eig(nel+1))
-   occt=nel
 
-   do ncycle = 1, 200  ! this loop would be possible instead of gotos
-      total_number = 0.0
-      total_dfermi = 0.0
-      do i = 1, norbs
-         fermifunct = 0.0
-         if((eig(i)-e_fermi)/bkt.lt.50) then
-            fermifunct = 1.0/(exp((eig(i)-e_fermi)/bkt)+1.0)
-            dfermifunct = exp((eig(i)-e_fermi)/bkt) / &
-            &       (bkt*(exp((eig(i)-e_fermi)/bkt)+1.0)**2)
+   ! First we need a good guess for the Fermi level
+   if(nel+1 .gt. norbs) then 
+      ! some atoms (e.g., He) do not have a LUMO because of the valence basis and
+      ! the LUMO index becomes larger than No. MOs
+      e_fermi = eig(nel)
+   else if (nel .eq. 0) then
+      ! without electrons the Fermi energy is the energy of the LUMO
+      ! i.e. the lowest orbital
+      e_fermi = eig(nel+1)
+   else
+      ! In all other cases the Fermi energy starts as the midpoint between HOMO and LUMO
+      e_fermi = 0.5*(eig(nel)+eig(nel+1))
+
+      ! With this we can refine it to meet the definition at the current temperture
+      occt=nel
+      do ncycle = 1, 200  ! this loop would be possible instead of gotos
+         total_number = 0.0
+         total_dfermi = 0.0
+         do i = 1, norbs
+            fermifunct = 0.0
+            if((eig(i)-e_fermi)/bkt.lt.50) then
+               fermifunct = 1.0/(exp((eig(i)-e_fermi)/bkt)+1.0)
+               dfermifunct = exp((eig(i)-e_fermi)/bkt) / &
+               &       (bkt*(exp((eig(i)-e_fermi)/bkt)+1.0)**2)
+            else
+               dfermifunct = 0.0
+            end if
+            occ(i) = fermifunct
+            total_number = total_number + fermifunct
+            total_dfermi = total_dfermi + dfermifunct
+         end do
+         if (total_dfermi > sqrttiny) then
+            change_fermi = (occt-total_number)/total_dfermi
          else
-            dfermifunct = 0.0
+            change_fermi = 0.0_wp
          end if
-         occ(i) = fermifunct
-         total_number = total_number + fermifunct
-         total_dfermi = total_dfermi + dfermifunct
-      end do
-      change_fermi = (occt-total_number)/total_dfermi
-      e_fermi = e_fermi+change_fermi
-      if (abs(occt-total_number).le.thr) exit
-   enddo
+         change_fermi = (occt-total_number)/total_dfermi
+         e_fermi = e_fermi+change_fermi
+         if (abs(occt-total_number).le.thr) exit
+      enddo
+   end if 
 
    fod=0
    s  =0
