@@ -35,7 +35,7 @@ module xtb_type_molecule
    use mctc_io_structure, only : structure_type, new_structure
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_boundaryconditions, only : boundaryCondition
-   use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength, getIdentity
+   use xtb_mctc_symbols, only : toNumber, toSymbol, getIdentity
    use xtb_type_wsc
    use xtb_type_topology
    use xtb_type_fragments
@@ -74,7 +74,7 @@ module xtb_type_molecule
       integer  :: boundaryCondition = boundaryCondition%cluster
 
       !> Element symbols
-      character(len=symbolLength), allocatable :: sym(:)
+      character(len=:), allocatable :: sym(:)
 
       !> Ordinal numbers
       integer, allocatable :: at(:)
@@ -224,7 +224,6 @@ subroutine initMolecule &
    logical, intent(in), optional :: pbc(:)
 
    integer, allocatable :: id(:)
-   character(len=symbolLength), allocatable :: sTmp(:)
    integer :: nAt, nId, iAt, iId
 
    nAt = min(size(at, dim=1), size(xyz, dim=2), size(sym, dim=1))
@@ -297,11 +296,11 @@ subroutine initMoleculeNumbers &
    real(wp), intent(in), optional :: lattice(3, 3)
    logical, intent(in), optional :: pbc(3)
 
-   character(len=4), allocatable :: sym(:)
+   character(len=:), allocatable :: sym(:)
    integer :: nAt
 
    nAt = min(size(at, dim=1), size(xyz, dim=2))
-   allocate(sym(nAt))
+   allocate(character(len=len(toSymbol(1))) :: sym(nAt))
    sym(:) = toSymbol(at(:nAt))
 
    call init(mol, at, sym, xyz, chrg, uhf, lattice, pbc)
@@ -467,7 +466,8 @@ subroutine allocate_molecule(self,n)
    self%n = n
    allocate( self%id(n),          source = 0 )
    allocate( self%at(n),          source = 0 )
-   allocate( self%sym(n),         source = '    ' )
+   allocate( character(len=80) :: self%sym(n))
+   self%sym(:) = repeat(' ', 80)
    allocate( self%xyz(3,n),       source = 0.0_wp )
    allocate( self%abc(3,n),       source = 0.0_wp )
    allocate( self%dist(n,n),      source = 0.0_wp )

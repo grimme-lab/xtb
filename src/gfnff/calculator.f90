@@ -41,6 +41,7 @@ module xtb_gfnff_calculator
    use xtb_type_latticepoint
    use xtb_gfnff_neighbor
    use xtb_pbc_tools
+   use xtb_propertyoutput, only: print_gbsa_info
    implicit none
    interface
       subroutine generate_wsc(mol,wsc)
@@ -299,6 +300,10 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          endif
       endif
       write(env%unit,'(9x,53(":"))')
+      write(env%unit,'(a)')
+      if (allocated(self%solvation) .and. set%pr_gbsa) then
+         call print_gbsa_info(env%unit, mol%sym, solvation)
+      endif
       write(env%unit,'(a)')
       if (.not.set%silent) then
          call open_file(ich,'gfnff_charges','w')
