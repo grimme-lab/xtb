@@ -514,7 +514,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       write(env%unit,'(10x,"making topology EEQ charges ...")')
       if(topo%nfrag.le.1) then                           ! nothing is known
 !     first check for fragments 
-      call mrecgffPBC(mol%n,neigh%numctr,neigh%numnb,neigh%nb,topo%nfrag,topo%fraglist) 
+      call mrecgffPBC(mol%n,neigh%numctr,neigh%numnb,neigh%nbf,topo%nfrag,topo%fraglist) 
       write(env%unit,'(10x,"#fragments for EEQ constrain: ",i0)') topo%nfrag
 !     read QM info if it exists
       call open_file(ich, 'charges', 'r')
@@ -2461,8 +2461,15 @@ subroutine gfnff_topo_changes(env, neigh)
          if (set%ffnb(1,i).eq.-1) exit
          idx=set%ffnb(1,i)
          int_tmp = set%ffnb(2:41,i)
+         ! Do heavy atom neighbor list
          neigh%nb(1:40,idx,1) = int_tmp
          neigh%nb(neigh%numnb,idx,1) = set%ffnb(42,i)
+         ! Do full neighbor list
+         neigh%nbf(1:40,idx,1) = int_tmp
+         neigh%nbf(neigh%numnb,idx,1) = set%ffnb(42,i)
+         ! Do no metal neighbor list
+         neigh%nbm(1:40,idx,1) = int_tmp
+         neigh%nbm(neigh%numnb,idx,1) = set%ffnb(42,i)
       end do
       write(env%unit,*) ''
       write(env%unit,*) 'The neighborlist has been adjusted according to the input file.'
