@@ -77,6 +77,8 @@ module xtb_tblite_calculator
       real(wp) :: etemp = 300.0_wp
       !> Numerical accuracy
       real(wp) :: accuracy = 1.0_wp
+      !> Maximum number of cycles for SCC convergence
+      integer :: max_iter = 250
       !> Parameter file to read
       character(len=:), allocatable :: param
       !> Method used for computation
@@ -173,6 +175,10 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
       call env%error(error%message, source)
       return
    end if
+
+   ! The maximum number of iterations is a property of the tblite calculator 
+   ! itself and has to be set AFTER the calculator is created
+   calc%tblite%max_iter = input%max_iter
 
 !   if (allocated(config%efield)) then
 !      block

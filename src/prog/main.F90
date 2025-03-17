@@ -1688,6 +1688,7 @@ contains
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_scc(env, 'maxiterations', sec)
+               tblite%max_iter = set%maxscciter
             else
                call env%error("Integer argument for --iterations is missing", source)
             end if
