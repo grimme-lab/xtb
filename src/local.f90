@@ -58,6 +58,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    real(wp),allocatable :: wbo(:,:)
    real(wp),allocatable :: xyztmp(:,:)
    real(sp),allocatable :: rklmo(:,:)
+   real(wp),allocatable :: tmp_cmo(:,:)
    integer, allocatable :: ind(:)
    integer, allocatable :: lneigh(:,:)
    integer, allocatable :: aneigh(:,:)
@@ -100,6 +101,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    if(ihomo.eq.0) then
       ! the HOMO is non-existing, place at unrealistically low energy
       enhomo=-999.999999990d0
+      if(set%pr_local) write(*,*) 'Warning: No occupied orbitals to localize!'
       qhl(1:nat,1)=0.0d0
    else
       klev=0
@@ -158,92 +160,116 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    allocate(d(n,n),ecent(n,4),eiga(n),qcent(n,3),ecent2(n,4), source=0.0_wp)
 
    ! do only occ. ones
-   cca=0
-   k=  0
-   do i=1,n
-      k=k+1
-      eiga(k)=eig(i)
-      do j=1,nao
-         cca(j+(k-1)*nao)=cmo(j,i)
+   allocate(tmp_cmo(nao,nao), f(n))
+   if(n .eq. 0) then
+      !     compute dipole moment core part
+      dtot = 0
+      do i=1,nat
+         dtot(1)=dtot(1)+xyz(1,i)*z(i)
+         dtot(2)=dtot(2)+xyz(2,i)*z(i)
+         dtot(3)=dtot(3)+xyz(3,i)*z(i)
       enddo
-   enddo
+      diptot=sqrt(dtot(1)**2+dtot(2)**2+dtot(3)**2)
+      if(set%pr_local) then
+         write(*,*)'dipole moment from electron density (au)'
+         write(*,*)'    X       Y       Z   '
+         write(*,'(3f9.4,''  total (Debye): '',f8.3)') &
+         &      dtot(1),dtot(2),dtot(3),diptot*2.5418
+      end if
 
-   nop=3
-   !     dipole integrals
-   allocate(dip2(nao*nao),dip(nbf*(nbf+1)/2,3),op(n*(n+1)/2,nop))
-   !    .         qua (nbf*(nbf+1)/2,3))
-   call Dints  (nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3),basis)
-   !     call DQ3ints(nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3),
-   !    .                         qua(1,1),qua(1,2),qua(1,3))
-   call cao2saop(nbf,nao,dip(1,1),basis)
-   call cao2saop(nbf,nao,dip(1,2),basis)
-   call cao2saop(nbf,nao,dip(1,3),basis)
-   !     call cao2saop(nbf,nao,qua(1,1))
-   !     call cao2saop(nbf,nao,qua(1,2))
-   !     call cao2saop(nbf,nao,qua(1,3))
-   !     d=0
-   do mo=1,3
-      call onetri(1,dip(1,mo),dip2,cca,nao,n)
-      k=0
+      ! If there is no occupied orbital, keep the original MOs 
+      tmp_cmo = cmo
+
+   else
+      cca=0
+      k=  0
       do i=1,n
-         do j=1,i
-            k=k+1
-            op(k,mo)=dip2(j+(i-1)*n)
+         k=k+1
+         eiga(k)=eig(i)
+         do j=1,nao
+            cca(j+(k-1)*nao)=cmo(j,i)
          enddo
       enddo
-   enddo
 
-   !     compute dipole moment core part
-   dtot = 0
-   do i=1,nat
-      dtot(1)=dtot(1)+xyz(1,i)*z(i)
-      dtot(2)=dtot(2)+xyz(2,i)*z(i)
-      dtot(3)=dtot(3)+xyz(3,i)*z(i)
-   enddo
-   k=0
-   do i=1,n
-      k=k+i
-      dtot(1)=dtot(1)+op(k,1)*focc(i)
-      dtot(2)=dtot(2)+op(k,2)*focc(i)
-      dtot(3)=dtot(3)+op(k,3)*focc(i)
-   enddo
-   diptot=sqrt(dtot(1)**2+dtot(2)**2+dtot(3)**2)
-   if(set%pr_local) then
-      write(*,*)'dipole moment from electron density (au)'
-      write(*,*)'    X       Y       Z   '
-      write(*,'(3f9.4,''  total (Debye): '',f8.3)') &
-      &      dtot(1),dtot(2),dtot(3),diptot*2.5418
-   end if
-
-   call timing(t1,w1)
-   if(set%pr_local) call prtime(6,t1-t0,w1-w0,'init local')
-   ! do optimization
-   if(set%pr_local) write(*,*) 'doing rotations ...'
-   call lopt(.true.,n,3,1.d-6,op,d)
-
-   if(set%pr_local) write(*,*) 'doing transformations ...'
-   ! MO charge center
-   k=0
-   do i=1,n
-      k=k+i
-      ecent(i,1)=-op(k,1)
-      ecent(i,2)=-op(k,2)
-      ecent(i,3)=-op(k,3)
-   enddo
-
-   ! LMO fock matrix
-   allocate(f(n))
-   do i=1,n
-      dum=0.0d0
-      do k=1,n
-         dum=dum+eiga(k)*d(k,i)*d(k,i)
+      nop=3
+      !     dipole integrals
+      allocate(dip2(nao*nao),dip(nbf*(nbf+1)/2,3),op(n*(n+1)/2,nop))
+      !    .         qua (nbf*(nbf+1)/2,3))
+      call Dints  (nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3),basis)
+      !     call DQ3ints(nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3),
+      !    .                         qua(1,1),qua(1,2),qua(1,3))
+      call cao2saop(nbf,nao,dip(1,1),basis)
+      call cao2saop(nbf,nao,dip(1,2),basis)
+      call cao2saop(nbf,nao,dip(1,3),basis)
+      !     call cao2saop(nbf,nao,qua(1,1))
+      !     call cao2saop(nbf,nao,qua(1,2))
+      !     call cao2saop(nbf,nao,qua(1,3))
+      !     d=0
+      do mo=1,3
+         call onetri(1,dip(1,mo),dip2,cca,nao,n)
+         k=0
+         do i=1,n
+            do j=1,i
+               k=k+1
+               op(k,mo)=dip2(j+(i-1)*n)
+            enddo
+         enddo
       enddo
-      f(i)=dum
-   enddo
-   call lmosort2(n,f,d,ecent)
 
-   ! the lmos
-   CALL dgemm('N','N',nao,n,n,1.D0,cca,nao,d,n,0.D0,cmo,nao) ! non-std BLAS
+      !     compute dipole moment core part
+      dtot = 0
+      do i=1,nat
+         dtot(1)=dtot(1)+xyz(1,i)*z(i)
+         dtot(2)=dtot(2)+xyz(2,i)*z(i)
+         dtot(3)=dtot(3)+xyz(3,i)*z(i)
+      enddo
+      k=0
+      do i=1,n
+         k=k+i
+         dtot(1)=dtot(1)+op(k,1)*focc(i)
+         dtot(2)=dtot(2)+op(k,2)*focc(i)
+         dtot(3)=dtot(3)+op(k,3)*focc(i)
+      enddo
+      diptot=sqrt(dtot(1)**2+dtot(2)**2+dtot(3)**2)
+      if(set%pr_local) then
+         write(*,*)'dipole moment (au) with gauge at origin'
+         write(*,*)'    X       Y       Z   '
+         write(*,'(3f9.4,''  total (Debye): '',f8.3)') &
+         &      dtot(1),dtot(2),dtot(3),diptot*2.5418
+      end if
+
+      call timing(t1,w1)
+      if(set%pr_local) call prtime(6,t1-t0,w1-w0,'init local')
+      ! do optimization
+      if(set%pr_local) write(*,*) 'doing rotations ...'
+      call lopt(.true.,n,3,1.d-6,op,d)
+
+      if(set%pr_local) write(*,*) 'doing transformations ...'
+      ! MO charge center
+      k=0
+      do i=1,n
+         k=k+i
+         ecent(i,1)=-op(k,1)
+         ecent(i,2)=-op(k,2)
+         ecent(i,3)=-op(k,3)
+      enddo
+
+      ! LMO fock matrix
+      do i=1,n
+         dum=0.0d0
+         do k=1,n
+            dum=dum+eiga(k)*d(k,i)*d(k,i)
+         enddo
+         f(i)=dum
+      enddo
+      call lmosort2(n,f,d,ecent)
+
+      ! the lmos
+      tmp_cmo = cmo
+      ! Apply transformation if there is a occupied orbital to be localized
+      CALL dgemm('N','N',nao,n,n,1.D0,cca,nao,d,n,0.D0,tmp_cmo,nao) ! non-std BLAS
+   
+   end if 
 
    ! X^2,Y^2,Z^2 over LMOs
    !     k=0
@@ -271,7 +297,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
 
    ! number of centers for each mo
    allocate(qmo(nat,n))
-   call mocent(nat,nao,n,cmo,s,qmo,xcen,basis%aoat2)
+   call mocent(nat,nao,n,tmp_cmo,s,qmo,xcen,basis%aoat2)
 
    allocate(rklmo(5,2*n))
    if(set%pr_local) write(*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'

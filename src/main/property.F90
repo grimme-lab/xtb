@@ -517,10 +517,8 @@ module xtb_propertyoutput
       if (set%pr_fod) then
          allocate (C(basis%nbf, basis%nao), focca(basis%nao), foccb(basis%nao), focc(basis%nao), emo(basis%nao), &
                    source=0.0_wp)
-         if (wfx%ihomoa + 1 <= basis%nao) &
-            call fermismear(.false., basis%nao, wfx%ihomoa, set%etemp, wfx%emo, focca, nfoda, efa, ga)
-         if (wfx%ihomob + 1 <= basis%nao) &
-            call fermismear(.false., basis%nao, wfx%ihomob, set%etemp, wfx%emo, foccb, nfodb, efb, gb)
+         call fermismear(.false., basis%nao, wfx%ihomoa, set%etemp, wfx%emo, focca, nfoda, efa, ga)
+         call fermismear(.false., basis%nao, wfx%ihomob, set%etemp, wfx%emo, foccb, nfodb, efb, gb)
          emo = wfx%emo * evtoau
          call fodenmak(.true., basis%nao, emo, focca, efa)
          call fodenmak(.true., basis%nao, emo, foccb, efb)
@@ -591,10 +589,8 @@ module xtb_propertyoutput
          else
             call sao2cao(basis%nao, wfx%C, basis%nbf, C, basis)
          end if
-         if (wfx%ihomoa + 1 <= wfx%nao) &
-            call fermismear(.false., basis%nao, wfx%ihomoa, set%etemp, wfx%emo, focc, nfoda, efa, ga)
-         if (wfx%ihomob + 1 <= wfx%nao) &
-            call fermismear(.false., basis%nao, wfx%ihomob, set%etemp, wfx%emo, focc, nfodb, efb, gb)
+         call fermismear(.false., basis%nao, wfx%ihomoa, set%etemp, wfx%emo, focc, nfoda, efa, ga)
+         call fermismear(.false., basis%nao, wfx%ihomob, set%etemp, wfx%emo, focc, nfodb, efb, gb)
          call stmpic(mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, C, 0.5_wp * (efa + efb), wfx%emo, basis)
          deallocate (C, focc)
       end if
@@ -1151,10 +1147,8 @@ module xtb_propertyoutput
                 source=0.0_wp)
 
       call makel(nao, S, C, X)
-      if (ihomoa + 1 <= nao) &
-         call fermismear(.false., nao, ihomoa, etemp, emo, focca, nfoda, efa, ga)
-      if (ihomob + 1 <= nao) &
-         call fermismear(.false., nao, ihomob, etemp, emo, foccb, nfodb, efb, gb)
+      call fermismear(.false., nao, ihomoa, etemp, emo, focca, nfoda, efa, ga)
+      call fermismear(.false., nao, ihomob, etemp, emo, foccb, nfodb, efb, gb)
       call fodenmak(.true., nao, emo * evtoau, focca, efa)
       call fodenmak(.true., nao, emo * evtoau, foccb, efb)
 
