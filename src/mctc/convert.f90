@@ -54,11 +54,11 @@ module xtb_mctc_convert
    real(wp), public, parameter :: kgtome = 1.0_wp / metokg
    real(wp), public, parameter :: amutoau = amutokg * kgtome
    real(wp), public, parameter :: autoamu = kgtoamu * metokg
-!  femtosectons to atomic time units
-   real(wp), public, parameter :: fstoau = 41.3413733365614_wp
-   real(wp), public, parameter :: autofs = 1.0_wp / fstoau
    !> atomic unit of time (s) (codata 2018)
-   real(wp), parameter :: atomic_unit_of_time = 2.4188843265857e-17_wp
+   real(wp), public, parameter :: atomic_unit_of_time = 2.4188843265857e-17_wp
+!  femtosectons to atomic time units
+   real(wp), public, parameter :: fstoau = 1.0e-15_wp / atomic_unit_of_time 
+   real(wp), public, parameter :: autofs = 1.0_wp / fstoau
 !  Coulomb to atomic charge units (electrons)
    real(wp), public, parameter :: autoc = 1.6021766208e-19_wp
    real(wp), public, parameter :: ctoau = 1.0_wp / autoc
