@@ -1314,6 +1314,7 @@ module xtb_propertyoutput
             & temp, sthr, et(i), ht(i), gt(i), ts(i), zp, pr)
          !call oldthermo(aa,bb,cc,avmom,linear,atom,symnum,wt,vibs,nvib,escf, &
          !   & temp,sthr,et(i),ht(i),gt(i),ts(i),zp,pr)
+         ! has been removed in PR #1077 (2f7b7ed86c4a2f50be85a4ed4712c98b4a9c0e8f) to be fully replaced by 'thermodyn'
       end do
 
       write (iunit, '(a)')
