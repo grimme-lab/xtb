@@ -98,6 +98,7 @@ module xtb_prog_main
    use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
+   use random_generators, only: normal_distribution
    !> PTB related modules
    use xtb_main_json, only: main_ptb_json
 
@@ -1157,11 +1158,9 @@ contains
             ! randomize structure to avoid zero RMSD
             do i = 1, mol%n
                if (.not. fixset%is_fixed(i)) then
-               block
-                  real(wp) :: shift(3)
-                  call random_number(shift)
-                  mol%xyz(:, i) = mol%xyz(:, i) + 1.0e-4_wp * shift(:)
-               end block
+                  do j = 1, 3
+                     mol%xyz(j, i) = mol%xyz(j, i) + normal_distribution(0.1_wp, 0.0_wp)
+                  end do
                end if
             end do
             call geometry_optimization &
