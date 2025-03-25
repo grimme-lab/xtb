@@ -598,10 +598,13 @@ contains
       type is (TxTBCalculator)
          call chk%wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
 
-         ! Make sure number of electrons is initialized an multiplicity is consistent
+         ! Make sure number of electrons is initialized and multiplicity is consistent
          chk%wfn%nel = nint(sum(mol%z) - mol%chrg)
-         chk%wfn%nopen = mol%uhf
-         if (chk%wfn%nopen == 0 .and. mod(chk%wfn%nel, 2) /= 0) chk%wfn%nopen = 1
+         if (mod(mol%uhf, 2) /= mod(chk%wfn%nel, 2)) then
+            call env%terminate("Assigned number of unpaired electrons (flag '--uhf <int>' or <int> in file '.UHF') is not consistent with the total number of electrons")
+         else
+            chk%wfn%nopen = mol%uhf
+         end if
 
          !> EN charges and CN
          if (set%gfn_method < 2) then
