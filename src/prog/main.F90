@@ -1160,7 +1160,7 @@ contains
                block
                   real(wp) :: shift(3)
                   call random_number(shift)
-                  mol%xyz(:, i) = mol%xyz(:, i) + 1.0e-6_wp * shift(:)
+                  mol%xyz(:, i) = mol%xyz(:, i) + 1.0e-4_wp * shift(:)
                end block
                end if
             end do
