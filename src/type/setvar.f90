@@ -396,7 +396,6 @@ end subroutine deallocate_fix
 logical function is_fixed_fix(self, idx) result(is)
    class(fix_setvar), intent(in) :: self
    integer, intent(in) :: idx
-   logical :: is
    is = .false.
    if (allocated(self%atoms)) then
       if (any(self%atoms == idx)) is = .true.
