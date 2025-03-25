@@ -1156,10 +1156,11 @@ contains
             metaset%xyz(:, :, metaset%nstruc) = mol%xyz
             ! randomize structure to avoid zero RMSD
             do i = 1, mol%n
-               do j = 1, 3
-                  call random_number(er)
-                  mol%xyz(j, i) = mol%xyz(j, i) + 1.0e-6_wp * er
-               end do
+               block
+                  real(wp) :: shift(3)
+                  call random_number(shift)
+                  mol%xyz(:, i) = mol%xyz(:, i) + 1.0e-6_wp * shift(:)
+               end block
             end do
             call geometry_optimization &
                &     (env, mol, chk, calc, &
