@@ -16,6 +16,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Non-polar solvent accessible surface area model
+!> Im, W.; Lee, M. S.; Brooks, C. L., III Generalized Born model with a simple smoothing function. J. Comput. Chem. 2003, 24, 1691-1702
+!> DOI: 10.1002/jcc.10321
 module xtb_solv_sasa
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
@@ -173,12 +175,14 @@ pure subroutine compute_w_sp(nat,nnlists,trj2,vdwsa,xyza,nno,xyzp,sasap,grds, &
             sqtj = sqrt(tj2)
             uj = sqtj - vdwsa(ia)
             ah3uj2 = ah3*uj*uj
+            !> See eq 25, 26
             dsasaij = ah1+3.0_wp*ah3uj2
+            !> See eq 11
             sasaij =  ah0+(ah1+ah3uj2)*uj
 
             ! accumulate the molecular surface
             sasap = sasap*sasaij
-            ! compute the gradient wrt the neighbor
+            ! compute the gradient wrt the neighbor (eq 25, 26)
             dsasaij = dsasaij/(sasaij*sqtj)
             nni=nni+1
             grdi(nni)=ia
