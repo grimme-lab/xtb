@@ -550,7 +550,7 @@ contains
                p_run_modef, p_run_mdopt, p_run_metaopt)
             if (set%mode_extrun == p_ext_gfnff) then
                fnv = xfind(p_fname_param_gfnff)
-             elseif (set%mode_extrun .eq. p_ext_ptb) then
+            elseif (set%mode_extrun .eq. p_ext_ptb) then
                   fnv = xfind(p_fname_param_ptb)
             else
                if (set%gfn_method == 0) then
@@ -564,14 +564,18 @@ contains
                end if
             end if
          case (p_run_vip, p_run_vea, p_run_vipea, p_run_vfukui, p_run_vomega)
-            if (set%gfn_method == 0) then
-               fnv = xfind(p_fname_param_gfn0)
-            end if
-            if (set%gfn_method == 1) then
-               fnv = xfind(p_fname_param_gfn1)
-            end if
-            if (set%gfn_method == 2) then
-               fnv = xfind(p_fname_param_gfn2)
+            if (set%mode_extrun .eq. p_ext_ptb) then
+                  fnv = xfind(p_fname_param_ptb)
+            else
+               if (set%gfn_method == 0) then
+                  fnv = xfind(p_fname_param_gfn0)
+               end if
+               if (set%gfn_method == 1) then
+                  fnv = xfind(p_fname_param_gfn1)
+               end if
+               if (set%gfn_method == 2) then
+                  fnv = xfind(p_fname_param_gfn2)
+               end if
             end if
          end select
       end if
