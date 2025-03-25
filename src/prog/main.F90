@@ -1163,10 +1163,28 @@ contains
                   end do
                end if
             end do
+            block
+               real(wp) :: Xc(3), Yc(3) !< centroids of structures
+               real(wp) :: U(3,3) !< rotation matrix, not used
+               real(wp) :: dummy(1,1) !< gradient of rmsd; if .true. must have a proper dimensions
+               real(wp) :: rmsd_val !< computed RMSD
+               call rmsd(mol%n, mol%xyz, metaset%xyz(:, :, metaset%nstruc), &
+                 &       0, U, Xc, Yc, rmsd_val, .false., dummy)
+               write (env%unit, '("RMSD of distorted structure: ", F10.6)') rmsd_val
+            end block
             call geometry_optimization &
                &     (env, mol, chk, calc, &
                &      egap, set%etemp, set%maxscciter, set%optset%maxoptcycle, etot, g, sigma, &
                &      set%optset%optlev, set%verbose, .true., murks)
+            block
+               real(wp) :: Xc(3), Yc(3) !< centroids of structures
+               real(wp) :: U(3,3) !< rotation matrix, not used
+               real(wp) :: dummy(1,1) !< gradient of rmsd; if .true. must have a proper dimensions
+               real(wp) :: rmsd_val !< computed RMSD
+               call rmsd(mol%n, mol%xyz, metaset%xyz(:, :, metaset%nstruc), &
+                 &       0, U, Xc, Yc, rmsd_val, .false., dummy)
+               write (env%unit, '("RMSD between previously optimized and newly optimized structures: ", F10.6)') rmsd_val
+            end block
             if (.not. set%verbose) then
                write (env%unit, '("current energy:",1x,f20.8)') etot
             end if
