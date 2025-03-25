@@ -1254,7 +1254,14 @@ subroutine inertial_relax &
    if (optcell) then
       lat_apar = opt%astart
       lat_time_step = opt%lat_time_step
+   else
+      lat_apar = 0.0_wp
+      lat_time_step = 0.0_wp
    endif
+
+   lat_gnorm = 0.0_wp
+   lat_speed = 0.0_wp
+   lat_power = 0.0_wp
 
    ! get current gradient norm
    gnorm = sqrt(ddot(3*mol%n,gradient,1,gradient,1))
