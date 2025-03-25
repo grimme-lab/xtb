@@ -1194,6 +1194,7 @@ contains
                   "FAILED TO CONVERGE GEOMETRY OPTIMIZATION"
                call touch_file('NOT_CONVERGED')
             end if
+            flush (env%unit)
             call writeMolecule(mol, ich, fileType%xyz, energy=etot, gnorm=norm2(g))
          end do
          call close_file(ich)
