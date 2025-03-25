@@ -206,9 +206,6 @@ module xtb_solv_gbsa
    real(wp), parameter :: ah1 = 3._wp/(4.0_wp*w)
    real(wp), parameter :: ah3 = -1._wp/(4.0_wp*w3)
 
-   !> Surface tension (in au)
-   real(wp), parameter :: gammas = 1.0e-5_wp
-
    !> Salt screening
    real(wp), parameter :: kappaConst = 0.7897e-3_wp
 
