@@ -130,6 +130,7 @@ module xtb_type_setvar
    contains
       procedure :: allocate => allocate_fix
       procedure :: deallocate => deallocate_fix
+      procedure :: is_fixed => is_fixed_fix
    end type fix_setvar
 
    type :: constr_setvar
@@ -388,6 +389,19 @@ subroutine deallocate_fix(self)
    if(allocated(self%atoms)) deallocate( self%atoms )
    if(allocated(self%val))   deallocate( self%val )
 end subroutine deallocate_fix
+
+!>
+!> @brief check if atom is fixed
+!>
+logical function is_fixed_fix(self, idx) result(is)
+   class(fix_setvar), intent(in) :: self
+   integer, intent(in) :: idx
+   logical :: is
+   is = .false.
+   if (allocated(self%atoms)) then
+      if (any(self%atoms == idx)) is = .true.
+   end if
+end function is_fixed_fix
 
 subroutine allocate_constr(self,nat,nval,fc,expo)
    implicit none
