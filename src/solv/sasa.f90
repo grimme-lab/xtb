@@ -180,6 +180,15 @@ pure subroutine compute_w_sp(nat,nnlists,trj2,vdwsa,xyza,nno,xyzp,sasap,grds, &
             !> See eq 11
             sasaij =  ah0+(ah1+ah3uj2)*uj
 
+            ! sanity check for sasaij range
+            sasaij = min(sasaij, 1.0_wp)
+            sasaij = max(0.0_wp, sasaij)
+            if (sasaij == 0.0_wp) then
+               !> technically, we should not be here, but numerical world has its own opinion
+               sasap = 0.0_wp
+               return
+            end if
+
             ! accumulate the molecular surface
             sasap = sasap*sasaij
             ! compute the gradient wrt the neighbor (eq 25, 26)
