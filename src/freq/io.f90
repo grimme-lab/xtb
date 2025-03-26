@@ -22,7 +22,7 @@ module xtb_freq_io
    private
 
    public :: writeHessianOut, rdhess, wrhess, write_tm_vibspectrum
-   public :: g98fake, g98fake2, rddipd
+   public :: g98fake, g98fake2, rddipd, wrdipd
 
 contains
 
@@ -140,7 +140,6 @@ contains
    call close_file(iunit)
 
    end subroutine wrdipd
-
 
    subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_activity, temp, v_incident)
       use xtb_setparam
