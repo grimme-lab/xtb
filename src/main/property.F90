@@ -651,11 +651,11 @@ module xtb_propertyoutput
       call PREIGF(iunit, res%freq, res%n3true)
 
       write (iunit, '(1x,a)') 'reduced masses (amu)'
-      write (iunit, '(8(i4,'':'',f6.2))') (i, res%rmass(i), i=1, res%n3)
+      write (iunit, '(6(i5,'':'',f10.2))') (i, res%rmass(i), i=1, res%n3)
       write (iunit, '(1x,a)') 'IR intensities (km·mol⁻¹)'
-      write (iunit, '(8(i4,'':'',f6.2))') (i, res%dipt(i), i=1, res%n3)
+      write (iunit, '(6(i5,'':'',f10.2))') (i, res%dipt(i), i=1, res%n3)
       write (iunit, '(1x,a)') 'Raman intensities (Ä⁴*amu⁻¹)'
-      write (iunit, '(8(i4,'':'',f6.2))') (i, res%polt(i), i=1, res%n3)
+      write (iunit, '(6(i5,'':'',f10.2))') (i, res%polt(i), i=1, res%n3)
 
       call open_file(ifile, 'vibspectrum', 'w')
       if (set%elprop == p_elprop_alpha) then
