@@ -110,7 +110,7 @@ subroutine numhess( &
    real(wp),allocatable :: xyzsave(:,:)
    real(wp),allocatable :: pold(:)
    real(wp),allocatable :: dipd(:,:), dalphadr(:,:), dalphadq(:,:)
-   real(wp),allocatable :: amass(:)
+   real(wp),allocatable :: amass_au(:), amass_amu(:)
    real(wp) :: asq, gamsq
 
    type(TMolecule) :: tmol
@@ -127,9 +127,9 @@ subroutine numhess( &
    res%n3true = n3-3*freezeset%n
 
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
-      & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
+      & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), amass_amu(n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3), izero(n3))
+      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass_au(n3), h_dummy(n3,n3), izero(n3))
 
    if (set%elprop == p_elprop_alpha) then
       allocate(dalphadr(6,n3), source = 0.0_wp)
@@ -265,8 +265,8 @@ subroutine numhess( &
          ia = indx(a)
          do ic = 1, 3
             ii = (ia-1)*3+ic
-            isqm(ii)=1.0_wp/sqrt(atmass(ia))
-            amass(ii)=isqm(ii)/sqrt(amutoau)
+            amass_amu(ii)=1.0_wp/sqrt(atmass(ia))
+            amass_au(ii)=amass_amu(ii)/sqrt(amutoau)
          enddo
       enddo
       do a = 1, nonfrozh
@@ -314,8 +314,8 @@ subroutine numhess( &
       do ia = 1, mol%n
          do ic = 1, 3
             ii = (ia-1)*3+ic
-            isqm(ii)=1.0_wp/sqrt(atmass(ia))
-            amass(ii)=isqm(ii)/sqrt(amutoau)
+            amass_amu(ii)=1.0_wp/sqrt(atmass(ia))
+            amass_au(ii)=amass_amu(ii)/sqrt(amutoau)
         enddo
       enddo
    endif
@@ -372,7 +372,7 @@ subroutine numhess( &
    do i=1,n3
       do j=1,i
          k=k+1
-         res%hess(j,i)=hss(k)*isqm(i)*isqm(j)*scalh
+         res%hess(j,i)=hss(k)*amass_amu(i)*amass_amu(j)*scalh
          res%hess(i,j)=res%hess(j,i)
       enddo
    enddo
@@ -382,7 +382,7 @@ subroutine numhess( &
       do i=1,n3
          do j=1,i
             k=k+1
-            hbias(j,i)=hsb(k)*isqm(i)*isqm(j)*scalh
+            hbias(j,i)=hsb(k)*amass_amu(i)*amass_amu(j)*scalh
             hbias(i,j)=hbias(j,i)
          enddo
       enddo
@@ -488,17 +488,15 @@ subroutine numhess( &
    k=0
    do i=1,n3
       if(res%freq(i).lt.set%mode_vthr) res%lowmode=i
-      xsum=0
-      k=k+1
+      xsum = 0.0_wp
+      k = k + 1
       do ia=1,mol%n
          do ic=1,3
             ii = (ia-1)*3+ic
-            xsum=xsum+atmass(ia)*res%hess(ii,i)**2
-            !> %MM: CAUTION: Shouldn't this be "amass" instead of "atmass"? -> Would then be the reciprocal value
-            !>               of the mass and thus correspond to the definition in 2) below.
+            xsum = xsum + (amass_amu(ii))**2 * (res%hess(ii,i))**2
          enddo
       enddo
-      res%rmass(i)=xsum
+      res%rmass(i)= 1.0_wp / xsum
    enddo
 
    !--- IR intensity ---! (holds in a similar fashion also for Raman)
@@ -531,7 +529,7 @@ subroutine numhess( &
       do k = 1, 3
          sum2 = 0.0_wp
          do j = 1, n3
-            sum2 = sum2 + dipd(k,j)*(res%hess(j,i)*amass(j))
+            sum2 = sum2 + dipd(k,j)*(res%hess(j,i)*amass_au(j))
          end do
          trdip(k) = sum2
       end do
@@ -543,7 +541,7 @@ subroutine numhess( &
          do k = 1,6
             sum2 = 0.0_wp
             do j = 1, n3
-               sum2 = sum2 + (res%hess(j,i)*amass(j))*dalphadr(k,j)
+               sum2 = sum2 + (res%hess(j,i)*amass_au(j))*dalphadr(k,j)
             enddo
             dalphadq(k,i) = sum2
          enddo
