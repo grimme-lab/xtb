@@ -86,11 +86,12 @@ subroutine numhess( &
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
-   integer  :: nread,kend,lowmode
+   integer  :: nread,lowmode,nskip
    integer  :: nonfrozh
    integer  :: fixmode
+   integer, allocatable :: skiplist(:)
    integer, allocatable :: nb(:,:)
-   integer, allocatable :: indx(:),molvec(:),izero(:)
+   integer, allocatable :: indx(:),molvec(:)
    real(wp),allocatable :: bond(:,:)
 
 !$ integer  :: nproc
@@ -129,7 +130,7 @@ subroutine numhess( &
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3), izero(n3))
+      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3))
 
    if (set%elprop == p_elprop_alpha) then
       allocate(dalphadr(6,n3), source = 0.0_wp)
@@ -412,14 +413,9 @@ subroutine numhess( &
    else
       write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
    endif
-   k=0
    do i=1,n3
       ! Eigenvalues in atomic units, convert to wavenumbers
       res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))/sqrt(amutoau)
-      if(abs(res%freq(i)).lt.0.01_wp) then
-         k=k+1
-         izero(k)=i
-      endif
    enddo
 
    ! scale frequencies
@@ -442,42 +438,26 @@ subroutine numhess( &
    if (mol%n > 1) then
       h = 0.0_wp
       isqm = 0.0_wp
-      kend=0
-      if (freezeset%n == 0) then
-         kend=6
-         if(res%linear)then
-            kend=5
-            do i=1,kend
-               izero(i)=i
-            enddo
-            res%freq(1:kend)=0
-         endif
-         do k=1,kend
-            h(1:n3,k)=res%hess(1:n3,izero(k))
-            isqm(  k)=res%freq(izero(k))
-         enddo
-      else if (freezeset%n <= 2) then
-         ! for systems with one fixed atom, there should be 2 and 3 degrees of freedom for linear and non-linear systems, respectively
-         ! for systems with two fixed atoms, there should be 0 and 1 degrees of freedom for linear and non-linear systems, respectively
-         ! for linear systems with more than two fixed atoms, there should be 0 degrees of freedom
-         ! for non-linear systems unless one fixes three atoms defines plane, 1 degree of freedom will exist, otherwise there should be 0 degrees of freedom
-         ! anyway, the check here will become more complex and therefore it is not impemented
-         ! NOTE: it is not necessary lowest N frequencies
-         error stop "not implemented"
-         ! for three atom systems we assume that the plane was constructed (or linear system is used)
-      endif
-      j=kend
-      do k=1,n3
-         if(abs(res%freq(k)).gt.0.01_wp)then
-            j=j+1
-            if(j.gt.n3) then
-               call env%error('internal error while sorting hessian', source)
-               return
-            end if
-            h(1:n3,j)=res%hess(1:n3,k)
-            isqm(  j)=res%freq(   k)
+      j = 0
+      nskip = 0
+      allocate(skiplist(n3), source = 0)
+      do k=1, n3
+         if (abs(res%freq(k)) > 0.05_wp) then
+            j = j + 1
+            h(1:n3,j) = res%hess(1:n3,k)
+            isqm(  j) = res%freq(   k)
+         else
+            nskip = nskip + 1
+            skiplist(nskip) = k
          endif
       enddo
+      do while (j /= n3)
+         j = j + 1
+         h(1:n3,j) = res%hess(1:n3,skiplist(nskip))
+         isqm(  j) = 0.0_wp
+         nskip = nskip - 1
+      end do
+      deallocate(skiplist)
    end if
    res%hess = h
    res%freq = isqm
