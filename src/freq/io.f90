@@ -22,7 +22,7 @@ module xtb_freq_io
    private
 
    public :: writeHessianOut, rdhess, wrhess, write_tm_vibspectrum
-   public :: g98fake, g98fake2
+   public :: g98fake, g98fake2, rddipd
 
 contains
 
@@ -78,10 +78,8 @@ contains
       real(wp), intent(out) :: h(nat3, nat3)
       character(len=*), intent(in) :: fname
       integer :: iunit, i, j, mincol, maxcol
-      character(len=5) :: adum
       character(len=80) :: a80
 
-      !     write(*,*) 'Reading Hessian <',trim(fname),'>'
       call open_file(iunit, fname, 'r')
 50    read (iunit, '(a)') a80
       if (index(a80, '$hessian') /= 0) then
@@ -99,6 +97,50 @@ contains
 
 300   return
    end subroutine rdhess
+
+   subroutine rddipd(nat3,dipd,fname)
+   implicit none
+   integer, intent(in)  :: nat3
+   real(wp),intent(out) :: dipd(3,nat3)
+   character(len=*),intent(in) :: fname
+   integer  :: iunit,i,j
+   character(len=80) :: a80
+
+   call open_file(iunit,fname,'r')
+50 read(iunit,'(a)') a80
+   if(index(a80,'$dipgrad').ne.0)then
+      do i=1,nat3
+         read(iunit,*)(dipd(j,i),j=1,3)
+      enddo
+      call close_file(iunit)
+      goto 300
+   endif
+   goto 50
+
+300 return
+   end subroutine rddipd
+
+   subroutine wrdipd(nat3,dipd,fname)
+   use xtb_lin, only : lin
+   implicit none
+   integer, intent(in) :: nat3
+   real(wp),intent(in) :: dipd(3,nat3)
+   character(len=*),intent(in) :: fname
+   integer iunit,i
+   character(len=5)  :: adum
+   character(len=80) :: a80
+
+   adum='   '
+   call open_file(iunit,fname,'w')
+   a80='$dipd'
+   write(iunit,'(a)')a80
+   do i=1,nat3
+      write(iunit,'(a5,3f15.10)')adum,dipd(1:3,i)
+   enddo
+   call close_file(iunit)
+
+   end subroutine wrdipd
+
 
    subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_activity, temp, v_incident)
       use xtb_setparam

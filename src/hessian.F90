@@ -18,7 +18,7 @@
 module xtb_hessian
    use xtb_mctc_accuracy, only : wp
    use xtb_freq_io, only : rdhess, wrhess, writeHessianOut, &
-      & write_tm_vibspectrum, g98fake, g98fake2
+      & write_tm_vibspectrum, g98fake, g98fake2, rddipd
    use xtb_freq_project, only : trproj
    implicit none
    private
@@ -372,7 +372,7 @@ subroutine numhess( &
    do i=1,n3
       do j=1,i
          k=k+1
-         res%hess(j,i)=hss(k)*amass_amu(i)*amass_amu(j)*scalh
+         res%hess(j,i)=hss(k)*amass_au(i)*amass_au(j)*scalh
          res%hess(i,j)=res%hess(j,i)
       enddo
    enddo
@@ -382,7 +382,7 @@ subroutine numhess( &
       do i=1,n3
          do j=1,i
             k=k+1
-            hbias(j,i)=hsb(k)*amass_amu(i)*amass_amu(j)*scalh
+            hbias(j,i)=hsb(k)*amass_au(i)*amass_au(j)*scalh
             hbias(i,j)=hbias(j,i)
          enddo
       enddo
@@ -415,7 +415,7 @@ subroutine numhess( &
    k=0
    do i=1,n3
       ! Eigenvalues in atomic units, convert to wavenumbers
-      res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))/sqrt(amutoau)
+      res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))
       if(abs(res%freq(i)).lt.0.01_wp) then
          k=k+1
          izero(k)=i
@@ -493,6 +493,7 @@ subroutine numhess( &
       do ia=1,mol%n
          do ic=1,3
             ii = (ia-1)*3+ic
+            ! Take amass_amu -> we want the reduced mass in g/mol (amu) and not in atomic units
             xsum = xsum + (amass_amu(ii))**2 * (res%hess(ii,i))**2
          enddo
       enddo
@@ -500,19 +501,18 @@ subroutine numhess( &
    enddo
 
    !--- IR intensity ---! (holds in a similar fashion also for Raman)
-   !  1. res%hess corresponds to the orthonormal eigenvectors of the hessian
-   !     matrix (-> normal modes of vibration). Mass-weighting is introduced
-   !     back again via multiplying with amass(j).
-   !     "Each vibrational normal mode - given in terms of
-   !      cartesian displacement vectors of all atoms - has been normalized to unity.
-   !      To obtain mass-weigthed normal coordinates divide the tabulated
-   !      modes by the reduced mass."
+   !  1. res%hess corresponds to the orthonormal eigenvectors of the mass-weighted Hessian
+   !     matrix (-> normal modes of vibration). By mass-weighting the Hessian matrix,
+   !     the normal modes are transformed into the mass-weighted space ("Q basis"), and
+   !     have the units [sqrt(mass) * length]
+   !     To obtain purely cartesian coordinates (-> transforming back into the Cartesian space),
+   !     the mass-weighted normal modes have to be divided by the square root of the mass of the respective atom.
    !
    !  2. res%hess(j,i) is the matrix which transforms a derivative with
    !     respect to the j-th cartesian coordinate ("dipd") into a derivative with
-   !     respect to the i-th (mass-weighted) normal coordinate.
+   !     respect to the i-th normal coordinate.
    !
-   !  3. amass(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).
+   !  3. amass_au(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).
    !
    !  4. matmul(D x H) = U
    !
