@@ -398,8 +398,6 @@ subroutine numhess( &
       return
    end if
 
-   
-
    if (set%runtyp.eq.p_run_bhess) then
       call rescale_freq(n3,htb,res%hess,hbias,res%freq,fc_tb,fc_bias,freq_scal)
    else
