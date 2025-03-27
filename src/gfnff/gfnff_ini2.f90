@@ -776,75 +776,99 @@ subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh, iTri,iTrj,iTrDum
       real(wp) rab,rmsd, rih,rjh
       logical ijnonbond,free
+      ! local copies for omp parallelization
+      integer :: neigh_nTrans, neigh_numctr, nlist_nhb1, nlist_nhb2
 
+      neigh_nTrans = neigh%nTrans
+      neigh_numctr = neigh%numctr
 
       rmsd = sqrt(sum((xyz-nlist%hbrefgeo)**2))/dble(n)
 
       if(rmsd.lt.1.d-6 .or. rmsd.gt. 0.3d0) then ! update list if first call or substantial move occured
       nlist%nhb1=0
       nlist%nhb2=0
+      nlist_nhb1=0
+      nlist_nhb2=0
       ! loop over hb-relevant AB atoms
+      !$omp parallel do default(none) private(i, j, k, nh, ix, iTri, iTrj, iTrDum, rab, &
+      !$omp rih, rjh,ijnonbond,free ) &
+      !$omp firstprivate (nlist_nhb1, nlist_nhb2, neigh_numctr, neigh_nTrans, hbthr1, hbthr2) &
+      !$omp shared(nlist, topo, neigh, xyz)
       do ix=1,topo%nathbAB  
-        i=topo%hbatABl(1,ix) 
-        j=topo%hbatABl(2,ix)
-        do iTri=1, neigh%nTrans ! go through i shifts
-          do iTrj=1, neigh%nTrans ! go through j shifts
-            ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
-            iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj) 
-            if(iTrDum.gt.neigh%nTrans.or.iTrDum.lt.-1.or.iTrDum.eq.0) cycle ! cycle nonsense 
-            rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
-            if(rab.gt.hbthr1) cycle
-            ! check if ij bonded
-            if(iTrDum.le.neigh%numctr.and.iTrDum.gt.0) then
-              ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
-            else
-              ! i and j are not in neighboring cells
-              ijnonbond=.true. 
-            endif
-            ! loop over relevant H atoms
-            do k=1,topo%nathbH
-              free=.true. ! tripplet not assigned yet
-              nh  =topo%hbatHl(1,k) ! nh always in central cell
-              ! distances for non-cov bonded case
-              rih=NORM2(xyz(:,nh)-(xyz(:,i)+neigh%transVec(:,iTri)))**2
-              rjh=NORM2(xyz(:,nh)-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
-              ! check if i is the bonded A    
-              if(iTri.le.neigh%numctr) then ! nh is not shifted so bpair works without adjustment 
-                if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
-                  nlist%nhb2=nlist%nhb2+1
-                  nlist%hblist2(1,nlist%nhb2)=i
-                  nlist%hblist2(2,nlist%nhb2)=j
-                  nlist%hblist2(3,nlist%nhb2)=nh
-                  nlist%hblist2(4,nlist%nhb2)=iTri
-                  nlist%hblist2(5,nlist%nhb2)=iTrj
-                  free=.false. ! not available for nhb1 !!!
-                endif 
-              endif  
-              ! check if j is the bonded A
-              if(iTrj.le.neigh%numctr.and.free) then
-                if(neigh%bpair(j,nh,iTrj).eq.1.and.ijnonbond) then
-                  nlist%nhb2=nlist%nhb2+1
-                  nlist%hblist2(1,nlist%nhb2)=j
-                  nlist%hblist2(2,nlist%nhb2)=i
-                  nlist%hblist2(3,nlist%nhb2)=nh
-                  nlist%hblist2(4,nlist%nhb2)=iTrj
-                  nlist%hblist2(5,nlist%nhb2)=iTri
-                  free=.false. ! not available for nhb1 !!!
-                endif
-              endif  
-              ! check for non-cov bonded A  
-              if(rab+rih+rjh.lt.hbthr2.and.free) then ! sum of rAB,rAH,rBH is below threshold
-                nlist%nhb1=nlist%nhb1+1
-                nlist%hblist1(1,nlist%nhb1)=i 
-                nlist%hblist1(2,nlist%nhb1)=j 
-                nlist%hblist1(3,nlist%nhb1)=nh
-                nlist%hblist1(4,nlist%nhb1)=iTri
-                nlist%hblist1(5,nlist%nhb1)=iTrj
-              endif
-            enddo ! k: relevant H atoms
-          enddo ! iTrj
-        enddo ! iTri
+         i=topo%hbatABl(1,ix)
+         j=topo%hbatABl(2,ix)
+         do iTri=1, neigh_nTrans ! go through i shifts
+            do iTrj=1, neigh_nTrans ! go through j shifts
+               ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
+               iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj)
+               ! iTrDum=-1 is valid here because we are only interested if ij is a bond (ijnonbond)
+               ! However, iTrDum is not and should not be used as an index without excluding -1 value
+               if((iTrDum.le.neigh_nTrans.and.iTrDum.gt.0).or.iTrDum.eq.-1) then ! cycle invalid values
+                  rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
+                  if(rab.le.hbthr1) then
+                     ! check if ij bonded
+                     if(iTrDum.le.neigh_numctr.and.iTrDum.gt.0) then
+                        ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
+                     else
+                        ! i and j are not in neighboring cells
+                        ijnonbond=.true.
+                     endif
+                     ! loop over relevant H atoms
+                     do k=1,topo%nathbH
+                        free=.true. ! tripplet not assigned yet
+                        nh  =topo%hbatHl(1,k) ! nh always in central cell
+                        ! distances for non-cov bonded case
+                        rih=NORM2(xyz(:,nh)-(xyz(:,i)+neigh%transVec(:,iTri)))**2
+                        rjh=NORM2(xyz(:,nh)-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
+                        ! check if i is the bonded A
+                        if(iTri.le.neigh_numctr) then ! nh is not shifted so bpair works without adjustment
+                           if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
+                              !$omp atomic capture
+                              nlist_nhb2 = nlist%nhb2
+                              nlist%nhb2=nlist%nhb2+1
+                              !$omp end atomic
+                              nlist%hblist2(1,nlist_nhb2+1)=i
+                              nlist%hblist2(2,nlist_nhb2+1)=j
+                              nlist%hblist2(3,nlist_nhb2+1)=nh
+                              nlist%hblist2(4,nlist_nhb2+1)=iTri
+                              nlist%hblist2(5,nlist_nhb2+1)=iTrj
+                              free=.false. ! not available for nhb1 !!!
+                           endif
+                        endif
+                        ! check if j is the bonded A
+                        if(iTrj.le.neigh_numctr.and.free) then
+                           if(neigh%bpair(j,nh,iTrj).eq.1.and.ijnonbond) then
+                              !$omp atomic capture
+                              nlist_nhb2 = nlist%nhb2
+                              nlist%nhb2=nlist%nhb2+1
+                              !$omp end atomic
+                              nlist%hblist2(1,nlist_nhb2+1)=j
+                              nlist%hblist2(2,nlist_nhb2+1)=i
+                              nlist%hblist2(3,nlist_nhb2+1)=nh
+                              nlist%hblist2(4,nlist_nhb2+1)=iTrj
+                              nlist%hblist2(5,nlist_nhb2+1)=iTri
+                              free=.false. ! not available for nhb1 !!!
+                           endif
+                        endif
+                        ! check for non-cov bonded A
+                        if(rab+rih+rjh.lt.hbthr2.and.free) then ! sum of rAB,rAH,rBH is below threshold
+                           !$omp atomic capture
+                           nlist_nhb1 = nlist%nhb1
+                           nlist%nhb1=nlist%nhb1+1
+                           !$omp end atomic
+                           nlist%hblist1(1,nlist_nhb1+1)=i
+                           nlist%hblist1(2,nlist_nhb1+1)=j
+                           nlist%hblist1(3,nlist_nhb1+1)=nh
+                           nlist%hblist1(4,nlist_nhb1+1)=iTri
+                           nlist%hblist1(5,nlist_nhb1+1)=iTrj
+                        endif
+                     enddo ! k: relevant H atoms
+                  endif ! rab is out of threshold
+               endif ! iTrDum is invalid
+            enddo ! iTrj
+         enddo ! iTri
       enddo ! ix: relevant AB atoms 
+      !$omp end parallel do
 
       ! for nxb list only i is not shifted
       nlist%nxb =0
@@ -852,7 +876,7 @@ subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
           i =topo%xbatABl(1,ix)   ! A
           j =topo%xbatABl(2,ix)   ! B
           iTrj=topo%xbatABl(4,ix) ! iTrB
-          if(iTrj.gt.neigh%nTrans.or.iTrj.lt.-1.or.iTrj.eq.0) cycle ! cycle nonsense 
+          if(iTrj.gt.neigh_nTrans.or.iTrj.lt.-1.or.iTrj.eq.0) cycle ! cycle nonsense 
           rab=NORM2(xyz(:,j)-xyz(:,i)+neigh%transVec(:,iTrj))**2
           if(rab.gt.hbthr2)cycle
           nlist%nxb=nlist%nxb+1
