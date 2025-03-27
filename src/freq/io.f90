@@ -49,14 +49,17 @@ contains
    end subroutine writeHessianOut
 
    subroutine wrhess(nat3, h, fname)
-      !> Arguments
+      ! Arguments
       integer, intent(in)                 :: nat3
       real(wp), intent(in)                :: h(nat3 * (nat3 + 1) / 2)
       character(len=*), intent(in)        :: fname
-      !> Local variables
+      ! Local variables
       integer                             :: iunit
       integer                             :: i, j, mincol, maxcol
       character(len=80)                   :: a80
+
+      ! ## Writing TURBOMOLE hessian files ##
+      ! For format and examples, see `rdhess`
 
       call open_file(iunit, fname, 'w')
       ! Write header
@@ -77,11 +80,36 @@ contains
    end subroutine wrhess
 
    subroutine rdhess(nat3, h, fname)
-      integer, intent(in) :: nat3
-      real(wp), intent(out) :: h(nat3, nat3)
-      character(len=*), intent(in) :: fname
+      integer, intent(in) :: nat3            ! number of atoms * 3 (dimension of the hessian matrix)
+      real(wp), intent(out) :: h(nat3, nat3) ! hessian matrix
+      character(len=*), intent(in) :: fname  ! name of the file that contains the hessian matrix
       integer :: iunit, i, j, mincol, maxcol
       character(len=80) :: a80
+
+      ! ## Parsing TURBOMOLE hessian files ##
+      ! Can be read in with this subroutine by calling:
+      ! call rdhess(n3, h, "hessian")
+      ! Example of a hessian file from TURBOMOLE (written to disk during execution of `aoforce`)
+      ! $hessian (projected)
+      !     0.7481372492   0.0000000000   0.0000000830  -0.3740686579   0.0000000000
+      !     0.2665999127  -0.3740685913   0.0000000000  -0.2665999957
+      !     0.0000000000   0.0000000000   0.0000000000   0.0000000000   0.0000000000
+      !     0.0000000000   0.0000000000   0.0000000000   0.0000000000
+      !     0.0000000830   0.0000000000   0.4436161882   0.2073710893   0.0000000000
+      !    -0.2218080645  -0.2073711723   0.0000000000  -0.2218081237
+      !    -0.3740686579   0.0000000000   0.2073710893   0.3969513659   0.0000000000
+      !    -0.2369855336  -0.0228827080   0.0000000000   0.0296144443
+      !     0.0000000000   0.0000000000   0.0000000000   0.0000000000   0.0000000000
+      !     0.0000000000   0.0000000000   0.0000000000   0.0000000000
+      !     0.2665999127   0.0000000000  -0.2218080645  -0.2369855336   0.0000000000
+      !     0.2059073550  -0.0296143791   0.0000000000   0.0159007095
+      !    -0.3740685913   0.0000000000  -0.2073711723  -0.0228827080   0.0000000000
+      !    -0.0296143791   0.3969512993   0.0000000000   0.2369855514
+      !     0.0000000000   0.0000000000   0.0000000000   0.0000000000   0.0000000000
+      !     0.0000000000   0.0000000000   0.0000000000   0.0000000000
+      !    -0.2665999957   0.0000000000  -0.2218081237   0.0296144443   0.0000000000
+      !     0.0159007095   0.2369855514   0.0000000000   0.2059074142
+      ! $end
 
       h = 0.0_wp
       call open_file(iunit, fname, 'r')
@@ -102,11 +130,29 @@ contains
    end subroutine rdhess
 
    subroutine rddipd(nat3,dipd,fname)
-      integer, intent(in)  :: nat3
-      real(wp),intent(out) :: dipd(3,nat3)
-      character(len=*),intent(in) :: fname
+      integer, intent(in)  :: nat3         ! number of atoms * 3 (dimension of the hessian matrix)
+      real(wp),intent(out) :: dipd(3,nat3) ! dipole gradient matrix
+      character(len=*),intent(in) :: fname ! name of the file that contains the dipole gradient matrix
       integer  :: iunit,i,j
       character(len=80) :: a80
+
+      ! ## Parsing TURBOMOLE dipole moment gradient files ##
+      ! Can be read in with this subroutine by calling:
+      ! call rddipd(n3, dipd, "dipgrad")
+      ! Example of a dipole gradient file from TURBOMOLE (written to disk during execution of `aoforce`)
+      ! ```
+      ! $dipgrad          cartesian dipole gradients
+      !   -.55590957957556D+00  -.13474468786800D-11  0.19553268509540D-11
+      !   0.94497121874554D-12  -.41804517132353D+00  0.42665391608598D-11
+      !   -.51049455461472D-11  -.93995447836050D-12  -.45647662656399D+00
+      !   0.27795478978935D+00  0.15487821610555D-11  0.39622398334096D-01
+      !   -.28030504003640D-11  0.20902258565859D+00  -.26693334081688D-11
+      !   -.92060828461747D-02  0.12989300394917D-12  0.22823831328057D+00
+      !   0.27795478978374D+00  -.20133528237558D-12  -.39622398336052D-01
+      !   0.18580791816185D-11  0.20902258566247D+00  -.15972057526910D-11
+      !   0.92060828512799D-02  0.81006147441132D-12  0.22823831328096D+00
+      ! $end
+      ! ```
 
       dipd=0.0_wp
       call open_file(iunit,fname,'r')
@@ -126,6 +172,9 @@ contains
       integer iunit,i
       character(len=5)  :: adum
       character(len=80) :: a80
+
+      ! ## Writing dipole gradient files ##
+      ! For format and examples, see `rddipd`
 
       adum='   '
       call open_file(iunit,fname,'w')
