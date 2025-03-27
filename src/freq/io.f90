@@ -49,28 +49,31 @@ contains
    end subroutine writeHessianOut
 
    subroutine wrhess(nat3, h, fname)
-      integer, intent(in) :: nat3
-      real(wp), intent(in) :: h(nat3 * (nat3 + 1) / 2)
-      character(len=*), intent(in) :: fname
-      integer iunit, i, j, mincol, maxcol, k
-      character(len=5) :: adum
-      character(len=80) :: a80
+      !> Arguments
+      integer, intent(in)                 :: nat3
+      real(wp), intent(in)                :: h(nat3 * (nat3 + 1) / 2)
+      character(len=*), intent(in)        :: fname
+      !> Local variables
+      integer                             :: iunit
+      integer                             :: i, j, mincol, maxcol
+      character(len=80)                   :: a80
 
-      adum = '   '
       call open_file(iunit, fname, 'w')
+      ! Write header
       a80 = '$hessian'
-      write (iunit, '(a)') a80
+      write(iunit, '(a)') a80
+      ! Outer loop: iterate over rows (i)
       do i = 1, nat3
          maxcol = 0
-         k = 0
-200      mincol = maxcol + 1
-         k = k + 1
-         maxcol = min(maxcol + 5, nat3)
-         write (iunit, '(a5,5f15.10)') adum, (h(lin(i, j)), j=mincol, maxcol)
-         if (maxcol < nat3) goto 200
+         ! Inner loop: read/process columns in blocks of up to 5
+         do while (maxcol < nat3)
+            mincol = maxcol + 1
+            maxcol = min(maxcol + 5, nat3)
+            ! Write a block of up to 5 columns
+            write(iunit, '(5x,5f15.10)') (h(lin(i, j)), j=mincol, maxcol)
+         end do
       end do
       call close_file(iunit)
-
    end subroutine wrhess
 
    subroutine rdhess(nat3, h, fname)
@@ -80,63 +83,57 @@ contains
       integer :: iunit, i, j, mincol, maxcol
       character(len=80) :: a80
 
+      h = 0.0_wp
       call open_file(iunit, fname, 'r')
-50    read (iunit, '(a)') a80
+      read (iunit, '(a)') a80
       if (index(a80, '$hessian') /= 0) then
          do i = 1, nat3
             maxcol = 0
-200         mincol = maxcol + 1
-            maxcol = min(maxcol + 5, nat3)
-            read (iunit, *) (h(j, i), j=mincol, maxcol)
-            if (maxcol < nat3) goto 200
+            ! Process up to 5 columns at a time until maxcol reaches nat3
+            do while (maxcol < nat3)
+               mincol = maxcol + 1
+               maxcol = min(maxcol + 5, nat3)
+               read (iunit, *) (h(j, i), j = mincol, maxcol)
+            end do
          end do
-         call close_file(iunit)
-         goto 300
       end if
-      goto 50
+      call close_file(iunit)
 
-300   return
    end subroutine rdhess
 
    subroutine rddipd(nat3,dipd,fname)
-   implicit none
-   integer, intent(in)  :: nat3
-   real(wp),intent(out) :: dipd(3,nat3)
-   character(len=*),intent(in) :: fname
-   integer  :: iunit,i,j
-   character(len=80) :: a80
+      integer, intent(in)  :: nat3
+      real(wp),intent(out) :: dipd(3,nat3)
+      character(len=*),intent(in) :: fname
+      integer  :: iunit,i,j
+      character(len=80) :: a80
 
-   call open_file(iunit,fname,'r')
-50 read(iunit,'(a)') a80
-   if(index(a80,'$dipgrad').ne.0)then
-      do i=1,nat3
-         read(iunit,*)(dipd(j,i),j=1,3)
-      enddo
+      dipd=0.0_wp
+      call open_file(iunit,fname,'r')
+      read(iunit,'(a)') a80
+      if(index(a80,'$dipgrad').ne.0)then
+         do i=1,nat3
+            read(iunit,*)(dipd(j,i),j=1,3)
+         enddo
+      endif
       call close_file(iunit)
-      goto 300
-   endif
-   goto 50
-
-300 return
    end subroutine rddipd
 
    subroutine wrdipd(nat3,dipd,fname)
-   use xtb_lin, only : lin
-   implicit none
-   integer, intent(in) :: nat3
-   real(wp),intent(in) :: dipd(3,nat3)
-   character(len=*),intent(in) :: fname
-   integer iunit,i
-   character(len=5)  :: adum
-   character(len=80) :: a80
+      integer, intent(in) :: nat3
+      real(wp),intent(in) :: dipd(3,nat3)
+      character(len=*),intent(in) :: fname
+      integer iunit,i
+      character(len=5)  :: adum
+      character(len=80) :: a80
 
-   adum='   '
-   call open_file(iunit,fname,'w')
-   a80='$dipd'
-   write(iunit,'(a)')a80
-   do i=1,nat3
-      write(iunit,'(a5,3f15.10)')adum,dipd(1:3,i)
-   enddo
+      adum='   '
+      call open_file(iunit,fname,'w')
+      a80='$dipd'
+      write(iunit,'(a)')a80
+      do i=1,nat3
+         write(iunit,'(a5,3f15.10)')adum,dipd(1:3,i)
+      enddo
    call close_file(iunit)
 
    end subroutine wrdipd
