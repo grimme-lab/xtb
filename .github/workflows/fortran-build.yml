@@ -253,6 +253,7 @@ jobs:
             toolchain:
               - {compiler: intel, version: '2024.1'}
 #               - {compiler: intel, version: '2025.0'} SegFault in disp/ncoord.f90 near 'do concurrent(tx = -rep_cn(1):rep_cn(1), &'
+              - {compiler: intel, version: '2025.1'}
       env:
          APT_PACKAGES: >-
             intel-oneapi-mkl-${{ matrix.toolchain.version }} intel-oneapi-mkl-devel-${{ matrix.toolchain.version }}
@@ -294,6 +295,7 @@ jobs:
             toolchain:
               - {compiler: intel, version: '2024.1'}
 #               - {compiler: intel, version: '2025.0'} SegFault in disp/ncoord.f90 near 'do concurrent(tx = -rep_cn(1):rep_cn(1), &'
+              - {compiler: intel, version: '2025.1'}
       env:
          APT_PACKAGES: >-
             intel-oneapi-mkl-${{ matrix.toolchain.version }} intel-oneapi-mkl-devel-${{ matrix.toolchain.version }}
