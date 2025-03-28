@@ -98,7 +98,7 @@ module xtb_setmod
 !  Let's choose something different from 42 that is not dividable by 10... ;)
 !  Happy debugging!
    integer,private,parameter :: p_str_length = 48
-   integer,private,parameter :: p_arg_length = 24
+   integer,private,parameter :: p_arg_length = 48
 
    public
 
