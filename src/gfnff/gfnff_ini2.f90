@@ -763,6 +763,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 
 subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
       use xtb_mctc_accuracy, only : wp
+      use xtb_mctc_blas_level1, only : mctc_dot
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
@@ -805,7 +806,7 @@ subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
                ! However, iTrDum is not and should not be used as an index without excluding -1 value
                if(iTrDum.gt.neigh%nTrans.or.iTrDum.lt.-1.or.iTrDum.eq.0) cycle
                vec_ab = (xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj))
-               rab = dot_product(vec_ab, vec_ab)  ! square of distance AB
+               rab = mctc_dot(vec_ab, vec_ab)  ! square of distance AB
                if(rab.gt.hbthr1) cycle
                ! check if ij bonded
                if(iTrDum.le.neigh_numctr.and.iTrDum.gt.0) then
@@ -820,9 +821,9 @@ subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
                   nh  =topo%hbatHl(1,k) ! nh always in central cell
                   ! distances for non-cov bonded case
                   vec_ih = xyz(:,nh)-(xyz(:,i)+neigh%transVec(:,iTri))
-                  rih = dot_product(vec_ih, vec_ih)  ! square of distance iH
+                  rih = mctc_dot(vec_ih, vec_ih)  ! square of distance iH
                   vec_jh = xyz(:,nh)-(xyz(:,j)+neigh%transVec(:,iTrj))
-                  rjh = dot_product(vec_jh, vec_jh)  ! square of distance jH
+                  rjh = mctc_dot(vec_jh, vec_jh)  ! square of distance jH
                   ! check if i is the bonded A
                   if(iTri.le.neigh_numctr) then ! nh is not shifted so bpair works without adjustment
                      if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
