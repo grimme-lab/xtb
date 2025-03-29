@@ -12,7 +12,7 @@
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU Lesser General Public License for more details.
 !
-! You should have received a copy of the GNU Lesser General Public Licen
+! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !cccccccccccccccccccccccccccccccc
@@ -69,7 +69,7 @@ subroutine printmold(ncent,nmo,nbf,xyz,at,cmo,eval,occ,thr,basis)
    do i = 1,ncent
       atyp = toSymbol(at(i))
       z=at(i)
-      ! atom character, running number, nuclear charge, x,y,z coordin
+      ! atom character, running number, nuclear charge, x,y,z coordinates
       write (iwfn,'(a2,2i6,3E22.14)') &
          &   atyp,i,z,xyz(1,i),xyz(2,i),xyz(3,i)
    enddo
@@ -124,11 +124,11 @@ subroutine printmold(ncent,nmo,nbf,xyz,at,cmo,eval,occ,thr,basis)
       dum=0
       write(iwfn,*) eval(i)
       write(iwfn,'(A)',advance='no') 'Spin= '
-      write(iwfn,'(A)',advance='yes') 'Alpha' ! for now just conside
+      write(iwfn,'(A)',advance='yes') 'Alpha' ! for now just consider RHF case
       write(iwfn,'(A)',advance='no') 'Occup= '
       write(iwfn,'(F14.8)') occ(i)
       !now coefficients
-      ! a notion: for l>0, the ordering is p: x,y,z ; d: xx,yy,zz,xy
+      ! a notion: for l>0, the ordering is p: x,y,z ; d: xx,yy,zz,xy,xz,yz ; f: xxx, yyy, zzz, xxy, xxz, yyx, yyz, xzz, yzz, xyz
       do j=1,nbf
          write(iwfn,*) j,cmo(j,i)
       enddo
@@ -176,7 +176,7 @@ subroutine printumold(ncent,nmo,nbf,xyz,at,cmoa,cmob,evala,&
    do i = 1,ncent
       atyp = toSymbol(at(i))
       z=at(i)
-      ! atom character, running number, nuclear charge, x,y,z coordin
+      ! a notion: for l>0, the ordering is p: x,y,z ; d: xx,yy,zz,xy,xz,yz ; f: xxx, yyy, zzz, xxy, xxz, yyx, yyz, xzz, yzz, xyz
       write (iwfn,'(a2,2i6,3E22.14)') &
          &   atyp,i,z,xyz(1,i),xyz(2,i),xyz(3,i)
    enddo
@@ -233,7 +233,7 @@ subroutine printumold(ncent,nmo,nbf,xyz,at,cmoa,cmob,evala,&
       write(iwfn,'(A)',advance='no') 'Occup= '
       write(iwfn,'(F14.8)') occa(i)
       !now coefficients
-      ! a notion: for l>0, the ordering is p: x,y,z ; d: xx,yy,zz,xy
+      ! a notion: for l>0, the ordering is p: x,y,z ; d: xx,yy,zz,xy,xz,yz ; f: xxx, yyy, zzz, xxy, xxz, yyx, yyz, xzz, yzz, xyz
       do j=1,nbf
          write(iwfn,*) j,cmoa(j,i)
       enddo
@@ -249,7 +249,7 @@ subroutine printumold(ncent,nmo,nbf,xyz,at,cmoa,cmob,evala,&
       write(iwfn,'(A)',advance='no') 'Occup= '
       write(iwfn,'(F14.8)') occb(i)
       !now coefficients
-      ! a notion: for l>0, the ordering is p: x,y,z ; d: xx,yy,zz,xy
+      ! a notion: for l>0, the ordering is p: x,y,z ; d: xx,yy,zz,xy,xz,yz ; f: xxx, yyy, zzz, xxy, xxz, yyx, yyz, xzz, yzz, xyz
       do j=1,nbf
          write(iwfn,*) j,cmob(j,i)
       enddo
@@ -258,7 +258,7 @@ subroutine printumold(ncent,nmo,nbf,xyz,at,cmoa,cmob,evala,&
    call close_file(iwfn)
 end subroutine
 
-! this routine gives character s,p,d etc. if angular momentum is given a
+! this routine gives character s,p,d etc. if angular momentum is given as input (i.e., 0,1,2 etc.)
 subroutine ang2chr(iang,chr,skip)
    implicit none
    character*1, intent( out ) :: chr

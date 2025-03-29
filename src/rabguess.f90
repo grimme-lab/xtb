@@ -12,7 +12,7 @@
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU Lesser General Public License for more details.
 !
-! You should have received a copy of the GNU Lesser General Public Licen
+! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -40,9 +40,9 @@ subroutine rabguess(n,at,xyz,cn,dcn,nsrb,srblist,shift,rab,grab)
    real*8 ra,rb,k1,k2,den,ff,p(4,2)
 
    !     fitted on PBExa-3c geom set by SG, 9/2018
-   !     H B C N O F SI P S CL GE AS SE BR SN SB TE I together (and for glo
+   !     H B C N O F SI P S CL GE AS SE BR SN SB TE I together (and for glob par)
    !     and rest one element at a time, LN taken as av. of La and Hf
-   !     about 15-20 reference molecules per element (about 30-40 data poin
+   !     about 15-20 reference molecules per element (about 30-40 data points per fit
    !     parameter)
    ! electronegativity (started from Pauling values)
    ! base radius
