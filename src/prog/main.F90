@@ -1159,7 +1159,7 @@ contains
             do i = 1, mol%n
                if (.not. fixset%is_fixed(i)) then
                   do j = 1, 3
-                     mol%xyz(j, i) = mol%xyz(j, i) + normal_distribution(metaset%width, 0.0_wp)
+                     mol%xyz(j, i) = mol%xyz(j, i) + normal_distribution(metaset%global_width, 0.0_wp)
                   end do
                end if
             end do
