@@ -61,7 +61,7 @@ subroutine pocketscan(n,at,xyz,nout)
       call ncoord_d3(n,at,coord,cn,500.0d0)
       dum=-1.0d0
       do i=1,n
-         if(abs(cn(i)-cn0(i)).gt.dum) dum=abs(cn(i)-cn0(i)) ! clash ch
+         if(abs(cn(i)-cn0(i)).gt.dum) dum=abs(cn(i)-cn0(i)) ! clash check
       enddo
       if(dum.gt.cthr) then
          ierr=ierr+1
@@ -94,7 +94,7 @@ subroutine pocketscan(n,at,xyz,nout)
       call ncoord_d3(n,at,coord,cn,500.0d0)
       dum=-1.0d0
       do i=1,n
-         if(abs(cn(i)-cn0(i)).gt.dum) dum=abs(cn(i)-cn0(i)) ! clash ch
+         if(abs(cn(i)-cn0(i)).gt.dum) dum=abs(cn(i)-cn0(i)) ! clash check
       enddo
       if(dum.gt.cthr) then
          ierr=ierr+1
@@ -143,8 +143,8 @@ subroutine pocketrotation(n,at,xyz,cma,trfm,ifrag,npath,xyzpath)
       if(splitlist(i).eq.ifrag) then
          turncrd0(1:3,i)=xyz(1:3,i)-cma(1:3) ! part that is rotated
       else
-         addcrd(1:3,i)=xyz(1:3,i)-cma(1:3) ! part that is fixed and si
-         ! cma is added here, simply to have a simpler addition later
+         addcrd(1:3,i)=xyz(1:3,i)-cma(1:3) ! part that is fixed and simply added to the zeros of turncrd to yield the new coord
+         ! cma is added here, simply to have a simpler addition later on
       endif
    enddo
    turncrd0=matmul(trfm,turncrd0)
