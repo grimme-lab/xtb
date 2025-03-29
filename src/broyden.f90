@@ -28,8 +28,8 @@
 ! df = previous |dF>
 ! u = previous |u>
 ! a = a matrix
-! Note: The modified Broyden method works on the INPUT charges of the sc
-! the difference produced by the SCC step. Especially the INPUT charge o
+! Note: The modified Broyden method works on the INPUT charges of the scf iteration, and
+! the difference produced by the SCC step. Especially the INPUT charge of the previous
 ! iteration is needed, which is usually not stored!
 module xtb_broyden
 contains
