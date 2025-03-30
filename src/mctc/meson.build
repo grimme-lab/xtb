@@ -52,6 +52,6 @@ srcs += files(
   'lapack.f90',
   'blas.f90',
   'mctc_init.F90',
-  'error.f90',
+  'error.F90',
   'signal.c',
 )
