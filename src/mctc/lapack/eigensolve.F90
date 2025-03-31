@@ -216,6 +216,10 @@ end subroutine mctc_ssygvd_factorized
 
 
 subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    character(len=*), parameter :: source = 'mctc_lapack_dsygvd_factorized'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -223,9 +227,18 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
    real(dp), intent(in) :: bmat_factorized(:, :)
    real(dp), intent(out) :: eval(:)
    integer :: info, ldwork, liwork
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
 
    ldwork = size(self%dwork)
    liwork = size(self%iwork)
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/mctc/lapack/eigensolve.F90", source, zone_name="sygst", color=TracyColors%Pink)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
 
@@ -234,6 +247,12 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
       return
    end if
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/mctc/lapack/eigensolve.F90", source, zone_name="syevd", color=TracyColors%Purple)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%dwork, ldwork, self%iwork, liwork, info )
 
    if (info /= 0) then
@@ -241,7 +260,17 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
       return
    end if
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/mctc/lapack/eigensolve.F90", source, zone_name="trsm", color=TracyColors%Salmon2)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_dp, bmat_factorized, self%n, amat, self%n )
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine mctc_dsygvd_factorized
 
