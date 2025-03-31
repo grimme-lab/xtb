@@ -131,6 +131,10 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
 
    H = 0.0_wp
 
+   !$omp parallel do default(none) &
+   !$omp private(m, i, j, k, ishell, jshell, eh1, H1) &
+   !$omp shared(H, H0, S, matlist, nmat, ao2sh, shellShift) &
+   !$omp schedule(static)
    do m = 1, nmat
       i = matlist(1,m)
       j = matlist(2,m)
@@ -176,7 +180,13 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
    integer  :: ishell,jshell
    real(wp) :: dum,eh1,t8,t9,tgb
 
+   !$omp parallel default(none) &
+   !$omp private(m, i, j, k, l, ii, jj, dum, eh1) &
+   !$omp shared(matlist, mdlst, mqlst, nmat, ndp, nqp) &
+   !$omp shared(S, H, aoat2, vs, vd, vq, dpint, qpint)
+
    !> overlap dependent terms
+   !$omp do schedule(static)
    do m=1,nmat
       i=matlist(1,m)
       j=matlist(2,m)
@@ -189,7 +199,9 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       H(j,i)=H(j,i)+eh1
       H(i,j)=H(j,i)
    enddo
+
    !> dipolar terms
+   !$omp do schedule(static)
    do m=1,ndp
       i=mdlst(1,m)
       j=mdlst(2,m)
@@ -204,7 +216,9 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       H(i,j)=H(i,j)+eh1
       H(j,i)=H(i,j)
    enddo
+
    !> quadrupole-dependent terms
+   !$omp do schedule(static)
    do m=1,nqp
       i=mqlst(1,m)
       j=mqlst(2,m)
@@ -221,6 +235,8 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       H(i,j)=H(i,j)+eh1
       H(j,i)=H(i,j)
    enddo
+
+   !$omp end parallel
 
 end subroutine addAnisotropicH1
 
