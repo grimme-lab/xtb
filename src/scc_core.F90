@@ -412,9 +412,10 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: converged
    logical  :: econverged
    logical  :: qconverged
+   integer  :: info
 
 #ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx, ctx_solve
+   type(tracy_zone_context) :: ctx, ctx_solve, ctx_fact
    integer(c_int64_t) :: srcloc_id
 #endif
 
@@ -423,9 +424,18 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    ctx = tracy_zone_begin(srcloc_id)
 #endif
 
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", source, zone_name="S factorization", color=TracyColors%Blue)
+   ctx_fact = tracy_zone_begin(srcloc_id)
+#endif
+
    allocate(S_factorized(ndim, ndim), source = 0.0_wp )
    S_factorized = S
    call mctc_potrf(env, S_factorized)
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_fact)
+#endif
 
    converged = .false.
    lastdiag = .false.
