@@ -19,7 +19,10 @@
 !> Wrapper for eigensolver routines
 module xtb_mctc_lapack_eigensolve
    use xtb_mctc_accuracy, only : sp, dp
+   use xtb_mctc_blas_level3, only : blas_trsm
    use xtb_mctc_lapack_geneigval, only : lapack_sygvd
+   use xtb_mctc_lapack_stdeigval, only : lapack_syevd
+   use xtb_mctc_lapack_gst, only : lapack_sygst
    use xtb_mctc_lapack_trf, only : mctc_potrf
    use xtb_type_environment, only : TEnvironment
 #ifdef USE_CUSOLVER
@@ -47,6 +50,9 @@ module xtb_mctc_lapack_eigensolve
       generic :: solve => sgen_solve, dgen_solve
       procedure :: sgen_solve => mctc_ssygvd
       procedure :: dgen_solve => mctc_dsygvd
+      generic :: fact_solve => sfact_solve, dfact_solve
+      procedure :: sfact_solve => mctc_ssygvd_factorized
+      procedure :: dfact_solve => mctc_dsygvd_factorized
    end type TEigenSolver
 
 
@@ -177,5 +183,42 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
 
 end subroutine mctc_dsygvd
 
+
+subroutine mctc_ssygvd_factorized(self, env, amat, bmat_factorized, eval)
+   character(len=*), parameter :: source = 'mctc_lapack_ssygvd_factorized'
+   class(TEigenSolver), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   real(sp), intent(inout) :: amat(:, :)
+   real(sp), intent(in) :: bmat_factorized(:, :)
+   real(sp), intent(out) :: eval(:)
+   integer :: info, lswork, liwork
+
+   lswork = size(self%swork)
+   liwork = size(self%iwork)
+
+   CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
+   CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%swork, lswork, self%iwork, liwork, info )
+   CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_sp, bmat_factorized, self%n, amat, self%n )
+
+end subroutine mctc_ssygvd_factorized
+
+
+subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
+   character(len=*), parameter :: source = 'mctc_lapack_dsygvd_factorized'
+   class(TEigenSolver), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   real(dp), intent(inout) :: amat(:, :)
+   real(dp), intent(in) :: bmat_factorized(:, :)
+   real(dp), intent(out) :: eval(:)
+   integer :: info, ldwork, liwork
+
+   ldwork = size(self%dwork)
+   liwork = size(self%iwork)
+
+   CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
+   CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%dwork, ldwork, self%iwork, liwork, info )
+   CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_dp, bmat_factorized, self%n, amat, self%n )
+
+end subroutine mctc_dsygvd_factorized
 
 end module xtb_mctc_lapack_eigensolve
