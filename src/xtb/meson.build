@@ -17,7 +17,7 @@
 
 srcs += files(
   'basisset.f90',
-  'calculator.f90',
+  'calculator.F90',
   'coulomb.f90',
   'data.f90',
   'dispersion.f90',
