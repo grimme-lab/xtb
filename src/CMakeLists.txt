@@ -78,7 +78,7 @@ list(APPEND srcs
   "${dir}/foden.f90"
   "${dir}/fragment.f90"
   "${dir}/generate_wsc.f90"
-  "${dir}/geoopt_driver.f90"
+  "${dir}/geoopt_driver.F90"
   "${dir}/geosum.f90"
   "${dir}/getkopt.f90"
   "${dir}/getname.f90"
