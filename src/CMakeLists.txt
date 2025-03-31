@@ -121,7 +121,7 @@ list(APPEND srcs
   "${dir}/printmold.f90"
   "${dir}/printout.f90"
   "${dir}/prmat.f90"
-  "${dir}/pseudodiag.f90"
+  "${dir}/pseudodiag.F90"
   "${dir}/qpot.f90"
   "${dir}/qsort.f90"
   "${dir}/rdcoord2.f90"
