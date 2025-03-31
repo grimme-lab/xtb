@@ -28,6 +28,10 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine pseudodiag(n,nocc,fmo,eig)
+#ifdef WITH_TRACY
+    use tracy
+    use iso_c_binding, only: c_int64_t
+#endif
     use xtb_mctc_blas, only : mctc_rot
 !$  use omp_lib
     implicit none
@@ -61,6 +65,15 @@ subroutine pseudodiag(n,nocc,fmo,eig)
     real*4,allocatable :: alphaarr(:,:)
     real*4,allocatable :: betaarr(:,:)
 
+#ifdef WITH_TRACY
+    type(tracy_zone_context) :: ctx
+    integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+    srcloc_id = tracy_alloc_srcloc(__LINE__, "src/pseudodiag.F90", "pseudodiag", color=TracyColors%Red)
+    ctx = tracy_zone_begin(srcloc_id)
+#endif
 
     allocate(vector(n,n))
     vector = 0
@@ -140,4 +153,9 @@ subroutine pseudodiag(n,nocc,fmo,eig)
 
     fmo = vector
     deallocate(vector, alphaarr, betaarr)
+
+#ifdef WITH_TRACY
+    call tracy_zone_end(ctx)
+#endif
+
 end

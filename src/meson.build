@@ -119,7 +119,7 @@ srcs += files(
   'printmold.f90',
   'printout.f90',
   'prmat.f90',
-  'pseudodiag.f90',
+  'pseudodiag.F90',
   'qpot.f90',
   'qsort.f90',
   'rdcoord2.f90',
