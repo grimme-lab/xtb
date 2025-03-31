@@ -101,6 +101,11 @@ module xtb_prog_main
    !> PTB related modules
    use xtb_main_json, only: main_ptb_json
 
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    implicit none
    private
 
@@ -215,8 +220,18 @@ contains
 
       type(TPrintTopo) :: printTopo ! gfnff topology printout list
 
+#ifdef WITH_TRACY
+      type(tracy_zone_context) :: ctx
+      integer(c_int64_t) :: srcloc_id
+#endif
+
       xenv%home = env%xtbhome
       xenv%path = env%xtbpath
+
+#ifdef WITH_TRACY
+      srcloc_id = tracy_alloc_srcloc(__LINE__, "src/prog/main.F90", source, color=TracyColors%Aqua)
+      ctx = tracy_zone_begin(srcloc_id)
+#endif
 
       ! ------------------------------------------------------------------------
       !> read the command line arguments
@@ -1246,6 +1261,10 @@ contains
          write (env%unit, '(72("-"))')
          call print_filelist(env%unit)
       end if
+
+#ifdef WITH_TRACY
+      call tracy_zone_end(ctx)
+#endif
 
       ! ------------------------------------------------------------------------
       !  make some post processing afterward, show some timings and stuff
