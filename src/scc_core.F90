@@ -274,6 +274,11 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                  mmompop,aniso_electro,setvsdq
    use xtb_embedding, only : electro_pcem
 
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    character(len=*), parameter :: source = 'scc_core'
 
    type(TEnvironment), intent(inout) :: env
@@ -408,6 +413,16 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: econverged
    logical  :: qconverged
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", source, color=TracyColors%Red)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    allocate(S_factorized(ndim, ndim), source = 0.0_wp )
    S_factorized = S
    call mctc_potrf(env, S_factorized)
@@ -432,6 +447,10 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !! ------------------------------------------------------------------------
 !  Iteration entry point
    scc_iterator: do iter = 1, thisiter
+
+#ifdef WITH_TRACY
+   call tracy_frame_start("SCC iter")
+#endif
 
    ! set up ES potential
    atomicShift(:) = 0.0_wp
@@ -476,6 +495,10 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
+#ifdef WITH_TRACY
+      call tracy_frame_end("SCC iter")
+      call tracy_zone_end(ctx)
+#endif
       return
    endif
 
@@ -624,6 +647,10 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
 !  end of SCC convergence part
 
+#ifdef WITH_TRACY
+      call tracy_frame_end("SCC iter")
+#endif
+
 !! ------------------------------------------------------------------------
    if (econverged.and.qconverged) then
       converged = .true.
@@ -636,6 +663,10 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    jter = jter + min(iter,thisiter)
    fail = .not.converged
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine scc
 
