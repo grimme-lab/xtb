@@ -76,7 +76,7 @@ srcs += files(
   'foden.f90',
   'fragment.f90',
   'generate_wsc.f90',
-  'geoopt_driver.f90',
+  'geoopt_driver.F90',
   'geosum.f90',
   'getkopt.f90',
   'getname.f90',
