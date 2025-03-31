@@ -94,6 +94,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    use xtb_readin
 
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    implicit none
 
    character(len=*), parameter :: source = 'scf'
@@ -231,9 +236,19 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 !  broyden stuff
    logical  :: broy
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
 ! ------------------------------------------------------------------------
 !  initialization
 ! ------------------------------------------------------------------------
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scf_module.F90", source, color=TracyColors%Tan2)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    if (profile) call timer%new(7,.false.)
    if (profile) call timer%measure(1,"SCC setup")
    rmsq  =1.e+42_wp
@@ -341,6 +356,9 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if(wfn%nel.ne.0) then
       if (wfn%nel > 2*basis%nao) then
          call env%error("Not enough basis functions for filling orbitals", source)
+#ifdef WITH_TRACY
+         call tracy_zone_end(ctx)
+#endif
          return
       end if
       call occu(basis%nao,wfn%nel,wfn%nopen,wfn%ihomoa,wfn%ihomob,wfn%focca,wfn%foccb)
@@ -433,6 +451,9 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Setup of Coulomb evaluator failed", source)
+#ifdef WITH_TRACY
+      call tracy_zone_end(ctx)
+#endif
       return
    end if
 
@@ -567,6 +588,9 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (allocated(xtbData%multipole)) then
       if (mol%npbc > 0) then
          call env%error("Multipoles not available with PBC", source)
+#ifdef WITH_TRACY
+         call tracy_zone_end(ctx)
+#endif
          return
       end if
       allocate(aes)
@@ -640,6 +664,9 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Self consistent charge iterator terminated", source)
+#ifdef WITH_TRACY
+      call tracy_zone_end(ctx)
+#endif
       return
    end if
 
@@ -916,6 +943,10 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
 ! ========================================================================
    if (profile) call timer%deallocate
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine scf
 
