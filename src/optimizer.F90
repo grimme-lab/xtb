@@ -655,6 +655,11 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use xtb_type_data
    use xtb_type_timer
 
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    implicit none
 
    !> source of errors in the main program unit
@@ -747,10 +752,19 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    parameter (r4dum=1.e-8)
    parameter (smallreal=1.d-14)
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
 !----------------------------------------------------------------!
 !--------------------- Initialization ---------------------------!
 !----------------------------------------------------------------!
-   
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/optimizer.F90", source, color=TracyColors%Wheat1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    ! set printlevel !
    if (pr) then 
@@ -781,7 +795,11 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 !! ========================================================================
    main_loop: do ii=1,maxcycle
 !! ========================================================================
-   
+
+#ifdef WITH_TRACY
+   call tracy_frame_start("relax iter")
+#endif
+
    iter=iter+1 ! iteration counter
    if(pr) &
       write(env%unit,'(/,72("."),/,30(".")," CYCLE",i5,1x,30("."),/,72("."))')iter
@@ -811,11 +829,19 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    call env%check(fail)
    if (fail) then
       call env%error('SCF not converged, aborting...', source)
+#ifdef WITH_TRACY
+      call tracy_frame_end("relax iter")
+      call tracy_zone_end(ctx)
+#endif
       return
    endif
    if (energy.gt.1.d42) then
       call env%error('energy is bogus! aborting...', source)
       fail=.true.
+#ifdef WITH_TRACY
+      call tracy_frame_end("relax iter")
+      call tracy_zone_end(ctx)
+#endif
       return
    endif
    
@@ -836,6 +862,10 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    if(gnorm.gt.500.) then   
       call env%error('|grad| > 500, something is totally wrong!', source)
       fail=.true.
+#ifdef WITH_TRACY
+      call tracy_frame_end("relax iter")
+      call tracy_zone_end(ctx)
+#endif
       return
    endif
 
@@ -884,6 +914,10 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    ! check 0 energy case !
    if ( energy .eq. 0 ) then
       call env%error('external program error', source)
+#ifdef WITH_TRACY
+      call tracy_frame_end("relax iter")
+      call tracy_zone_end(ctx)
+#endif
       return
    end if
 
@@ -946,6 +980,10 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    ! error handling after RF calculation !
    if (fail .or. abs(Uaug(nvar1,1)).lt.1.e-10) then
       call env%error("internal rational function error", source)
+#ifdef WITH_TRACY
+      call tracy_frame_end("relax iter")
+      call tracy_zone_end(ctx)
+#endif
       return
    end if
 
@@ -983,6 +1021,9 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    ! 2nd: exit and redo hessian (internal restart) !
    if(ii.gt.2.and.dsnrm.gt.2.0) then
       if (pr) write(*,*) 'exit because of too large step'
+#ifdef WITH_TRACY
+      call tracy_frame_end("relax iter")
+#endif
       exit main_loop
    endif
 
@@ -994,8 +1035,16 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       restart=.false.
       converged = .true.
       etot=energy
+#ifdef WITH_TRACY
+      call tracy_frame_end("relax iter")
+      call tracy_zone_end(ctx)
+#endif
       return
    endif
+
+#ifdef WITH_TRACY
+   call tracy_frame_end("relax iter")
+#endif
 !! ========================================================================
    enddo main_loop
 !! ========================================================================
@@ -1009,6 +1058,10 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    restart=.true.
    etot=energy
    call anc%get_cartesian(mol%xyz)
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine relax
 
