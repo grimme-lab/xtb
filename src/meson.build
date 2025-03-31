@@ -110,7 +110,7 @@ srcs += files(
   'neighbor.f90',
   'onetri.f90',
   'oniom.f90',
-  'optimizer.f90',
+  'optimizer.F90',
   'pbc.f90',
   'pbc_tools.f90',
   'peeq_module.f90',
