@@ -414,7 +414,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: qconverged
 
 #ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
+   type(tracy_zone_context) :: ctx, ctx_solve
    integer(c_int64_t) :: srcloc_id
 #endif
 
@@ -491,7 +491,14 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", source, zone_name="solve", color=TracyColors%Red)
+   ctx_solve = tracy_zone_begin(srcloc_id)
+#endif
    call solver%fact_solve(env, H, S_factorized, emo)
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_solve)
+#endif
    call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
@@ -1206,12 +1213,25 @@ end subroutine occu
 ! X: scratch
 ! P  dmat
 subroutine dmat(ndim,focc,C,P)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: focc(:)
    real(wp),intent(in)  :: C(:,:)
    real(wp),intent(out) :: P(:,:)
    integer :: i,m
    real(wp),allocatable :: Ptmp(:,:)
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "dmat", color=TracyColors%Red)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    allocate(Ptmp(ndim,ndim))
    ! acc enter data create(Ptmp(:,:)) copyin(C(:, :), focc(:), P(:, :))
@@ -1232,6 +1252,10 @@ subroutine dmat(ndim,focc,C,P)
    ! acc exit data copyout(P(:,:)) delete(C(:,:), focc(:), Ptmp(:, :))
 
    deallocate(Ptmp)
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine dmat
 
