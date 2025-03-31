@@ -952,7 +952,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    logical, intent(out)  :: fail
 
    integer i,j,info,lwork,liwork,nfound,iu,nbf
-   integer, allocatable :: iwork(:),ifail(:)
+   integer, allocatable :: iwork(:)
    real(wp),allocatable :: aux  (:)
    real(wp) w0,w1,t0,t1
 
@@ -963,13 +963,13 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                                     call timing(t0,w0)
 !     if(ndim.gt.0)then
 !     USE DIAG IN NON-ORTHORGONAL BASIS
-      allocate (aux(1),iwork(1),ifail(ndim))
+      !allocate (aux(1),iwork(1),ifail(ndim))
       P = s
-      call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &!workspace query
-     &           -1,iwork,liwork,info)
-      lwork=int(aux(1))
-      liwork=iwork(1)
-      deallocate(aux,iwork)
+      !call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &!workspace query
+!     &           -1,iwork,liwork,info)
+      lwork=1+6*ndim+2*ndim*ndim
+      liwork=3+5*ndim
+!      deallocate(aux,iwork)
       allocate (aux(lwork),iwork(liwork))              !do it
       call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &
      &           lwork,iwork,liwork,info)
@@ -979,7 +979,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
          return
       endif
       X = H ! save
-      deallocate(aux,iwork,ifail)
+      deallocate(aux,iwork)
 
 !     else
 !        USE DIAG IN ORTHOGONAL BASIS WITH X=S^-1/2 TRAFO
