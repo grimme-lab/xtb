@@ -409,6 +409,10 @@ end subroutine build_SDQH0
 subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf, &
       & at, xyz, trans, caoshell, saoshell, nprim, primcount, alp, cont, &
       & p, Pew, ves, vs, vd, vq, dhdcn, g, sigma)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
    real(wp), intent(in) :: selfEnergy(:, :)
@@ -464,8 +468,23 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
    real(wp), parameter :: rthr = 1600.0_wp
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx, ctx_omp
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_dSDQH0", color=TracyColors%Gold3)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    thr2 = intcut
    point = 0.0_wp
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_dSDQH0", zone_name="OMP_1", color=TracyColors%Yellow)
+   ctx_omp = tracy_zone_begin(srcloc_id)
+#endif
    ! call timing(t1,t3)
    !$omp parallel do default(none) &
    !$omp shared(nat, at, xyz, trans, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
@@ -584,6 +603,11 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
       enddo ! jat
    enddo  ! iat
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_omp)
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_dSDQH0", zone_name="OMP_2", color=TracyColors%Yellow)
+   ctx_omp = tracy_zone_begin(srcloc_id)
+#endif
    ! diagonal contributions
    !$omp parallel do default(none) schedule(dynamic) reduction(+:dhdcn) &
    !$omp shared(nat, at, nshell, hData, saoshell, P, dSEdcn) &
@@ -602,6 +626,11 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
       end do
    end do
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_omp)
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine build_dSDQH0
 
 
@@ -609,6 +638,10 @@ end subroutine build_dSDQH0
 subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
       & nat, nao, nbf, at, xyz, caoshell, saoshell, nprim, primcount, &
       & alp, cont, H0, S, p, Pew, ves, vs, vd, vq, dhdcn, g, sigma)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
    real(wp), intent(in) :: selfEnergy(:, :)
@@ -670,8 +703,23 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    ! local OpenMP variables
 !$ real(wp), allocatable :: g_omp(:, :), sigma_omp(:, :), dhdcn_omp(:)
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx, ctx_omp
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_dSDQH0", color=TracyColors%Gold3)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    thr2 = intcut
    point = 0.0_wp
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", zone_name="OMP_1", color=TracyColors%Yellow)
+   ctx_omp = tracy_zone_begin(srcloc_id)
+#endif
    ! call timing(t1,t3)
    !$omp parallel default(none) &
    !$omp shared(nat, at, xyz, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
@@ -788,6 +836,11 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    enddo  ! iat
    !$omp end do nowait
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_omp)
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", zone_name="OMP_2", color=TracyColors%Yellow)
+   ctx_omp = tracy_zone_begin(srcloc_id)
+#endif
    ! diagonal contributions
    !$omp do schedule(dynamic)
    do iat = 1, nat
@@ -807,7 +860,6 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 
 #ifndef _OPENMP
    end associate
-#endif
 
    !$omp critical (g_crt)
 !$ g(:,:) = g + g_omp
@@ -822,6 +874,11 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 !$ deallocate(g_omp, sigma_omp, dhdcn_omp)
 
    !$omp end parallel
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_omp)
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine build_dSDQH0_noreset
 
