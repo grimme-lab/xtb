@@ -44,6 +44,7 @@ program xtb_prog_primary
 
 #ifdef WITH_TRACY
    if (.not.tracy_profiler_started()) call tracy_startup_profiler()
+   call tracy_set_thread_name("xtb")
    ! wait connection
    do while (.not.tracy_connected())
       call sleep(1) ! GNU extension
