@@ -146,6 +146,10 @@ end subroutine getSelfEnergy2D
 subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy, &
       & intcut, caoshell, saoshell, nprim, primcount, alp, cont, &
       & sint, dpint, qpint, H0, H0_noovlp)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    implicit none
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
@@ -198,6 +202,15 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    parameter(itt  =(/0,1,4,10/))
    real(wp) :: saw(10)
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx, ctx_omp
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_SDQH0", color=TracyColors%Gold3)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    ! integrals
    H0(:) = 0.0_wp
@@ -207,6 +220,11 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    qpint = 0.0_wp
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_SDQH0", zone_name="OMP_1", color=TracyColors%Yellow)
+   ctx_omp = tracy_zone_begin(srcloc_id)
+#endif
 
    !$omp parallel do default(none) &
    !$omp shared(nat, xyz, at, nShell, hData, selfEnergy, caoshell, saoshell, &
@@ -295,6 +313,12 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
          enddo
       enddo
    enddo
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_omp)
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_SDQH0", zone_name="OMP_2", color=TracyColors%Yellow)
+   ctx_omp = tracy_zone_begin(srcloc_id)
+#endif
    !$omp parallel do default(none) shared(nao, sint, dpint, qpint) private(iao, jao)
    do iao = 1, nao
       do jao = 1, iao - 1
@@ -304,6 +328,11 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
       end do
    end do
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_omp)
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/hamiltonian.F90", "build_SDQH0", zone_name="OMP_3", color=TracyColors%Yellow)
+   ctx_omp = tracy_zone_begin(srcloc_id)
+#endif
    ! diagonal elements
    !$omp parallel do default(none) schedule(dynamic) &
    !$omp shared(H0, H0_noovlp, sint, dpint, qpint) &
@@ -367,6 +396,11 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
          end do
       end do
    end do
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx_omp)
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine build_SDQH0
 
