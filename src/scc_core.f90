@@ -257,6 +257,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        minpr,pr, &
       &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_mctc_lapack_trf, only : mctc_potrf
 
    use xtb_disp_dftd4,  only: disppot,edisp_scc
    use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
@@ -352,6 +353,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),allocatable   :: dqlast(:)
    real(wp),allocatable   :: omega(:)
 !! ------------------------------------------------------------------------
+!  Factorized overlap to avoid multiple factorizations
+   real(wp), allocatable :: S_factorized(:,:)
+!! ------------------------------------------------------------------------
 !  results of the SCC iterator
    real(wp),intent(out)   :: eel
    real(wp),intent(out)   :: epcem
@@ -393,6 +397,10 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: converged
    logical  :: econverged
    logical  :: qconverged
+
+   allocate(S_factorized(ndim, ndim), source = 0.0_wp )
+   S_factorized = S
+   call mctc_potrf(env, S_factorized)
 
    converged = .false.
    lastdiag = .false.
@@ -453,7 +461,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
-   call solver%solve(env, H, S, emo)
+   call solver%fact_solve(env, H, S_factorized, emo)
    call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
