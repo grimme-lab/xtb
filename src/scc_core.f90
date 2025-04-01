@@ -203,7 +203,6 @@ subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mql
 
       ii=aoat2(i)
       jj=aoat2(j)
-      dum=S(j,i)
       ! CAMM potential
       eh1=dum*(vs(ii)+vs(jj))
       H(j,i)=H(j,i)+eh1
