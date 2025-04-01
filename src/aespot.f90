@@ -463,6 +463,12 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    vd = 0.0_wp
    vq = 0.0_wp
    ! set up overlap proportional potential
+   !$omp parallel do default(none) &
+   !$omp private(i,j,l1,l2,ll,ki) &
+   !$omp private(ra,rb,dra,stmp,dtmp,qtmp,g3,g5,dum3a,dum5a,dum3b,dum5b) &
+   !$omp private(t1a,t2a,t3a,t4a,r2a,r2ab,qs1,qs2) &
+   !$omp shared(aesData,nat,at,q,dipm,xyz,qp,gab3,gab5,vs,vd,vq) &
+   !$omp schedule(static)
    do i = 1,nat
       ra(1:3) = xyz(1:3,i)
       stmp = 0.0_wp
