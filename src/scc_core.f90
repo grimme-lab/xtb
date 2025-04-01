@@ -150,9 +150,9 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
 
 end subroutine buildIsotropicH1
 
-!> build anisotropic H1/Fockian
-subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
-                         H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+!> build isotropic & anisotropic H1/Fockian
+subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
+                         H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -164,7 +164,9 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
    integer, intent(in)  :: matlist(2,nmat)
    integer, intent(in)  :: mdlst(2,ndp)
    integer, intent(in)  :: mqlst(2,nqp)
+   real(wp),intent(in)  :: H0(ndim*(1+ndim)/2)
    real(wp),intent(in)  :: S(ndim,ndim)
+   real(wp),intent(in)  :: shellShift(nshell)
    real(wp),intent(in)  :: dpint(3,ndim,ndim)
    real(wp),intent(in)  :: qpint(6,ndim,ndim)
    real(wp),intent(in)  :: vs(n)
@@ -182,8 +184,8 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
 
    !$omp parallel default(none) &
    !$omp private(m, i, j, k, l, ii, jj, dum, eh1) &
-   !$omp shared(matlist, mdlst, mqlst, nmat, ndp, nqp) &
-   !$omp shared(S, H, aoat2, vs, vd, vq, dpint, qpint)
+   !$omp shared(matlist, mdlst, mqlst, ao2sh, aoat2, nmat, ndp, nqp) &
+   !$omp shared(S, H, H0, shellShift, vs, vd, vq, dpint, qpint)
 
    !> overlap dependent terms
    !$omp do schedule(static)
@@ -191,12 +193,21 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       i=matlist(1,m)
       j=matlist(2,m)
       k=j+i*(i-1)/2
+      dum = S(j,i)*autoev*0.5_wp
+
+      ii = ao2sh(i)
+      jj = ao2sh(j)
+      ! SCC terms (isotropic; must be first!)
+      eh1 = -dum*(shellShift(ii) + shellShift(jj))
+      H(j,i) = H0(k) + eh1
+
       ii=aoat2(i)
       jj=aoat2(j)
       dum=S(j,i)
       ! CAMM potential
-      eh1=0.50_wp*dum*(vs(ii)+vs(jj))*autoev
+      eh1=dum*(vs(ii)+vs(jj))
       H(j,i)=H(j,i)+eh1
+
       H(i,j)=H(j,i)
    enddo
 
@@ -238,7 +249,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
 
    !$omp end parallel
 
-end subroutine addAnisotropicH1
+end subroutine buildIsoAnisotropicH1
 
 
 !> self consistent charge iterator
@@ -444,11 +455,12 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    call addToShellShift(ash, atomicShift, shellShift)
 
    ! build the charge dependent Hamiltonian
-   call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
-      & shellShift,aoat2,ao2sh)
    if (present(aes)) then
-      call addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
-         & H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+      call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
+         & H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+   else
+      call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
+         & shellShift,aoat2,ao2sh)
    end if
 
    ! ------------------------------------------------------------------------
