@@ -144,7 +144,11 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp), intent(out):: dipm(:, :)
    real(wp), intent(out):: qp(:, :)
 
+#ifdef XTB_GPU
    call mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+#else
+   call mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+#endif
 
 #ifdef WITH_TRACY
    call tracy_zone_end(ctx)
@@ -285,6 +289,121 @@ subroutine mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    !$acc exit data delete(nao, nat, aoat2(:), s(:, :), p(:, :), dpint(:, :, :), &
    !$acc& qpint(:, :, :),xyz(:, :))
 end subroutine mmompop_openacc
+
+subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+
+   implicit none
+   integer, intent(in) :: nao,nat,aoat2(:)
+   real(wp), intent(in) :: s(:, :)
+   real(wp), intent(in) :: p(:, :)
+   real(wp), intent(in) :: dpint(:, :, :)
+   real(wp), intent(in) :: qpint(:, :, :)
+   real(wp), intent(in) :: xyz(:, :)
+   real(wp), intent(out):: dipm(:, :)
+   real(wp), intent(out):: qp(:, :)
+
+   real(wp) xk1,xl1,xk2,xl2,pij,tii,tjj
+   real(wp) pqm,pdmk,pdml,ps,ra(3)
+
+   integer i,j,k,l,ii,jj,kl,kj,lin
+
+   dipm = 0.0_wp
+   qp = 0.0_wp
+
+   do i = 1,nao
+      do j = 1,nao
+         if (j >= i) cycle
+         ii = aoat2(i)
+         jj = aoat2(j)
+         ra(1:3) = xyz(1:3,ii)
+         pij = p(j,i)
+         ps = pij*s(j,i)
+         !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
+         !  when doing the Mulliken population, we switch to lin-compatible sorting
+         !  i,e. xx,xy,yy,xz,yz,zz
+         do k = 1,3
+            xk1 = ra(k)
+            xk2 = xyz(k,jj)
+            pdmk = pij*dpint(k,j,i)
+            tii = xk1*ps-pdmk
+            tjj = xk2*ps-pdmk
+            !!$acc atomic
+            dipm(k,jj) = dipm(k,jj)+tjj
+            !!$acc atomic
+            dipm(k,ii) = dipm(k,ii)+tii
+            ! off-diagonal
+            do l = 1,k-1
+               kl = k*(k-1)/2+l
+               kj = k+l+1
+               xl1 = ra(l)
+               xl2 = xyz(l,jj)
+               pdml = pij*dpint(l,j,i)
+               pqm = pij*qpint(kj,j,i)
+               tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
+               tjj = pdmk*xl2+pdml*xk2-xl2*xk2*ps-pqm
+               !!$acc atomic
+               qp(kl,jj) = qp(kl,jj)+tjj
+               !!$acc atomic
+               qp(kl,ii) = qp(kl,ii)+tii
+            enddo
+            ! diagonal
+            kl = k*(k+1)/2
+            pqm = pij*qpint(k,j,i)
+            tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
+            tjj = 2.0_wp*pdmk*xk2-xk2*xk2*ps-pqm
+            !!$acc atomic
+            qp(kl,jj) = qp(kl,jj)+tjj
+            !!$acc atomic
+            qp(kl,ii) = qp(kl,ii)+tii
+         enddo
+      enddo
+   enddo
+
+   do i = 1,nao
+      ii = aoat2(i)
+      ra(1:3) = xyz(1:3,ii)
+      pij = p(i,i)
+      ps = pij*s(i,i)
+      !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
+      !  when doing the Mulliken population, we switch to lin-compatible sorting
+      !  i,e. xx,xy,yy,xz,yz,zz
+      do k = 1,3
+         xk1 = ra(k)
+         pdmk = pij*dpint(k,i,i)
+         tii = xk1*ps-pdmk
+         !!$acc atomic
+         dipm(k,ii) = dipm(k,ii)+tii
+         ! off-diagonal
+         do l = 1,k-1
+            kl = k*(k-1)/2+l
+            kj = k+l+1 ! the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
+            xl1 = ra(l)
+            pdml = pij*dpint(l,i,i)
+            pqm = pij*qpint(kj,i,i)
+            tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
+            !!$acc atomic
+            qp(kl,ii) = qp(kl,ii)+tii
+         enddo
+         !diagonal
+         kl = k*(k+1)/2
+         pqm = pij*qpint(k,i,i)
+         tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
+         !!$acc atomic
+         qp(kl,ii) = qp(kl,ii)+tii
+      enddo
+   enddo
+
+   ! remove trace
+   do i = 1,nat
+      tii = qp(1,i)+qp(3,i)+qp(6,i)
+      tii = 0.50_wp*tii
+      qp(1:6,i) = 1.50_wp*qp(1:6,i)
+      qp(1,i) = qp(1,i)-tii
+      qp(3,i) = qp(3,i)-tii
+      qp(6,i) = qp(6,i)-tii
+   enddo
+
+end subroutine mmompop_openmp
 end subroutine mmompop
 
 
