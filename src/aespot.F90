@@ -171,7 +171,7 @@ subroutine mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp) xk1,xl1,xk2,xl2,pij,tii,tjj
    real(wp) pqm,pdmk,pdml,ps,ra(3)
 
-   integer i,j,k,l,ii,jj,kl,kj,lin
+   integer i,j,k,l,ii,jj,kl,kj
 
    !$acc enter data create(dipm(:, :), qp(:, :))
 
@@ -305,7 +305,7 @@ subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp) xk1,xl1,xk2,xl2,pij,tii,tjj
    real(wp) pqm,pdmk,pdml,ps,ra(3)
 
-   integer i,j,k,l,ii,jj,kl,kj,lin
+   integer i,j,k,l,ii,jj,kl,kj
 
    dipm = 0.0_wp
    qp = 0.0_wp
