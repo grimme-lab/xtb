@@ -310,6 +310,11 @@ subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    dipm = 0.0_wp
    qp = 0.0_wp
 
+   !$omp parallel do default(none) &
+   !$omp private(i,j,k,l,kl,kj,ii,jj,ra,pij,ps,xk1,xk2,xl1,xl2,pdmk,pdml,pqm,tii,tjj) &
+   !$omp shared(nao, nat, aoat2, s, p, dpint, qpint, xyz) &
+   !$omp reduction(+:dipm, qp) &
+   !$omp schedule(dynamic,32) collapse(2)
    do i = 1,nao
       do j = 1,nao
          if (j >= i) cycle
@@ -327,9 +332,7 @@ subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
             pdmk = pij*dpint(k,j,i)
             tii = xk1*ps-pdmk
             tjj = xk2*ps-pdmk
-            !!$acc atomic
             dipm(k,jj) = dipm(k,jj)+tjj
-            !!$acc atomic
             dipm(k,ii) = dipm(k,ii)+tii
             ! off-diagonal
             do l = 1,k-1
@@ -341,9 +344,7 @@ subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
                pqm = pij*qpint(kj,j,i)
                tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
                tjj = pdmk*xl2+pdml*xk2-xl2*xk2*ps-pqm
-               !!$acc atomic
                qp(kl,jj) = qp(kl,jj)+tjj
-               !!$acc atomic
                qp(kl,ii) = qp(kl,ii)+tii
             enddo
             ! diagonal
@@ -351,14 +352,17 @@ subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
             pqm = pij*qpint(k,j,i)
             tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
             tjj = 2.0_wp*pdmk*xk2-xk2*xk2*ps-pqm
-            !!$acc atomic
             qp(kl,jj) = qp(kl,jj)+tjj
-            !!$acc atomic
             qp(kl,ii) = qp(kl,ii)+tii
          enddo
       enddo
    enddo
 
+   !$omp parallel do default(none) &
+   !$omp private(i,k,kl,kj,ii,ra,pij,ps,xk1,xl1,pdmk,pdml,pqm,tii) &
+   !$omp shared(nao, aoat2, xyz, p, s, dpint, qpint) &
+   !$omp reduction(+:dipm, qp) &
+   !$omp schedule(static)
    do i = 1,nao
       ii = aoat2(i)
       ra(1:3) = xyz(1:3,ii)
@@ -371,7 +375,6 @@ subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
          xk1 = ra(k)
          pdmk = pij*dpint(k,i,i)
          tii = xk1*ps-pdmk
-         !!$acc atomic
          dipm(k,ii) = dipm(k,ii)+tii
          ! off-diagonal
          do l = 1,k-1
@@ -381,14 +384,12 @@ subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
             pdml = pij*dpint(l,i,i)
             pqm = pij*qpint(kj,i,i)
             tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
-            !!$acc atomic
             qp(kl,ii) = qp(kl,ii)+tii
          enddo
          !diagonal
          kl = k*(k+1)/2
          pqm = pij*qpint(k,i,i)
          tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
-         !!$acc atomic
          qp(kl,ii) = qp(kl,ii)+tii
       enddo
    enddo
