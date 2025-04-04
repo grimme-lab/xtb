@@ -37,7 +37,7 @@ subdir('xtb')
 subdir('lbfgs_anc')
 
 srcs += files(
-  'aespot.f90',
+  'aespot.F90',
   'anharmlib.f90',
   'aoparam.f90',
   'approxrab.f90',
