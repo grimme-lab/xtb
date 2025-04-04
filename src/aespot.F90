@@ -573,6 +573,11 @@ subroutine aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    e02 = 0.0_wp
    e11 = 0.0_wp
 
+   !$omp parallel do default(none) &
+   !$omp private(i, k, l, kl, q1, rr, dp1, qp1, tt, tt3, eq) &
+   !$omp shared(aesData, nat, at, q, xyz, dipm, qp) &
+   !$omp reduction(+:epol) &
+   !$omp schedule(static)
    do i = 1, nat
       q1 = q(i)
       rr(1:3) = xyz(1:3,i)
@@ -590,10 +595,14 @@ subroutine aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
          enddo
       enddo
       eq = aesData%dipKernel(at(i))*tt+tt3*aesData%quadKernel(at(i))
-      !! acc atomic
       epol = epol+eq
    enddo
 
+   !$omp parallel do default(none) &
+   !$omp private(i,j,k,kj,l,kl,q1,rr,dp1,qp1,rij,r2,ed,eq,edd,tt,tt3) &
+   !$omp shared(nat, q, xyz, dipm, qp, gab3, gab5) &
+   !$omp reduction(+:e01, e02, e11) &
+   !$omp schedule(dynamic,32) collapse(2)
    do i = 1, nat
       do j = 1, nat
          if (j >= i) cycle
@@ -623,11 +632,8 @@ subroutine aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
             !              diagonal dip-dip term
             edd = edd+dipm(k,j)*dp1(k)*r2
          enddo
-         !! acc atomic
          e01 = e01+ed*gab3(j,i)
-         !! acc atomic
          e02 = e02+eq*gab5(j,i)
-         !! acc atomic
          e11 = e11+edd*gab5(j,i)
       enddo
    enddo
