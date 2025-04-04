@@ -431,6 +431,28 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    ! stuff for potential
    real(wp), intent(in) :: gab3(:,:),gab5(:,:)
    real(wp), intent(in) :: dipm(:,:),qp(:,:)
+
+   call aniso_electro_openacc(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
+contains
+
+subroutine aniso_electro_openacc(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+
+   implicit none
+   class(TMultipoleData), intent(in) :: aesData
+   integer, intent(in) :: nat,at(:)
+   real(wp), intent(in) :: xyz(:,:),q(:)
+   real(wp), intent(inout) :: e
+   real(wp) qp1(6),rr(3),dp1(3),rij(3)
+   real(wp) edd,e01,e02,e11,r2,tt,tt3,q1,qs2
+   real(wp) ed,eq,epol
+   ! stuff for potential
+   real(wp), intent(in) :: gab3(:,:),gab5(:,:)
+   real(wp), intent(in) :: dipm(:,:),qp(:,:)
    integer, parameter :: idx(3, 3) = reshape([1, 2, 4, 2, 3, 5, 4, 5, 6], [3, 3])
 
    integer i,j,k,l,m,ki,kj,kl
@@ -521,6 +543,7 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    !      write(*,*) ' semilocal CT corr.: ',epol
    ! acc exit data delete(aesData, aesData%dipKernel(:), aesData%quadKernel(:), &
    ! acc& at, xyz, q, dipm, qp, gab3, gab5)
+end subroutine aniso_electro_openacc
 
 end subroutine aniso_electro
 
