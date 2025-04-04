@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module random_generators
-   use xtb_mctc_accuracy, only: sp, wp
+   use xtb_mctc_accuracy, only: sp, dp
 
    implicit none
 
@@ -24,7 +24,7 @@ module random_generators
 
    interface normal_distribution
      module procedure normal_distribution_sp
-     module procedure normal_distribution_wp
+     module procedure normal_distribution_dp
    end interface normal_distribution
 
    public normal_distribution
@@ -61,18 +61,18 @@ contains
    !> @param[in] sigma   standard deviation
    !> @param[in] mu      mean of distribution
    !> @return            pseudorandom value
-   real(wp) function normal_distribution_wp(sigma, mu) result(randval)
-      real(wp), intent(in) :: sigma, mu
-      real(wp), parameter :: two_pi = 2.0_wp * 4.0_wp * atan(1.0_wp)
-      real(wp) :: u(2), mag
+   real(dp) function normal_distribution_dp(sigma, mu) result(randval)
+      real(dp), intent(in) :: sigma, mu
+      real(dp), parameter :: two_pi = 2.0_dp * 4.0_dp * atan(1.0_dp)
+      real(dp) :: u(2), mag
 
-      u = 0.0_wp
-      do while (u(1) == 0.0_wp)
+      u = 0.0_dp
+      do while (u(1) == 0.0_dp)
          call random_number(u)
       end do
-      mag = sigma * sqrt(-2.0_wp * log(u(1)))
+      mag = sigma * sqrt(-2.0_dp * log(u(1)))
       randval = mag * cos(two_pi * u(2)) + mu
 
-   end function normal_distribution_wp
+   end function normal_distribution_dp
 
 end module random_generators
