@@ -432,7 +432,11 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    real(wp), intent(in) :: gab3(:,:),gab5(:,:)
    real(wp), intent(in) :: dipm(:,:),qp(:,:)
 
+#ifdef XTB_GPU
    call aniso_electro_openacc(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+#else
+   call aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+#endif
 
 #ifdef WITH_TRACY
    call tracy_zone_end(ctx)
@@ -544,6 +548,96 @@ subroutine aniso_electro_openacc(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    ! acc exit data delete(aesData, aesData%dipKernel(:), aesData%quadKernel(:), &
    ! acc& at, xyz, q, dipm, qp, gab3, gab5)
 end subroutine aniso_electro_openacc
+
+
+subroutine aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+
+   implicit none
+   class(TMultipoleData), intent(in) :: aesData
+   integer, intent(in) :: nat,at(:)
+   real(wp), intent(in) :: xyz(:,:),q(:)
+   real(wp), intent(inout) :: e
+   real(wp) qp1(6),rr(3),dp1(3),rij(3)
+   real(wp) edd,e01,e02,e11,r2,tt,tt3,q1,qs2
+   real(wp) ed,eq,epol
+   ! stuff for potential
+   real(wp), intent(in) :: gab3(:,:),gab5(:,:)
+   real(wp), intent(in) :: dipm(:,:),qp(:,:)
+   integer, parameter :: idx(3, 3) = reshape([1, 2, 4, 2, 3, 5, 4, 5, 6], [3, 3])
+
+   integer i,j,k,l,m,ki,kj,kl
+
+   e = 0.0_wp
+   epol = 0.0_wp
+   e01 = 0.0_wp
+   e02 = 0.0_wp
+   e11 = 0.0_wp
+
+   do i = 1, nat
+      q1 = q(i)
+      rr(1:3) = xyz(1:3,i)
+      dp1(1:3) = dipm(1:3,i)
+      qp1(1:6) = qp(1:6,i)
+      ! test: semilocal CT correction
+      ! dipole
+      tt = dp1(1)*dp1(1)+dp1(2)*dp1(2)+dp1(3)*dp1(3)
+      ! qpole
+      tt3 = 0.0_wp
+      do k = 1,3
+         do l = 1,3
+            kl = idx(l,k)
+            tt3 = tt3+qp1(kl)*qp1(kl)
+         enddo
+      enddo
+      eq = aesData%dipKernel(at(i))*tt+tt3*aesData%quadKernel(at(i))
+      !! acc atomic
+      epol = epol+eq
+   enddo
+
+   do i = 1, nat
+      do j = 1, nat
+         if (j >= i) cycle
+         q1 = q(i)
+         rr(1:3) = xyz(1:3,i)
+         dp1(1:3) = dipm(1:3,i)
+         qp1(1:6) = qp(1:6,i)
+         kj = i*(i-1)/2 + j
+         rij(1:3) = xyz(1:3,j)-rr(1:3)
+         r2 = sum(rij*rij)
+         ed = 0.0_wp
+         eq = 0.0_wp
+         edd = 0.0_wp
+         !           dipole - charge
+         do k = 1,3
+            ed = ed+q(j)*dp1(k)*rij(k)
+            ed = ed-dipm(k,j)*q1*rij(k)
+            !              dip-dip & charge-qpole
+            do l = 1,3
+               kl = idx(l,k)
+               tt = rij(l)*rij(k)
+               tt3 = 3.0_wp*tt
+               eq = eq+q(j)*qp1(kl)*tt
+               eq = eq+qp(kl,j)*q1*tt
+               edd = edd-dipm(k,j)*dp1(l)*tt3
+            enddo
+            !              diagonal dip-dip term
+            edd = edd+dipm(k,j)*dp1(k)*r2
+         enddo
+         !! acc atomic
+         e01 = e01+ed*gab3(j,i)
+         !! acc atomic
+         e02 = e02+eq*gab5(j,i)
+         !! acc atomic
+         e11 = e11+edd*gab5(j,i)
+      enddo
+   enddo
+
+   e = e01 + e02 + e11
+
+   !     write(*,'(''d,q,dd'',3f9.5)')  e01,e02,e11
+   !      write(*,*) ' semilocal CT corr.: ',epol
+
+end subroutine aniso_electro_openmp
 
 end subroutine aniso_electro
 
