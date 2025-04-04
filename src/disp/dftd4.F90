@@ -52,6 +52,10 @@ module xtb_disp_dftd4
 contains
 
 subroutine newD3Model(dispm,nat,at)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_disp_dftd4param
    implicit none
    type(TDispersionModel), intent(out) :: dispm
@@ -63,6 +67,16 @@ subroutine newD3Model(dispm,nat,at)
    real(wp) :: alpha(23),c6
 
    intrinsic :: nint
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "newD3Model", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    call init(dispm, maxElem=maxval(at))
 
@@ -101,9 +115,17 @@ subroutine newD3Model(dispm,nat,at)
       enddo
    enddo
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine newD3Model
 
 subroutine newD4Model(dispm,g_a,g_c,mode)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_disp_dftd4param
    type(TDispersionModel), intent(out) :: dispm
    real(wp),intent(in)  :: g_a,g_c
@@ -115,6 +137,16 @@ subroutine newD4Model(dispm,g_a,g_c,mode)
    real(wp) :: tmp_hq(7,118)
 
    intrinsic :: nint
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "newD4Model", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    call init(dispm)
 
@@ -199,6 +231,10 @@ subroutine newD4Model(dispm,g_a,g_c,mode)
          enddo
       enddo
    enddo
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine newD4Model
 
@@ -586,6 +622,10 @@ end function fdmprdr_zerom
 
 
 subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_mctc_accuracy, only : wp
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
@@ -601,6 +641,16 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
    real(wp) :: twf,norm,aiw(23)
 
    intrinsic :: maxval
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "d4", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    allocate( itbl(7,nat), source = 0 )
 
@@ -654,10 +704,18 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
       enddo
    enddo
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine d4
 
 
 subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
@@ -673,6 +731,16 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    real(wp) :: c8abns,c10abns,r2,cutoff,oor6,oor8,oor10,r,gwgw,r4r2ij
    real(wp), parameter :: rthr = 72.0_wp ! slightly larger than in gradient
    real(wp), parameter :: gwcut = 1.0e-7_wp
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "build_wdispmat", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    ! acc enter data create(wdispmat) copyin(at, xyz, itbl, dispm, dispm%nref, &
    ! acc& c6abns, gw, par)
@@ -729,10 +797,18 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    ! acc& c6abns, gw)
 !#endif
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine build_wdispmat
 
 
 subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_mctc_blas, only : mctc_symv
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
@@ -753,6 +829,16 @@ subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
    real(wp),allocatable :: dumvec(:)
 
    intrinsic :: sum,dble
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "disppot", color=TracyColors%Steelblue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    allocate( zetavec(ndim),zerovec(ndim),dumvec(ndim), source = 0._wp )
 
@@ -813,6 +899,10 @@ subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
 
    !$acc exit data copyout(hdisp) delete(zerovec, dumvec, itbl, at, zeff, &
    !$acc& dispm, dispm%nref, dispm%q, q, g_a, g_c, wdispmat, gw)
+#endif
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
 #endif
 
 end subroutine disppot
@@ -947,6 +1037,10 @@ end subroutine pbc_d4
 !  coordination number for later use.
 subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, &
       &                      zetavec, zerovec, zetadcn, zerodcn, zetadq)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
@@ -978,6 +1072,16 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
    integer :: iat, ati, iref, icount
    real(wp) :: norm, dnorm, twf, gw, expw, expd, gwk, dgwk
    real(wp) :: gi, zi
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "weight_references", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    ! acc enter data create(zetavec, zerovec, zetadq, zetadq, zetadcn, zerodcn) &
    ! acc& copyin(dispm, dispm%nref, dispm%ncount, dispm%cn, dispm%q, atoms, &
@@ -1062,12 +1166,20 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
    ! acc& cn, q, zeff, gam, g_a, g_c, wf)
 !#endif
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine weight_references
 
 !> calculate atomic dispersion coefficients and their derivatives w.r.t.
 !  the coordination number.
 subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
       & c6, dc6dcn, dc6dq)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
@@ -1088,6 +1200,16 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
 
    integer :: iat, jat, ati, atj, iref, jref
    real(wp) :: refc6, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "get_atomic_c6", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    !$acc enter data create(c6, dc6dcn, dc6dq) copyin(atoms, dispm, dispm%nref, dispm%c6, &
    !$acc& zetavec, zetadcn, zetadq)
@@ -1144,6 +1266,10 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
    !$acc& zetavec, zetadcn, zetadq)
 #endif
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine get_atomic_c6
 
 
@@ -1152,6 +1278,10 @@ end subroutine get_atomic_c6
 subroutine d4_full_gradient_neigh &
       & (mol, dispm, neighs, neighs3, neighlist, par, g_a, g_c, wf, &
       &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, e2, e3)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
@@ -1218,6 +1348,16 @@ subroutine d4_full_gradient_neigh &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "d4_full_gradient_neigh", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -1254,6 +1394,10 @@ subroutine d4_full_gradient_neigh &
 
    energy = energy + sum(energies) + sum(energies3)
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine d4_full_gradient_neigh
 
 
@@ -1262,6 +1406,10 @@ end subroutine d4_full_gradient_neigh
 subroutine d4_gradient_neigh &
       & (mol, dispm, neighs, neighlist, par, g_a, g_c, wf, &
       &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
@@ -1322,6 +1470,16 @@ subroutine d4_gradient_neigh &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), dEdcn(:), dEdq(:)
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "d4_gradient_neigh", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -1349,6 +1507,10 @@ subroutine d4_gradient_neigh &
 
    energy = energy + sum(energies)
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine d4_gradient_neigh
 
 
@@ -1357,6 +1519,11 @@ end subroutine d4_gradient_neigh
 subroutine disp_gradient_neigh &
       & (mol, neighs, neighlist, par, r4r2, c6, dc6dcn, dc6dq, &
       &  energies, gradient, sigma, dEdcn, dEdq)
+
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1395,6 +1562,16 @@ subroutine disp_gradient_neigh &
 
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "disp_gradient_neigh", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
@@ -1448,6 +1625,10 @@ subroutine disp_gradient_neigh &
       enddo
    enddo
    !$omp end parallel do
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine disp_gradient_neigh
 
@@ -1624,6 +1805,10 @@ end subroutine atm_gradient_neigh
 subroutine d4_full_gradient_latp &
       & (mol, dispm, trans, par, g_a, g_c, wf, cutoff, cutoff3, &
       &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, e2, e3)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
@@ -1690,6 +1875,16 @@ subroutine d4_full_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "d4_full_gradient_latp", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -1731,6 +1926,10 @@ subroutine d4_full_gradient_latp &
 
    energy = energy + sum(energies) + sum(energies3)
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine d4_full_gradient_latp
 
 
@@ -1739,6 +1938,10 @@ end subroutine d4_full_gradient_latp
 subroutine d4_gradient_latp &
       & (mol, dispm, trans, par, g_a, g_c, wf, cutoff, &
       &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
@@ -1799,6 +2002,16 @@ subroutine d4_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "d4_gradient_latp", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -1826,12 +2039,21 @@ subroutine d4_gradient_latp &
 
    energy = energy + sum(energies)
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine d4_gradient_latp
 
 
 subroutine disp_gradient_latp &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, dc6dq, &
       &  energies, gradient, sigma, dEdcn, dEdq)
+
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1871,6 +2093,16 @@ subroutine disp_gradient_latp &
    real(wp) :: cutoff2
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "disp_gradient_latp", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    nat = len(mol)
    cutoff2 = cutoff**2
@@ -1930,6 +2162,10 @@ subroutine disp_gradient_latp &
    end do
    !$omp end parallel do
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine disp_gradient_latp
 
 
@@ -1938,6 +2174,10 @@ end subroutine disp_gradient_latp
 subroutine d4_atm_gradient_latp &
       & (mol, dispm, trans, par, g_a, g_c, wf, cutoff, cn, dcndr, dcndL, &
       &  energy, gradient, sigma)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
@@ -1990,6 +2230,16 @@ subroutine d4_atm_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "d4_atm_gradient_latp", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -2018,11 +2268,20 @@ subroutine d4_atm_gradient_latp &
 
    energy = energy + sum(energies)
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine d4_atm_gradient_latp
 
 subroutine atm_gradient_latp &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
+
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
 
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
@@ -2048,6 +2307,16 @@ subroutine atm_gradient_latp &
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
    logical :: doPBC
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/disp/dftd4.F90", "atm_gradient_latp", color=TracyColors%SteelBlue1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    cutoff2 = cutoff**2
    nat = len(mol) ! workaround for legacy Intel Fortran compilers
@@ -2173,6 +2442,10 @@ subroutine atm_gradient_latp &
       end do
    !$omp end parallel do
    end if
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine atm_gradient_latp
 
