@@ -49,6 +49,12 @@ contains
 !! ========================================================================
 subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
    &                xyz,selfEnergy,S,aoat2,lao2,valao2,aoexp,ao2sh)
+
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
    integer, intent(in)  :: n
@@ -69,6 +75,16 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
    integer  :: iat,jat,ish,jsh,il,jl,iZp,jZp
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "Build_H0", color=TracyColors%Orchid2)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    H0=0.0_wp
 
@@ -104,12 +120,22 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
       H0(k) = selfEnergy(ish)
    enddo
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine build_h0
 
 !> build isotropic H1/Fockian
 subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
       & H0, S, shellShift, aoat2, ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
+
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -128,6 +154,16 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
    integer  :: ii,jj,kk
    real(wp) :: dum
    real(wp) :: eh1,t8,t9,tgb,h1
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "BuildIsoH1", color=TracyColors%Orchid2)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    H = 0.0_wp
 
@@ -148,12 +184,22 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
       H(i,j) = H(j,i)
    enddo
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine buildIsotropicH1
 
 !> build isotropic & anisotropic H1/Fockian
 subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
                          H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
+
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -181,6 +227,16 @@ subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mql
    integer  :: ii,jj,kk
    integer  :: ishell,jshell
    real(wp) :: dum,eh1,t8,t9,tgb
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "BuildIsoAnisoH1", color=TracyColors%Orchid2)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    !$omp parallel default(none) &
    !$omp private(m, i, j, k, l, ii, jj, dum, eh1) &
@@ -247,6 +303,10 @@ subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mql
    enddo
 
    !$omp end parallel
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine buildIsoAnisotropicH1
 
@@ -1031,6 +1091,10 @@ end subroutine solve
 subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    use xtb_mctc_convert, only : autoev
    use xtb_mctc_constants, only : kB
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    integer, intent(in)  :: norbs
    integer, intent(in)  :: nel
    real(wp),intent(in)  :: eig(norbs)
@@ -1046,6 +1110,16 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    real(wp), parameter :: thr   = 1e-9_wp
    real(wp), parameter :: sqrttiny = sqrt(tiny(1.0_wp))
    integer :: ncycle,i,j,m,k,i1,i2
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "fermismear", color=TracyColors%Orchid4)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    bkt = boltz*t
 
@@ -1108,6 +1182,10 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    if (prt) then
       write(*,'('' t,e(fermi),nfod : '',2f10.3,f10.6)') t,e_fermi,fod
    endif
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine fermismear
 
@@ -1271,6 +1349,12 @@ end subroutine dmat
 
 ! Reference: I. Mayer, "Simple Theorems, Proofs, and Derivations in Quantum Chemistry", formula (7.35)
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
+
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: P(ndim,ndim)
@@ -1281,6 +1365,16 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    real(wp),allocatable :: Ptmp(:,:)
    real(wp) xsum,rab
    integer i,j,k,m
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "Wiberg", color=TracyColors%Orchid4)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    allocate(Ptmp(ndim,ndim))
    call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
@@ -1307,10 +1401,18 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    enddo
    deallocate(Ptmp)
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine get_wiberg
 
 ! Reference: I. Mayer, "Simple Theorems, Proofs, and Derivations in Quantum Chemistry", formula (7.36)
 subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: Pa(ndim,ndim)
@@ -1323,6 +1425,16 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    real(wp),allocatable :: Ptmp_b(:,:)
    real(wp) xsum,rab
    integer i,j,k,m
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "UWiberg", color=TracyColors%Orchid4)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    allocate(Ptmp_a(ndim,ndim))
    allocate(Ptmp_b(ndim,ndim))
@@ -1356,6 +1468,10 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    enddo
    deallocate(Ptmp_a)
    deallocate(Ptmp_b)
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine get_unrestricted_wiberg
 
