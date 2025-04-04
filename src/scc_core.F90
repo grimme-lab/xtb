@@ -1587,12 +1587,27 @@ end subroutine mpop
 
 !> Mulliken pop shell wise
 subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+   implicit none
    integer nao,n,nshell,ao2sh(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
    real(wp)  qsh(nshell),ps
 
    integer i,j,ii,jj,ij
+
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "mpopsh", color=TracyColors%LightYellow1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
 
    qsh=0
    do i=1,nao
@@ -1607,20 +1622,43 @@ subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
       qsh(ii)=qsh(ii)+ps
    enddo
 
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
 end subroutine mpopsh
 
 
 subroutine qsh2qat(ash,qsh,qat)
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+
    integer, intent(in) :: ash(:)
    real(wp), intent(in) :: qsh(:)
    real(wp), intent(out) :: qat(:)
 
    integer :: iSh
 
+#ifdef WITH_TRACY
+   type(tracy_zone_context) :: ctx
+   integer(c_int64_t) :: srcloc_id
+#endif
+
+#ifdef WITH_TRACY
+   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scc_core.F90", "qsh2qat", color=TracyColors%LightYellow1)
+   ctx = tracy_zone_begin(srcloc_id)
+#endif
+
    qat(:) = 0.0_wp
    do iSh = 1, size(qsh)
       qat(ash(iSh)) = qat(ash(iSh)) + qsh(iSh)
    enddo
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
 
 end subroutine qsh2qat
 
