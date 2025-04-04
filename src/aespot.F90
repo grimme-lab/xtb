@@ -144,6 +144,26 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp), intent(out):: dipm(:, :)
    real(wp), intent(out):: qp(:, :)
 
+   call mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+
+#ifdef WITH_TRACY
+   call tracy_zone_end(ctx)
+#endif
+
+contains
+
+subroutine mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+
+   implicit none
+   integer, intent(in) :: nao,nat,aoat2(:)
+   real(wp), intent(in) :: s(:, :)
+   real(wp), intent(in) :: p(:, :)
+   real(wp), intent(in) :: dpint(:, :, :)
+   real(wp), intent(in) :: qpint(:, :, :)
+   real(wp), intent(in) :: xyz(:, :)
+   real(wp), intent(out):: dipm(:, :)
+   real(wp), intent(out):: qp(:, :)
+
    real(wp) xk1,xl1,xk2,xl2,pij,tii,tjj
    real(wp) pqm,pdmk,pdml,ps,ra(3)
 
@@ -264,7 +284,7 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 
    !$acc exit data delete(nao, nat, aoat2(:), s(:, :), p(:, :), dpint(:, :, :), &
    !$acc& qpint(:, :, :),xyz(:, :))
-
+end subroutine mmompop_openacc
 end subroutine mmompop
 
 
