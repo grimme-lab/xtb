@@ -54,7 +54,7 @@ subroutine f_c_character(rhs, lhs, len)
    integer :: length
    length = min(len-1, len_trim(rhs))
 
-   lhs(1:length) = transfer(rhs(1:length), lhs(1:length)) // c_null_char
+   lhs(1:length+1) = transfer(rhs(1:length), lhs(1:length)) // c_null_char
 
 end subroutine f_c_character
 
