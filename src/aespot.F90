@@ -150,10 +150,6 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    call mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 #endif
 
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
-
 contains
 
 subroutine mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
@@ -436,10 +432,6 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    call aniso_electro_openacc(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
 #else
    call aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
-#endif
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
 #endif
 
 contains
