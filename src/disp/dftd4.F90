@@ -688,7 +688,8 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    !$omp parallel do shared(wdispmat) &
    !$omp shared(nat, at, xyz, itbl, par, dispm, c6abns, gw) &
    !$omp private(ia, k, j, ja, l, r4r2ij, cutoff, r2, oor6, oor8, oor10, &
-   !$omp& ii, jj, gwgw, c8abns, c10abns)
+   !$omp& ii, jj, gwgw, c8abns, c10abns) &
+   !$omp schedule(dynamic,32) collapse(2)
 !#endif
    do i = 1, nat
       do j = 1, nat
@@ -1104,7 +1105,8 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
    !$omp parallel do default(none) shared(c6, dc6dcn, dc6dq) &
    !$omp shared(nat, atoms, dispm, zetavec, zetadcn, zetadq) &
    !$omp private(iat, ati, jat, atj, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj, &
-   !$omp& iref, jref, refc6)
+   !$omp& iref, jref, refc6) &
+   !$omp schedule(dynamic,32) collapse(2)
 #endif
    do iat = 1, nat
       do jat = 1, nat
@@ -1389,19 +1391,24 @@ subroutine disp_gradient_neigh &
 
    real(wp), intent(inout) :: dEdq(:)
 
-   integer :: iat, jat, ati, atj, ij, img
+   integer :: iat, jat, nat, ati, atj, ij, img, maxneighs
 
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
+   nat = len(mol)
+   maxneighs = maxval(neighs)
+
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
-   !$omp shared(mol, neighs, neighlist, par, r4r2, c6, dc6dcn, dc6dq) &
+   !$omp shared(nat, mol, maxneighs, neighs, neighlist, par, r4r2, c6, dc6dcn, dc6dq) &
    !$omp private(ij, img, jat, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
-   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS)
-   do iat = 1, len(mol)
-      ati = mol%at(iat)
-      do ij = 1, neighs(iat)
+   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS) &
+   !$omp schedule(dynamic, 32) collapse(2)
+   do iat = 1, nat
+      do ij = 1, maxneighs
+         if (ij > neighs(iat)) cycle
+         ati = mol%at(iat)
          img = neighlist%ineigh(ij, iat)
          r2 = neighlist%dist2(ij, iat)
          rij = mol%xyz(:, iat) - neighlist%coords(:, img)
@@ -1553,19 +1560,24 @@ subroutine atm_gradient_neigh &
    real(wp), intent(inout) :: sigma(:, :)
    real(wp), intent(inout) :: dEdcn(:)
 
-   integer :: iat, jat, kat, ati, atj, atk, jtr, ktr, ij, jk, ik
+   integer :: iat, jat, kat, nat, ati, atj, atk, jtr, ktr, ij, jk, ik, maxneighs
    real(wp) :: rij(3), rjk(3), rik(3), r2ij, r2jk, r2ik
    real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
 
+   nat = len(mol)
+   maxneighs = maxval(neighs)
+
    !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
-   !$omp shared(mol, neighs, neighlist, par, r4r2, c6, dc6dcn) &
+   !$omp shared(nat, mol, maxneighs, neighs, neighlist, par, r4r2, c6, dc6dcn) &
    !$omp private(iat, ati, ij, jtr, r2ij, rij, jat, atj, ik, ktr, kat, atk, rik, &
-   !$omp& r2ik, rjk, r2jk, c6ij, cij, c6ik, c6jk, cik, cjk, scale, dE, dG, dS, dCN)
-   do iat = 1, len(mol)
-      ati = mol%at(iat)
-      do ij = 1, neighs(iat)
+   !$omp& r2ik, rjk, r2jk, c6ij, cij, c6ik, c6jk, cik, cjk, scale, dE, dG, dS, dCN) &
+   !$omp schedule(dynamic, 32) collapse(2)
+   do iat = 1, nat
+      do ij = 1, maxneighs
+         if (ij > neighs(iat)) cycle
+         ati = mol%at(iat)
          jtr = neighlist%ineigh(ij, iat)
          r2ij = neighlist%dist2(ij, iat)
          rij = neighlist%coords(:, jtr) - neighlist%coords(:, iat)
@@ -1862,21 +1874,24 @@ subroutine disp_gradient_latp &
 
    real(wp), intent(inout) :: dEdq(:)
 
-   integer :: iat, jat, ati, atj, itr
+   integer :: iat, jat, nat, ati, atj, itr
 
    real(wp) :: cutoff2
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
+   nat = len(mol)
    cutoff2 = cutoff**2
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
-   !$omp shared(mol, trans, cutoff2, par, r4r2, c6, dc6dcn, dc6dq) &
+   !$omp shared(nat, mol, trans, cutoff2, par, r4r2, c6, dc6dcn, dc6dq) &
    !$omp private(iat, jat, itr, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
-   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS)
-   do iat = 1, len(mol)
-      ati = mol%at(iat)
-      do jat = 1, iat
+   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS) &
+   !$omp schedule(dynamic,32) collapse(2)
+   do iat = 1, nat
+      do jat = 1, nat
+         if (jat > iat) cycle
+         ati = mol%at(iat)
          atj = mol%at(jat)
 
          r4r2ij = 3*r4r2(ati)*r4r2(atj)
