@@ -3,7 +3,7 @@ name: "Close Stale"
 # The workflow triggers
 on:
    schedule:
-      - cron: '0 0 * * *'
+      - cron: '0 0 * * 1'
    issues:
       types: [labeled]
    pull_request:
@@ -13,9 +13,9 @@ on:
 jobs:
    stale:
       runs-on: ubuntu-latest
-      if: github.event.label.name == 'stale'
       steps:
          -  name: Post stale message
+            if: github.event.label.name == 'stale'
             uses: actions/github-script@v5
             with:
                script: |
