@@ -240,22 +240,32 @@ subroutine runMopac(env,ext,nat,at,xyz,energy,gradient,dipole)
       call env%error("Could not find '"//ext%input_file//".aux'",source)
    else
       read_mopac_output: do
-         call getline(imopac,line,iostat=err)
+         call getline(imopac, line, iostat=err)
          if (is_iostat_end(err)) then
-            call env%error('Could not find gradient in mopac output',source)
+            if (nat > 1) then ! Gradient is only contained if more than one atom
+               call env%error('Could not find gradient in mopac output', source)
+            else
+               gradient = 0.0_wp
+            endif
+            exit read_mopac_output  ! Exit the loop on end-of-file
          endif
-         if (index(line,'HEAT_OF_FORMATION:KCAL/MOL') > 0) then
-            call readl(line,dum,num)
-            energy = dum(num)*kcaltoau
+         if (index(line, 'HEAT_OF_FORMATION:KCAL/MOL') > 0) then
+            call readl(line, dum, num)
+            energy = dum(num) * kcaltoau
             cycle read_mopac_output
          endif
-         if (index(line,'DIP_VEC:DEBYE') > 0)then
-            call readl(line,dum,num)
-            dipole(1:3) = dum(2:4)*dtoau
+         if (index(line, 'DIP_VEC:DEBYE') > 0) then
+            call readl(line, dum, num)
+            dipole(1:3) = dum(2:4) * dtoau
             cycle read_mopac_output
          endif
-         if (index(line,'GRADIENTS:KCAL/MOL/ANGSTROM') > 0) then
-            read(imopac,*)((gradient(j,i),j=1,3),i=1,nat)
+         if (index(line, 'GRADIENTS:KCAL/MOL/ANGSTROM') > 0) then ! Gradient is only contained if more than one atom
+            read(imopac, *) ((gradient(j, i), j = 1, 3), i = 1, nat)
+            exit read_mopac_output
+         endif
+         ! Add a fallback exit condition to avoid infinite loops
+         if (err /= 0) then
+            call env%error('Unexpected error while reading mopac output', source)
             exit read_mopac_output
          endif
       enddo read_mopac_output
