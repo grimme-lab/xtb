@@ -106,7 +106,7 @@ srcs += files(
   'mdoptim.f90',
   'metadynamic.f90',
   'modef.f90',
-  'model_hessian.f90',
+  'model_hessian.F90',
   'neighbor.f90',
   'onetri.f90',
   'oniom.f90',

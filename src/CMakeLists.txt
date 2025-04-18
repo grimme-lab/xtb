@@ -108,7 +108,7 @@ list(APPEND srcs
   "${dir}/mdoptim.f90"
   "${dir}/metadynamic.f90"
   "${dir}/modef.f90"
-  "${dir}/model_hessian.f90"
+  "${dir}/model_hessian.F90"
   "${dir}/neighbor.f90"
   "${dir}/onetri.f90"
   "${dir}/oniom.f90"
