@@ -2038,71 +2038,132 @@ subroutine atm_gradient_latp &
    real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
+   logical :: doPBC
 
    cutoff2 = cutoff**2
    nat = len(mol) ! workaround for legacy Intel Fortran compilers
 
-   !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
-   !$omp shared(mol, r4r2, par, trans, cutoff2, c6, dc6dcn, nat) &
-   !$omp private(iat, ati, jat, atj, kat, atk, c6ij, cij, c6ik, c6jk, cik, cjk, &
-   !$omp& rij, r2ij, ktr, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN) &
-   !$omp collapse(2) schedule(dynamic,32)
-   do iat = 1, nat
-      do jat = 1, nat
-         if (jat > iat) cycle
-         ati = mol%at(iat)
-         atj = mol%at(jat)
+   doPBC = .false.
+   if (size(trans, dim=2) > 1) doPBC = .true.
 
-         c6ij = c6(jat,iat)
-         cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
+   if (doPBC) then
+      !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
+      !$omp shared(mol, r4r2, par, trans, cutoff2, c6, dc6dcn, nat) &
+      !$omp private(iat, ati, jat, atj, kat, atk, c6ij, cij, c6ik, c6jk, cik, cjk, &
+      !$omp& rij, r2ij, jtr, ktr, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN) &
+      !$omp collapse(2) schedule(dynamic,32)
+      do iat = 1, nat
+         do jat = 1, nat
+            if (jat > iat) cycle
+            ati = mol%at(iat)
+            atj = mol%at(jat)
 
-         do kat = 1, jat
-            atk = mol%at(kat)
+            c6ij = c6(jat,iat)
+            cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
 
-            c6ik = c6(kat,iat)
-            c6jk = c6(kat,jat)
+            do kat = 1, jat
+               atk = mol%at(kat)
 
-            cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
-            cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
+               c6ik = c6(kat,iat)
+               c6jk = c6(kat,jat)
 
-            do jtr = 1, size(trans, dim=2)
-               rij = mol%xyz(:, jat) - mol%xyz(:, iat) + trans(:, jtr)
-               r2ij = sum(rij**2)
-               if (r2ij > cutoff2 .or. r2ij < 1.0e-14_wp) cycle
-               do ktr = 1, size(trans, dim=2)
-                  if (jat == kat .and. jtr == ktr) cycle
-                  rik = mol%xyz(:, kat) - mol%xyz(:, iat) + trans(:, ktr)
-                  r2ik = sum(rik**2)
-                  if (r2ik > cutoff2 .or. r2ik < 1.0e-14_wp) cycle
-                  rjk = mol%xyz(:, kat) - mol%xyz(:, jat) + trans(:, ktr) &
-                     & - trans(:, jtr)
-                  r2jk = sum(rjk**2)
-                  if (r2jk > cutoff2 .or. r2jk < 1.0e-14_wp) cycle
+               cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
+               cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
 
-                  call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
-                     & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
-                     & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
-                     & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+               do jtr = 1, size(trans, dim=2)
+                  rij = mol%xyz(:, jat) - mol%xyz(:, iat) + trans(:, jtr)
+                  r2ij = sum(rij**2)
+                  if (r2ij > cutoff2 .or. r2ij < 1.0e-14_wp) cycle
+                  do ktr = 1, size(trans, dim=2)
+                     if (jat == kat .and. jtr == ktr) cycle
+                     rik = mol%xyz(:, kat) - mol%xyz(:, iat) + trans(:, ktr)
+                     r2ik = sum(rik**2)
+                     if (r2ik > cutoff2 .or. r2ik < 1.0e-14_wp) cycle
+                     rjk = mol%xyz(:, kat) - mol%xyz(:, jat) + trans(:, ktr) &
+                        & - trans(:, jtr)
+                     r2jk = sum(rjk**2)
+                     if (r2jk > cutoff2 .or. r2jk < 1.0e-14_wp) cycle
 
-                  scale = par%s9 * triple_scale(iat, jat, kat)
-                  energies(iat) = energies(iat) + dE * scale/3
-                  energies(jat) = energies(jat) + dE * scale/3
-                  energies(kat) = energies(kat) + dE * scale/3
-                  gradient(:, iat) = gradient(:, iat) + dG(:, 1) * scale
-                  gradient(:, jat) = gradient(:, jat) + dG(:, 2) * scale
-                  gradient(:, kat) = gradient(:, kat) + dG(:, 3) * scale
-                  sigma(:, :) = sigma + dS * scale
-                  dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
-                  dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
-                  dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
+                     call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
+                        & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
+                        & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
+                        & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
 
+                     scale = par%s9 * triple_scale(iat, jat, kat)
+                     energies(iat) = energies(iat) + dE * scale / 3.0_wp
+                     energies(jat) = energies(jat) + dE * scale / 3.0_wp
+                     energies(kat) = energies(kat) + dE * scale / 3.0_wp
+                     gradient(:, iat) = gradient(:, iat) + dG(:, 1) * scale
+                     gradient(:, jat) = gradient(:, jat) + dG(:, 2) * scale
+                     gradient(:, kat) = gradient(:, kat) + dG(:, 3) * scale
+                     sigma(:, :) = sigma + dS * scale
+                     dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
+                     dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
+                     dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
+
+                  end do
                end do
-            end do
 
+            end do
          end do
       end do
-   end do
+      !$omp end parallel do
+   else
+      !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
+      !$omp shared(mol, r4r2, par, trans, cutoff2, c6, dc6dcn, nat) &
+      !$omp private(iat, ati, jat, atj, kat, atk, c6ij, cij, c6ik, c6jk, cik, cjk, &
+      !$omp& rij, r2ij, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN) &
+      !$omp collapse(2) schedule(dynamic,32)
+      do iat = 1, nat
+         do jat = 1, nat
+            if (jat >= iat) cycle
+            rij = mol%xyz(1:3, jat) - mol%xyz(1:3, iat)
+            r2ij = sum(rij**2)
+            if (r2ij > cutoff2) cycle
+
+            do kat = 1, jat - 1
+
+               rik = mol%xyz(1:3, kat) - mol%xyz(1:3, iat)
+               r2ik = sum(rik**2)
+               if (r2ik > cutoff2) cycle
+               rjk = mol%xyz(1:3, kat) - mol%xyz(1:3, jat)
+               r2jk = sum(rjk**2)
+               if (r2jk > cutoff2) cycle
+
+               ati = mol%at(iat)
+               atj = mol%at(jat)
+               atk = mol%at(kat)
+
+               c6ij = c6(jat,iat)
+               c6ik = c6(kat,iat)
+               c6jk = c6(kat,jat)
+
+               cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
+               cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
+               cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
+
+               call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
+                  & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
+                  & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
+                  & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+
+               scale = par%s9 * triple_scale(iat, jat, kat)
+               energies(iat) = energies(iat) + dE * scale / 3.0_wp
+               energies(jat) = energies(jat) + dE * scale / 3.0_wp
+               energies(kat) = energies(kat) + dE * scale / 3.0_wp
+               gradient(:, iat) = gradient(:, iat) + dG(:, 1) * scale
+               gradient(:, jat) = gradient(:, jat) + dG(:, 2) * scale
+               gradient(:, kat) = gradient(:, kat) + dG(:, 3) * scale
+               sigma(:, :) = sigma + dS * scale
+               dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
+               dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
+               dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
+
+            end do
+         end do
+      end do
    !$omp end parallel do
+   end if
 
 end subroutine atm_gradient_latp
 
