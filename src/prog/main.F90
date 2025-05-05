@@ -1188,14 +1188,13 @@ contains
             if (.not. set%verbose) then
                write (env%unit, '("current energy:",1x,f20.8)') etot
             end if
+            call writeMolecule(mol, ich, fileType%xyz, energy=etot, gnorm=norm2(g))
             if (murks) then
-               call close_file(ich)
                write (env%unit, '(/,3x,"***",1x,a,1x,"***",/)') &
                   "FAILED TO CONVERGE GEOMETRY OPTIMIZATION"
-               call touch_file('NOT_CONVERGED')
+               mol%xyz = metaset%xyz(:, :, metaset%nstruc)
             end if
             flush (env%unit)
-            call writeMolecule(mol, ich, fileType%xyz, energy=etot, gnorm=norm2(g))
          end do
          call close_file(ich)
          call stop_timing(6)
