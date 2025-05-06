@@ -21,7 +21,7 @@ project(
   'fortran', 'c',
   version: '6.7.1',
   license: 'LGPL3-3.0-or-later',
-  meson_version: '>=0.62.0,!=1.8.0',
+  meson_version: '>=0.62.0',
   default_options: [
     'buildtype=debugoptimized',
     'default_library=both',
@@ -29,6 +29,11 @@ project(
     'c_std=c11',
   ],
 )
+
+# Check for specific unsupported meson versions
+ if meson.version().version_compare('==1.8.0')
+   error('Meson version 1.8.0 has a known issue — please use any other version ≥ 0.62.0')
+ endif
 
 install = not meson.is_subproject()
 install_modules = install and get_option('install_modules')
