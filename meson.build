@@ -21,7 +21,7 @@ project(
   'fortran', 'c',
   version: '6.7.1',
   license: 'LGPL3-3.0-or-later',
-  meson_version: '>=0.62.0',
+  meson_version: '>=0.62.0,!=1.8.0',
   default_options: [
     'buildtype=debugoptimized',
     'default_library=both',
