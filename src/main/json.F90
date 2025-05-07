@@ -193,6 +193,7 @@ contains
       character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
       integer :: i, j
       logical :: first
+      first = .false.
       write (ijson, jfmta) 'bond orders'
       do i = 1, mol%n - 1
          do j = i, mol%n
