@@ -850,7 +850,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       write(env%unit,'(5x,"change   ",e18.7,1x,"Eh")')                      echng
       write(env%unit,'(3x,"gradient norm :",f14.7,1x,"Eh/α")',advance='no') gnorm
       write(env%unit,'(3x,"predicted",e18.7)',advance='no')                 depred
-      write(env%unit,'(1x,"("f7.2"%)")')         (depred-echng)/(echng+1e-34_wp)*100
+      write(env%unit,'(1x,"(",f7.2,"%)")')       (depred-echng)/(echng+1e-34_wp)*100
    endif
    
    ! check 0 energy case !
