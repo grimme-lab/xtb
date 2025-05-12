@@ -219,7 +219,7 @@ for( i = 0 ; i < AtomsCount ; i++ ){
     if( elem->transform[i] >= AtomsCount ){ /* No symmetric atom yet          */
         if( verbose > 2 ) printf( "        looking for a pair for %d\n", i ) ;
         elem->transform_atom( elem, Atoms+i, &symmetric ) ;
-        if( verbose > 2 ) printf( "        new coordinates are: (%g,%g,%g)\n", 
+        if( verbose > 2 ) printf( "        new coordinates are: (%g,%g,%g)\n",
                               symmetric.x[0], symmetric.x[1], symmetric.x[2] ) ;
         best_j        = i ;
         best_distance = 2*TolerancePrimary ;/* Performance value we'll reject */
@@ -237,7 +237,7 @@ for( i = 0 ; i < AtomsCount ; i++ ){
                 }
             }
         if( best_distance > TolerancePrimary ){ /* Too bad, there is no symmetric atom */
-            if( verbose > 0 ) 
+            if( verbose > 0 )
                 printf( "        no pair for atom %d - best was %d with err = %g\n", i, best_j, best_distance ) ;
             free( atom_used ) ;
             return -1 ;
@@ -896,8 +896,8 @@ init_c2_axis( int i, int j, double support[ DIMENSION ] )
         double             ris, rjs ;
         double             r, center[ DIMENSION ] ;
 
-if( verbose > 0 ) 
-    printf( "Trying c2 axis for the pair (%d,%d) with the support (%g,%g,%g)\n", 
+if( verbose > 0 )
+    printf( "Trying c2 axis for the pair (%d,%d) with the support (%g,%g,%g)\n",
              i, j, support[0], support[1], support[2] ) ;
 StatTotal++ ;
 /* First, do a quick sanity check */
@@ -1214,7 +1214,7 @@ for( i = 0 ; i < AtomsCount ; i++ ){
 for( j = 0 ; j < DIMENSION ; j++ )
     CenterOfSomething[j] = coord_sum[j]/AtomsCount ;
 if( verbose > 0 )
-    printf( "Center of something is at %15.10f, %15.10f, %15.10f\n", 
+    printf( "Center of something is at %15.10f, %15.10f, %15.10f\n",
             CenterOfSomething[0], CenterOfSomething[1], CenterOfSomething[2] ) ;
 DistanceFromCenter = (double *) calloc( AtomsCount, sizeof( double ) ) ;
 if( DistanceFromCenter == NULL ){
@@ -1414,7 +1414,7 @@ find_improper_axes(void)
 {
         int                i, j, k ;
         SYMMETRY_ELEMENT * axis ;
-    
+
 //#pragma omp parallel for private(i,j,k, axis) \
 //shared (ImproperAxesCount, ImproperAxes) \
 //schedule (guided)
@@ -1493,9 +1493,9 @@ else {
         if( NormalAxes[i]->order == 0 )
              printf( "Inf " ) ;
         else printf( "%3d ", NormalAxes[i]->order ) ;
-        printf( "(%11.8f,%11.8f,%11.8f) ", 
+        printf( "(%11.8f,%11.8f,%11.8f) ",
             NormalAxes[i]->direction[0], NormalAxes[i]->direction[1], NormalAxes[i]->direction[2] ) ;
-        printf( "(%14.8f,%14.8f,%14.8f)\n", 
+        printf( "(%14.8f,%14.8f,%14.8f)\n",
             NormalAxes[0]->distance * NormalAxes[0]->normal[0],
             NormalAxes[0]->distance * NormalAxes[0]->normal[1],
             NormalAxes[0]->distance * NormalAxes[0]->normal[2] ) ;
@@ -1520,9 +1520,9 @@ else {
         if( ImproperAxes[i]->order == 0 )
              printf( "Inf " ) ;
         else printf( "%3d ", ImproperAxes[i]->order ) ;
-        printf( "(%11.8f,%11.8f,%11.8f) ", 
+        printf( "(%11.8f,%11.8f,%11.8f) ",
             ImproperAxes[i]->direction[0], ImproperAxes[i]->direction[1], ImproperAxes[i]->direction[2] ) ;
-        printf( "(%14.8f,%14.8f,%14.8f)\n", 
+        printf( "(%14.8f,%14.8f,%14.8f)\n",
             ImproperAxes[0]->distance * ImproperAxes[0]->normal[0],
             ImproperAxes[0]->distance * ImproperAxes[0]->normal[1],
             ImproperAxes[0]->distance * ImproperAxes[0]->normal[2] ) ;
@@ -1708,7 +1708,7 @@ for( i = 0 ; i < PointGroupsCount ; i++ ){
             }
         else {
             if( verbose > -2 ){
-                printf( "It looks very much like %s, but it is not since %s\n", 
+                printf( "It looks very much like %s, but it is not since %s\n",
                     PointGroups[i].group_name, PointGroupRejectionReason ) ;
                 }
             }
@@ -1717,7 +1717,7 @@ for( i = 0 ; i < PointGroupsCount ; i++ ){
 if( matching_count == 0 ){
     printf( "WARNING: These symmetry elements match no point group I know of. Sorry.\n"
 	    "Trying fallback mode to highest recognized Axis...\n" ) ;
-    return -1;    
+    return -1;
 }
 if( matching_count >  1 ){
     printf( "These symmetry elements match more than one group I know of.\n"
@@ -1728,11 +1728,11 @@ if( matching_count >  1 ){
             printf( "    %s\n", PointGroups[i].group_name ) ;
             }
         }
-    return -1;    
+    return -1;
     }
 if( matching_count == 1 ){
     printf( "It seems to be the %s point group\n", PointGroups[last_matching].group_name ) ;
-    return last_matching;  
+    return last_matching;
   }
   else {
     return -1;
@@ -1772,7 +1772,7 @@ void schoenflies(int natoms, int* attype, double* coord, char* symbol, double* p
     {
       int last_pg ;
       int i;
-      
+
 //       //re-initialize Variables:
  PlanesCount           = 0 ;
  InversionCentersCount = 0 ;
@@ -1792,9 +1792,9 @@ StatDups              = 0 ;
 StatOrder             = 0 ;
 StatOpt               = 0 ;
 StatAccept            = 0 ;
-      
-      
-      setbuf(stdout, NULL);      
+
+
+      setbuf(stdout, NULL);
       AtomsCount = natoms;
     //Allocate space for ATOMS
       Atoms = calloc( AtomsCount, sizeof( ATOM ) ) ;
@@ -1808,8 +1808,8 @@ StatAccept            = 0 ;
       Atoms[i].x[0] = coord[3*i];
       Atoms[i].x[1] = coord[3*i+1];
       Atoms[i].x[2] = coord[3*i+2];
-    }     
-          
+    }
+
 //    if( fscanf( in, "%d %lg %lg %lg\n", &Atoms[i].type, &Atoms[i].x[0], &Atoms[i].x[1], &Atoms[i].x[2] ) != 4 ){
 //        fprintf( stderr, "Error reading description of the atom %d\n", i ) ;
 //        return -1 ;
@@ -1817,7 +1817,7 @@ StatAccept            = 0 ;
 
     //get parameters from array, integers first
     verbose = paramar[0];
-    MaxAxisOrder  = paramar[1]; 
+    MaxAxisOrder  = paramar[1];
     MaxOptCycles = paramar[2];
     ToleranceSame = paramar[3];
     TolerancePrimary = paramar[4];
@@ -1826,7 +1826,7 @@ StatAccept            = 0 ;
     MinOptStep = paramar[7];
     GradientStep = paramar[8];
     OptChangeThreshold = paramar[9];
-    OptChangeHits = paramar[10];       
+    OptChangeHits = paramar[10];
 
     find_symmetry_elements() ;
     sort_symmetry_elements() ;
@@ -1863,7 +1863,7 @@ for( argc--, argv++ ; argc > 0 ; argc -= 2, argv += 2 ){
         strcmp( *argv, "-h"            ) == 0 ||
         strcmp( *argv, "-?"            ) == 0 ){
         argc++ ; argv-- ;
-        printf( "%s [option value ...] [filename]\n" 
+        printf( "%s [option value ...] [filename]\n"
                 "Valid options are:\n"
                 "  -verbose      (%3d) Determines verbosity level\n"
                 "                      All values above 0 are intended for debugging purposes\n"
@@ -1876,8 +1876,8 @@ for( argc--, argv++ ; argc > 0 ; argc -= 2, argv += 2 ){
                 "  -final        (%8g) Final criterion for atom equivalence\n"
                 "  -maxoptstep   (%8g) Largest step allowed in symmetry element optimization\n"
                 "  -minoptstep   (%8g) Termination criterion in symmetry element optimization\n"
-                "  -gradstep     (%8g) Finite step used in numeric gradient evaluation\n" 
-                "  -minchange    (%8g) Minimum allowed change in target function\n" 
+                "  -gradstep     (%8g) Finite step used in numeric gradient evaluation\n"
+                "  -minchange    (%8g) Minimum allowed change in target function\n"
                 "  -minchgcycles (%8d)  Number of minchange cycles before optimization stops\n",
             program, verbose, MaxAxisOrder, MaxOptCycles, ToleranceSame, TolerancePrimary,
             ToleranceFinal, MaxOptStep, MinOptStep, GradientStep, OptChangeThreshold, OptChangeHits ) ;
