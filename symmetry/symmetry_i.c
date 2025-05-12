@@ -1696,7 +1696,7 @@ else {
 int
 identify_point_group( void )
 {
-        int            i ;
+        size_t         i ;
         int            last_matching = -1 ;
         int            matching_count = 0 ;
 
