@@ -541,7 +541,9 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                   enddo
                   g(:,iat) = g(:,iat)+g_xyz
                   g(:,jat) = g(:,jat)-g_xyz
-                  sigma(:, :) = sigma + spread(g_xyz, 1, 3) * spread(rij, 2, 3)
+                  sigma(:, 1) = sigma(:, 1) + g_xyz(1) * rij
+                  sigma(:, 2) = sigma(:, 2) + g_xyz(2) * rij
+                  sigma(:, 3) = sigma(:, 3) + g_xyz(3) * rij
                enddo ! lattice translations
             enddo ! jsh : loop over shells on jat
          enddo  ! ish : loop over shells on iat
@@ -732,7 +734,9 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                dhdcn(jat) = dhdcn(jat) + dCN*dSEdcn(jsh, jat)
                g(:,iat) = g(:,iat)+g_xyz
                g(:,jat) = g(:,jat)-g_xyz
-               sigma(:, :) = sigma + spread(g_xyz, 1, 3) * spread(rij, 2, 3)
+               sigma(:, 1) = sigma(:, 1) + g_xyz(1) * rij
+               sigma(:, 2) = sigma(:, 2) + g_xyz(2) * rij
+               sigma(:, 3) = sigma(:, 3) + g_xyz(3) * rij
             enddo ! jsh : loop over shells on jat
          enddo  ! ish : loop over shells on iat
       enddo ! jat
