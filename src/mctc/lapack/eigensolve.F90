@@ -197,7 +197,19 @@ subroutine mctc_ssygvd_factorized(self, env, amat, bmat_factorized, eval)
    liwork = size(self%iwork)
 
    CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
+
+   if (info /= 0) then
+      call env%error("Failed to reduce eigenvalue problem", source)
+      return
+   end if
+
    CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%swork, lswork, self%iwork, liwork, info )
+
+   if (info /= 0) then
+      call env%error("Failed to compute eigenvalues and eigenvectors", source)
+      return
+   end if
+
    CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_sp, bmat_factorized, self%n, amat, self%n )
 
 end subroutine mctc_ssygvd_factorized
@@ -216,7 +228,19 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
    liwork = size(self%iwork)
 
    CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
+
+   if (info /= 0) then
+      call env%error("Failed to reduce eigenvalue problem", source)
+      return
+   end if
+
    CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%dwork, ldwork, self%iwork, liwork, info )
+
+   if (info /= 0) then
+      call env%error("Failed to compute eigenvalues and eigenvectors", source)
+      return
+   end if
+
    CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_dp, bmat_factorized, self%n, amat, self%n )
 
 end subroutine mctc_dsygvd_factorized
