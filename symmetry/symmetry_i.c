@@ -1697,7 +1697,6 @@ int
 identify_point_group( void )
 {
         int            i ;
-	int 	       j ;
         int            last_matching = -1 ;
         int            matching_count = 0 ;
 
