@@ -525,7 +525,9 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
                gij = gamAverage(hardness(ish, iid), hardness(jsh, jid))
                g1 = 1.0_wp / (r1**gExp + gij**(-gExp))
                dG(:) = -vec*r1**(gExp-2.0_wp) * g1 * g1**(1.0_wp/gExp)
-               dS(:, :) = 0.5_wp * spread(dG, 1, 3) * spread(vec, 2, 3)
+               dS(:, 1) = 0.5_wp * dG(1) * vec
+               dS(:, 2) = 0.5_wp * dG(2) * vec
+               dS(:, 3) = 0.5_wp * dG(3) * vec
                djdr(:, iat, jj+jsh) = djdr(:, iat, jj+jsh) - dG*qvec(ii+ish)
                djdr(:, jat, ii+ish) = djdr(:, jat, ii+ish) + dG*qvec(jj+jsh)
                djdtr(:, jj+jsh) = djdtr(:, jj+jsh) + dG*qvec(ii+ish)
@@ -679,7 +681,9 @@ pure subroutine getRDeriv(vec, gij, gExp, rTrans, alpha, scale, dG, dS)
       dd = -r1**(gExp-2.0_wp) * g1 * g1**(1.0_wp/gExp) &
          & - 2*alpha*exp(-arg)/(sqrtpi*r1**2) + erf(alpha*r1)/(r1**3)
       dG = dG + rij*dd
-      dS = dS + 0.5_wp * dd*spread(rij, 1, 3)*spread(rij, 2, 3)
+      dS(:, 1) = dS(:, 1) + 0.5_wp * dd * rij(1) * rij
+      dS(:, 2) = dS(:, 2) + 0.5_wp * dd * rij(2) * rij
+      dS(:, 3) = dS(:, 3) + 0.5_wp * dd * rij(3) * rij
    enddo
    dG = dG * scale
    dS = dS * scale
