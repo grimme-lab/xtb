@@ -37,7 +37,7 @@
 #define M_PI 3.1415926535897932384626433832795028841971694
 #endif
 
-#define	DIMENSION 3
+#define DIMENSION 3
 #define MAXPARAM  7
 
 typedef struct {
@@ -114,7 +114,7 @@ int *                  NormalAxesCounts      = NULL ;
 int *                  ImproperAxesCounts    = NULL ;
 int                    BadOptimization       = 0 ;
 char *                 SymmetryCode          = "" ;
-char  		       MaxRotAxis[2]	     = "" ;
+char                   MaxRotAxis[2]         = "" ;
 /*
  *    Statistics
  */
@@ -129,66 +129,66 @@ long                   StatAccept            = 0 ;
 /*
  *    Point groups I know about
  */
-int true(void){ return 1 ; }
+int verify_point_group(void){ return 1 ; }
 POINT_GROUP            PointGroups[]         = {
-    {  "C1",    "",                                                          true  },
-    {  "Cs",    "(sigma) ",                                                  true  },
-    {  "Ci",    "(i) ",                                                      true  },
-    {  "C2",    "(C2) ",                                                     true  },
-    {  "C3",    "(C3) ",                                                     true  },
-    {  "C4",    "(C4) (C2) ",                                                true  },
-    {  "C5",    "(C5) ",                                                     true  },
-    {  "C6",    "(C6) (C3) (C2) ",                                           true  },
-    {  "C7",    "(C7) ",                                                     true  },
-    {  "C8",    "(C8) (C4) (C2) ",                                           true  },
-    {  "D2",    "3*(C2) ",                                                   true  },
-    {  "D3",    "(C3) 3*(C2) ",                                              true  },
-    {  "D4",    "(C4) 5*(C2) ",                                              true  },
-    {  "D5",    "(C5) 5*(C2) ",                                              true  },
-    {  "D6",    "(C6) (C3) 7*(C2) ",                                         true  },
-    {  "D7",    "(C7) 7*(C2) ",                                              true  },
-    {  "D8",    "(C8) (C4) 9*(C2) ",                                         true  },
-    {  "C2v",   "(C2) 2*(sigma) ",                                           true  },
-    {  "C3v",   "(C3) 3*(sigma) ",                                           true  },
-    {  "C4v",   "(C4) (C2) 4*(sigma) ",                                      true  },
-    {  "C5v",   "(C5) 5*(sigma) ",                                           true  },
-    {  "C6v",   "(C6) (C3) (C2) 6*(sigma) ",                                 true  },
-    {  "C7v",   "(C7) 7*(sigma) ",                                           true  },
-    {  "C8v",   "(C8) (C4) (C2) 8*(sigma) ",                                 true  },
-    {  "C2h",   "(i) (C2) (sigma) ",                                         true  },
-    {  "C3h",   "(C3) (S3) (sigma) ",                                        true  },
-    {  "C4h",   "(i) (C4) (C2) (S4) (sigma) ",                               true  },
-    {  "C5h",   "(C5) (S5) (sigma) ",                                        true  },
-    {  "C6h",   "(i) (C6) (C3) (C2) (S6) (S3) (sigma) ",                     true  },
-    {  "C7h",   "(C7) (S7) (sigma) ",                                        true  },
-    {  "C8h",   "(i) (C8) (C4) (C2) (S8) (S4) (sigma) ",                     true  },
-    {  "D2h",   "(i) 3*(C2) 3*(sigma) ",                                     true  },
-    {  "D3h",   "(C3) 3*(C2) (S3) 4*(sigma) ",                               true  },
-    {  "D4h",   "(i) (C4) 5*(C2) (S4) 5*(sigma) ",                           true  },
-    {  "D5h",   "(C5) 5*(C2) (S5) 6*(sigma) ",                               true  },
-    {  "D6h",   "(i) (C6) (C3) 7*(C2) (S6) (S3) 7*(sigma) ",                 true  },
-    {  "D7h",   "(C7) 7*(C2) (S7) 8*(sigma) ",                               true  },
-    {  "D8h",   "(i) (C8) (C4) 9*(C2) (S8) (S4) 9*(sigma) ",                 true  },
-    {  "D2d",   "3*(C2) (S4) 2*(sigma) ",                                    true  },
-    {  "D3d",   "(i) (C3) 3*(C2) (S6) 3*(sigma) ",                           true  },
-    {  "D4d",   "(C4) 5*(C2) (S8) 4*(sigma) ",                               true  },
-    {  "D5d",   "(i) (C5) 5*(C2) (S10) 5*(sigma) ",                          true  },
-    {  "D6d",   "(C6) (C3) 7*(C2) (S12) (S4) 6*(sigma) ",                    true  },
-    {  "D7d",   "(i) (C7) 7*(C2) (S14) 7*(sigma) ",                          true  },
-    {  "D8d",   "(C8) (C4) 9*(C2) (S16) 8*(sigma) ",                         true  },
-    {  "S4",    "(C2) (S4) ",                                                true  },
-    {  "S6",    "(i) (C3) (S6) ",                                            true  },
-    {  "S8",    "(C4) (C2) (S8) ",                                           true  },
-    {  "T",     "4*(C3) 3*(C2) ",                                            true  },
-    {  "Th",    "(i) 4*(C3) 3*(C2) 4*(S6) 3*(sigma) ",                       true  },
-    {  "Td",    "4*(C3) 3*(C2) 3*(S4) 6*(sigma) ",                           true  },
-    {  "O",     "3*(C4) 4*(C3) 9*(C2) ",                                     true  },
-    {  "Oh",    "(i) 3*(C4) 4*(C3) 9*(C2) 4*(S6) 3*(S4) 9*(sigma) ",         true  },
-    {  "Cinfv", "(Cinf) (sigma) ",                                           true  },
-    {  "Dinfh", "(i) (Cinf) (C2) 2*(sigma) ",                                true  },
-    {  "I",     "6*(C5) 10*(C3) 15*(C2) ",                                   true  },
-    {  "Ih",    "(i) 6*(C5) 10*(C3) 15*(C2) 6*(S10) 10*(S6) 15*(sigma) ",    true  },
-    {  "Kh",    "(i) (Cinf) (sigma) ",                                       true  },
+    {  "C1",    "",                                                          verify_point_group  },
+    {  "Cs",    "(sigma) ",                                                  verify_point_group  },
+    {  "Ci",    "(i) ",                                                      verify_point_group  },
+    {  "C2",    "(C2) ",                                                     verify_point_group  },
+    {  "C3",    "(C3) ",                                                     verify_point_group  },
+    {  "C4",    "(C4) (C2) ",                                                verify_point_group  },
+    {  "C5",    "(C5) ",                                                     verify_point_group  },
+    {  "C6",    "(C6) (C3) (C2) ",                                           verify_point_group  },
+    {  "C7",    "(C7) ",                                                     verify_point_group  },
+    {  "C8",    "(C8) (C4) (C2) ",                                           verify_point_group  },
+    {  "D2",    "3*(C2) ",                                                   verify_point_group  },
+    {  "D3",    "(C3) 3*(C2) ",                                              verify_point_group  },
+    {  "D4",    "(C4) 5*(C2) ",                                              verify_point_group  },
+    {  "D5",    "(C5) 5*(C2) ",                                              verify_point_group  },
+    {  "D6",    "(C6) (C3) 7*(C2) ",                                         verify_point_group  },
+    {  "D7",    "(C7) 7*(C2) ",                                              verify_point_group  },
+    {  "D8",    "(C8) (C4) 9*(C2) ",                                         verify_point_group  },
+    {  "C2v",   "(C2) 2*(sigma) ",                                           verify_point_group  },
+    {  "C3v",   "(C3) 3*(sigma) ",                                           verify_point_group  },
+    {  "C4v",   "(C4) (C2) 4*(sigma) ",                                      verify_point_group  },
+    {  "C5v",   "(C5) 5*(sigma) ",                                           verify_point_group  },
+    {  "C6v",   "(C6) (C3) (C2) 6*(sigma) ",                                 verify_point_group  },
+    {  "C7v",   "(C7) 7*(sigma) ",                                           verify_point_group  },
+    {  "C8v",   "(C8) (C4) (C2) 8*(sigma) ",                                 verify_point_group  },
+    {  "C2h",   "(i) (C2) (sigma) ",                                         verify_point_group  },
+    {  "C3h",   "(C3) (S3) (sigma) ",                                        verify_point_group  },
+    {  "C4h",   "(i) (C4) (C2) (S4) (sigma) ",                               verify_point_group  },
+    {  "C5h",   "(C5) (S5) (sigma) ",                                        verify_point_group  },
+    {  "C6h",   "(i) (C6) (C3) (C2) (S6) (S3) (sigma) ",                     verify_point_group  },
+    {  "C7h",   "(C7) (S7) (sigma) ",                                        verify_point_group  },
+    {  "C8h",   "(i) (C8) (C4) (C2) (S8) (S4) (sigma) ",                     verify_point_group  },
+    {  "D2h",   "(i) 3*(C2) 3*(sigma) ",                                     verify_point_group  },
+    {  "D3h",   "(C3) 3*(C2) (S3) 4*(sigma) ",                               verify_point_group  },
+    {  "D4h",   "(i) (C4) 5*(C2) (S4) 5*(sigma) ",                           verify_point_group  },
+    {  "D5h",   "(C5) 5*(C2) (S5) 6*(sigma) ",                               verify_point_group  },
+    {  "D6h",   "(i) (C6) (C3) 7*(C2) (S6) (S3) 7*(sigma) ",                 verify_point_group  },
+    {  "D7h",   "(C7) 7*(C2) (S7) 8*(sigma) ",                               verify_point_group  },
+    {  "D8h",   "(i) (C8) (C4) 9*(C2) (S8) (S4) 9*(sigma) ",                 verify_point_group  },
+    {  "D2d",   "3*(C2) (S4) 2*(sigma) ",                                    verify_point_group  },
+    {  "D3d",   "(i) (C3) 3*(C2) (S6) 3*(sigma) ",                           verify_point_group  },
+    {  "D4d",   "(C4) 5*(C2) (S8) 4*(sigma) ",                               verify_point_group  },
+    {  "D5d",   "(i) (C5) 5*(C2) (S10) 5*(sigma) ",                          verify_point_group  },
+    {  "D6d",   "(C6) (C3) 7*(C2) (S12) (S4) 6*(sigma) ",                    verify_point_group  },
+    {  "D7d",   "(i) (C7) 7*(C2) (S14) 7*(sigma) ",                          verify_point_group  },
+    {  "D8d",   "(C8) (C4) 9*(C2) (S16) 8*(sigma) ",                         verify_point_group  },
+    {  "S4",    "(C2) (S4) ",                                                verify_point_group  },
+    {  "S6",    "(i) (C3) (S6) ",                                            verify_point_group  },
+    {  "S8",    "(C4) (C2) (S8) ",                                           verify_point_group  },
+    {  "T",     "4*(C3) 3*(C2) ",                                            verify_point_group  },
+    {  "Th",    "(i) 4*(C3) 3*(C2) 4*(S6) 3*(sigma) ",                       verify_point_group  },
+    {  "Td",    "4*(C3) 3*(C2) 3*(S4) 6*(sigma) ",                           verify_point_group  },
+    {  "O",     "3*(C4) 4*(C3) 9*(C2) ",                                     verify_point_group  },
+    {  "Oh",    "(i) 3*(C4) 4*(C3) 9*(C2) 4*(S6) 3*(S4) 9*(sigma) ",         verify_point_group  },
+    {  "Cinfv", "(Cinf) (sigma) ",                                           verify_point_group  },
+    {  "Dinfh", "(i) (Cinf) (C2) 2*(sigma) ",                                verify_point_group  },
+    {  "I",     "6*(C5) 10*(C3) 15*(C2) ",                                   verify_point_group  },
+    {  "Ih",    "(i) 6*(C5) 10*(C3) 15*(C2) 6*(S10) 10*(S6) 15*(sigma) ",    verify_point_group  },
+    {  "Kh",    "(i) (Cinf) (sigma) ",                                       verify_point_group  },
     } ;
 #define PointGroupsCount (sizeof(PointGroups)/sizeof(POINT_GROUP))
 char *                 PointGroupRejectionReason = NULL ;
@@ -219,7 +219,7 @@ for( i = 0 ; i < AtomsCount ; i++ ){
     if( elem->transform[i] >= AtomsCount ){ /* No symmetric atom yet          */
         if( verbose > 2 ) printf( "        looking for a pair for %d\n", i ) ;
         elem->transform_atom( elem, Atoms+i, &symmetric ) ;
-        if( verbose > 2 ) printf( "        new coordinates are: (%g,%g,%g)\n", 
+        if( verbose > 2 ) printf( "        new coordinates are: (%g,%g,%g)\n",
                               symmetric.x[0], symmetric.x[1], symmetric.x[2] ) ;
         best_j        = i ;
         best_distance = 2*TolerancePrimary ;/* Performance value we'll reject */
@@ -237,7 +237,7 @@ for( i = 0 ; i < AtomsCount ; i++ ){
                 }
             }
         if( best_distance > TolerancePrimary ){ /* Too bad, there is no symmetric atom */
-            if( verbose > 0 ) 
+            if( verbose > 0 )
                 printf( "        no pair for atom %d - best was %d with err = %g\n", i, best_j, best_distance ) ;
             free( atom_used ) ;
             return -1 ;
@@ -551,8 +551,9 @@ do {
 f = eval_optimization_target_function( elem, NULL ) ;
 if( cycle >= MaxOptCycles ) BadOptimization = 1 ;
 if( verbose > 0 ) {
-    if( cycle >= MaxOptCycles )
+    if( cycle >= MaxOptCycles ) {
         printf( "        maximum number of optimization cycles made\n" ) ;
+    }
         printf( "        optimization completed after %d cycles with f = %g\n", cycle, f ) ;
     }
 }
@@ -896,8 +897,8 @@ init_c2_axis( int i, int j, double support[ DIMENSION ] )
         double             ris, rjs ;
         double             r, center[ DIMENSION ] ;
 
-if( verbose > 0 ) 
-    printf( "Trying c2 axis for the pair (%d,%d) with the support (%g,%g,%g)\n", 
+if( verbose > 0 )
+    printf( "Trying c2 axis for the pair (%d,%d) with the support (%g,%g,%g)\n",
              i, j, support[0], support[1], support[2] ) ;
 StatTotal++ ;
 /* First, do a quick sanity check */
@@ -1049,24 +1050,33 @@ axis->direction[2] = (b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0]) ;
  *  or the direction is positive.
  */
 sign = 0 ;
-if( axis->direction[0] <= 0 )
-    if( axis->direction[0] < 0 )
+if( axis->direction[0] <= 0 ) {
+    if( axis->direction[0] < 0 ) {
          sign = 1 ;
-    else if( axis->direction[1] <= 0 )
-             if( axis->direction[1] < 0 )
+    }
+    else if( axis->direction[1] <= 0 ) {
+             if( axis->direction[1] < 0 ) {
                   sign = 1 ;
-             else if( axis->direction[2] < 0 )
+             }
+             else if( axis->direction[2] < 0 ) {
                       sign = 1 ;
-if( sign )
-    for( i = 0 ; i < DIMENSION ; i++ )
+             }
+    }
+}
+if( sign ) {
+    for( i = 0 ; i < DIMENSION ; i++ ) {
         axis->direction[i] = -axis->direction[i] ;
-for( i = 0, r = 0 ; i < DIMENSION ; i++ )
+    }
+}
+for( i = 0, r = 0 ; i < DIMENSION ; i++ ) {
     r += axis->direction[i]*axis->direction[i] ;
+}
 r = sqrt(r) ;
-for( i = 0 ; i < DIMENSION ; i++ )
+for( i = 0 ; i < DIMENSION ; i++ ) {
     axis->direction[i] /= r ;
+}
 if( verbose > 1 ){
-    printf( "    axis origin is at (%g,%g,%g)\n", 
+    printf( "    axis origin is at (%g,%g,%g)\n",
         axis->normal[0]*axis->distance, axis->normal[1]*axis->distance, axis->normal[2]*axis->distance ) ;
     printf( "    axis is in the direction (%g,%g,%g)\n", axis->direction[0], axis->direction[1], axis->direction[2] ) ;
     }
@@ -1205,7 +1215,7 @@ for( i = 0 ; i < AtomsCount ; i++ ){
 for( j = 0 ; j < DIMENSION ; j++ )
     CenterOfSomething[j] = coord_sum[j]/AtomsCount ;
 if( verbose > 0 )
-    printf( "Center of something is at %15.10f, %15.10f, %15.10f\n", 
+    printf( "Center of something is at %15.10f, %15.10f, %15.10f\n",
             CenterOfSomething[0], CenterOfSomething[1], CenterOfSomething[2] ) ;
 DistanceFromCenter = (double *) calloc( AtomsCount, sizeof( double ) ) ;
 if( DistanceFromCenter == NULL ){
@@ -1405,7 +1415,7 @@ find_improper_axes(void)
 {
         int                i, j, k ;
         SYMMETRY_ELEMENT * axis ;
-    
+
 //#pragma omp parallel for private(i,j,k, axis) \
 //shared (ImproperAxesCount, ImproperAxes) \
 //schedule (guided)
@@ -1413,11 +1423,11 @@ find_improper_axes(void)
 for( i = 0 ; i < AtomsCount ; i++ ){
     for( j = i + 1 ; j < AtomsCount ; j++ ){
         for( k = 0 ; k < AtomsCount ; k++ ){
-	//#pragma inline
+        //#pragma inline
             if( ( axis = init_improper_axis( i, j, k ) ) != NULL ){
                 //#pragma omp critical
                  {
-        	ImproperAxesCount++ ;
+                ImproperAxesCount++ ;
                 ImproperAxes = (SYMMETRY_ELEMENT **) realloc( ImproperAxes, sizeof( SYMMETRY_ELEMENT* ) * ImproperAxesCount ) ;
                 if( ImproperAxes == NULL ){
                     perror( "Out of memory in find_higher_axes" ) ;
@@ -1484,9 +1494,9 @@ else {
         if( NormalAxes[i]->order == 0 )
              printf( "Inf " ) ;
         else printf( "%3d ", NormalAxes[i]->order ) ;
-        printf( "(%11.8f,%11.8f,%11.8f) ", 
+        printf( "(%11.8f,%11.8f,%11.8f) ",
             NormalAxes[i]->direction[0], NormalAxes[i]->direction[1], NormalAxes[i]->direction[2] ) ;
-        printf( "(%14.8f,%14.8f,%14.8f)\n", 
+        printf( "(%14.8f,%14.8f,%14.8f)\n",
             NormalAxes[0]->distance * NormalAxes[0]->normal[0],
             NormalAxes[0]->distance * NormalAxes[0]->normal[1],
             NormalAxes[0]->distance * NormalAxes[0]->normal[2] ) ;
@@ -1511,9 +1521,9 @@ else {
         if( ImproperAxes[i]->order == 0 )
              printf( "Inf " ) ;
         else printf( "%3d ", ImproperAxes[i]->order ) ;
-        printf( "(%11.8f,%11.8f,%11.8f) ", 
+        printf( "(%11.8f,%11.8f,%11.8f) ",
             ImproperAxes[i]->direction[0], ImproperAxes[i]->direction[1], ImproperAxes[i]->direction[2] ) ;
-        printf( "(%14.8f,%14.8f,%14.8f)\n", 
+        printf( "(%14.8f,%14.8f,%14.8f)\n",
             ImproperAxes[0]->distance * ImproperAxes[0]->normal[0],
             ImproperAxes[0]->distance * ImproperAxes[0]->normal[1],
             ImproperAxes[0]->distance * ImproperAxes[0]->normal[2] ) ;
@@ -1687,8 +1697,7 @@ else {
 int
 identify_point_group( void )
 {
-        int            i ;
-	int 	       j ;
+        size_t         i ;
         int            last_matching = -1 ;
         int            matching_count = 0 ;
 
@@ -1700,7 +1709,7 @@ for( i = 0 ; i < PointGroupsCount ; i++ ){
             }
         else {
             if( verbose > -2 ){
-                printf( "It looks very much like %s, but it is not since %s\n", 
+                printf( "It looks very much like %s, but it is not since %s\n",
                     PointGroups[i].group_name, PointGroupRejectionReason ) ;
                 }
             }
@@ -1708,8 +1717,8 @@ for( i = 0 ; i < PointGroupsCount ; i++ ){
     }
 if( matching_count == 0 ){
     printf( "WARNING: These symmetry elements match no point group I know of. Sorry.\n"
-	    "Trying fallback mode to highest recognized Axis...\n" ) ;
-    return -1;    
+            "Trying fallback mode to highest recognized Axis...\n" ) ;
+    return -1;
 }
 if( matching_count >  1 ){
     printf( "These symmetry elements match more than one group I know of.\n"
@@ -1720,11 +1729,11 @@ if( matching_count >  1 ){
             printf( "    %s\n", PointGroups[i].group_name ) ;
             }
         }
-    return -1;    
+    return -1;
     }
 if( matching_count == 1 ){
     printf( "It seems to be the %s point group\n", PointGroups[last_matching].group_name ) ;
-    return last_matching;  
+    return last_matching;
   }
   else {
     return -1;
@@ -1764,7 +1773,7 @@ void schoenflies(int natoms, int* attype, double* coord, char* symbol, double* p
     {
       int last_pg ;
       int i;
-      
+
 //       //re-initialize Variables:
  PlanesCount           = 0 ;
  InversionCentersCount = 0 ;
@@ -1772,7 +1781,7 @@ void schoenflies(int natoms, int* attype, double* coord, char* symbol, double* p
  ImproperAxesCount     = 0 ;
  BadOptimization       = 0 ;
  SymmetryCode          = "" ;
-// *MaxRotAxis	       = "" ;
+// *MaxRotAxis         = "" ;
  strncpy(MaxRotAxis, "", 2);
 //       /*
 //       *    Statistics
@@ -1784,9 +1793,9 @@ StatDups              = 0 ;
 StatOrder             = 0 ;
 StatOpt               = 0 ;
 StatAccept            = 0 ;
-      
-      
-      setbuf(stdout, NULL);      
+
+
+      setbuf(stdout, NULL);
       AtomsCount = natoms;
     //Allocate space for ATOMS
       Atoms = calloc( AtomsCount, sizeof( ATOM ) ) ;
@@ -1800,8 +1809,8 @@ StatAccept            = 0 ;
       Atoms[i].x[0] = coord[3*i];
       Atoms[i].x[1] = coord[3*i+1];
       Atoms[i].x[2] = coord[3*i+2];
-    }     
-          
+    }
+
 //    if( fscanf( in, "%d %lg %lg %lg\n", &Atoms[i].type, &Atoms[i].x[0], &Atoms[i].x[1], &Atoms[i].x[2] ) != 4 ){
 //        fprintf( stderr, "Error reading description of the atom %d\n", i ) ;
 //        return -1 ;
@@ -1809,7 +1818,7 @@ StatAccept            = 0 ;
 
     //get parameters from array, integers first
     verbose = paramar[0];
-    MaxAxisOrder  = paramar[1]; 
+    MaxAxisOrder  = paramar[1];
     MaxOptCycles = paramar[2];
     ToleranceSame = paramar[3];
     TolerancePrimary = paramar[4];
@@ -1818,14 +1827,14 @@ StatAccept            = 0 ;
     MinOptStep = paramar[7];
     GradientStep = paramar[8];
     OptChangeThreshold = paramar[9];
-    OptChangeHits = paramar[10];       
+    OptChangeHits = paramar[10];
 
     find_symmetry_elements() ;
     sort_symmetry_elements() ;
     summarize_symmetry_elements() ;
     if( BadOptimization )
-	printf( "Refinement of some symmetry elements was terminated before convergence was reached.\n"
-		"Some symmetry elements may remain unidentified.\n" ) ;
+        printf( "Refinement of some symmetry elements was terminated before convergence was reached.\n"
+                "Some symmetry elements may remain unidentified.\n" ) ;
     report_symmetry_elements_brief() ;
     last_pg = identify_point_group() ;
     if(last_pg >= 0){
@@ -1855,7 +1864,7 @@ for( argc--, argv++ ; argc > 0 ; argc -= 2, argv += 2 ){
         strcmp( *argv, "-h"            ) == 0 ||
         strcmp( *argv, "-?"            ) == 0 ){
         argc++ ; argv-- ;
-        printf( "%s [option value ...] [filename]\n" 
+        printf( "%s [option value ...] [filename]\n"
                 "Valid options are:\n"
                 "  -verbose      (%3d) Determines verbosity level\n"
                 "                      All values above 0 are intended for debugging purposes\n"
@@ -1868,8 +1877,8 @@ for( argc--, argv++ ; argc > 0 ; argc -= 2, argv += 2 ){
                 "  -final        (%8g) Final criterion for atom equivalence\n"
                 "  -maxoptstep   (%8g) Largest step allowed in symmetry element optimization\n"
                 "  -minoptstep   (%8g) Termination criterion in symmetry element optimization\n"
-                "  -gradstep     (%8g) Finite step used in numeric gradient evaluation\n" 
-                "  -minchange    (%8g) Minimum allowed change in target function\n" 
+                "  -gradstep     (%8g) Finite step used in numeric gradient evaluation\n"
+                "  -minchange    (%8g) Minimum allowed change in target function\n"
                 "  -minchgcycles (%8d)  Number of minchange cycles before optimization stops\n",
             program, verbose, MaxAxisOrder, MaxOptCycles, ToleranceSame, TolerancePrimary,
             ToleranceFinal, MaxOptStep, MinOptStep, GradientStep, OptChangeThreshold, OptChangeHits ) ;
