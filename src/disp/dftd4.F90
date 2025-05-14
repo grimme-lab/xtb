@@ -2280,7 +2280,7 @@ subroutine atm_gradient_latp_gpu &
    !dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ij
    !dG(:, 1) = -dGr * rij
    !dG(:, 2) = +dGr * rij
-   !dS(:, :) = 0.5_wp * dGr * spread(rij, 1, 3) * spread(rij, 2, 3) !< perf: do not use spread
+   !dS(:, :) = 0.5_wp * dGr * spread(rij, 1, 3) * spread(rij, 2, 3) !< GCC perf: do not use spread
 
    !! Derivative w.r.t. i-k distance
    !dang = -0.375_wp*(r2ik**3+r2ik**2*(r2jk+r2ij) &
@@ -2289,7 +2289,7 @@ subroutine atm_gradient_latp_gpu &
    !dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ik
    !dG(:, 1) = -dGr * rik + dG(:, 1)
    !dG(:, 3) = +dGr * rik
-   !dS(:, :) = 0.5_wp * dGr * spread(rik, 1, 3) * spread(rik, 2, 3) + dS !< perf: do not use spread
+   !dS(:, :) = 0.5_wp * dGr * spread(rik, 1, 3) * spread(rik, 2, 3) + dS !< GCC perf: do not use spread
 
    !! Derivative w.r.t. j-k distance
    !dang=-0.375_wp*(r2jk**3+r2jk**2*(r2ik+r2ij) &
@@ -2298,7 +2298,7 @@ subroutine atm_gradient_latp_gpu &
    !dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2jk
    !dG(:, 2) = -dGr * rjk + dG(:, 2)
    !dG(:, 3) = +dGr * rjk + dG(:, 3)
-   !dS(:, :) = 0.5_wp * dGr * spread(rjk, 1, 3) * spread(rjk, 2, 3) + dS !< perf: do not use spread
+   !dS(:, :) = 0.5_wp * dGr * spread(rjk, 1, 3) * spread(rjk, 2, 3) + dS !< GCC perf: do not use spread
 
    !! CN derivative
    !dc9 = 0.5_wp*c9*(dc6dcn(iat,jat)/c6ij+dc6dcn(iat,kat)/c6ik)
