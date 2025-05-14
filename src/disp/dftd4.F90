@@ -688,7 +688,8 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    !$omp parallel do shared(wdispmat) &
    !$omp shared(nat, at, xyz, itbl, par, dispm, c6abns, gw) &
    !$omp private(ia, k, j, ja, l, r4r2ij, cutoff, r2, oor6, oor8, oor10, &
-   !$omp& ii, jj, gwgw, c8abns, c10abns)
+   !$omp& ii, jj, gwgw, c8abns, c10abns) &
+   !$omp schedule(dynamic,32) collapse(2)
 !#endif
    do i = 1, nat
       do j = 1, nat
@@ -1104,7 +1105,8 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
    !$omp parallel do default(none) shared(c6, dc6dcn, dc6dq) &
    !$omp shared(nat, atoms, dispm, zetavec, zetadcn, zetadq) &
    !$omp private(iat, ati, jat, atj, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj, &
-   !$omp& iref, jref, refc6)
+   !$omp& iref, jref, refc6) &
+   !$omp schedule(dynamic,32) collapse(2)
 #endif
    do iat = 1, nat
       do jat = 1, nat
@@ -1862,21 +1864,24 @@ subroutine disp_gradient_latp &
 
    real(wp), intent(inout) :: dEdq(:)
 
-   integer :: iat, jat, ati, atj, itr
+   integer :: iat, jat, nat, ati, atj, itr
 
    real(wp) :: cutoff2
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
+   nat = len(mol)
    cutoff2 = cutoff**2
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
-   !$omp shared(mol, trans, cutoff2, par, r4r2, c6, dc6dcn, dc6dq) &
+   !$omp shared(nat, mol, trans, cutoff2, par, r4r2, c6, dc6dcn, dc6dq) &
    !$omp private(iat, jat, itr, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
-   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS)
-   do iat = 1, len(mol)
-      ati = mol%at(iat)
-      do jat = 1, iat
+   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS) &
+   !$omp schedule(dynamic,32) collapse(2)
+   do iat = 1, nat
+      do jat = 1, nat
+         if (jat > iat) cycle
+         ati = mol%at(iat)
          atj = mol%at(jat)
 
          r4r2ij = 3*r4r2(ati)*r4r2(atj)

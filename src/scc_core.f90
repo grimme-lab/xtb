@@ -1186,8 +1186,13 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    allocate(Ptmp(ndim,ndim))
    call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
    wb = 0
+   !$omp parallel do default(none) &
+   !$omp private(i,j,k,m,xsum,rab) &
+   !$omp shared(n,xyz,fila2,Ptmp,wb) &
+   !$omp schedule(dynamic,32) collapse(2)
    do i = 1, n
-      do j = 1, i-1
+      do j = 1, n
+         if (j >= i) cycle
          xsum = 0.0_wp
          rab = sum((xyz(:,i) - xyz(:,j))**2)
          if(rab < 100.0_wp)then
@@ -1230,8 +1235,13 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,Pb,ndim,S,ndim,0.0_wp,Ptmp_b,ndim)
    
    wb = 0
+   !$omp parallel do default(none) &
+   !$omp private(i,j,k,m,xsum,rab) &
+   !$omp shared(n,xyz,fila2,Ptmp_a,Ptmp_b,wb) &
+   !$omp schedule(dynamic,32) collapse(2)
    do i = 1, n
-      do j = 1, i-1
+      do j = 1, n
+         if (j >= i) cycle
          xsum = 0.0_wp
          rab = sum((xyz(:,i) - xyz(:,j))**2)
          if(rab < 100.0_wp)then
