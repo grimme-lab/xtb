@@ -145,14 +145,14 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp), intent(out):: qp(:, :)
 
 #ifdef XTB_GPU
-   call mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+   call mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 #else
-   call mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+   call mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 #endif
 
 contains
 
-subroutine mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+subroutine mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 
    implicit none
    integer, intent(in) :: nao,nat,aoat2(:)
@@ -284,9 +284,9 @@ subroutine mmompop_openacc(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 
    !$acc exit data delete(nao, nat, aoat2(:), s(:, :), p(:, :), dpint(:, :, :), &
    !$acc& qpint(:, :, :),xyz(:, :))
-end subroutine mmompop_openacc
+end subroutine mmompop_gpu
 
-subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 
    implicit none
    integer, intent(in) :: nao,nat,aoat2(:)
@@ -400,7 +400,7 @@ subroutine mmompop_openmp(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
       qp(6,i) = qp(6,i)-tii
    enddo
 
-end subroutine mmompop_openmp
+end subroutine mmompop_cpu
 end subroutine mmompop
 
 
@@ -429,14 +429,14 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    real(wp), intent(in) :: dipm(:,:),qp(:,:)
 
 #ifdef XTB_GPU
-   call aniso_electro_openacc(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+   call aniso_electro_gpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
 #else
-   call aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+   call aniso_electro_cpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
 #endif
 
 contains
 
-subroutine aniso_electro_openacc(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+subroutine aniso_electro_gpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
 
    implicit none
    class(TMultipoleData), intent(in) :: aesData
@@ -539,10 +539,10 @@ subroutine aniso_electro_openacc(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    !      write(*,*) ' semilocal CT corr.: ',epol
    ! acc exit data delete(aesData, aesData%dipKernel(:), aesData%quadKernel(:), &
    ! acc& at, xyz, q, dipm, qp, gab3, gab5)
-end subroutine aniso_electro_openacc
+end subroutine aniso_electro_gpu
 
 
-subroutine aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+subroutine aniso_electro_cpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
 
    implicit none
    class(TMultipoleData), intent(in) :: aesData
@@ -635,7 +635,7 @@ subroutine aniso_electro_openmp(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    !     write(*,'(''d,q,dd'',3f9.5)')  e01,e02,e11
    !      write(*,*) ' semilocal CT corr.: ',epol
 
-end subroutine aniso_electro_openmp
+end subroutine aniso_electro_cpu
 
 end subroutine aniso_electro
 
