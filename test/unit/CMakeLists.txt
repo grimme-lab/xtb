@@ -69,6 +69,11 @@ add_executable(
   "${test-srcs}"
 )
 
+set_target_properties(
+  "${PROJECT_NAME}-tester"
+  PROPERTIES
+  LINKER_LANGUAGE Fortran)
+
 target_link_libraries(
   "${PROJECT_NAME}-tester"
   PRIVATE

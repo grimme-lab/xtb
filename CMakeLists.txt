@@ -17,6 +17,7 @@
 cmake_minimum_required(VERSION 3.17)
 option(WITH_OBJECT "To build using object library" TRUE)
 option(INSTALL_MODULES "Install Fortran module files to include directory." FALSE)
+option(WITH_TRACY "Add low-latency runtime profiler" FALSE)
 
 # Buggy CMake versions
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0 AND CMAKE_VERSION VERSION_LESS 3.28.0)
@@ -29,6 +30,9 @@ project(
   VERSION "6.7.1" 
   LANGUAGES "C" "Fortran"
 )
+if(WITH_TRACY)
+  enable_language(CXX)
+endif()
 
 enable_testing()
 
@@ -56,6 +60,25 @@ endif()
 
 if(NOT TARGET "test-drive::test-drive")
   find_package("test-drive" REQUIRED)
+endif()
+
+if(WITH_TRACY)
+  option(TRACY_Fortran "" ON)
+  option(TRACY_DELAYED_INIT "" ON)
+  option(TRACY_MANUAL_LIFETIME "" ON)
+  option(TRACY_NO_FRAME_IMAGE "" ON)
+
+  FetchContent_Declare(
+    tracy
+    GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+  )
+
+  FetchContent_MakeAvailable(tracy)
+
+  add_compile_definitions(WITH_TRACY)
 endif()
 
 # Sources: initialize program sources (prog) and library sources (srcs) empty
@@ -107,6 +130,8 @@ if(WITH_OBJECT)
       "mctc-lib::mctc-lib"
       "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
       "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
+      "$<$<BOOL:${WITH_TRACY}>:TracyClient>"
+      "$<$<BOOL:${WITH_TRACY}>:TracyClientF90>"
       "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
    )
 
@@ -149,7 +174,9 @@ target_link_libraries(
    "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
    "mctc-lib::mctc-lib"
    "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
-   $<$<BOOL:${WITH_TBLITE}>:tblite::tblite>
+   "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
+   "$<$<BOOL:${WITH_TRACY}>:TracyClient>"
+   "$<$<BOOL:${WITH_TRACY}>:TracyClientF90>"
 )
 
 set_target_properties(
@@ -190,6 +217,8 @@ if (WITH_OBJECT)
       "mctc-lib::mctc-lib"
       "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
       "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
+      "$<$<BOOL:${WITH_TRACY}>:TracyClient>"
+      "$<$<BOOL:${WITH_TRACY}>:TracyClientF90>"
    )
 
    set_target_properties(
@@ -232,6 +261,7 @@ set_target_properties(
   Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include
   RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
   OUTPUT_NAME "${PROJECT_NAME}"
+  LINKER_LANGUAGE Fortran
 )
 
 target_include_directories(
