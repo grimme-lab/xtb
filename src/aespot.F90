@@ -144,10 +144,30 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp), intent(out):: dipm(:, :)
    real(wp), intent(out):: qp(:, :)
 
+#ifdef XTB_GPU
+   call mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+#else
+   call mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+#endif
+
+contains
+
+subroutine mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+
+   implicit none
+   integer, intent(in) :: nao,nat,aoat2(:)
+   real(wp), intent(in) :: s(:, :)
+   real(wp), intent(in) :: p(:, :)
+   real(wp), intent(in) :: dpint(:, :, :)
+   real(wp), intent(in) :: qpint(:, :, :)
+   real(wp), intent(in) :: xyz(:, :)
+   real(wp), intent(out):: dipm(:, :)
+   real(wp), intent(out):: qp(:, :)
+
    real(wp) xk1,xl1,xk2,xl2,pij,tii,tjj
    real(wp) pqm,pdmk,pdml,ps,ra(3)
 
-   integer i,j,k,l,ii,jj,kl,kj,lin
+   integer i,j,k,l,ii,jj,kl,kj
 
    !$acc enter data create(dipm(:, :), qp(:, :))
 
@@ -264,7 +284,123 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 
    !$acc exit data delete(nao, nat, aoat2(:), s(:, :), p(:, :), dpint(:, :, :), &
    !$acc& qpint(:, :, :),xyz(:, :))
+end subroutine mmompop_gpu
 
+subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+
+   implicit none
+   integer, intent(in) :: nao,nat,aoat2(:)
+   real(wp), intent(in) :: s(:, :)
+   real(wp), intent(in) :: p(:, :)
+   real(wp), intent(in) :: dpint(:, :, :)
+   real(wp), intent(in) :: qpint(:, :, :)
+   real(wp), intent(in) :: xyz(:, :)
+   real(wp), intent(out):: dipm(:, :)
+   real(wp), intent(out):: qp(:, :)
+
+   real(wp) xk1,xl1,xk2,xl2,pij,tii,tjj
+   real(wp) pqm,pdmk,pdml,ps,ra(3)
+
+   integer i,j,k,l,ii,jj,kl,kj
+
+   dipm = 0.0_wp
+   qp = 0.0_wp
+
+   !$omp parallel do default(none) &
+   !$omp private(i,j,k,l,kl,kj,ii,jj,ra,pij,ps,xk1,xk2,xl1,xl2,pdmk,pdml,pqm,tii,tjj) &
+   !$omp shared(nao, nat, aoat2, s, p, dpint, qpint, xyz) &
+   !$omp reduction(+:dipm, qp) &
+   !$omp schedule(dynamic,32) collapse(2)
+   do i = 1,nao
+      do j = 1,nao
+         if (j >= i) cycle
+         ii = aoat2(i)
+         jj = aoat2(j)
+         ra(1:3) = xyz(1:3,ii)
+         pij = p(j,i)
+         ps = pij*s(j,i)
+         !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
+         !  when doing the Mulliken population, we switch to lin-compatible sorting
+         !  i,e. xx,xy,yy,xz,yz,zz
+         do k = 1,3
+            xk1 = ra(k)
+            xk2 = xyz(k,jj)
+            pdmk = pij*dpint(k,j,i)
+            tii = xk1*ps-pdmk
+            tjj = xk2*ps-pdmk
+            dipm(k,jj) = dipm(k,jj)+tjj
+            dipm(k,ii) = dipm(k,ii)+tii
+            ! off-diagonal
+            do l = 1,k-1
+               kl = k*(k-1)/2+l
+               kj = k+l+1
+               xl1 = ra(l)
+               xl2 = xyz(l,jj)
+               pdml = pij*dpint(l,j,i)
+               pqm = pij*qpint(kj,j,i)
+               tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
+               tjj = pdmk*xl2+pdml*xk2-xl2*xk2*ps-pqm
+               qp(kl,jj) = qp(kl,jj)+tjj
+               qp(kl,ii) = qp(kl,ii)+tii
+            enddo
+            ! diagonal
+            kl = k*(k+1)/2
+            pqm = pij*qpint(k,j,i)
+            tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
+            tjj = 2.0_wp*pdmk*xk2-xk2*xk2*ps-pqm
+            qp(kl,jj) = qp(kl,jj)+tjj
+            qp(kl,ii) = qp(kl,ii)+tii
+         enddo
+      enddo
+   enddo
+
+   !$omp parallel do default(none) &
+   !$omp private(i,k,kl,kj,ii,ra,pij,ps,xk1,xl1,pdmk,pdml,pqm,tii) &
+   !$omp shared(nao, aoat2, xyz, p, s, dpint, qpint) &
+   !$omp reduction(+:dipm, qp) &
+   !$omp schedule(static)
+   do i = 1,nao
+      ii = aoat2(i)
+      ra(1:3) = xyz(1:3,ii)
+      pij = p(i,i)
+      ps = pij*s(i,i)
+      !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
+      !  when doing the Mulliken population, we switch to lin-compatible sorting
+      !  i,e. xx,xy,yy,xz,yz,zz
+      do k = 1,3
+         xk1 = ra(k)
+         pdmk = pij*dpint(k,i,i)
+         tii = xk1*ps-pdmk
+         dipm(k,ii) = dipm(k,ii)+tii
+         ! off-diagonal
+         do l = 1,k-1
+            kl = k*(k-1)/2+l
+            kj = k+l+1 ! the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
+            xl1 = ra(l)
+            pdml = pij*dpint(l,i,i)
+            pqm = pij*qpint(kj,i,i)
+            tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
+            qp(kl,ii) = qp(kl,ii)+tii
+         enddo
+         !diagonal
+         kl = k*(k+1)/2
+         pqm = pij*qpint(k,i,i)
+         tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
+         qp(kl,ii) = qp(kl,ii)+tii
+      enddo
+   enddo
+
+   ! remove trace
+   do i = 1,nat
+      tii = qp(1,i)+qp(3,i)+qp(6,i)
+      tii = 0.50_wp*tii
+      qp(1:6,i) = 1.50_wp*qp(1:6,i)
+      qp(1,i) = qp(1,i)-tii
+      qp(3,i) = qp(3,i)-tii
+      qp(6,i) = qp(6,i)-tii
+   enddo
+
+end subroutine mmompop_cpu
 end subroutine mmompop
 
 
@@ -280,6 +416,28 @@ end subroutine mmompop
 ! e           : E_AES
 subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    use xtb_lin, only : lin
+   implicit none
+   class(TMultipoleData), intent(in) :: aesData
+   integer, intent(in) :: nat,at(:)
+   real(wp), intent(in) :: xyz(:,:),q(:)
+   real(wp), intent(inout) :: e
+   real(wp) qp1(6),rr(3),dp1(3),rij(3)
+   real(wp) edd,e01,e02,e11,r2,tt,tt3,q1,qs2
+   real(wp) ed,eq,epol
+   ! stuff for potential
+   real(wp), intent(in) :: gab3(:,:),gab5(:,:)
+   real(wp), intent(in) :: dipm(:,:),qp(:,:)
+
+#ifdef XTB_GPU
+   call aniso_electro_gpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+#else
+   call aniso_electro_cpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+#endif
+
+contains
+
+subroutine aniso_electro_gpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+
    implicit none
    class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(:)
@@ -381,6 +539,103 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    !      write(*,*) ' semilocal CT corr.: ',epol
    ! acc exit data delete(aesData, aesData%dipKernel(:), aesData%quadKernel(:), &
    ! acc& at, xyz, q, dipm, qp, gab3, gab5)
+end subroutine aniso_electro_gpu
+
+
+subroutine aniso_electro_cpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
+
+   implicit none
+   class(TMultipoleData), intent(in) :: aesData
+   integer, intent(in) :: nat,at(:)
+   real(wp), intent(in) :: xyz(:,:),q(:)
+   real(wp), intent(inout) :: e
+   real(wp) qp1(6),rr(3),dp1(3),rij(3)
+   real(wp) edd,e01,e02,e11,r2,tt,tt3,q1,qs2
+   real(wp) ed,eq,epol
+   ! stuff for potential
+   real(wp), intent(in) :: gab3(:,:),gab5(:,:)
+   real(wp), intent(in) :: dipm(:,:),qp(:,:)
+   integer, parameter :: idx(3, 3) = reshape([1, 2, 4, 2, 3, 5, 4, 5, 6], [3, 3])
+
+   integer i,j,k,l,m,ki,kj,kl
+
+   e = 0.0_wp
+   epol = 0.0_wp
+   e01 = 0.0_wp
+   e02 = 0.0_wp
+   e11 = 0.0_wp
+
+   !$omp parallel do default(none) &
+   !$omp private(i, k, l, kl, q1, rr, dp1, qp1, tt, tt3, eq) &
+   !$omp shared(aesData, nat, at, q, xyz, dipm, qp) &
+   !$omp reduction(+:epol) &
+   !$omp schedule(static)
+   do i = 1, nat
+      q1 = q(i)
+      rr(1:3) = xyz(1:3,i)
+      dp1(1:3) = dipm(1:3,i)
+      qp1(1:6) = qp(1:6,i)
+      ! test: semilocal CT correction
+      ! dipole
+      tt = dp1(1)*dp1(1)+dp1(2)*dp1(2)+dp1(3)*dp1(3)
+      ! qpole
+      tt3 = 0.0_wp
+      do k = 1,3
+         do l = 1,3
+            kl = idx(l,k)
+            tt3 = tt3+qp1(kl)*qp1(kl)
+         enddo
+      enddo
+      eq = aesData%dipKernel(at(i))*tt+tt3*aesData%quadKernel(at(i))
+      epol = epol+eq
+   enddo
+
+   !$omp parallel do default(none) &
+   !$omp private(i,j,k,kj,l,kl,q1,rr,dp1,qp1,rij,r2,ed,eq,edd,tt,tt3) &
+   !$omp shared(nat, q, xyz, dipm, qp, gab3, gab5) &
+   !$omp reduction(+:e01, e02, e11) &
+   !$omp schedule(dynamic,32) collapse(2)
+   do i = 1, nat
+      do j = 1, nat
+         if (j >= i) cycle
+         q1 = q(i)
+         rr(1:3) = xyz(1:3,i)
+         dp1(1:3) = dipm(1:3,i)
+         qp1(1:6) = qp(1:6,i)
+         kj = i*(i-1)/2 + j
+         rij(1:3) = xyz(1:3,j)-rr(1:3)
+         r2 = sum(rij*rij)
+         ed = 0.0_wp
+         eq = 0.0_wp
+         edd = 0.0_wp
+         !           dipole - charge
+         do k = 1,3
+            ed = ed+q(j)*dp1(k)*rij(k)
+            ed = ed-dipm(k,j)*q1*rij(k)
+            !              dip-dip & charge-qpole
+            do l = 1,3
+               kl = idx(l,k)
+               tt = rij(l)*rij(k)
+               tt3 = 3.0_wp*tt
+               eq = eq+q(j)*qp1(kl)*tt
+               eq = eq+qp(kl,j)*q1*tt
+               edd = edd-dipm(k,j)*dp1(l)*tt3
+            enddo
+            !              diagonal dip-dip term
+            edd = edd+dipm(k,j)*dp1(k)*r2
+         enddo
+         e01 = e01+ed*gab3(j,i)
+         e02 = e02+eq*gab5(j,i)
+         e11 = e11+edd*gab5(j,i)
+      enddo
+   enddo
+
+   e = e01 + e02 + e11
+
+   !     write(*,'(''d,q,dd'',3f9.5)')  e01,e02,e11
+   !      write(*,*) ' semilocal CT corr.: ',epol
+
+end subroutine aniso_electro_cpu
 
 end subroutine aniso_electro
 
@@ -463,6 +718,12 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    vd = 0.0_wp
    vq = 0.0_wp
    ! set up overlap proportional potential
+   !$omp parallel do default(none) &
+   !$omp private(i,j,l1,l2,ll,ki) &
+   !$omp private(ra,rb,dra,stmp,dtmp,qtmp,g3,g5,dum3a,dum5a,dum3b,dum5b) &
+   !$omp private(t1a,t2a,t3a,t4a,r2a,r2ab,qs1,qs2) &
+   !$omp shared(aesData,nat,at,q,dipm,xyz,qp,gab3,gab5,vs,vd,vq) &
+   !$omp schedule(static)
    do i = 1,nat
       ra(1:3) = xyz(1:3,i)
       stmp = 0.0_wp
