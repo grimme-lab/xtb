@@ -3318,9 +3318,15 @@ subroutine rbxgfnff_eg(n,A,B,X,iTrB,iTrX,at,xyz,q,energy,gdr,param,neigh,sigma)
    gdr(1:3,2) = gb(1:3)
    gdr(1:3,3) = gx(1:3)
    ! sigma
-   sigma=sigma+spread(ga,1,3)*spread(xyz(:,A),2,3)
-   sigma=sigma+spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(:,iTrB),2,3)
-   sigma=sigma+spread(gx,1,3)*spread(xyz(:,X)+neigh%transVec(:,iTrX),2,3)
+   sigma(:,1)=sigma(:,1)+ga(1)*xyz(:,A)
+   sigma(:,2)=sigma(:,2)+ga(2)*xyz(:,A)
+   sigma(:,3)=sigma(:,3)+ga(3)*xyz(:,A)
+   sigma(:,1)=sigma(:,1)+gb(1)*(xyz(:,B)+neigh%transVec(:,iTrB))
+   sigma(:,2)=sigma(:,2)+gb(2)*(xyz(:,B)+neigh%transVec(:,iTrB))
+   sigma(:,3)=sigma(:,3)+gb(3)*(xyz(:,B)+neigh%transVec(:,iTrB))
+   sigma(:,1)=sigma(:,1)+gx(1)*(xyz(:,X)+neigh%transVec(:,iTrX))
+   sigma(:,2)=sigma(:,2)+gx(2)*(xyz(:,X)+neigh%transVec(:,iTrX))
+   sigma(:,3)=sigma(:,3)+gx(3)*(xyz(:,X)+neigh%transVec(:,iTrX))
 
    return
 
