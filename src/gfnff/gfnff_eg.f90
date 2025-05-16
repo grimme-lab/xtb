@@ -3091,10 +3091,18 @@ subroutine abhgfnff_eg3(n,A,B,H,iTrA,iTrB,C,iTrC,at,xyz,q,sqrab,srab,energy,&
       gdr(1:3,kk) = gdr(1:3,kk)+gangl(1:3,kk)*bterm
       gdr(1:3,ll) = gdr(1:3,ll)+gangl(1:3,ll)*bterm
       ! sigma
-      sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-      sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
-      sigma=sigma+mcf_ehb*spread(gnb,1,3)*spread(xyz(:,C)+neigh%transVec(1:3,iTrC),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gnb(1)*(xyz(:,C)+neigh%transVec(1:3,iTrC))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gnb(2)*(xyz(:,C)+neigh%transVec(1:3,iTrC))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gnb(3)*(xyz(:,C)+neigh%transVec(1:3,iTrC))
       ! torsion part
       do i = 1,ntors
          ii =tlist(1,i)
@@ -3105,23 +3113,51 @@ subroutine abhgfnff_eg3(n,A,B,H,iTrA,iTrB,C,iTrC,at,xyz,q,sqrab,srab,energy,&
          if(iTrR.le.0.or.iTrR.gt.neigh%nTrans) then
            cycle
          endif
-         sigma=sigma+mcf_ehb*spread(gtors(1:3,ii)*tterm,1,3)* &        ! R
-                   & spread(xyz(1:3,ii)+neigh%transVec(1:3,iTrR),2,3)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*tterm*gtors(1,ii)* &        ! R
+                   & (xyz(1:3,ii)+neigh%transVec(1:3,iTrR))
+         sigma(:,2)=sigma(:,2)+mcf_ehb*tterm*gtors(2,ii)* &        ! R
+                   & (xyz(1:3,ii)+neigh%transVec(1:3,iTrR))
+         sigma(:,3)=sigma(:,3)+mcf_ehb*tterm*gtors(3,ii)* &        ! R
+                   & (xyz(1:3,ii)+neigh%transVec(1:3,iTrR))
       end do
       ! jj, kk and ll same for every i in loop above (only ii or R changes)
-      sigma=sigma+mcf_ehb*spread(gtors(1:3,jj)*tterm,1,3)* &           ! B
-                & spread(xyz(:,jj)+neigh%transVec(:,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gtors(1:3,kk)*tterm,1,3)* &           ! C
-                & spread(xyz(:,kk)+neigh%transVec(:,iTrC),2,3)
-      sigma=sigma+mcf_ehb*spread(gtors(1:3,ll)*tterm,1,3)* &           ! H
-                & spread(xyz(:,ll),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*tterm*gtors(1,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*tterm*gtors(2,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*tterm*gtors(3,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*tterm*gtors(1,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*tterm*gtors(2,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*tterm*gtors(3,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*tterm*gtors(1,ll)* &           ! H
+                & xyz(:,ll)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*tterm*gtors(2,ll)* &           ! H
+                & xyz(:,ll)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*tterm*gtors(3,ll)* &           ! H
+                & xyz(:,ll)
       ! angle part
-      sigma=sigma+mcf_ehb*spread(gangl(1:3,jj)*bterm,1,3)* &           ! B
-                & spread(xyz(:,jj)+neigh%transVec(:,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gangl(1:3,kk)*bterm,1,3)* &           ! C
-                & spread(xyz(:,kk)+neigh%transVec(:,iTrC),2,3)
-      sigma=sigma+mcf_ehb*spread(gangl(1:3,ll)*bterm,1,3)* &           ! H
-                & spread(xyz(:,ll),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*bterm*gangl(1,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*bterm*gangl(2,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*bterm*gangl(3,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*bterm*gangl(1,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*bterm*gangl(2,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*bterm*gangl(3,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*bterm*gangl(1,ll)* &           ! H
+                & xyz(:,ll)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*bterm*gangl(2,ll)* &           ! H
+                & xyz(:,ll)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*bterm*gangl(3,ll)* &           ! H
+                & xyz(:,ll)
 
 !------------------------------------------------------------------------------
 !     move gradients into place
