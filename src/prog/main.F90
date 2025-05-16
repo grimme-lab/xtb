@@ -1495,6 +1495,7 @@ contains
             if (allocated(sec)) then
                call set_gfn(env, 'method', sec)
                if (sec == '0') call set_exttyp('eht')
+               if (sec == 'ff') call set_exttyp('ff')
                tblite%method = "gfn"//sec
             else
                call env%error("No method provided for --gfn option", source)
