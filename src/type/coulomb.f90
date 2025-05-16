@@ -562,7 +562,9 @@ subroutine getCoulombDerivsCluster(mol, itbl, qvec, djdr, djdtr, djdL)
          vec(:) = mol%xyz(:, jat) - mol%xyz(:, iat)
          r1 = norm2(vec)
          dG(:) = -vec/r1**3
-         dS(:, :) = 0.5_wp * spread(dG, 1, 3) * spread(vec, 2, 3)
+         dS(:, 1) = 0.5_wp * dG(1) * vec
+         dS(:, 2) = 0.5_wp * dG(2) * vec
+         dS(:, 3) = 0.5_wp * dG(3) * vec
          do ish = 1, itbl(2, iat)
             do jsh = 1, itbl(2, jat)
                djdr(:, iat, jj+jsh) = djdr(:, iat, jj+jsh) - dG*qvec(ii+ish)
@@ -689,7 +691,9 @@ pure subroutine getRDeriv(vec, rTrans, alpha, scale, dG, dS)
       arg = alpha**2*r1**2
       dd = - 2*alpha*exp(-arg)/(sqrtpi*r1**2) - erfc(alpha*r1)/(r1**3)
       dG = dG + rij*dd
-      dS = dS + 0.5_wp*dd*spread(rij, 1, 3)*spread(rij, 2, 3)
+      dS(:, 1) = dS(:, 1) + 0.5_wp*dd * rij(1) * rij
+      dS(:, 2) = dS(:, 2) + 0.5_wp*dd * rij(2) * rij
+      dS(:, 3) = dS(:, 3) + 0.5_wp*dd * rij(3) * rij
    enddo
    dG = dG * scale
    dS = dS * scale

@@ -773,11 +773,13 @@ subroutine dsrb_grad(mol,srb,cn,dcndr,dcndL,trans,esrb,gradient,sigma)
          ! save SRB energy
          esrb = esrb + expterm * w
          dtmp = 2.0_wp*pre*dr*expterm * w
-         gradient(:,iat) = gradient(:,iat) - dtmp*rij/rab
-         gradient(:,jat) = gradient(:,jat) + dtmp*rij/rab
+         gradient(:,iat) = gradient(:,iat) - dtmp/rab * rij
+         gradient(:,jat) = gradient(:,jat) + dtmp/rab * rij
          ! three body gradient
          dEdr0(i) = dEdr0(i) + dtmp
-         sigma = sigma - dtmp*spread(rij, 1, 3)*spread(rij, 2, 3)/rab
+         sigma(:, 1) = sigma(:, 1) - dtmp/rab * rij(1) * rij
+         sigma(:, 2) = sigma(:, 2) - dtmp/rab * rij(2) * rij
+         sigma(:, 3) = sigma(:, 3) - dtmp/rab * rij(3) * rij
       enddo ! rep
    enddo ! i
 
