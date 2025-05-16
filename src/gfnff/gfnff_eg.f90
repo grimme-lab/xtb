@@ -2223,9 +2223,15 @@ subroutine abhgfnff_eg1(n,A,B,H,iTrA,iTrB,at,xyz,q,energy,gdr,param,topo,neigh,s
       dgh(1:3) = -dga(1:3)-dgb(1:3)
       gh(1:3) = gh(1:3) + dgh(1:3)
       ! sigma
-      sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-      sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
 !     move gradients into place
       gdr(1:3,1) = ga(1:3)
       gdr(1:3,2) = gb(1:3)
