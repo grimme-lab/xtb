@@ -383,7 +383,9 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
          t27=t26*(1.5d0*t8+1.0d0)/t19
          r3 =(xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr))*t27 
          vec = xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr)
-         sigma = sigma -(spread(r3, 1, 3)*spread(vec, 2, 3))
+         sigma(:,1) = sigma(:,1) - r3(1) * vec
+         sigma(:,2) = sigma(:,2) - r3(2) * vec
+         sigma(:,3) = sigma(:,3) - r3(3) * vec
          g(:,iat)=g(:,iat)-r3
          g(:,jat)=g(:,jat)+r3
        enddo
@@ -1000,7 +1002,9 @@ subroutine egbond(i,iat,jat,iTr,rab,rij,drij,drijdcn,n,at,xyz,e,g,sigma,neigh,ra
          g(2,iat)=g(2,iat)+t5
          g(3,iat)=g(3,iat)+t6
          dEdcn(iat) = dEdcn(iat) + yy*drijdcn(1)
-         sigma = sigma + spread(dg,1,3)*spread(vrab,2,3)
+         sigma(:,1) = sigma(:,1) + dg(1)*vrab
+         sigma(:,2) = sigma(:,2) + dg(2)*vrab
+         sigma(:,3) = sigma(:,3) + dg(3)*vrab
 
          t4=yy*(dx/rab)
          t5=yy*(dy/rab)
@@ -1017,7 +1021,9 @@ subroutine egbond(i,iat,jat,iTr,rab,rij,drij,drijdcn,n,at,xyz,e,g,sigma,neigh,ra
          do k=1,n !3B gradient 
             dg= drij(:,k)*yy
             g(:,k)=g(:,k)+dg
-            sigma = sigma + spread(dg,1,3)*spread(vrab,2,3)
+            sigma(:,1) = sigma(:,1) + dg(1)*vrab
+            sigma(:,2) = sigma(:,2) + dg(2)*vrab
+            sigma(:,3) = sigma(:,3) + dg(3)*vrab
          enddo
 
 end subroutine egbond
@@ -1094,7 +1100,9 @@ subroutine egbond_hb(i,iat,jat,iTr,rab,rij,drij,drijdcn,hb_cn,hb_dcn,n,at,xyz,e,
          g(2,iat)=g(2,iat)+t5
          g(3,iat)=g(3,iat)+t6
          dEdcn(iat) = dEdcn(iat) + yy*drijdcn(1)
-         sigma = sigma + spread(dg,1,3)*spread(vrab,2,3)
+         sigma(:,1) = sigma(:,1) + dg(1)*vrab
+         sigma(:,2) = sigma(:,2) + dg(2)*vrab
+         sigma(:,3) = sigma(:,3) + dg(3)*vrab
 
          t4=yy*(dx/rab)
          t5=yy*(dy/rab)
@@ -1110,7 +1118,9 @@ subroutine egbond_hb(i,iat,jat,iTr,rab,rij,drij,drijdcn,hb_cn,hb_dcn,n,at,xyz,e,
          do k=1,n !3B gradient
             dg= drij(:,k)*yy
             g(:,k)=g(:,k)+dg
-            sigma = sigma + spread(dg,1,3)*spread(vrab,2,3)
+            sigma(:,1) = sigma(:,1) + dg(1)*vrab
+            sigma(:,2) = sigma(:,2) + dg(2)*vrab
+            sigma(:,3) = sigma(:,3) + dg(3)*vrab
          end do
 
          zz=dum*neigh%vbond(2,i)*dr**2*t1
@@ -1205,8 +1215,10 @@ subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo,neigh,dcndL)
          dcn(:,iat,jat)= dtmp*rij/r + dcn(:,iat,jat)
          dcn(:,jat,iat)=-dtmp*rij/r + dcn(:,jat,iat)
          dcn(:,iat,iat)=-dtmp*rij/r + dcn(:,iat,iat)
-        
-         stress = spread(dtmp*rij/r, 1, 3) * spread(rij, 2, 3)
+
+         stress(:, 1) = rij(1) * dtmp*rij/r
+         stress(:, 2) = rij(2) * dtmp*rij/r
+         stress(:, 3) = rij(3) * dtmp*rij/r
          dcndL(:, :, iat) = dcndL(:, :, iat) + stress
          if (iat.ne.jat.or.iTrH.ne.iTrB) then
            dcndL(:, :, jat) = dcndL(:, :, jat) + stress
@@ -3732,7 +3744,9 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
          dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
          dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
 
-         stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+         stress(:, 1) = countd(1) * rij
+         stress(:, 2) = countd(2) * rij
+         stress(:, 3) = countd(3) * rij
 
          dcndL(:, :, iat) = dcndL(:, :, iat) + stress
          if (iat /= jat) then
@@ -3892,7 +3906,9 @@ subroutine ncoordLatP(mol, ntrans, trans, cutoff, kcn, cfunc, dfunc, enscale, &
             dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
             dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
 
-            stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+            stress(:, 1) = countd(1) * rij
+            stress(:, 2) = countd(2) * rij
+            stress(:, 3) = countd(3) * rij
 
             dcndL(:, :, iat) = dcndL(:, :, iat) + stress
             if (iat.ne.jat.or.itr.ne.1) then
@@ -4433,7 +4449,9 @@ subroutine get_damat_dir_3d(rij, gam, alp, trans, dg, ds)
       gtmp = +2*gam*exp(-r2*gam2)/(sqrtpi*r2) - erf(r1*gam)/(r2*r1)
       atmp = -2*alp*exp(-r2*alp2)/(sqrtpi*r2) + erf(r1*alp)/(r2*r1)
       dg(:) = dg + (gtmp + atmp) * vec
-      ds(:, :) = ds + (gtmp + atmp) * spread(vec, 1, 3) * spread(vec, 2, 3)
+      ds(:, 1) = ds(:, 1) + (gtmp + atmp) * vec(1) * vec
+      ds(:, 2) = ds(:, 2) + (gtmp + atmp) * vec(2) * vec
+      ds(:, 3) = ds(:, 3) + (gtmp + atmp) * vec(3) * vec
    end do
 
 end subroutine get_damat_dir_3d
@@ -4465,8 +4483,12 @@ subroutine get_damat_rec_3d(rij, vol, alp, trans, dg, ds)
       etmp = fac * exp(-0.25_wp*g2/alp2)/g2
       dtmp = -sin(gv) * etmp
       dg(:) = dg + dtmp * vec
-      ds(:, :) = ds + etmp * cos(gv) &
-         & * ((2.0_wp/g2 + 0.5_wp/alp2) * spread(vec, 1, 3)*spread(vec, 2, 3) - unity)
+      ds(:, 1) = ds(:, 1) + etmp * cos(gv) &
+         & * ((2.0_wp/g2 + 0.5_wp/alp2) * vec(1) * vec - unity(:,1))
+      ds(:, 2) = ds(:, 2) + etmp * cos(gv) &
+         & * ((2.0_wp/g2 + 0.5_wp/alp2) * vec(2) * vec - unity(:,2))
+      ds(:, 3) = ds(:, 3) + etmp * cos(gv) &
+         & * ((2.0_wp/g2 + 0.5_wp/alp2) * vec(3) * vec - unity(:,3))
    end do
 
 end subroutine get_damat_rec_3d
