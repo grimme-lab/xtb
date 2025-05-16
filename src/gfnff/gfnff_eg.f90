@@ -2450,9 +2450,15 @@ subroutine abhgfnff_eg2new(n,A,B,H,iTrA,iTrB,nbb,at,xyz,q,sqrab, &
          gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
          gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
          gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
-         sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-         sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-         sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+         sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+         sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+         sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+         sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+         sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+         sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+         sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+         sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
          return
       endif
 
@@ -2468,14 +2474,22 @@ subroutine abhgfnff_eg2new(n,A,B,H,iTrA,iTrB,nbb,at,xyz,q,sqrab, &
       end do
 
       ! sigma according to gdr above
-      sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-      sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
       do i=1,nbb
          inb=0; iTr=0 ! jth_nb output
          call neigh%jth_nb(n,xyz,inb,i,B,iTr) ! inb is the i-th nb of B when shifted to iTr
          vecDum = neigh%transVec(:,iTr)+neigh%transVec(:,iTrB)
-         sigma=sigma+mcf_ehb*spread(gnb(:,i),1,3)*spread(xyz(:,inb)+vecDum,2,3)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*gnb(1,i)*(xyz(:,inb)+vecDum)
+         sigma(:,2)=sigma(:,2)+mcf_ehb*gnb(2,i)*(xyz(:,inb)+vecDum)
+         sigma(:,3)=sigma(:,3)+mcf_ehb*gnb(3,i)*(xyz(:,inb)+vecDum)
       enddo
 
 end subroutine abhgfnff_eg2new
