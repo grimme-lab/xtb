@@ -1315,7 +1315,7 @@ endif
               fcn=fcn/(1.0d0+0.007*dble(nnj)**2)
             endif
             qafac=topo%qa(ii)*topo%qa(jj)*70.0d0
-            fqq=1.0d0+gen%qfacbm0*exp(-15.d0*qafac)/(1.0d0+exp(-15.d0*qafac))
+            fqq=1.0_wp+gen%qfacbm0/(1.0_wp+exp(15.0_wp*qafac))
 ! metal involed
          else
             shift=0
@@ -1339,7 +1339,7 @@ endif
             if(param%group(ja).gt.2.and.imetal(jj).eq.1)mtyp2=3  ! main group
             if(imetal(jj).eq.2)                   mtyp2=4  ! TM
             qafac=topo%qa(ii)*topo%qa(jj)*25.0d0
-            dum=exp(-15.d0*qafac)/(1.0d0+exp(-15.d0*qafac))
+            dum=1.0_wp/(1.0_wp+exp(15.0_wp*qafac))
             fqq=1.0d0+dum * (gen%qfacbm(mtyp1)+gen%qfacbm(mtyp2))*0.5   ! metal charge corr.
             if(imetal(ii).eq.2.and.ja.gt.10)      fheavy=0.65d0 ! heavy gen. ligand
             if(imetal(jj).eq.2.and.ia.gt.10)      fheavy=0.65d0
