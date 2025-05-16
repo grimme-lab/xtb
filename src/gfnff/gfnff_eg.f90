@@ -2765,16 +2765,25 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,iTrA,iTrB,at,xyz,q,sqrab,srab,energy,gdr,par
       end do
 
       ! sigma according to gdr above
-      sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-      sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
-      sigma=sigma+mcf_ehb*spread(gnb_lp,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gnb_lp(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gnb_lp(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gnb_lp(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
       do i=1,nbb
          inb=0; iTr=0 ! jth_nb output
          call neigh%jth_nb(n,xyz,inb,i,B,iTr) ! inb is the i-th nb of B when shifted to iTr
          vTrinb=neigh%transVec(:,iTr)+neigh%transVec(:,iTrB)
-         sigma=sigma+mcf_ehb*spread(gnb(:,i),1,3)*spread(xyz(:,inb)+vTrinb,2,3)
-         sigma=sigma-mcf_ehb*spread(gnb_lp(1:3)/dble(nbb),1,3)*spread(xyz(:,inb)+vTrinb,2,3)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*(gnb(1,i)-gnb_lp(1)/dble(nbb))*(xyz(:,inb)+vTrinb)
+         sigma(:,2)=sigma(:,2)+mcf_ehb*(gnb(2,i)-gnb_lp(2)/dble(nbb))*(xyz(:,inb)+vTrinb)
+         sigma(:,3)=sigma(:,3)+mcf_ehb*(gnb(3,i)-gnb_lp(3)/dble(nbb))*(xyz(:,inb)+vTrinb)
       enddo
 
 end subroutine abhgfnff_eg2_rnr
