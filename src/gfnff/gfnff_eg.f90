@@ -2777,13 +2777,14 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,iTrA,iTrB,at,xyz,q,sqrab,srab,energy,gdr,par
       sigma(:,1)=sigma(:,1)+mcf_ehb*gnb_lp(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
       sigma(:,2)=sigma(:,2)+mcf_ehb*gnb_lp(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
       sigma(:,3)=sigma(:,3)+mcf_ehb*gnb_lp(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      gnb_lp = gnb_lp / dble(nbb)
       do i=1,nbb
          inb=0; iTr=0 ! jth_nb output
          call neigh%jth_nb(n,xyz,inb,i,B,iTr) ! inb is the i-th nb of B when shifted to iTr
          vTrinb=neigh%transVec(:,iTr)+neigh%transVec(:,iTrB)
-         sigma(:,1)=sigma(:,1)+mcf_ehb*(gnb(1,i)-gnb_lp(1)/dble(nbb))*(xyz(:,inb)+vTrinb)
-         sigma(:,2)=sigma(:,2)+mcf_ehb*(gnb(2,i)-gnb_lp(2)/dble(nbb))*(xyz(:,inb)+vTrinb)
-         sigma(:,3)=sigma(:,3)+mcf_ehb*(gnb(3,i)-gnb_lp(3)/dble(nbb))*(xyz(:,inb)+vTrinb)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*(gnb(1,i)-gnb_lp(1))*(xyz(:,inb)+vTrinb)
+         sigma(:,2)=sigma(:,2)+mcf_ehb*(gnb(2,i)-gnb_lp(2))*(xyz(:,inb)+vTrinb)
+         sigma(:,3)=sigma(:,3)+mcf_ehb*(gnb(3,i)-gnb_lp(3))*(xyz(:,inb)+vTrinb)
       enddo
 
 end subroutine abhgfnff_eg2_rnr
