@@ -94,10 +94,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    use xtb_readin
 
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
 
    implicit none
 
@@ -236,18 +233,12 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 !  broyden stuff
    logical  :: broy
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx, ctx_gemv, ctx_multp_grad, ctx_disp, ctx_solv, ctx_es
-   integer(c_int64_t) :: srcloc_id
-#endif
+   type(xtb_zone_context) :: ctx, ctx_gemv, ctx_multp_grad, ctx_disp, ctx_solv, ctx_es
 
 ! ------------------------------------------------------------------------
 !  initialization
 ! ------------------------------------------------------------------------
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scf_module.F90", source, color=TracyColors%Tan2)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx%start("src/scf_module.F90", source, __LINE__, color=TracyColors%Tan2)
 
    if (profile) call timer%new(7,.false.)
    if (profile) call timer%measure(1,"SCC setup")
@@ -356,9 +347,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if(wfn%nel.ne.0) then
       if (wfn%nel > 2*basis%nao) then
          call env%error("Not enough basis functions for filling orbitals", source)
-#ifdef WITH_TRACY
-         call tracy_zone_end(ctx)
-#endif
          return
       end if
       call occu(basis%nao,wfn%nel,wfn%nopen,wfn%ihomoa,wfn%ihomob,wfn%focca,wfn%foccb)
@@ -451,9 +439,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Setup of Coulomb evaluator failed", source)
-#ifdef WITH_TRACY
-      call tracy_zone_end(ctx)
-#endif
       return
    end if
 
@@ -588,9 +573,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (allocated(xtbData%multipole)) then
       if (mol%npbc > 0) then
          call env%error("Multipoles not available with PBC", source)
-#ifdef WITH_TRACY
-         call tracy_zone_end(ctx)
-#endif
          return
       end if
       allocate(aes)
@@ -664,9 +646,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Self consistent charge iterator terminated", source)
-#ifdef WITH_TRACY
-      call tracy_zone_end(ctx)
-#endif
       return
    end if
 
@@ -750,22 +729,14 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    end if
 #endif
    ! setup CN gradient
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scf_module.F90", source, zone_name="gemv", color=TracyColors%Firebrick2)
-   ctx_gemv = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx_gemv%start("src/scf_module.F90", source, __LINE__, zone_name="gemv", color=TracyColors%Firebrick2)
    call mctc_gemv(dcndr, dhdcn, gradient, beta=1.0_wp)
    call mctc_gemv(dcndL, dhdcn, sigma, beta=1.0_wp)
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx_gemv)
-#endif
+   call ctx_gemv%end()
 
    ! ------------------------------------------------------------------------
    ! multipole gradient
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scf_module.F90", source, zone_name="multipole gradient", color=TracyColors%Firebrick2)
-   ctx_multp_grad = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx_multp_grad%start("src/scf_module.F90", source, __LINE__, zone_name="multipole gradient", color=TracyColors%Firebrick2)
    if (allocated(xtbData%multipole)) then
       ! VS, VD, VQ-dependent potentials are changed w.r.t. SCF,
       ! since moment integrals are now computed with origin at
@@ -779,16 +750,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       call aniso_grad(mol%n, mol%at, mol%xyz, wfn%q, wfn%dipm, wfn%qp, &
          & aes%dipDamp, aes%quadDamp, radcn, dcndr, aes%gab3, aes%gab5, gradient)
    end if
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx_multp_grad)
-#endif
+   call ctx_multp_grad%end()
 
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scf_module.F90", source, zone_name="dispersion", color=TracyColors%Firebrick2)
-   ctx_disp = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx_disp%start("src/scf_module.F90", source, __LINE__, zone_name="dispersion", color=TracyColors%Firebrick2)
    if (allocated(scD4)) then
       call latp%getLatticePoints(trans, 40.0_wp)
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
@@ -800,16 +766,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &
          &  energy=dum, gradient=gradient, sigma=sigma, e3=embd)
    endif
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx_disp)
-#endif
+   call ctx_disp%end()
 
    ! ------------------------------------------------------------------------
    ! Solvation contributions from GBSA
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scf_module.F90", source, zone_name="solvation", color=TracyColors%Firebrick2)
-   ctx_solv = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx_solv%start("src/scf_module.F90", source, __LINE__, zone_name="solvation", color=TracyColors%Firebrick2)
    if (allocated(solvation)) then
       cm5(:)=wfn%q+cm5a
       call solvation%addGradient(env, mol%at, mol%xyz, cm5, wfn%qsh, gradient)
@@ -827,32 +788,22 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          gsasa = solvation%gsasa
       end select
    endif
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx_solv)
-#endif
+   call ctx_solv%end()
 
    ! ------------------------------------------------------------------------
    ! Derivative of electrostatic energy
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scf_module.F90", source, zone_name="electrostatic", color=TracyColors%Firebrick2)
-   ctx_es = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx_es%start("src/scf_module.F90", source, __LINE__, zone_name="electrostatic", color=TracyColors%Firebrick2)
    allocate(djdr(3, mol%n, basis%nshell))
    allocate(djdtr(3, basis%nshell))
    allocate(djdL(3, 3, basis%nshell))
    call coulomb%getCoulombDerivs(mol, wfn%qsh, djdr, djdtr, djdL)
    call mctc_gemv(djdr, wfn%qsh, gradient, beta=1.0_wp)
    !call mctc_gemv(djdL, wfn%qsh, sigma, beta=1.0_wp)
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx_es)
-#endif
+   call ctx_es%end()
 
    ! ------------------------------------------------------------------------
    ! ES point charge embedding
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/scf_module.F90", source, zone_name="electrostatic embedding", color=TracyColors%Firebrick2)
-   ctx_es = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx_es%start("src/scf_module.F90", source, __LINE__, zone_name="electrostatic embedding", color=TracyColors%Firebrick2)
    if (lpcem) then
       if (xtbData%level == 1) then
          call pcem_grad_gfn1(xtbData%coulomb,gradient,pcem%grd,mol%n,pcem,mol%at, &
@@ -862,9 +813,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
             & xtbData%nshell,mol%xyz,wfn%qsh)
       end if
    end if
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx_es)
-#endif
+   call ctx_es%end()
 
    if (profile) call timer%measure(6)
    if (.not.pr.and.profile.and.minpr) &
@@ -985,10 +934,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
 ! ========================================================================
    if (profile) call timer%deallocate
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine scf
 
