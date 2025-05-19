@@ -243,7 +243,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical :: exitRun
 
    type(xtb_zone) :: zone
-   call zone%start("src/xtb/calculator.F90", source, __LINE__, color=TracyColors%Green)
+   if (do_tracying) call zone%start("src/xtb/calculator.F90", source, __LINE__, color=TracyColors%Green)
 
    call mol%update
 

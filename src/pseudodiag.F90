@@ -63,7 +63,7 @@ subroutine pseudodiag(n,nocc,fmo,eig)
     real*4,allocatable :: betaarr(:,:)
 
     type(xtb_zone) :: zone
-    call zone%start("src/pseudodiag.F90", "pseudodiag", __LINE__, color=TracyColors%Red)
+    if (do_tracying) call zone%start("src/pseudodiag.F90", "pseudodiag", __LINE__, color=TracyColors%Red)
 
     allocate(vector(n,n))
     vector = 0

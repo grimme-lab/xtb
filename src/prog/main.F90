@@ -222,7 +222,7 @@ contains
       xenv%home = env%xtbhome
       xenv%path = env%xtbpath
 
-      call zone%start("src/prog/main.F90", source, __LINE__, color=TracyColors%Aqua)
+      if (do_tracying) call zone%start("src/prog/main.F90", source, __LINE__, color=TracyColors%Aqua)
 
       ! ------------------------------------------------------------------------
       !> read the command line arguments
@@ -1253,7 +1253,7 @@ contains
          call print_filelist(env%unit)
       end if
 
-      call zone%end()
+      if (do_tracying) call zone%end()
 
       ! ------------------------------------------------------------------------
       !  make some post processing afterward, show some timings and stuff
