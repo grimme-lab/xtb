@@ -40,7 +40,13 @@ module xtb_tracying
 #endif
   end type
 
-  public :: xtb_zone_context
+#ifndef WITH_TRACY
+#include "tracying_colors.f90h"
+  !> @param Tracy colors collection
+  type(TracyColors_t), parameter :: TracyColors = TracyColors_t()
+#endif
+
+  public :: xtb_zone_context, TracyColors
 contains
   !> @brief Starts a new profiling zone
   !>
