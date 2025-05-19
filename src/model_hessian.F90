@@ -98,17 +98,14 @@ contains
 !! ------------------------------------------------------------------------
 subroutine mh_swart(xyz,n,hess,at,modh)
 
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
-
    use xtb_mctc_constants
    use xtb_mctc_convert
    use xtb_mctc_param, only: rad => covalent_radius_2009
 
    use xtb_type_setvar
    use xtb_type_param
+
+   use xtb_tracying
 
    implicit none
 
@@ -124,15 +121,8 @@ subroutine mh_swart(xyz,n,hess,at,modh)
    type(chrg_parameter) :: chrgeq
    real(wp) :: kd
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/model_hessian.F90", "mh_swart", color=TracyColors%HotPink2)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/model_hessian.F90", "mh_swart", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -153,10 +143,6 @@ subroutine mh_swart(xyz,n,hess,at,modh)
       call new_charge_model_2019(chrgeq,n,at)
       call mh_eeq(n,at,xyz,0.0_wp,chrgeq,modh%kq,hess)
    endif
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine mh_swart
 
@@ -736,15 +722,13 @@ end subroutine mh_swart_outofp
 !  factor somewhere hidden in the implementation below.
 !! ------------------------------------------------------------------------
 subroutine mh_lindh_d2(xyz,n,hess,at,modh)
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
    use xtb_mctc_constants
    use xtb_mctc_convert
 
    use xtb_type_setvar
    use xtb_type_param
+
+   use xtb_tracying
 
    implicit none
 
@@ -772,15 +756,8 @@ subroutine mh_lindh_d2(xyz,n,hess,at,modh)
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/model_hessian.F90", "mh_lindh_d2", color=TracyColors%HotPink2)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/model_hessian.F90", "mh_lindh_d2", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -801,10 +778,6 @@ subroutine mh_lindh_d2(xyz,n,hess,at,modh)
       call new_charge_model_2019(chrgeq,n,at)
       call mh_eeq(n,at,xyz,0.0_wp,chrgeq,modh%kq,hess)
    endif
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine mh_lindh_d2
 
@@ -835,15 +808,13 @@ end subroutine mh_lindh_d2
 !
 !! ------------------------------------------------------------------------
 subroutine mh_lindh(xyz,n,hess,at,modh)
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
    use xtb_mctc_constants
    use xtb_mctc_convert
 
    use xtb_type_setvar
    use xtb_type_param
+
+   use xtb_tracying
 
    implicit none
 
@@ -871,15 +842,8 @@ subroutine mh_lindh(xyz,n,hess,at,modh)
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/model_hessian.F90", "mh_lindh", color=TracyColors%HotPink2)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/model_hessian.F90", "mh_lindh", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -900,10 +864,6 @@ subroutine mh_lindh(xyz,n,hess,at,modh)
       call new_charge_model_2019(chrgeq,n,at)
       call mh_eeq(n,at,xyz,0.0_wp,chrgeq,modh%kq,hess)
    endif
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine mh_lindh
 
@@ -1828,11 +1788,8 @@ pure elemental function fk_vdw(alpha,r0,r2) result(gmm)
 end function fk_vdw
 
 subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
    use xtb_type_param
+   use xtb_tracying
    implicit none
 
 !! ------------------------------------------------------------------------
@@ -1897,17 +1854,10 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
    real(wp) :: test(1)
 
 !!
-!  Tracy profiler
+!  xTB-Tracy profiler
 !!
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/model_hessian.F90", "mh_eeq", color=TracyColors%HotPink2)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/model_hessian.F90", "mh_eeq", __LINE__, color=TracyColors%HotPink2)
 
 !! ------------------------------------------------------------------------
 !  initizialization
@@ -2151,19 +2101,12 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
    !call dgemm('n','t',3*n,m,3*n,+1.0_wp,dqdr,3*n,dAmat,3*n,1.0_wp,hessian,3*n)
    !call dgemm('n','t',3*n,m,3*n,+1.0_wp,dAmat,3*n,dqdr,3*n,1.0_wp,hessian,3*n)
 
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
-
 end subroutine mh_eeq
 
 end module xtb_modelhessian
 
       subroutine ddvopt(Cart,nAtoms,Hess,iANr,s6)
-#ifdef WITH_TRACY
-      use tracy
-      use iso_c_binding, only: c_int64_t
-#endif
+      use xtb_tracying
       Implicit Integer(i-n)
       Implicit Real*8 (a-h, o-z)
 ! include "common/real.inc" (molpro 2002.6)
@@ -2239,10 +2182,7 @@ end module xtb_modelhessian
      &      46*2.d0/
 !cc End: VDWx ccccccccccccccccc
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
+   type(xtb_zone_context) :: ctx
 
 !
 !------- Statement functions
@@ -2253,10 +2193,7 @@ end module xtb_modelhessian
      &                         Min(ixyz(i,iAtom),ixyz(j,jAtom)))
 !end
 
-#ifdef WITH_TRACY
-       srcloc_id = tracy_alloc_srcloc(__LINE__, "src/model_hessian.F90", "ddvopt", color=TracyColors%HotPink2)
-       ctx = tracy_zone_begin(srcloc_id)
-#endif
+       call ctx%start("src/model_hessian.F90", "ddvopt", __LINE__, color=TracyColors%HotPink2)
 
 !cc VDWx cccccccccccccccccccc
        c6 =   50.0
@@ -2738,22 +2675,15 @@ end module xtb_modelhessian
         End Do             ! kAtom
       End Do               ! jAtom
 
-#ifdef WITH_TRACY
-      call tracy_zone_end(ctx)
-#endif
-
       Return
       End
 
       subroutine gff_ddvopt(Cart,nAtoms,Hess,at,s6,param,topo,neigh)
-#ifdef WITH_TRACY
-      use tracy
-      use iso_c_binding, only: c_int64_t
-#endif
       use xtb_gfnff_data, only : TGFFData
       use xtb_gfnff_topology, only : TGFFTopology
       use xtb_gfnff_neighbor, only : TNeigh
       use xtb_type_timer
+      use xtb_tracying
       Implicit Integer (i-n)
       Implicit Real*8 (a-h, o-z)
       type(TGFFData), intent(in) :: param
@@ -2822,10 +2752,7 @@ end module xtb_modelhessian
 
       type(tb_timer) :: timer
 
-#ifdef WITH_TRACY
-      type(tracy_zone_context) :: ctx
-      integer(c_int64_t) :: srcloc_id
-#endif
+      type(xtb_zone_context) :: ctx
 
 !     inline fct
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
@@ -2834,10 +2761,7 @@ end module xtb_modelhessian
       Ind(i,iAtom,j,jAtom)=Jnd(Max(ixyz(i,iAtom),ixyz(j,jAtom)),&
      &                         Min(ixyz(i,iAtom),ixyz(j,jAtom)))
 
-#ifdef WITH_TRACY
-      srcloc_id = tracy_alloc_srcloc(__LINE__, "src/model_hessian.F90", "gff_ddvopt", color=TracyColors%HotPink2)
-      ctx = tracy_zone_begin(srcloc_id)
-#endif
+      call ctx%start("src/model_hessian.F90", "gff_ddvopt", __LINE__, color=TracyColors%HotPink2)
 
 !     map heavy atoms to Z<=54
       do i=1,nAtoms
@@ -3239,10 +3163,6 @@ end module xtb_modelhessian
 
       if (profile) call timer%measure(3)
       if (profile) call timer%write(6,'modhes')
-
-#ifdef WITH_TRACY
-      call tracy_zone_end(ctx)
-#endif
 
       Return
       End
