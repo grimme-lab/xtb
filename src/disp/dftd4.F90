@@ -65,8 +65,8 @@ subroutine newD3Model(dispm,nat,at)
 
    intrinsic :: nint
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "newD3Model", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "newD3Model", __LINE__, color=TracyColors%SteelBlue1)
 
    call init(dispm, maxElem=maxval(at))
 
@@ -121,8 +121,8 @@ subroutine newD4Model(dispm,g_a,g_c,mode)
 
    intrinsic :: nint
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "newD4Model", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "newD4Model", __LINE__, color=TracyColors%SteelBlue1)
 
    call init(dispm)
 
@@ -611,8 +611,8 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
 
    intrinsic :: maxval
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "d4", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "d4", __LINE__, color=TracyColors%SteelBlue1)
 
    allocate( itbl(7,nat), source = 0 )
 
@@ -687,8 +687,8 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    real(wp), parameter :: rthr = 72.0_wp ! slightly larger than in gradient
    real(wp), parameter :: gwcut = 1.0e-7_wp
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "build_wdispmat", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "build_wdispmat", __LINE__, color=TracyColors%SteelBlue1)
 
    ! acc enter data create(wdispmat) copyin(at, xyz, itbl, dispm, dispm%nref, &
    ! acc& c6abns, gw, par)
@@ -771,8 +771,8 @@ subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
 
    intrinsic :: sum,dble
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "disppot", __LINE__, color=TracyColors%Steelblue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "disppot", __LINE__, color=TracyColors%Steelblue1)
 
    allocate( zetavec(ndim),zerovec(ndim),dumvec(ndim), source = 0._wp )
 
@@ -1000,8 +1000,8 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
    real(wp) :: norm, dnorm, twf, gw, expw, expd, gwk, dgwk
    real(wp) :: gi, zi
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "weight_references", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "weight_references", __LINE__, color=TracyColors%SteelBlue1)
 
    ! acc enter data create(zetavec, zerovec, zetadq, zetadq, zetadcn, zerodcn) &
    ! acc& copyin(dispm, dispm%nref, dispm%ncount, dispm%cn, dispm%q, atoms, &
@@ -1114,8 +1114,8 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
    integer :: iat, jat, ati, atj, iref, jref
    real(wp) :: refc6, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "get_atomic_c6", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "get_atomic_c6", __LINE__, color=TracyColors%SteelBlue1)
 
    !$acc enter data create(c6, dc6dcn, dc6dq) copyin(atoms, dispm, dispm%nref, dispm%c6, &
    !$acc& zetavec, zetadcn, zetadq)
@@ -1247,8 +1247,8 @@ subroutine d4_full_gradient_neigh &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "d4_full_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "d4_full_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
 
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
@@ -1355,8 +1355,8 @@ subroutine d4_gradient_neigh &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), dEdcn(:), dEdq(:)
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "d4_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "d4_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
 
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
@@ -1434,8 +1434,8 @@ subroutine disp_gradient_neigh &
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "disp_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "disp_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
 
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
@@ -1732,8 +1732,8 @@ subroutine d4_full_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "d4_full_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "d4_full_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
 
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
@@ -1845,8 +1845,8 @@ subroutine d4_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "d4_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "d4_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
 
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
@@ -1923,8 +1923,8 @@ subroutine disp_gradient_latp &
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "disp_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "disp_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
 
    nat = len(mol)
    cutoff2 = cutoff**2
@@ -2045,8 +2045,8 @@ subroutine d4_atm_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "d4_atm_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "d4_atm_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
 
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
@@ -2109,8 +2109,8 @@ subroutine atm_gradient_latp &
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
    logical :: doPBC
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/disp/dftd4.F90", "atm_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
+   type(xtb_zone) :: zone
+   call zone%start("src/disp/dftd4.F90", "atm_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
 
    cutoff2 = cutoff**2
    nat = len(mol) ! workaround for legacy Intel Fortran compilers

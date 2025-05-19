@@ -100,13 +100,13 @@ subroutine geometry_optimization &
    type(lbfgs_input) :: opt_input
    type(cartesian_filter)  :: filter
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
 !----------------!
 ! Initialization !
 !----------------!
 
-   call ctx%start("src/geoopt_driver.f90", source, __LINE__, color=TracyColors%Snow)
+   call zone%start("src/geoopt_driver.f90", source, __LINE__, color=TracyColors%Snow)
 
    final_sp = pr
 
