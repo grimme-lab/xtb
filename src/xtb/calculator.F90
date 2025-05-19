@@ -195,6 +195,8 @@ end subroutine newXTBCalculator
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
 
+   use xtb_tracying
+
    !> Source of the generated errors
    character(len=*), parameter :: source = 'xtb_calculator_singlepoint'
 
@@ -239,6 +241,9 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical :: inmol
    logical, parameter :: ccm = .true.
    logical :: exitRun
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/xtb/calculator.F90", source, __LINE__, color=TracyColors%Green)
 
    call mol%update
 

@@ -48,10 +48,17 @@ end subroutine raise
 subroutine terminate(signal)
    use xtb_mctc_io, only : stderr
    use xtb_mctc_global, only : name
+#ifdef WITH_TRACY
+   use tracy
+#endif
+   implicit none
    integer,intent(in) :: signal
    integer,parameter  :: p_exit_success = 0
    integer,parameter  :: p_exit_failure = 1
    integer,parameter  :: p_exit_external = -1
+#ifdef WITH_TRACY
+   call tracy_shutdown_profiler()
+#endif
    if (.not.allocated(name)) name = 'program'
    select case(signal)
    case(p_exit_success)

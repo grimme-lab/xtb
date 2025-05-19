@@ -54,7 +54,7 @@ list(APPEND srcs
   "${dir}/lapack.f90"
   "${dir}/blas.f90"
   "${dir}/mctc_init.F90"
-  "${dir}/error.f90"
+  "${dir}/error.F90"
   "${dir}/signal.c"
 )
 
