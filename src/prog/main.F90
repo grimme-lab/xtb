@@ -217,12 +217,12 @@ contains
 
       type(TPrintTopo) :: printTopo ! gfnff topology printout list
 
-      type(xtb_zone) :: ctx
+      type(xtb_zone) :: zone
 
       xenv%home = env%xtbhome
       xenv%path = env%xtbpath
 
-      call ctx%start("src/prog/main.F90", source, __LINE__, color=TracyColors%Aqua)
+      call zone%start("src/prog/main.F90", source, __LINE__, color=TracyColors%Aqua)
 
       ! ------------------------------------------------------------------------
       !> read the command line arguments
@@ -1253,7 +1253,7 @@ contains
          call print_filelist(env%unit)
       end if
 
-      call ctx%end()
+      call zone%end()
 
       ! ------------------------------------------------------------------------
       !  make some post processing afterward, show some timings and stuff

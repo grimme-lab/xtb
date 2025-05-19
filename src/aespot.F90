@@ -47,9 +47,9 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
 
    integer i,j,k,l,m,ii,jj,ll,kk,mq,md,ij
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
-   call ctx%start("src/aespot.F90", "setdqlist", __LINE__, color=TracyColors%OliveDrab1)
+   call zone%start("src/aespot.F90", "setdqlist", __LINE__, color=TracyColors%OliveDrab1)
 
    ! INFO: this threshold must be slightly larger than max(0,thr2),
    !       where thr2 is the one used in screening in routine aesdqint
@@ -151,8 +151,8 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp), intent(out):: dipm(:, :)
    real(wp), intent(out):: qp(:, :)
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/aespot.F90", "mmompop", __LINE__, color=TracyColors%OliveDrab1)
+   type(xtb_zone) :: zone
+   call zone%start("src/aespot.F90", "mmompop", __LINE__, color=TracyColors%OliveDrab1)
 
 #ifdef XTB_GPU
    call mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
@@ -464,9 +464,9 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    real(wp), intent(in) :: gab3(:,:),gab5(:,:)
    real(wp), intent(in) :: dipm(:,:),qp(:,:)
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
-   call ctx%start("src/aespot.F90", "aniso_electro", __LINE__, color=TracyColors%OliveDrab1)
+   call zone%start("src/aespot.F90", "aniso_electro", __LINE__, color=TracyColors%OliveDrab1)
 
 #ifdef XTB_GPU
    call aniso_electro_gpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
@@ -700,9 +700,9 @@ subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
    real(wp) eaes,pji,fji
    integer i,j,k,l,ii,jj,ij,kl,kj
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
-   call ctx%start("src/aespot.F90", "fockelectro", __LINE__, color=TracyColors%OliveDrab1)
+   call zone%start("src/aespot.F90", "fockelectro", __LINE__, color=TracyColors%OliveDrab1)
 
    ! CAMM
    eaes = 0.0_wp
@@ -762,8 +762,8 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    real(wp) qs1,qs2
    integer i,j,k,l1,l2,ll,m,mx,ki,kj
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/aespot.F90", "setvsdq", __LINE__, color=TracyColors%OliveDrab1)
+   type(xtb_zone) :: zone
+   call zone%start("src/aespot.F90", "setvsdq", __LINE__, color=TracyColors%OliveDrab1)
 
    vs = 0.0_wp
    vd = 0.0_wp
@@ -901,8 +901,8 @@ subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    real(wp) qs1,qs2
    integer i,j,k,l1,l2,ll,m,mx,ki,kj
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/aespot.F90", "setdvsdq", __LINE__, color=TracyColors%OliveDrab1)
+   type(xtb_zone) :: zone
+   call zone%start("src/aespot.F90", "setdvsdq", __LINE__, color=TracyColors%OliveDrab1)
 
    vs = 0.0_wp
    vd = 0.0_wp
@@ -1001,8 +1001,8 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
    real(wp) rr1(3),rr2(3),tma(6),tmb(6),tmc(6),dum
    integer i,j,k,l
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/aespot.F90", "molmom", __LINE__, color=TracyColors%OliveDrab1)
+   type(xtb_zone) :: zone
+   call zone%start("src/aespot.F90", "molmom", __LINE__, color=TracyColors%OliveDrab1)
 
    rr1 = 0.0_wp
    rr2 = 0.0_wp
@@ -1122,8 +1122,8 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
 
    integer i,j,k,l,m,ki,kj,kl
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/aespot.F90", "aniso_grad", __LINE__, color=TracyColors%OliveDrab1)
+   type(xtb_zone) :: zone
+   call zone%start("src/aespot.F90", "aniso_grad", __LINE__, color=TracyColors%OliveDrab1)
 
    do i = 1,nat
       q1 = q(i)
@@ -1271,8 +1271,8 @@ subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
    real(wp) tmp1,tmp2,rr(3)
    integer i,j,k,l,lin
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/aespot.F90", "mmomgabzero", __LINE__, color=TracyColors%OliveDrab1)
+   type(xtb_zone) :: zone
+   call zone%start("src/aespot.F90", "mmomgabzero", __LINE__, color=TracyColors%OliveDrab1)
 
    !!!!!!! set up damped Coulomb operators for multipole interactions
    gab3 = 0.0_wp ! for r**-2 decaying q-dip term

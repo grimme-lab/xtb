@@ -199,8 +199,8 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    parameter(itt  =(/0,1,4,10/))
    real(wp) :: saw(10)
 
-   type(xtb_zone) :: ctx, ctx_omp
-   call ctx%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, color=TracyColors%Gold3)
+   type(xtb_zone) :: zone, zone_omp
+   call zone%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, color=TracyColors%Gold3)
 
    ! integrals
    H0(:) = 0.0_wp
@@ -211,7 +211,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
 
-   call ctx_omp%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, zone_name="OMP_1", color=TracyColors%Yellow)
+   call zone_omp%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, zone_name="OMP_1", color=TracyColors%Yellow)
 
    !$omp parallel do default(none) &
    !$omp shared(nat, xyz, at, nShell, hData, selfEnergy, caoshell, saoshell, &
@@ -301,8 +301,8 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
       enddo
    enddo
 
-   call ctx_omp%end()
-   call ctx_omp%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, zone_name="OMP_2", color=TracyColors%Yellow)
+   call zone_omp%end()
+   call zone_omp%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, zone_name="OMP_2", color=TracyColors%Yellow)
 
    !$omp parallel do default(none) shared(nao, sint, dpint, qpint) private(iao, jao)
    do iao = 1, nao
@@ -313,8 +313,8 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
       end do
    end do
 
-   call ctx_omp%end()
-   call ctx_omp%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, zone_name="OMP_3", color=TracyColors%Yellow)
+   call zone_omp%end()
+   call zone_omp%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, zone_name="OMP_3", color=TracyColors%Yellow)
 
    ! diagonal elements
    !$omp parallel do default(none) schedule(dynamic) &
@@ -380,7 +380,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
       end do
    end do
 
-   call ctx_omp%end()
+   call zone_omp%end()
 
 end subroutine build_SDQH0
 
@@ -445,14 +445,14 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
    real(wp), parameter :: rthr = 1600.0_wp
 
-   type(xtb_zone) :: ctx, ctx_omp
+   type(xtb_zone) :: zone, zone_omp
 
-   call ctx%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, color=TracyColors%Gold3)
+   call zone%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, color=TracyColors%Gold3)
 
    thr2 = intcut
    point = 0.0_wp
 
-   call ctx_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, zone_name="OMP_1", color=TracyColors%Yellow)
+   call zone_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, zone_name="OMP_1", color=TracyColors%Yellow)
 
    ! call timing(t1,t3)
    !$omp parallel do default(none) &
@@ -572,8 +572,8 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
       enddo ! jat
    enddo  ! iat
 
-   call ctx_omp%end()
-   call ctx_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, zone_name="OMP_2", color=TracyColors%Yellow)
+   call zone_omp%end()
+   call zone_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, zone_name="OMP_2", color=TracyColors%Yellow)
 
    ! diagonal contributions
    !$omp parallel do default(none) schedule(dynamic) reduction(+:dhdcn) &
@@ -593,7 +593,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
       end do
    end do
 
-   call ctx_omp%end()
+   call zone_omp%end()
 
 end subroutine build_dSDQH0
 
@@ -664,15 +664,16 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    ! local OpenMP variables
 !$ real(wp), allocatable :: g_omp(:, :), sigma_omp(:, :), dhdcn_omp(:)
 
-   type(xtb_zone) :: ctx, ctx_omp
+   type(xtb_zone) :: zone, zone_omp
+   call zone%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, color=TracyColors%Gold3)
 
-   call ctx%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, color=TracyColors%Gold3)
+
 
 
    thr2 = intcut
    point = 0.0_wp
 
-   call ctx_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, zone_name="OMP_1", color=TracyColors%Yellow)
+   call zone_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, zone_name="OMP_1", color=TracyColors%Yellow)
 
    ! call timing(t1,t3)
    !$omp parallel default(none) &
@@ -790,8 +791,8 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    enddo  ! iat
    !$omp end do nowait
 
-   call ctx_omp%end()
-   call ctx_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, zone_name="OMP_2", color=TracyColors%Yellow)
+   call zone_omp%end()
+   call zone_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, zone_name="OMP_2", color=TracyColors%Yellow)
 
    ! diagonal contributions
    !$omp do schedule(dynamic)
@@ -827,7 +828,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 
    !$omp end parallel
 
-   call ctx_omp%end()
+   call zone_omp%end()
 
 end subroutine build_dSDQH0_noreset
 

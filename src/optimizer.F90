@@ -305,7 +305,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    logical, parameter :: debug(2) = [.false.,.false.]
    character(len=9):: hessfmt
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
    type(xtb_frame) :: frame
 
    ! print ANCopt header !
@@ -318,7 +318,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    if (profile) call timer%measure(1,'optimizer setup')
    
 
-   call ctx%start("src/optimizer.F90", source, __LINE__, zone_name="ANCOPT", color=TracyColors%Snow)
+   call zone%start("src/optimizer.F90", source, __LINE__, zone_name="ANCOPT", color=TracyColors%Snow)
 
    ! defaults !
    iter = 0
@@ -732,14 +732,14 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    parameter (r4dum=1.e-8)
    parameter (smallreal=1.d-14)
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
    type(xtb_frame) :: frame
 
 !----------------------------------------------------------------!
 !--------------------- Initialization ---------------------------!
 !----------------------------------------------------------------!
 
-   call ctx%start("src/optimizer.F90", source, __LINE__, color=TracyColors%Wheat1)
+   call zone%start("src/optimizer.F90", source, __LINE__, color=TracyColors%Wheat1)
 
    ! set printlevel !
    if (pr) then 

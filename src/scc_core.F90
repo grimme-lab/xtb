@@ -72,9 +72,9 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
-   call ctx%start("src/scc_core.F90", "Build_H0", __LINE__, color=TracyColors%Orchid2)
+   call zone%start("src/scc_core.F90", "Build_H0", __LINE__, color=TracyColors%Orchid2)
 
    H0=0.0_wp
 
@@ -137,9 +137,9 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
    real(wp) :: dum
    real(wp) :: eh1,t8,t9,tgb,h1
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
-   call ctx%start("src/scc_core.F90", "BuildIsoH1", __LINE__, color=TracyColors%Orchid2)
+   call zone%start("src/scc_core.F90", "BuildIsoH1", __LINE__, color=TracyColors%Orchid2)
 
    H = 0.0_wp
 
@@ -196,9 +196,9 @@ subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mql
    integer  :: ishell,jshell
    real(wp) :: dum,eh1,t8,t9,tgb
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
-   call ctx%start("src/scc_core.F90", "BuildIsoAnisoH1", __LINE__, color=TracyColors%Orchid2)
+   call zone%start("src/scc_core.F90", "BuildIsoAnisoH1", __LINE__, color=TracyColors%Orchid2)
 
    !$omp parallel default(none) &
    !$omp private(m, i, j, k, l, ii, jj, dum, eh1) &
@@ -429,18 +429,18 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: qconverged
    integer  :: info
 
-   type(xtb_zone) :: ctx, ctx_solve, ctx_fact
+   type(xtb_zone) :: zone, zone_solve, zone_fact
    type(xtb_frame) :: frame
 
-   call ctx%start("src/scc_core.F90", source, __LINE__, color=TracyColors%Red)
+   call zone%start("src/scc_core.F90", source, __LINE__, color=TracyColors%Red)
 
-   call ctx_fact%start("src/scc_core.F90", source, __LINE__, zone_name="S factorization", color=TracyColors%Blue)
+   call zone_fact%start("src/scc_core.F90", source, __LINE__, zone_name="S factorization", color=TracyColors%Blue)
 
    allocate(S_factorized(ndim, ndim), source = 0.0_wp )
    S_factorized = S
    call mctc_potrf(env, S_factorized)
 
-   call ctx_fact%end()
+   call zone_fact%end()
 
    converged = .false.
    lastdiag = .false.
@@ -504,9 +504,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
-   call ctx_solve%start("src/scc_core.F90", source, __LINE__, zone_name="solve", color=TracyColors%Red)
+   call zone_solve%start("src/scc_core.F90", source, __LINE__, zone_name="solve", color=TracyColors%Red)
    call solver%fact_solve(env, H, S_factorized, emo)
-   call ctx_solve%end()
+   call zone_solve%end()
    call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
@@ -1036,9 +1036,9 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    real(wp), parameter :: sqrttiny = sqrt(tiny(1.0_wp))
    integer :: ncycle,i,j,m,k,i1,i2
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
-   call ctx%start("src/scc_core.F90", "fermismear", __LINE__, color=TracyColors%Orchid4)
+   call zone%start("src/scc_core.F90", "fermismear", __LINE__, color=TracyColors%Orchid4)
 
    bkt = boltz*t
 
@@ -1224,8 +1224,8 @@ subroutine dmat(ndim,focc,C,P)
    integer :: i,m
    real(wp),allocatable :: Ptmp(:,:)
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/scc_core.F90", "dmat", __LINE__, color=TracyColors%Red)
+   type(xtb_zone) :: zone
+   call zone%start("src/scc_core.F90", "dmat", __LINE__, color=TracyColors%Red)
 
    allocate(Ptmp(ndim,ndim))
    ! acc enter data create(Ptmp(:,:)) copyin(C(:, :), focc(:), P(:, :))
@@ -1264,8 +1264,8 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    real(wp) xsum,rab
    integer i,j,k,m
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/scc_core.F90", "Wiberg", __LINE__, color=TracyColors%Orchid4)
+   type(xtb_zone) :: zone
+   call zone%start("src/scc_core.F90", "Wiberg", __LINE__, color=TracyColors%Orchid4)
 
    allocate(Ptmp(ndim,ndim))
    call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
@@ -1311,8 +1311,8 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    real(wp) xsum,rab
    integer i,j,k,m
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/scc_core.F90", "UWiberg", __LINE__, color=TracyColors%Orchid4)
+   type(xtb_zone) :: zone
+   call zone%start("src/scc_core.F90", "UWiberg", __LINE__, color=TracyColors%Orchid4)
 
    allocate(Ptmp_a(ndim,ndim))
    allocate(Ptmp_b(ndim,ndim))
@@ -1470,8 +1470,8 @@ subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
 
    integer i,j,ii,jj,ij
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/scc_core.F90", "mpopsh", __LINE__, color=TracyColors%LightYellow1)
+   type(xtb_zone) :: zone
+   call zone%start("src/scc_core.F90", "mpopsh", __LINE__, color=TracyColors%LightYellow1)
 
    qsh=0
    do i=1,nao
@@ -1498,8 +1498,8 @@ subroutine qsh2qat(ash,qsh,qat)
 
    integer :: iSh
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/scc_core.F90", "qsh2qat", __LINE__, color=TracyColors%LightYellow1)
+   type(xtb_zone) :: zone
+   call zone%start("src/scc_core.F90", "qsh2qat", __LINE__, color=TracyColors%LightYellow1)
 
    qat(:) = 0.0_wp
    do iSh = 1, size(qsh)

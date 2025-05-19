@@ -44,17 +44,17 @@ program xtb_prog_primary
    !> Requested run mode
    integer :: runMode
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
 #ifdef WITH_TRACY
    if (.not.tracy_profiler_started()) call tracy_startup_profiler()
    call tracy_set_thread_name("xtb")
-   call ctx%start("src/prog/primary.F90", "Tracy startup", __LINE__, color=TracyColors%Red)
+   call zone%start("src/prog/primary.F90", "Tracy startup", __LINE__, color=TracyColors%Red)
    ! wait connection
    do while (.not.tracy_connected())
       call sleep(1) ! GNU extension
    end do
-   call ctx%end()
+   call zone%end()
 #endif
 
    !> start by initializing the MCTC library
