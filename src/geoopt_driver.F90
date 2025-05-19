@@ -39,11 +39,7 @@ subroutine geometry_optimization &
    use xtb_pbc_optimizer_lbfgs, only : lbfgs_input
    use xtb_pbc_optimizer_filter_cart, only : cartesian_filter, new_cartesian_filter
    use xtb_setparam
-
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
 
    implicit none
    
@@ -104,19 +100,13 @@ subroutine geometry_optimization &
    type(lbfgs_input) :: opt_input
    type(cartesian_filter)  :: filter
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
+   type(xtb_zone_context) :: ctx
 
 !----------------!
 ! Initialization !
 !----------------!
 
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/geoopt_driver.f90", source, color=TracyColors%Snow)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx%start("src/geoopt_driver.f90", source, __LINE__, color=TracyColors%Snow)
 
    final_sp = pr
 
@@ -231,10 +221,6 @@ subroutine geometry_optimization &
       call close_file(set%oniom_settings%ilog1)
       call close_file(set%oniom_settings%ilog2)
    endif
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine geometry_optimization
 
