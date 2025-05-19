@@ -199,7 +199,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    parameter(itt  =(/0,1,4,10/))
    real(wp) :: saw(10)
 
-   type(xtb_zone_context) :: ctx, ctx_omp
+   type(xtb_zone) :: ctx, ctx_omp
    call ctx%start("src/xtb/hamiltonian.F90", "build_SDQH0", __LINE__, color=TracyColors%Gold3)
 
    ! integrals
@@ -445,7 +445,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
    real(wp), parameter :: rthr = 1600.0_wp
 
-   type(xtb_zone_context) :: ctx, ctx_omp
+   type(xtb_zone) :: ctx, ctx_omp
 
    call ctx%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, color=TracyColors%Gold3)
 
@@ -661,7 +661,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
    real(wp), parameter :: rthr = 1600.0_wp
 
-   type(xtb_zone_context) :: ctx, ctx_omp
+   type(xtb_zone) :: ctx, ctx_omp
    call ctx%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, color=TracyColors%Gold3)
 
    thr2 = intcut

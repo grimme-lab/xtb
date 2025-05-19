@@ -217,7 +217,7 @@ contains
 
       type(TPrintTopo) :: printTopo ! gfnff topology printout list
 
-      type(xtb_zone_context) :: ctx
+      type(xtb_zone) :: ctx
 
       xenv%home = env%xtbhome
       xenv%path = env%xtbpath
