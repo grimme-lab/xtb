@@ -230,7 +230,7 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
    ldwork = size(self%dwork)
    liwork = size(self%iwork)
 
-   call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="sygst", color=TracyColors%Pink)
+   if (do_tracying) call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="sygst", color=TracyColors%Pink)
 
    CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
    if (info /= 0) then
@@ -238,8 +238,8 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
       return
    end if
 
-   call zone%end()
-   call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="syevd", color=TracyColors%Purple)
+   if (do_tracying) call zone%end()
+   if (do_tracying) call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="syevd", color=TracyColors%Purple)
 
    CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%dwork, ldwork, self%iwork, liwork, info )
    if (info /= 0) then
@@ -247,12 +247,12 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
       return
    end if
 
-   call zone%end()
-   call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="trsm", color=TracyColors%Purple)
+   if (do_tracying) call zone%end()
+   if (do_tracying) call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="trsm", color=TracyColors%Purple)
 
    CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_dp, bmat_factorized, self%n, amat, self%n )
 
-   call zone%end()
+   if (do_tracying) call zone%end()
 
 end subroutine mctc_dsygvd_factorized
 
