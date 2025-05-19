@@ -195,10 +195,7 @@ end subroutine newXTBCalculator
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
 
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
 
    !> Source of the generated errors
    character(len=*), parameter :: source = 'xtb_calculator_singlepoint'
@@ -245,15 +242,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical, parameter :: ccm = .true.
    logical :: exitRun
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/xtb/calculator.F90", source, color=TracyColors%Green)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/xtb/calculator.F90", source, __LINE__, color=TracyColors%Green)
 
    call mol%update
 
@@ -288,9 +278,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Electronic structure method terminated", source)
-#ifdef WITH_TRACY
-      call tracy_zone_end(ctx)
-#endif
       return
    end if
 
@@ -364,10 +351,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       write(env%unit,'(9x,53(":"))')
       write(env%unit,'(a)')
    endif
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine singlepoint
 
