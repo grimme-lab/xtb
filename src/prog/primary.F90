@@ -44,7 +44,7 @@ program xtb_prog_primary
    !> Requested run mode
    integer :: runMode
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
 
 #ifdef WITH_TRACY
    if (.not.tracy_profiler_started()) call tracy_startup_profiler()

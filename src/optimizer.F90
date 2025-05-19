@@ -305,7 +305,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    logical, parameter :: debug(2) = [.false.,.false.]
    character(len=9):: hessfmt
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    type(xtb_frame) :: frame
 
    ! print ANCopt header !
@@ -732,7 +732,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    parameter (r4dum=1.e-8)
    parameter (smallreal=1.d-14)
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    type(xtb_frame) :: frame
 
 !----------------------------------------------------------------!

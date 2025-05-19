@@ -225,7 +225,7 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
    real(dp), intent(out) :: eval(:)
    integer :: info, ldwork, liwork
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
 
    ldwork = size(self%dwork)
    liwork = size(self%iwork)

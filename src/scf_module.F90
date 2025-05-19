@@ -233,7 +233,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 !  broyden stuff
    logical  :: broy
 
-   type(xtb_zone_context) :: ctx, ctx_gemv, ctx_multp_grad, ctx_disp, ctx_solv, ctx_es
+   type(xtb_zone) :: ctx, ctx_gemv, ctx_multp_grad, ctx_disp, ctx_solv, ctx_es
 
 ! ------------------------------------------------------------------------
 !  initialization

@@ -100,7 +100,7 @@ subroutine geometry_optimization &
    type(lbfgs_input) :: opt_input
    type(cartesian_filter)  :: filter
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
 
 !----------------!
 ! Initialization !
