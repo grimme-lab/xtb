@@ -32,10 +32,7 @@ contains
 ! ndp,nqp          : number of elements to be computed in Fock matrix with X-dip and X-qpole terms
 ! matdlst,matqlst  : index list, to which AO, the ndp/nqp potential terms refer to
 subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    implicit none
    integer, intent(in)    :: nao
    integer, intent(inout) :: ndp,nqp
@@ -50,15 +47,9 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
 
    integer i,j,k,l,m,ii,jj,ll,kk,mq,md,ij
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
+   type(xtb_zone_context) :: ctx
 
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "setdqlist", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx%start("src/aespot.F90", "setdqlist", __LINE__, color=TracyColors%OliveDrab1)
 
    ! INFO: this threshold must be slightly larger than max(0,thr2),
    !       where thr2 is the one used in screening in routine aesdqint
@@ -96,10 +87,6 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
    enddo
    ndp = md
    nqp = mq
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine setdqlist
 
@@ -153,10 +140,7 @@ end subroutine unscalecamm
 ! dipm(3,nat)      : cumulative atomic dipole moments (x,y,z)
 ! qp(6,nat)        : traceless(!) cumulative atomic quadrupole moments (xx,xy,yy,xz,yz,zz)
 subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    implicit none
    integer, intent(in) :: nao,nat,aoat2(:)
    real(wp), intent(in) :: s(:, :)
@@ -167,24 +151,13 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp), intent(out):: dipm(:, :)
    real(wp), intent(out):: qp(:, :)
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "mmompop", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/aespot.F90", "mmompop", __LINE__, color=TracyColors%OliveDrab1)
 
 #ifdef XTB_GPU
    call mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 #else
    call mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
-#endif
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
 #endif
 
 contains
@@ -454,10 +427,7 @@ end subroutine mmompop
 ! e           : E_AES
 subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    use xtb_lin, only : lin
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    implicit none
    class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(:)
@@ -470,24 +440,14 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    real(wp), intent(in) :: gab3(:,:),gab5(:,:)
    real(wp), intent(in) :: dipm(:,:),qp(:,:)
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
+   type(xtb_zone_context) :: ctx
 
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "aniso_electro", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx%start("src/aespot.F90", "aniso_electro", __LINE__, color=TracyColors%OliveDrab1)
 
 #ifdef XTB_GPU
    call aniso_electro_gpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
 #else
    call aniso_electro_cpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
-#endif
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
 #endif
 
 contains
@@ -706,10 +666,7 @@ end subroutine aniso_electro
 ! vq(6,nat)        : quadrupole proportional potential
 subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
    use xtb_lin, only : lin
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    implicit none
    integer, intent(in) :: nat,nao,aoat2(nao)
    real(wp), intent(in) :: dpint(3,nao,nao),s(nao,nao)
@@ -719,15 +676,9 @@ subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
    real(wp) eaes,pji,fji
    integer i,j,k,l,ii,jj,ij,kl,kj
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
+   type(xtb_zone_context) :: ctx
 
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "fockelectro", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   call ctx%start("src/aespot.F90", "fockelectro", __LINE__, color=TracyColors%OliveDrab1)
 
    ! CAMM
    eaes = 0.0_wp
@@ -753,10 +704,6 @@ subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
    !      write(*,*) 'EAES',eaes
    e = eaes
 
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
-
 end subroutine fockelectro
 
 
@@ -777,10 +724,7 @@ end subroutine fockelectro
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
 subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    implicit none
    class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(:)
@@ -793,14 +737,10 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    real(wp) r2ab,t1b,t2b,t3b,t4b,dum3b,dum5b,dtmp(3),qtmp(6),g3,g5
    real(wp) qs1,qs2
    integer i,j,k,l1,l2,ll,m,mx,ki,kj
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "setvsdq", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/aespot.F90", "setvsdq", __LINE__, color=TracyColors%OliveDrab1)
+
    vs = 0.0_wp
    vd = 0.0_wp
    vq = 0.0_wp
@@ -907,9 +847,6 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    enddo
 
    !      call prmat(6,vs,nat,0,'vs')
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine setvsdq
 
@@ -926,10 +863,7 @@ end subroutine setvsdq
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
 subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    implicit none
    class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(:)
@@ -942,14 +876,10 @@ subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    real(wp) r2ab,t1b,t2b,t3b,t4b,dum3b,dum5b,dtmp(3),qtmp(6),g3,g5
    real(wp) qs1,qs2
    integer i,j,k,l1,l2,ll,m,mx,ki,kj
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "setdvsdq", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/aespot.F90", "setdvsdq", __LINE__, color=TracyColors%OliveDrab1)
+
    vs = 0.0_wp
    vd = 0.0_wp
    vq = 0.0_wp
@@ -1027,10 +957,6 @@ subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
 
    !      call prmat(6,vs,nat,0,'vs')
 
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
-
 end subroutine setdvsdq
 
 ! molmom: computes molecular multipole moments from CAMM
@@ -1042,10 +968,7 @@ end subroutine setdvsdq
 subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
    use xtb_mctc_convert
    use xtb_lin, only : lin
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -1053,14 +976,10 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
    real(wp), intent(out) :: dip,d3(:)
    real(wp) rr1(3),rr2(3),tma(6),tmb(6),tmc(6),dum
    integer i,j,k,l
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "molmom", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/aespot.F90", "molmom", __LINE__, color=TracyColors%OliveDrab1)
+
    rr1 = 0.0_wp
    rr2 = 0.0_wp
    write(iunit,'(a)')
@@ -1118,10 +1037,6 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
    write(iunit,'(a,6f12.3)') '  q+dip: ',tma(1:6)+tmb(1:6)
    write(iunit,'(a,6f12.3)') '   full: ',tma(1:6)+tmb(1:6)+tmc(1:6)
 
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
-
 end subroutine molmom
 
 ! molqdip: computes molecular dipole moments from charge only
@@ -1168,10 +1083,7 @@ end subroutine molqdip
 subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
       & radcn,dcn,gab3,gab5,g)
    use xtb_lin, only : lin
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    !gab3 Hellmann-Feynman terms correct, shift terms to be tested yet
    implicit none
    integer, intent(in)   :: nat,at(:)
@@ -1186,15 +1098,8 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
 
    integer i,j,k,l,m,ki,kj,kl
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "aniso_grad", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/aespot.F90", "aniso_grad", __LINE__, color=TracyColors%OliveDrab1)
 
    do i = 1,nat
       q1 = q(i)
@@ -1276,10 +1181,6 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
 
    enddo
 
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
-
 end subroutine aniso_grad
 
 
@@ -1335,10 +1236,7 @@ end subroutine checkspars
 
 ! zero-damped gab
 subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
-#ifdef WITH_TRACY
-   use tracy
-   use iso_c_binding, only: c_int64_t
-#endif
+   use xtb_tracying
    implicit none
    integer, intent(in) :: nat,at(:)
    real(wp), intent(in)  ::  xyz(:,:),radcn(:)
@@ -1349,15 +1247,8 @@ subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
    real(wp) tmp1,tmp2,rr(3)
    integer i,j,k,l,lin
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
-
-#ifdef WITH_TRACY
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/aespot.F90", "mmomgabzero", color=TracyColors%OliveDrab1)
-   ctx = tracy_zone_begin(srcloc_id)
-#endif
+   type(xtb_zone_context) :: ctx
+   call ctx%start("src/aespot.F90", "mmomgabzero", __LINE__, color=TracyColors%OliveDrab1)
 
    !!!!!!! set up damped Coulomb operators for multipole interactions
    gab3 = 0.0_wp ! for r**-2 decaying q-dip term
@@ -1383,10 +1274,6 @@ subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
          gab5(i,j) = gab5(j,i)
       enddo
    enddo
-
-#ifdef WITH_TRACY
-   call tracy_zone_end(ctx)
-#endif
 
 end subroutine mmomgabzero
 
