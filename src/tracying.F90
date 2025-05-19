@@ -24,6 +24,14 @@ module xtb_tracying
   implicit none
   private
 
+  !> @param Enable/disable tracying calls
+  logical, parameter :: do_tracying = &
+#ifdef WITH_TRACY
+    & .true.
+#else
+    & .false.
+#endif
+
   !>
   !> @brief Context manager for profiling zones in xtb.
   !>
@@ -62,7 +70,7 @@ module xtb_tracying
   type(TracyColors_t), parameter :: TracyColors = TracyColors_t()
 #endif
 
-  public :: xtb_zone, xtb_frame, TracyColors
+  public :: do_tracying, xtb_zone, xtb_frame, TracyColors
 contains
   !> @brief Starts a new profiling zone
   !>

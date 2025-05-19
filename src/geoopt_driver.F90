@@ -106,7 +106,7 @@ subroutine geometry_optimization &
 ! Initialization !
 !----------------!
 
-   call zone%start("src/geoopt_driver.f90", source, __LINE__, color=TracyColors%Snow)
+   if (do_tracying) call zone%start("src/geoopt_driver.f90", source, __LINE__, color=TracyColors%Snow)
 
    final_sp = pr
 

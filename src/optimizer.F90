@@ -318,7 +318,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    if (profile) call timer%measure(1,'optimizer setup')
    
 
-   call zone%start("src/optimizer.F90", source, __LINE__, zone_name="ANCOPT", color=TracyColors%Snow)
+   if (do_tracying) call zone%start("src/optimizer.F90", source, __LINE__, zone_name="ANCOPT", color=TracyColors%Snow)
 
    ! defaults !
    iter = 0
@@ -461,7 +461,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    ANC_microiter: do
 ! ======================================================================
 
-   call frame%start("ANC microiter")
+   if (do_tracying) call frame%start("ANC microiter")
 
 !----------------------------------------------------------------!
 !--------------------- Hessian generation -----------------------!
@@ -564,7 +564,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    ! assess the optimization by RMSD change !
    call rmsd(molopt%n,anc%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
 
-   call frame%end()
+   if (do_tracying) call frame%end()
 
    ! this comes close to a goto, but it's not a goto ... it's even worse !
    if (restart.and.iter.lt.maxopt) then
@@ -739,7 +739,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 !--------------------- Initialization ---------------------------!
 !----------------------------------------------------------------!
 
-   call zone%start("src/optimizer.F90", source, __LINE__, color=TracyColors%Wheat1)
+   if (do_tracying) call zone%start("src/optimizer.F90", source, __LINE__, color=TracyColors%Wheat1)
 
    ! set printlevel !
    if (pr) then 
@@ -771,7 +771,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    main_loop: do ii=1,maxcycle
 !! ========================================================================
 
-   call frame%start("relax iter")
+   if (do_tracying) call frame%start("relax iter")
 
    iter=iter+1 ! iteration counter
    if(pr) &
@@ -974,7 +974,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    ! 2nd: exit and redo hessian (internal restart) !
    if(ii.gt.2.and.dsnrm.gt.2.0) then
       if (pr) write(*,*) 'exit because of too large step'
-      call frame%end()
+      if (do_tracying) call frame%end()
       exit main_loop
    endif
 
@@ -989,7 +989,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       return
    endif
 
-   call frame%end()
+   if (do_tracying) call frame%end()
 
 !! ========================================================================
    enddo main_loop
