@@ -31,6 +31,7 @@ program xtb_prog_primary
    use tracy
    use iso_c_binding, only: c_int64_t
 #endif
+   use xtb_tracying
 
    implicit none
 
@@ -43,21 +44,17 @@ program xtb_prog_primary
    !> Requested run mode
    integer :: runMode
 
-#ifdef WITH_TRACY
-   type(tracy_zone_context) :: ctx
-   integer(c_int64_t) :: srcloc_id
-#endif
+   type(xtb_zone_context) :: ctx
 
 #ifdef WITH_TRACY
    if (.not.tracy_profiler_started()) call tracy_startup_profiler()
    call tracy_set_thread_name("xtb")
-   srcloc_id = tracy_alloc_srcloc(__LINE__, "src/prog/primary.F90", "Tracy startup", color=TracyColors%Red)
-   ctx = tracy_zone_begin(srcloc_id)
+   call ctx%start("src/prog/primary.F90", "Tracy startup", __LINE__, color=TracyColors%Red)
    ! wait connection
    do while (.not.tracy_connected())
       call sleep(1) ! GNU extension
    end do
-   call tracy_zone_end(ctx)
+   call ctx%end()
 #endif
 
    !> start by initializing the MCTC library
