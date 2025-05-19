@@ -242,7 +242,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical, parameter :: ccm = .true.
    logical :: exitRun
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/xtb/calculator.F90", source, __LINE__, color=TracyColors%Green)
 
    call mol%update

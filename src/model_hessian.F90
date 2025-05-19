@@ -121,7 +121,7 @@ subroutine mh_swart(xyz,n,hess,at,modh)
    type(chrg_parameter) :: chrgeq
    real(wp) :: kd
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/model_hessian.F90", "mh_swart", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
@@ -756,7 +756,7 @@ subroutine mh_lindh_d2(xyz,n,hess,at,modh)
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/model_hessian.F90", "mh_lindh_d2", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
@@ -842,7 +842,7 @@ subroutine mh_lindh(xyz,n,hess,at,modh)
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/model_hessian.F90", "mh_lindh", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
@@ -1856,7 +1856,7 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
 !!
 !  xTB-Tracy profiler
 !!
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/model_hessian.F90", "mh_eeq", __LINE__, color=TracyColors%HotPink2)
 
 !! ------------------------------------------------------------------------
@@ -2182,7 +2182,7 @@ end module xtb_modelhessian
      &      46*2.d0/
 !cc End: VDWx ccccccccccccccccc
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
 
 !
 !------- Statement functions
@@ -2752,7 +2752,7 @@ end module xtb_modelhessian
 
       type(tb_timer) :: timer
 
-      type(xtb_zone_context) :: ctx
+      type(xtb_zone) :: ctx
 
 !     inline fct
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        

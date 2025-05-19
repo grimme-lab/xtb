@@ -72,7 +72,7 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
 
    call ctx%start("src/scc_core.F90", "Build_H0", __LINE__, color=TracyColors%Orchid2)
 
@@ -137,7 +137,7 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
    real(wp) :: dum
    real(wp) :: eh1,t8,t9,tgb,h1
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
 
    call ctx%start("src/scc_core.F90", "BuildIsoH1", __LINE__, color=TracyColors%Orchid2)
 
@@ -196,7 +196,7 @@ subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mql
    integer  :: ishell,jshell
    real(wp) :: dum,eh1,t8,t9,tgb
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
 
    call ctx%start("src/scc_core.F90", "BuildIsoAnisoH1", __LINE__, color=TracyColors%Orchid2)
 
@@ -429,7 +429,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: qconverged
    integer  :: info
 
-   type(xtb_zone_context) :: ctx, ctx_solve, ctx_fact
+   type(xtb_zone) :: ctx, ctx_solve, ctx_fact
    type(xtb_frame) :: frame
 
    call ctx%start("src/scc_core.F90", source, __LINE__, color=TracyColors%Red)
@@ -1036,7 +1036,7 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    real(wp), parameter :: sqrttiny = sqrt(tiny(1.0_wp))
    integer :: ncycle,i,j,m,k,i1,i2
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
 
    call ctx%start("src/scc_core.F90", "fermismear", __LINE__, color=TracyColors%Orchid4)
 
@@ -1224,7 +1224,7 @@ subroutine dmat(ndim,focc,C,P)
    integer :: i,m
    real(wp),allocatable :: Ptmp(:,:)
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/scc_core.F90", "dmat", __LINE__, color=TracyColors%Red)
 
    allocate(Ptmp(ndim,ndim))
@@ -1264,7 +1264,7 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    real(wp) xsum,rab
    integer i,j,k,m
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/scc_core.F90", "Wiberg", __LINE__, color=TracyColors%Orchid4)
 
    allocate(Ptmp(ndim,ndim))
@@ -1311,7 +1311,7 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    real(wp) xsum,rab
    integer i,j,k,m
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/scc_core.F90", "UWiberg", __LINE__, color=TracyColors%Orchid4)
 
    allocate(Ptmp_a(ndim,ndim))
@@ -1470,7 +1470,7 @@ subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
 
    integer i,j,ii,jj,ij
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/scc_core.F90", "mpopsh", __LINE__, color=TracyColors%LightYellow1)
 
    qsh=0
@@ -1498,7 +1498,7 @@ subroutine qsh2qat(ash,qsh,qat)
 
    integer :: iSh
 
-   type(xtb_zone_context) :: ctx
+   type(xtb_zone) :: ctx
    call ctx%start("src/scc_core.F90", "qsh2qat", __LINE__, color=TracyColors%LightYellow1)
 
    qat(:) = 0.0_wp

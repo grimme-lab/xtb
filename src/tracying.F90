@@ -27,7 +27,7 @@ module xtb_tracying
   !>
   !> @brief Context manager for profiling zones in xtb.
   !>
-  type :: xtb_zone_context
+  type :: xtb_zone
 #ifdef WITH_TRACY
     type(tracy_zone_context) :: ctx
     logical                  :: inited = .false.
@@ -62,7 +62,7 @@ module xtb_tracying
   type(TracyColors_t), parameter :: TracyColors = TracyColors_t()
 #endif
 
-  public :: xtb_zone_context, xtb_frame, TracyColors
+  public :: xtb_zone, xtb_frame, TracyColors
 contains
   !> @brief Starts a new profiling zone
   !>
@@ -74,7 +74,7 @@ contains
   !> @param[in]    color          (Optional) color for profiling zone
   !>
   subroutine zone_start(zone, source, function_name, line, zone_name, color)
-    class(xtb_zone_context),                         intent(inout) :: zone
+    class(xtb_zone),                         intent(inout) :: zone
     character(kind=c_char, len=*),           target, intent(in)    :: source, function_name
     integer,                                         intent(in)    :: line
     character(kind=c_char, len=*), optional, target, intent(in)    :: zone_name
@@ -98,7 +98,7 @@ contains
   !> @param[inout] zone           profiling zone context to stop
   !>
   subroutine zone_end(zone)
-    class(xtb_zone_context), intent(inout) :: zone
+    class(xtb_zone), intent(inout) :: zone
 #ifdef WITH_TRACY
     if (zone%inited) then
       call tracy_zone_end(zone%ctx)
@@ -114,7 +114,7 @@ contains
   !> @param[inout] zone           profiling zone context to stop
   !>
   subroutine zone_final(zone)
-    type(xtb_zone_context), intent(inout) :: zone
+    type(xtb_zone), intent(inout) :: zone
     call zone%end()
   end subroutine zone_final
 

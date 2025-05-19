@@ -62,7 +62,7 @@ subroutine pseudodiag(n,nocc,fmo,eig)
     real*4,allocatable :: alphaarr(:,:)
     real*4,allocatable :: betaarr(:,:)
 
-    type(xtb_zone_context) :: ctx
+    type(xtb_zone) :: ctx
     call ctx%start("src/pseudodiag.F90", "pseudodiag", __LINE__, color=TracyColors%Red)
 
     allocate(vector(n,n))
