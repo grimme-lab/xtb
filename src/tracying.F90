@@ -40,13 +40,29 @@ module xtb_tracying
 #endif
   end type
 
+  !>
+  !> @brief Frame manager for xtb.
+  !>
+  type :: xtb_frame
+#ifdef WITH_TRACY
+    character(kind=c_char, len=:), pointer :: frame_name
+    logical                                :: inited = .false.
+#endif
+  contains
+    procedure :: start => frame_start
+    procedure :: end   => frame_end
+#ifdef WITH_TRACY
+    final     :: frame_final
+#endif
+  end type
+
 #ifndef WITH_TRACY
 #include "tracying_colors.f90h"
   !> @param Tracy colors collection
   type(TracyColors_t), parameter :: TracyColors = TracyColors_t()
 #endif
 
-  public :: xtb_zone_context, TracyColors
+  public :: xtb_zone_context, xtb_frame, TracyColors
 contains
   !> @brief Starts a new profiling zone
   !>
@@ -101,4 +117,47 @@ contains
     type(xtb_zone_context), intent(inout) :: zone
     call zone%end()
   end subroutine zone_final
+
+  !> @brief Starts a new frame
+  !>
+  !> @param[inout] frame          frame to frame
+  !> @param[in]    frame_name     name of frame
+  !>
+  subroutine frame_start(frame, frame_name)
+    class(xtb_frame),                      intent(inout) :: frame
+    character(kind=c_char, len=*), target, intent(in)    :: frame_name
+#ifdef WITH_TRACY
+    if (frame%inited) then
+      call frame%end()
+    end if
+    frame%inited = .true.
+    frame%frame_name => frame_name
+    call tracy_frame_start(frame%frame_name)
+#endif
+  end subroutine frame_start
+  !>
+  !> @brief Ends frame
+  !>
+  !> @param[inout] frame           frame to stop
+  !>
+  subroutine frame_end(frame)
+    class(xtb_frame), intent(inout) :: frame
+#ifdef WITH_TRACY
+    if (frame%inited) then
+      call tracy_frame_end(frame%frame_name)
+    end if
+    frame%inited = .false.
+#endif
+  end subroutine frame_end
+  !>
+  !> @brief Ends frame
+  !>
+  !> @details Using for automatic frame ends at the end of scope (as compiler defines it)
+  !>
+  !> @param[inout] frame           frame to stop
+  !>
+  subroutine frame_final(frame)
+    type(xtb_frame), intent(inout) :: frame
+    call frame%end()
+  end subroutine frame_final
 end module xtb_tracying
