@@ -121,8 +121,8 @@ subroutine mh_swart(xyz,n,hess,at,modh)
    type(chrg_parameter) :: chrgeq
    real(wp) :: kd
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/model_hessian.F90", "mh_swart", __LINE__, color=TracyColors%HotPink2)
+   type(xtb_zone) :: zone
+   call zone%start("src/model_hessian.F90", "mh_swart", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -756,8 +756,8 @@ subroutine mh_lindh_d2(xyz,n,hess,at,modh)
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/model_hessian.F90", "mh_lindh_d2", __LINE__, color=TracyColors%HotPink2)
+   type(xtb_zone) :: zone
+   call zone%start("src/model_hessian.F90", "mh_lindh_d2", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -842,8 +842,8 @@ subroutine mh_lindh(xyz,n,hess,at,modh)
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
 
-   type(xtb_zone) :: ctx
-   call ctx%start("src/model_hessian.F90", "mh_lindh", __LINE__, color=TracyColors%HotPink2)
+   type(xtb_zone) :: zone
+   call zone%start("src/model_hessian.F90", "mh_lindh", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -1856,8 +1856,8 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
 !!
 !  xTB-Tracy profiler
 !!
-   type(xtb_zone) :: ctx
-   call ctx%start("src/model_hessian.F90", "mh_eeq", __LINE__, color=TracyColors%HotPink2)
+   type(xtb_zone) :: zone
+   call zone%start("src/model_hessian.F90", "mh_eeq", __LINE__, color=TracyColors%HotPink2)
 
 !! ------------------------------------------------------------------------
 !  initizialization
@@ -2182,7 +2182,7 @@ end module xtb_modelhessian
      &      46*2.d0/
 !cc End: VDWx ccccccccccccccccc
 
-   type(xtb_zone) :: ctx
+   type(xtb_zone) :: zone
 
 !
 !------- Statement functions
@@ -2193,7 +2193,7 @@ end module xtb_modelhessian
      &                         Min(ixyz(i,iAtom),ixyz(j,jAtom)))
 !end
 
-       call ctx%start("src/model_hessian.F90", "ddvopt", __LINE__, color=TracyColors%HotPink2)
+       call zone%start("src/model_hessian.F90", "ddvopt", __LINE__, color=TracyColors%HotPink2)
 
 !cc VDWx cccccccccccccccccccc
        c6 =   50.0
@@ -2752,7 +2752,7 @@ end module xtb_modelhessian
 
       type(tb_timer) :: timer
 
-      type(xtb_zone) :: ctx
+      type(xtb_zone) :: zone
 
 !     inline fct
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
@@ -2761,7 +2761,7 @@ end module xtb_modelhessian
       Ind(i,iAtom,j,jAtom)=Jnd(Max(ixyz(i,iAtom),ixyz(j,jAtom)),&
      &                         Min(ixyz(i,iAtom),ixyz(j,jAtom)))
 
-      call ctx%start("src/model_hessian.F90", "gff_ddvopt", __LINE__, color=TracyColors%HotPink2)
+      call zone%start("src/model_hessian.F90", "gff_ddvopt", __LINE__, color=TracyColors%HotPink2)
 
 !     map heavy atoms to Z<=54
       do i=1,nAtoms
