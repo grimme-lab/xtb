@@ -69,7 +69,7 @@ subroutine get_kopt( &
   call generic_header(env%unit,"Optimal kpush determination",49,10)
 !------------------------------------------------------------------------------
 ! copy input coordinates
-  tmol=mol
+  call tmol%copy(mol)
 
 ! set kopt boundaries
   ax         =0.0_wp
@@ -86,7 +86,7 @@ subroutine get_kopt( &
   write(env%unit,'("iter. min.        max.        rmsd       kpush")') 
   if ( current_rmsd.gt.set%target_rmsd ) then
      do i = 1,10
-        mol=tmol
+        call mol%copy(tmol)
         kbias = 0.5_wp * (cx +ax)
         metaset%factor = -kbias
         call get_rmsd( &
@@ -136,7 +136,7 @@ subroutine get_rmsd( &
   logical                                     :: fail
 !------------------------------------------------------------------------------
 ! save input geometry
-  tmol=mol
+  call tmol%copy(mol)
 !------------------------------------------------------------------------------
 ! geometry optimization
   call geometry_optimization &
