@@ -308,7 +308,7 @@ subroutine fire &
 
    estart = energy
    thisstep = opt%micro_cycle
-   molopt = mol
+   call molopt%copy(mol)
 
    if (.not.pr.and.minpr) write(env%unit,'(a6,a14,a16,a16,a15,a6)') &
       &          "cycle", "energy", "change", "gnorm", "step", "conv?"
@@ -376,7 +376,7 @@ subroutine fire &
    endif
 
    ! save optimized geometry
-   mol = molopt
+   call mol%copy(molopt)
 
    ! we cannot be sure that the geometry was written in the last optimization
    ! step due to the logstep > 1, so we append the last structure to the optlog
