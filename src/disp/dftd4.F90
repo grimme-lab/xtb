@@ -2402,19 +2402,20 @@ pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
    dGr(3) = (-dang(3)*c9*fdmp + dfdmp*c9*ang)/r2jk
 
    dG(:, 1) = -dGr(1) * rij
+   dG(:, 1) = -dGr(2) * rik + dG(:, 1)
    dG(:, 2) = +dGr(1) * rij
+   dG(:, 2) = -dGr(3) * rjk + dG(:, 2)
+   dG(:, 3) = +dGr(2) * rik
+   dG(:, 3) = +dGr(3) * rjk + dG(:, 3)
+
    dS(:, 1) = dGr(1) * rij(1) * rij
    dS(:, 2) = dGr(1) * rij(2) * rij
    dS(:, 3) = dGr(1) * rij(3) * rij
 
-   dG(:, 1) = -dGr(2) * rik + dG(:, 1)
-   dG(:, 3) = +dGr(2) * rik
    dS(:, 1) = dGr(2) * rik(1) * rik + dS(:, 1)
    dS(:, 2) = dGr(2) * rik(2) * rik + dS(:, 2)
    dS(:, 3) = dGr(2) * rik(3) * rik + dS(:, 3)
 
-   dG(:, 2) = -dGr(3) * rjk + dG(:, 2)
-   dG(:, 3) = +dGr(3) * rjk + dG(:, 3)
    dS(:, 1) = dGr(3) * rjk(1) * rjk + dS(:, 1)
    dS(:, 2) = dGr(3) * rjk(2) * rjk + dS(:, 2)
    dS(:, 3) = dGr(3) * rjk(3) * rjk + dS(:, 3)
