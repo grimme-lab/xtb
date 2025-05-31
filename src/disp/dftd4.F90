@@ -2398,7 +2398,7 @@ pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
 
    ! Derivative w.r.t. i-k distance
    dang = -ang_fact*(r2ik**3+r2ik**2*(r2jk+r2ij) &
-      & +r2ik*(3.0_wp*r2jk**2+2.0*r2jk*r2ij+3.0_wp*r2ij**2) &
+      & +r2ik*(3.0_wp*r2jk**2+2.0_wp*r2jk*r2ij+3.0_wp*r2ij**2) &
       & -5.0_wp*(r2jk-r2ij)**2*(r2jk+r2ij))
    dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ik
    dG(:, 1) = -dGr * rik + dG(:, 1)
