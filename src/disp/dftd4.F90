@@ -2364,7 +2364,7 @@ pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
    integer, intent(in) :: alp
    real(wp), intent(out) :: dE, dG(3, 3), dS(3, 3), dCN(3)
 
-   real(wp) :: c9, dc9, ccc1, rrr1, rrr2, rrr3, ang, dang, fdmp, dfdmp, dGr, cr
+   real(wp) :: c9, dc9, ccc1, rrr1, rrr2, rrr3, ang, dang, fdmp, dfdmp, dGr, cralp
 
    c9 = -sqrt(c6ij*c6ik*c6jk)
 
@@ -2377,9 +2377,9 @@ pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
    ang = 0.375_wp * (r2ij+r2jk-r2ik)*(r2ij-r2jk+r2ik)*(-r2ij+r2jk+r2ik) &
       & / (rrr3*rrr2) + 1.0_wp/(rrr3)
 
-   cr = (ccc1/rrr1)**(1.0_wp/3.0_wp)
-   fdmp = 1.0_wp/(1.0_wp + 6.0_wp*cr**alp)
-   dfdmp = -(2.0_wp*alp*cr**alp) * fdmp**2
+   cralp = (ccc1/rrr1)**(real(alp, kind=wp)/3.0_wp)
+   fdmp = 1.0_wp/(1.0_wp + 6.0_wp*cralp)
+   dfdmp = -(2.0_wp*alp*cralp) * fdmp**2
 
    ! Energy contribution
    dE = -fdmp*ang*c9
