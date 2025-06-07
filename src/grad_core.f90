@@ -44,10 +44,9 @@ pure subroutine dshellPoly(iPoly,jPoly,iRad,jRad,rab2,xyz1,xyz2,rf,dxyz)
    real(wp), intent(in)  :: rab2
    real(wp), intent(out) :: dxyz(3),rf
    real(wp), intent(in)  :: xyz1(3),xyz2(3)
-   real(wp) :: rab,k1,k2,rr,r,a,dum,rf1,rf2,dx,dy,dz
-   real(wp) :: t14,t15,t17,t22,t20,t23,t10,t11,t35,t13
-
-   a=0.5            ! R^a dependence 0.5 in GFN1
+   real(wp) :: rab,k1,k2,rr,r,dum,rf1,rf2,dx,dy,dz
+   real(wp) :: t14,t15,t17,t20,t23,t10,t11,t35,t13
+   real(wp), parameter :: a = 0.5_wp
 
    dx=xyz1(1)-xyz2(1)
    dy=xyz1(2)-xyz2(2)
@@ -63,13 +62,12 @@ pure subroutine dshellPoly(iPoly,jPoly,iRad,jRad,rab2,xyz1,xyz2,rf,dxyz)
    k1=iPoly*0.01_wp
    k2=jPoly*0.01_wp
 
-   t14 = rr**a
+   t14 = sqrt(rr) ! rr**a: R^a dependence 0.5 in GFN1
    t15 = k1*t14
    t17 = 1.0_wp/rab2
-   t22 = rr**a
-   t23 = k2*t22
-   rf=(1.0_wp+t15)*(1.0_wp+k2*t22)
-   dxyz(:)=(t15*(1.0_wp+t23)+(1.0_wp+t15)*k2*t22)*a*t17*[dx,dy,dz]
+   t23 = k2*t14
+   rf=(1.0_wp+t15)*(1.0_wp+k2*t14)
+   dxyz(:)=(t15*(1.0_wp+t23)+(1.0_wp+t15)*k2*t14)*a*t17*[dx,dy,dz]
 
 end subroutine dshellPoly
 

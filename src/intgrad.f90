@@ -771,9 +771,10 @@ pure subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut
          jprim=jp+primcount(jcao+1)
          ! exponent the same for each l component
          alpj=alp(jprim)
+         est=rij2*alpi*alpj
+         if(est.gt.intcut*(alpi+alpj)) cycle
          ab=1.0_wp/(alpi+alpj)
-         est=rij2*alpi*alpj*ab
-         if(est.gt.intcut) cycle
+         est = est*ab
          kab = exp(-est)*(sqrtpi*sqrt(ab))**3
          rp = (alpi*ri + alpj*rj)*ab
          do k = 0, ishtyp + jshtyp
@@ -844,9 +845,10 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,i
          jprim=jp+primcount(jcao+1)
          ! exponent the same for each l component
          alpj=alp(jprim)
+         est=alpi*alpj*rij2
+         if(est.gt.intcut*(alpi+alpj)) cycle
          ab = 1.0_wp/(alpi+alpj)
-         est=alpi*alpj*rij2*ab
-         if(est.gt.intcut) cycle
+         est = est*ab
          kab = exp(-est)*(sqrtpi*sqrt(ab))**3
          rp = (alpi*ri + alpj*rj)*ab
          do k = 0, ishtyp + jshtyp + 1
@@ -921,9 +923,10 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point, &
          jprim = jp+primcount(jcao+1)
          ! exponent the same for each l component
          alpj = alp(jprim)
+         est = alpi*alpj*rij2
+         if(est.gt.intcut*(alpi+alpj)) cycle
          ab = 1.0_wp/(alpi+alpj)
-         est = alpi*alpj*rij2*ab
-         if(est.gt.intcut) cycle
+         est = est*ab
          kab = exp(-est)*(sqrtpi*sqrt(ab))**3
          rp = (alpi*ri + alpj*rj)*ab
          do k = 0, ishtyp + jshtyp + 2
@@ -996,9 +999,10 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
          jprim = jp+primcount(jcao+1)
          ! exponent the same for each l component
          alpj = alp(jprim)
+         est = alpi*alpj*rij2
+         if(est.gt.intcut*(alpi+alpj)) cycle
          ab = 1.0_wp/(alpi+alpj)
-         est = alpi*alpj*rij2*ab
-         if(est.gt.intcut) cycle
+         est = est*ab
          kab = exp(-est)*(sqrtpi*sqrt(ab))**3
          rp = (alpi*ri + alpj*rj)*ab
          do k = 0, ishtyp + jshtyp + 3
