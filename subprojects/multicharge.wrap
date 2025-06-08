@@ -1,4 +1,4 @@
 [wrap-git]
 directory = multicharge
 url = https://github.com/grimme-lab/multicharge
-revision = v0.3.1
+revision = v0.4.0
