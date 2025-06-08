@@ -36,7 +36,7 @@ jobs:
            run: |
             sudo apt-get install libopenblas-dev
          - name: Install meson
-           run: pip install meson!=1.8.0 ninja
+           run: pip install meson==1.7.0 ninja
          - name: Configure build
            run: >-
             meson setup ${{ env.BUILD_DIR }} --buildtype=debug --warnlevel=0 -Db_coverage=true ${{ env.MESON_ARGS }}
@@ -206,7 +206,7 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
-         - run: pip3 install meson!=1.8.0 ninja --user
+         - run: pip3 install meson==1.7.0 ninja --user
          - name: Add Intel repository
            if: contains(matrix.os, 'ubuntu')
            run: |
@@ -311,7 +311,7 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
-         - run: pip3 install meson!=1.8.0 ninja --user
+         - run: pip3 install meson==1.7.0 ninja --user
          - name: Install Intel MKL
            if: contains(matrix.os, 'ubuntu')
            run: |
