@@ -175,7 +175,8 @@ contains
          logical :: isQC
 
          character(len=*), parameter :: keyword = "SCF"
-         integer :: unit, ioStatus
+         integer, parameter :: fileUnit = 10
+         integer :: ioStatus
          logical :: fileExists
          ! Use a buffer to read the file in chunks for efficiency.
          character(len=4096) :: buffer
@@ -185,25 +186,21 @@ contains
          ! First, ensure the file exists before trying to open it.
          inquire (file=filepath, exist=fileExists)
          if (.not. fileExists) then
-            ! The file doesn't exist, so it cannot be the QC package.
-            ! The main routine will handle the error message for a missing executable.
+            call env%error("ORCA binary '"//ext%executable//"' not found!", source)
             return
          end if
 
-         ! Open the file using stream access, which is ideal for binary files,
-         ! as it reads the file as a continuous stream of bytes.
-         open (new_unit=unit, file=filepath, access='stream', form='unformatted', &
-               action='read', iostat=ioStatus)
+         ! Open the binary for reading
+         call open_binary(iorca, ext%executable, 'r')
 
-         if (ioStatus /= 0) then
-            ! Could not open the file (e.g., permissions issue).
-            isQC = .false.
+         if (iorca .eq. -1) then
+            call env%error("ORCA binary file '"//ext%executable//"' just vanished!", source)
             return
          end if
 
          ! Read the file chunk by chunk into the buffer.
          do
-            read (unit, iostat=ioStatus) buffer
+            read (iorca, iostat=ioStatus) buffer
             if (ioStatus /= 0) exit ! Exit loop on end-of-file or read error
 
             ! Search for the keyword within the current buffer.
@@ -213,7 +210,7 @@ contains
             end if
          end do
 
-         close (unit)
+         call close_file(iorca)
 
       end function isQCOrca
 
