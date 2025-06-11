@@ -759,11 +759,11 @@ endif
       do i=1,mol%n
         do j=1,i-1 ! 
           do iTr=1,neigh%numctr
-            !if(iTr.eq.1.and.j.eq.i) cycle
             if(neigh%bpair(j,i,iTr).eq.3) then  ! 1,4 exclusion of back-pair makes it worse, 1,3 makes little effect
               do iTr2=1, neigh%numctr     
                 do m=1,neigh%nb(neigh%numnb,j,iTr2)
                   k=neigh%nb(m,j,iTr2)
+                  if ((i == k .or. j == k) .and. iTr == 1 .and. iTr2 == 1) cycle
                   topo%nbatm=topo%nbatm+1
                   topo%b3list(1,topo%nbatm)=i                      !in central cell
                   topo%b3list(2,topo%nbatm)=j
@@ -773,6 +773,7 @@ endif
                 enddo
                 do m=1,neigh%nb(neigh%numnb,i,iTr2)
                   k=neigh%nb(m,i,iTr2)
+                  if ((i == k .or. j == k) .and. iTr == 1 .and. iTr2 == 1) cycle
                   topo%nbatm=topo%nbatm+1
                   topo%b3list(1,topo%nbatm)=i
                   topo%b3list(2,topo%nbatm)=j
