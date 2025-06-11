@@ -112,7 +112,9 @@ subroutine repulsionEnGrad_latp(mol, repData, trans, cutoff, energy, gradient, &
             t27 = r1**repData%rExp
             dE = zeff * t26/t27
             dG = -(alpha*t16*kExp + repData%rExp) * dE * rij/r2
-            dS = spread(dG, 1, 3) * spread(rij, 2, 3)
+            dS(:, 1) = dG(1) * rij
+            dS(:, 2) = dG(2) * rij
+            dS(:, 3) = dG(3) * rij
             !$acc atomic
             energies(iAt) = energies(iAt) + 0.5_wp * dE
             if (iAt /= jAt) then
@@ -216,7 +218,9 @@ subroutine repulsionEnGrad_neighs(mol, repData, neighs, neighList, energy, &
          t27 = r1**repData%rExp
          dE = zeff * t26/t27
          dG = -(alpha*t16*kExp + repData%rExp) * dE * rij/r2
-         dS = spread(dG, 1, 3) * spread(rij, 2, 3)
+         dS(:, 1) = dG(1) * rij
+         dS(:, 2) = dG(2) * rij
+         dS(:, 3) = dG(3) * rij
          energies(iAt) = energies(iAt) + 0.5_wp * dE
          sigma = sigma + 0.5_wp * dS
          if (iAt /= jAt) then

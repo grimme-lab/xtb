@@ -283,7 +283,9 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
          dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
          dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
 
-         stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+         stress(:, 1) = countd(1) * rij
+         stress(:, 2) = countd(2) * rij
+         stress(:, 3) = countd(3) * rij
 
          dcndL(:, :, iat) = dcndL(:, :, iat) + stress
          if (iat /= jat) then
@@ -428,7 +430,9 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
             dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
             dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
 
-            stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+            stress(:, 1) = countd(1) * rij
+            stress(:, 2) = countd(2) * rij
+            stress(:, 3) = countd(3) * rij
 
             dcndL(:, :, iat) = dcndL(:, :, iat) + stress
             if (iat /= jat) then

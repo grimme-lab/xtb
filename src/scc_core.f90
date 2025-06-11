@@ -732,9 +732,8 @@ pure function shellPoly(iPoly,jPoly,iRad,jRad,xyz1,xyz2)
    real(wp), intent(in) :: iRad,jRad
    real(wp), intent(in) :: xyz1(3),xyz2(3)
    real(wp) :: shellPoly
-   real(wp) :: rab,k1,rr,r,rf1,rf2,dx,dy,dz,a
-
-   a=0.5_wp           ! R^a dependence 0.5 in GFN1
+   real(wp) :: rab,k1,rr,r,rf1,rf2,dx,dy,dz
+   real(wp), parameter :: a = 0.5_wp ! R^a dependence 0.5 in GFN1
 
    dx=xyz1(1)-xyz2(1)
    dy=xyz1(2)-xyz2(2)
@@ -747,8 +746,8 @@ pure function shellPoly(iPoly,jPoly,iRad,jRad,xyz1,xyz2)
 
    r=rab/rr
 
-   rf1=1.0_wp+0.01_wp*iPoly*r**a
-   rf2=1.0_wp+0.01_wp*jPoly*r**a
+   rf1=1.0_wp+0.01_wp*iPoly*sqrt(r)
+   rf2=1.0_wp+0.01_wp*jPoly*sqrt(r)
 
    shellPoly= rf1*rf2
 

@@ -383,7 +383,9 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
          t27=t26*(1.5d0*t8+1.0d0)/t19
          r3 =(xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr))*t27 
          vec = xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr)
-         sigma = sigma -(spread(r3, 1, 3)*spread(vec, 2, 3))
+         sigma(:,1) = sigma(:,1) - r3(1) * vec
+         sigma(:,2) = sigma(:,2) - r3(2) * vec
+         sigma(:,3) = sigma(:,3) - r3(3) * vec
          g(:,iat)=g(:,iat)-r3
          g(:,jat)=g(:,jat)+r3
        enddo
@@ -1000,7 +1002,9 @@ subroutine egbond(i,iat,jat,iTr,rab,rij,drij,drijdcn,n,at,xyz,e,g,sigma,neigh,ra
          g(2,iat)=g(2,iat)+t5
          g(3,iat)=g(3,iat)+t6
          dEdcn(iat) = dEdcn(iat) + yy*drijdcn(1)
-         sigma = sigma + spread(dg,1,3)*spread(vrab,2,3)
+         sigma(:,1) = sigma(:,1) + dg(1)*vrab
+         sigma(:,2) = sigma(:,2) + dg(2)*vrab
+         sigma(:,3) = sigma(:,3) + dg(3)*vrab
 
          t4=yy*(dx/rab)
          t5=yy*(dy/rab)
@@ -1017,7 +1021,9 @@ subroutine egbond(i,iat,jat,iTr,rab,rij,drij,drijdcn,n,at,xyz,e,g,sigma,neigh,ra
          do k=1,n !3B gradient 
             dg= drij(:,k)*yy
             g(:,k)=g(:,k)+dg
-            sigma = sigma + spread(dg,1,3)*spread(vrab,2,3)
+            sigma(:,1) = sigma(:,1) + dg(1)*vrab
+            sigma(:,2) = sigma(:,2) + dg(2)*vrab
+            sigma(:,3) = sigma(:,3) + dg(3)*vrab
          enddo
 
 end subroutine egbond
@@ -1094,7 +1100,9 @@ subroutine egbond_hb(i,iat,jat,iTr,rab,rij,drij,drijdcn,hb_cn,hb_dcn,n,at,xyz,e,
          g(2,iat)=g(2,iat)+t5
          g(3,iat)=g(3,iat)+t6
          dEdcn(iat) = dEdcn(iat) + yy*drijdcn(1)
-         sigma = sigma + spread(dg,1,3)*spread(vrab,2,3)
+         sigma(:,1) = sigma(:,1) + dg(1)*vrab
+         sigma(:,2) = sigma(:,2) + dg(2)*vrab
+         sigma(:,3) = sigma(:,3) + dg(3)*vrab
 
          t4=yy*(dx/rab)
          t5=yy*(dy/rab)
@@ -1110,7 +1118,9 @@ subroutine egbond_hb(i,iat,jat,iTr,rab,rij,drij,drijdcn,hb_cn,hb_dcn,n,at,xyz,e,
          do k=1,n !3B gradient
             dg= drij(:,k)*yy
             g(:,k)=g(:,k)+dg
-            sigma = sigma + spread(dg,1,3)*spread(vrab,2,3)
+            sigma(:,1) = sigma(:,1) + dg(1)*vrab
+            sigma(:,2) = sigma(:,2) + dg(2)*vrab
+            sigma(:,3) = sigma(:,3) + dg(3)*vrab
          end do
 
          zz=dum*neigh%vbond(2,i)*dr**2*t1
@@ -1205,8 +1215,10 @@ subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo,neigh,dcndL)
          dcn(:,iat,jat)= dtmp*rij/r + dcn(:,iat,jat)
          dcn(:,jat,iat)=-dtmp*rij/r + dcn(:,jat,iat)
          dcn(:,iat,iat)=-dtmp*rij/r + dcn(:,iat,iat)
-        
-         stress = spread(dtmp*rij/r, 1, 3) * spread(rij, 2, 3)
+
+         stress(:, 1) = rij(1) * dtmp*rij/r
+         stress(:, 2) = rij(2) * dtmp*rij/r
+         stress(:, 3) = rij(3) * dtmp*rij/r
          dcndL(:, :, iat) = dcndL(:, :, iat) + stress
          if (iat.ne.jat.or.iTrH.ne.iTrB) then
            dcndL(:, :, jat) = dcndL(:, :, jat) + stress
@@ -2223,9 +2235,15 @@ subroutine abhgfnff_eg1(n,A,B,H,iTrA,iTrB,at,xyz,q,energy,gdr,param,topo,neigh,s
       dgh(1:3) = -dga(1:3)-dgb(1:3)
       gh(1:3) = gh(1:3) + dgh(1:3)
       ! sigma
-      sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-      sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
 !     move gradients into place
       gdr(1:3,1) = ga(1:3)
       gdr(1:3,2) = gb(1:3)
@@ -2450,9 +2468,15 @@ subroutine abhgfnff_eg2new(n,A,B,H,iTrA,iTrB,nbb,at,xyz,q,sqrab, &
          gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
          gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
          gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
-         sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-         sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-         sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+         sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+         sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+         sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+         sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+         sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+         sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+         sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+         sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
          return
       endif
 
@@ -2468,14 +2492,22 @@ subroutine abhgfnff_eg2new(n,A,B,H,iTrA,iTrB,nbb,at,xyz,q,sqrab, &
       end do
 
       ! sigma according to gdr above
-      sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-      sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
       do i=1,nbb
          inb=0; iTr=0 ! jth_nb output
          call neigh%jth_nb(n,xyz,inb,i,B,iTr) ! inb is the i-th nb of B when shifted to iTr
          vecDum = neigh%transVec(:,iTr)+neigh%transVec(:,iTrB)
-         sigma=sigma+mcf_ehb*spread(gnb(:,i),1,3)*spread(xyz(:,inb)+vecDum,2,3)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*gnb(1,i)*(xyz(:,inb)+vecDum)
+         sigma(:,2)=sigma(:,2)+mcf_ehb*gnb(2,i)*(xyz(:,inb)+vecDum)
+         sigma(:,3)=sigma(:,3)+mcf_ehb*gnb(3,i)*(xyz(:,inb)+vecDum)
       enddo
 
 end subroutine abhgfnff_eg2new
@@ -2765,16 +2797,26 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,iTrA,iTrB,at,xyz,q,sqrab,srab,energy,gdr,par
       end do
 
       ! sigma according to gdr above
-      sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-      sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
-      sigma=sigma+mcf_ehb*spread(gnb_lp,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gnb_lp(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gnb_lp(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gnb_lp(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      gnb_lp = gnb_lp / dble(nbb)
       do i=1,nbb
          inb=0; iTr=0 ! jth_nb output
          call neigh%jth_nb(n,xyz,inb,i,B,iTr) ! inb is the i-th nb of B when shifted to iTr
          vTrinb=neigh%transVec(:,iTr)+neigh%transVec(:,iTrB)
-         sigma=sigma+mcf_ehb*spread(gnb(:,i),1,3)*spread(xyz(:,inb)+vTrinb,2,3)
-         sigma=sigma-mcf_ehb*spread(gnb_lp(1:3)/dble(nbb),1,3)*spread(xyz(:,inb)+vTrinb,2,3)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*(gnb(1,i)-gnb_lp(1))*(xyz(:,inb)+vTrinb)
+         sigma(:,2)=sigma(:,2)+mcf_ehb*(gnb(2,i)-gnb_lp(2))*(xyz(:,inb)+vTrinb)
+         sigma(:,3)=sigma(:,3)+mcf_ehb*(gnb(3,i)-gnb_lp(3))*(xyz(:,inb)+vTrinb)
       enddo
 
 end subroutine abhgfnff_eg2_rnr
@@ -3091,10 +3133,18 @@ subroutine abhgfnff_eg3(n,A,B,H,iTrA,iTrB,C,iTrC,at,xyz,q,sqrab,srab,energy,&
       gdr(1:3,kk) = gdr(1:3,kk)+gangl(1:3,kk)*bterm
       gdr(1:3,ll) = gdr(1:3,ll)+gangl(1:3,ll)*bterm
       ! sigma
-      sigma=sigma+mcf_ehb*spread(ga,1,3)*spread(xyz(:,A)+neigh%transVec(1:3,iTrA),2,3)
-      sigma=sigma+mcf_ehb*spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(1:3,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gh,1,3)*spread(xyz(:,H),2,3)
-      sigma=sigma+mcf_ehb*spread(gnb,1,3)*spread(xyz(:,C)+neigh%transVec(1:3,iTrC),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*ga(1)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*ga(2)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*ga(3)*(xyz(:,A)+neigh%transVec(1:3,iTrA))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gb(1)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gb(2)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gb(3)*(xyz(:,B)+neigh%transVec(1:3,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gh(1)* xyz(:,H)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gh(2)* xyz(:,H)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gh(3)* xyz(:,H)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*gnb(1)*(xyz(:,C)+neigh%transVec(1:3,iTrC))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*gnb(2)*(xyz(:,C)+neigh%transVec(1:3,iTrC))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*gnb(3)*(xyz(:,C)+neigh%transVec(1:3,iTrC))
       ! torsion part
       do i = 1,ntors
          ii =tlist(1,i)
@@ -3105,23 +3155,51 @@ subroutine abhgfnff_eg3(n,A,B,H,iTrA,iTrB,C,iTrC,at,xyz,q,sqrab,srab,energy,&
          if(iTrR.le.0.or.iTrR.gt.neigh%nTrans) then
            cycle
          endif
-         sigma=sigma+mcf_ehb*spread(gtors(1:3,ii)*tterm,1,3)* &        ! R
-                   & spread(xyz(1:3,ii)+neigh%transVec(1:3,iTrR),2,3)
+         sigma(:,1)=sigma(:,1)+mcf_ehb*tterm*gtors(1,ii)* &        ! R
+                   & (xyz(1:3,ii)+neigh%transVec(1:3,iTrR))
+         sigma(:,2)=sigma(:,2)+mcf_ehb*tterm*gtors(2,ii)* &        ! R
+                   & (xyz(1:3,ii)+neigh%transVec(1:3,iTrR))
+         sigma(:,3)=sigma(:,3)+mcf_ehb*tterm*gtors(3,ii)* &        ! R
+                   & (xyz(1:3,ii)+neigh%transVec(1:3,iTrR))
       end do
       ! jj, kk and ll same for every i in loop above (only ii or R changes)
-      sigma=sigma+mcf_ehb*spread(gtors(1:3,jj)*tterm,1,3)* &           ! B
-                & spread(xyz(:,jj)+neigh%transVec(:,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gtors(1:3,kk)*tterm,1,3)* &           ! C
-                & spread(xyz(:,kk)+neigh%transVec(:,iTrC),2,3)
-      sigma=sigma+mcf_ehb*spread(gtors(1:3,ll)*tterm,1,3)* &           ! H
-                & spread(xyz(:,ll),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*tterm*gtors(1,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*tterm*gtors(2,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*tterm*gtors(3,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*tterm*gtors(1,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*tterm*gtors(2,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*tterm*gtors(3,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*tterm*gtors(1,ll)* &           ! H
+                & xyz(:,ll)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*tterm*gtors(2,ll)* &           ! H
+                & xyz(:,ll)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*tterm*gtors(3,ll)* &           ! H
+                & xyz(:,ll)
       ! angle part
-      sigma=sigma+mcf_ehb*spread(gangl(1:3,jj)*bterm,1,3)* &           ! B
-                & spread(xyz(:,jj)+neigh%transVec(:,iTrB),2,3)
-      sigma=sigma+mcf_ehb*spread(gangl(1:3,kk)*bterm,1,3)* &           ! C
-                & spread(xyz(:,kk)+neigh%transVec(:,iTrC),2,3)
-      sigma=sigma+mcf_ehb*spread(gangl(1:3,ll)*bterm,1,3)* &           ! H
-                & spread(xyz(:,ll),2,3)
+      sigma(:,1)=sigma(:,1)+mcf_ehb*bterm*gangl(1,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*bterm*gangl(2,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*bterm*gangl(3,jj)* &           ! B
+                & (xyz(:,jj)+neigh%transVec(:,iTrB))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*bterm*gangl(1,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,2)=sigma(:,2)+mcf_ehb*bterm*gangl(2,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,3)=sigma(:,3)+mcf_ehb*bterm*gangl(3,kk)* &           ! C
+                & (xyz(:,kk)+neigh%transVec(:,iTrC))
+      sigma(:,1)=sigma(:,1)+mcf_ehb*bterm*gangl(1,ll)* &           ! H
+                & xyz(:,ll)
+      sigma(:,2)=sigma(:,2)+mcf_ehb*bterm*gangl(2,ll)* &           ! H
+                & xyz(:,ll)
+      sigma(:,3)=sigma(:,3)+mcf_ehb*bterm*gangl(3,ll)* &           ! H
+                & xyz(:,ll)
 
 !------------------------------------------------------------------------------
 !     move gradients into place
@@ -3252,9 +3330,15 @@ subroutine rbxgfnff_eg(n,A,B,X,iTrB,iTrX,at,xyz,q,energy,gdr,param,neigh,sigma)
    gdr(1:3,2) = gb(1:3)
    gdr(1:3,3) = gx(1:3)
    ! sigma
-   sigma=sigma+spread(ga,1,3)*spread(xyz(:,A),2,3)
-   sigma=sigma+spread(gb,1,3)*spread(xyz(:,B)+neigh%transVec(:,iTrB),2,3)
-   sigma=sigma+spread(gx,1,3)*spread(xyz(:,X)+neigh%transVec(:,iTrX),2,3)
+   sigma(:,1)=sigma(:,1)+ga(1)*xyz(:,A)
+   sigma(:,2)=sigma(:,2)+ga(2)*xyz(:,A)
+   sigma(:,3)=sigma(:,3)+ga(3)*xyz(:,A)
+   sigma(:,1)=sigma(:,1)+gb(1)*(xyz(:,B)+neigh%transVec(:,iTrB))
+   sigma(:,2)=sigma(:,2)+gb(2)*(xyz(:,B)+neigh%transVec(:,iTrB))
+   sigma(:,3)=sigma(:,3)+gb(3)*(xyz(:,B)+neigh%transVec(:,iTrB))
+   sigma(:,1)=sigma(:,1)+gx(1)*(xyz(:,X)+neigh%transVec(:,iTrX))
+   sigma(:,2)=sigma(:,2)+gx(2)*(xyz(:,X)+neigh%transVec(:,iTrX))
+   sigma(:,3)=sigma(:,3)+gx(3)*(xyz(:,X)+neigh%transVec(:,iTrX))
 
    return
 
@@ -3660,7 +3744,9 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
          dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
          dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
 
-         stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+         stress(:, 1) = countd(1) * rij
+         stress(:, 2) = countd(2) * rij
+         stress(:, 3) = countd(3) * rij
 
          dcndL(:, :, iat) = dcndL(:, :, iat) + stress
          if (iat /= jat) then
@@ -3820,7 +3906,9 @@ subroutine ncoordLatP(mol, ntrans, trans, cutoff, kcn, cfunc, dfunc, enscale, &
             dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
             dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
 
-            stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+            stress(:, 1) = countd(1) * rij
+            stress(:, 2) = countd(2) * rij
+            stress(:, 3) = countd(3) * rij
 
             dcndL(:, :, iat) = dcndL(:, :, iat) + stress
             if (iat.ne.jat.or.itr.ne.1) then
@@ -4361,7 +4449,9 @@ subroutine get_damat_dir_3d(rij, gam, alp, trans, dg, ds)
       gtmp = +2*gam*exp(-r2*gam2)/(sqrtpi*r2) - erf(r1*gam)/(r2*r1)
       atmp = -2*alp*exp(-r2*alp2)/(sqrtpi*r2) + erf(r1*alp)/(r2*r1)
       dg(:) = dg + (gtmp + atmp) * vec
-      ds(:, :) = ds + (gtmp + atmp) * spread(vec, 1, 3) * spread(vec, 2, 3)
+      ds(:, 1) = ds(:, 1) + (gtmp + atmp) * vec(1) * vec
+      ds(:, 2) = ds(:, 2) + (gtmp + atmp) * vec(2) * vec
+      ds(:, 3) = ds(:, 3) + (gtmp + atmp) * vec(3) * vec
    end do
 
 end subroutine get_damat_dir_3d
@@ -4393,8 +4483,12 @@ subroutine get_damat_rec_3d(rij, vol, alp, trans, dg, ds)
       etmp = fac * exp(-0.25_wp*g2/alp2)/g2
       dtmp = -sin(gv) * etmp
       dg(:) = dg + dtmp * vec
-      ds(:, :) = ds + etmp * cos(gv) &
-         & * ((2.0_wp/g2 + 0.5_wp/alp2) * spread(vec, 1, 3)*spread(vec, 2, 3) - unity)
+      ds(:, 1) = ds(:, 1) + etmp * cos(gv) &
+         & * ((2.0_wp/g2 + 0.5_wp/alp2) * vec(1) * vec - unity(:,1))
+      ds(:, 2) = ds(:, 2) + etmp * cos(gv) &
+         & * ((2.0_wp/g2 + 0.5_wp/alp2) * vec(2) * vec - unity(:,2))
+      ds(:, 3) = ds(:, 3) + etmp * cos(gv) &
+         & * ((2.0_wp/g2 + 0.5_wp/alp2) * vec(3) * vec - unity(:,3))
    end do
 
 end subroutine get_damat_rec_3d

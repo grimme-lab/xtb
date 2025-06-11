@@ -105,8 +105,10 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot)
       do iat = 1, mol%n
          vec(:) = mol%xyz(:, iat) - center
          r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
-         inertia(:, :) = inertia + mol%atmass(iat) &
-            & * (unity*r2 - spread(vec, 1, 3)*spread(vec, 2, 3))
+         inertia(:, :) = inertia + mol%atmass(iat) * unity * r2
+         inertia(:, 1) = inertia(:, 1) - mol%atmass(iat) * vec(1) * vec
+         inertia(:, 2) = inertia(:, 2) - mol%atmass(iat) * vec(2) * vec
+         inertia(:, 3) = inertia(:, 3) - mol%atmass(iat) * vec(3) * vec
       end do
 
       call eigvec3x3(inertia, moments, axes)
