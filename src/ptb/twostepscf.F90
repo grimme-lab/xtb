@@ -672,7 +672,7 @@ contains
       call solver%get_density(wfn%coeff, ints%overlap, wfn%emo, wfn%focc, wfn%density, error)
       if (allocated(error)) return
       stmp = 0.0_wp
-      do spin = 1, 2
+      do spin = 1, size(wfn%emo, 2)
          wfn%emo(:, spin) = wfn%emo(:, spin) * (1.0_wp + keps) + keps0
          call get_electronic_entropy(wfn%focc(:, spin), wfn%kt, stmp(spin))
       end do
