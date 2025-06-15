@@ -161,10 +161,7 @@ contains
       logical, parameter :: alternative_dipole = .false.
       logical, parameter :: debug(15) = [ .false., .false., .false., .false., .false., &
                               .false., .false., .false., .false., .false., .false., &
-                              .false., .false., .false., .false.] 
-
-      !> Solver for the effective Hamiltonian
-      call ctx%new_solver(solver, bas%nao)
+                              .false., .false., .false., .false.]
 
       if (present(efield)) then
          efield_object = electric_field(efield)
@@ -210,7 +207,10 @@ contains
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
       call get_integrals(mol, bas, lattr, list, ints%overlap, ints%dipole, ints%quadrupole, norm=auxints%norm)
-      
+
+      !> Solver for the effective Hamiltonian
+      call ctx%new_solver(solver, ints%overlap, wfn%nel, wfn%kt)
+
       if (debug(1)) then !##### DEV WRITE #####
          do i = 1, bas%nao
             do j = 1, bas%nao
