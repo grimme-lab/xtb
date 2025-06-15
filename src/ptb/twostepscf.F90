@@ -161,10 +161,7 @@ contains
       logical, parameter :: alternative_dipole = .false.
       logical, parameter :: debug(15) = [ .false., .false., .false., .false., .false., &
                               .false., .false., .false., .false., .false., .false., &
-                              .false., .false., .false., .false.] 
-
-      !> Solver for the effective Hamiltonian
-      call ctx%new_solver(solver, bas%nao)
+                              .false., .false., .false., .false.]
 
       if (present(efield)) then
          efield_object = electric_field(efield)
@@ -210,7 +207,10 @@ contains
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
       call get_integrals(mol, bas, lattr, list, ints%overlap, ints%dipole, ints%quadrupole, norm=auxints%norm)
-      
+
+      !> Solver for the effective Hamiltonian
+      call ctx%new_solver(solver, ints%overlap, wfn%nel, wfn%kt)
+
       if (debug(1)) then !##### DEV WRITE #####
          do i = 1, bas%nao
             do j = 1, bas%nao
@@ -654,7 +654,7 @@ contains
       real(wp), intent(in), optional :: keps_param, keps0_param
       real(wp) :: keps, keps0
 
-      real(wp) :: e_fermi, stmp(2)
+      real(wp) :: stmp(2)
       real(wp), allocatable :: focc(:)
       integer :: spin
 
@@ -669,38 +669,14 @@ contains
          keps0 = 0.0_wp
       end if
 
-      select case (wfn%nspin)
-      case default
-         call solver%solve(wfn%coeff(:, :, 1), ints%overlap, wfn%emo(:, 1), error)
-         if (allocated(error)) return
-         wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
-
-         allocate (focc(size(wfn%focc, 1)))
-         wfn%focc(:, :) = 0.0_wp
-         do spin = 1, 2
-            call get_fermi_filling(wfn%nel(spin), wfn%kt, wfn%emo(:, 1), &
-               & wfn%homo(spin), focc, e_fermi)
-            call get_electronic_entropy(focc, wfn%kt, stmp(spin))
-            wfn%focc(:, 1) = wfn%focc(:, 1) + focc
-         end do
-         ts = sum(stmp)
-
-         call get_density_matrix(wfn%focc(:, 1), wfn%coeff(:, :, 1), wfn%density(:, :, 1))
-      case (2)
-         wfn%coeff = 2 * wfn%coeff
-         do spin = 1, 2
-            call solver%solve(wfn%coeff(:, :, spin), ints%overlap, wfn%emo(:, spin), error)
-            if (allocated(error)) return
-            wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
-
-            call get_fermi_filling(wfn%nel(spin), wfn%kt, wfn%emo(:, spin), &
-               & wfn%homo(spin), wfn%focc(:, spin), e_fermi)
-            call get_electronic_entropy(wfn%focc(:, spin), wfn%kt, stmp(spin))
-            call get_density_matrix(wfn%focc(:, spin), wfn%coeff(:, :, spin), &
-               & wfn%density(:, :, spin))
-         end do
-         ts = sum(stmp)
-      end select
+      call solver%get_density(wfn%coeff, ints%overlap, wfn%emo, wfn%focc, wfn%density, error)
+      if (allocated(error)) return
+      stmp = 0.0_wp
+      do spin = 1, size(wfn%emo, 2)
+         wfn%emo(:, spin) = wfn%emo(:, spin) * (1.0_wp + keps) + keps0
+         call get_electronic_entropy(wfn%focc(:, spin), wfn%kt, stmp(spin))
+      end do
+      ts = sum(stmp)
    end subroutine get_density
 
    pure function id_to_atom(mol, idparam) result(atomparam)

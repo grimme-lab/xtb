@@ -110,13 +110,13 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:),y(:,:),Edim(:,:)
    integer, allocatable :: spinfrag(:), start_index(:),end_index(:),orbprint(:)
 
-   integer :: charge, stat, unit, ifr, nfrag, nao, i, j, k
+   integer :: charge, stat, unit, ifr, nfrag, nao, i, j, k, homo, homo_1, homo_2
 
    logical :: exist
 
    character(3) :: adv='NO '
 
-   real(wp) :: energy, cutoff, jab, sab, jeff, Vtot(3)
+   real(wp) :: energy, cutoff, jab, sab, jeff, Vtot(3), nel_a, nel_1, nel_2
 
 !======================================================================================
 
@@ -312,9 +312,13 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
            &considered for DIPRO: "//format_string(dipro%othr, '(f6.3)')//" eV")
 
    do ifr=1,nfrag
+      ! check only alpha spin
+      nel_a = sum(wfx(ifr)%focc(:, 1))
+      homo = floor(nel_a)
+      homo = merge(homo+1, homo, mod(nel_a, 1.0_wp) > 0.5_wp)
       do j = 1, fcalc(ifr)%bas%nao
-         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(2),1) - dipro%othr/autoev) .and.&
-           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(2)+1,1) + dipro%othr/autoev)) then
+         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(homo,1) - dipro%othr/autoev) .and.&
+           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(homo+1,1) + dipro%othr/autoev)) then
            if (start_index(ifr).eq.-1) then 
                    start_index(ifr) = j
               end if
@@ -343,7 +347,10 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    !> scmat=S_dim*C_dim
    call gemm(overlap, coeff2, scmat)
    do j = start_index(1), end_index(1)
-      orbprint(1)=wfx(1)%homo(max(2,1))-j
+      nel_1 = sum(wfx(1)%focc(:, 1))
+      homo_1 = floor(nel_1)
+      homo_1 = merge(homo_1+1, homo_1, mod(nel_1, 1.0_wp) > 0.5_wp)
+      orbprint(1)=homo_1-j
 
       y(:,1)=0
       !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
@@ -355,7 +362,10 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
       efrag(1)=dot( y(:,1), scratch)
 
       do k = start_index(2), end_index(2)
-         orbprint(2)=wfx(2)%homo(max(2,1))-k
+         nel_2 = sum(wfx(2)%focc(:, 1))
+         homo_2 = floor(nel_2)
+         homo_2 = merge(homo_2+1, homo_2, mod(nel_2, 1.0_wp) > 0.5_wp)
+         orbprint(2)=homo_2-k
 
          y(:,2)=0
          !> y_mon2(ifr)=C_mon2(k)*S_dim*C_dim
