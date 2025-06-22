@@ -1049,20 +1049,6 @@ contains
          end select
       end if
 
-      if (set%pr_json) then
-         select type (calc)
-         type is (TxTBCalculator)
-            call open_file(ich, 'xtbout.json', 'w')
-            call main_xtb_json(ich, &
-                               mol, chk%wfn, calc%basis, res, fres)
-            call close_file(ich)
-         type is (TPTBCalculator)
-            call open_file(ich, 'xtbout.json', 'w')
-            call main_ptb_json(ich, &
-                               mol, chk%wfn, calc, res, fres)
-            call close_file(ich)
-         end select
-      end if
       if (printTopo%any()) then
          select type (calc)
          type is (TGFFCalculator)
@@ -1078,6 +1064,21 @@ contains
       if ((set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)) then
          call generic_header(iprop, 'Frequency Printout', 49, 10)
          call main_freq(iprop, mol, chk%wfn, fres)
+      end if
+
+      if (set%pr_json) then
+         select type (calc)
+         type is (TxTBCalculator)
+            call open_file(ich, 'xtbout.json', 'w')
+            call main_xtb_json(ich, &
+                               mol, chk%wfn, calc%basis, res, fres)
+            call close_file(ich)
+         type is (TPTBCalculator)
+            call open_file(ich, 'xtbout.json', 'w')
+            call main_ptb_json(ich, &
+                               mol, chk%wfn, calc, res, fres)
+            call close_file(ich)
+         end select
       end if
 
       if (allocated(set%property_file)) then
