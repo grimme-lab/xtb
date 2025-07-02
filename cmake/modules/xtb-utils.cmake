@@ -20,6 +20,7 @@ macro(
    package
    methods
    url
+   rev
 )
 string(TOLOWER "${package}" _pkg_lc)
 string(TOUPPER "${package}" _pkg_uc)
@@ -102,7 +103,7 @@ foreach(method ${methods})
       FetchContent_Declare(
          "${_pkg_lc}"
          GIT_REPOSITORY "${url}"
-         GIT_TAG "HEAD"
+         GIT_TAG "${rev}"
       )
       FetchContent_MakeAvailable("${_pkg_lc}")
       
