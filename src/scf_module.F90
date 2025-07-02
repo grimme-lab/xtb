@@ -839,17 +839,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    endif printing
 
-   ! Need to write xtb.cosmo for CPCM-X, so separate this from the printing block
-   if (allocated(solvation)) then
-     select type(solvation)
-     type is (TCosmo)
-        call open_file(ich, "xtb.cosmo", 'w')
-        call solvation%writeCosmoFile(ich, mol%at, mol%sym, mol%xyz, &
-           & wfn%q, eel + ep + exb + merge(embd, ed + embd, allocated(scD4)))
-        call close_file(ich)
-     end select
-   end if
-   
    !--------------------------!
    ! Wiberg-Mayer bond orders !
    !--------------------------!
