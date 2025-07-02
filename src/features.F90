@@ -17,10 +17,6 @@
 #define WITH_TBLITE 0
 #endif
 
-#ifndef WITH_CPCMX
-#define WITH_CPCMX 0
-#endif
-
 module xtb_features
    implicit none
    private
@@ -28,7 +24,6 @@ module xtb_features
    public :: get_xtb_feature
 
    logical, parameter :: tblite_support = WITH_TBLITE /= 0
-   logical, parameter :: cpcmx_support = WITH_CPCMX /= 0
 
 
 contains
@@ -42,8 +37,6 @@ function get_xtb_feature(feature) result(has_feature)
    select case(feature)
    case("tblite")
       has_feature = tblite_support
-   case("cpcmx")
-      has_feature = cpcmx_support
    case("color")
       has_feature = color_support()
    case default

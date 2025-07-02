@@ -20,9 +20,7 @@ test(
     'xtb_c_test',
     sources: files('c_api_example.c'),
     dependencies: xtb_dep_static,
-    c_args: [
-    '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
-    ],
+    c_args: [],
   ),
   env: xtbenv,
 )
