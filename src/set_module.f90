@@ -2179,7 +2179,6 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set6 = .true.
    logical,save :: set7 = .true.
    logical,save :: set8 = .true.
-   logical,save :: set9 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
@@ -2239,9 +2238,6 @@ subroutine set_gbsa(env,key,val)
          set%solvInput%tmcosmo = .true.
       end if
       set8 = .false.
-   case('cpcmx')
-      if (set9) set%solvInput%cpxsolvent = val
-      set9 = .false.
    end select
 end subroutine set_gbsa
 

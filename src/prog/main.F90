@@ -96,7 +96,6 @@ module xtb_prog_main
    use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, &
          & newTBLiteWavefunction, get_ceh, num_grad_chrg
    use xtb_ptb_calculator, only: TPTBCalculator
-   use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
    !> PTB related modules
    use xtb_main_json, only: main_ptb_json
@@ -121,14 +120,13 @@ contains
 !  use some wrapper types to bundle information together
       type(TMolecule) :: mol
       type(scc_results) :: res
-      class(TCalculator), allocatable :: calc, cpxcalc
+      class(TCalculator), allocatable :: calc
       type(freq_results) :: fres
       type(TRestart) :: chk
       type(chrg_parameter) :: chrgeq
       type(TIFFData), allocatable :: iff_data
       type(oniom_input) :: oniom
       type(jab_input) :: dipro
-      type(TCpcmx) :: cpx
       type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
       character(len=:), allocatable :: fname    ! geometry input file
@@ -283,11 +281,6 @@ contains
          &   (set%runtyp == p_run_omd) .or. (set%runtyp == p_run_screen) .or. &
          &   (set%runtyp == p_run_metaopt))
 
-      if (allocated(set%solvInput%cpxsolvent).and.anyopt) then
-            call env%terminate("CPCM-X not implemented for geometry optimization. &
-                 & Please use another solvation model for optimization instead.")
-      endif     
- 
       if ((set%mode_extrun == p_ext_ptb) .and. anyopt) call env%terminate("PTB not implemented for geometry optimization. &
          &Please use another method for optimization instead.")
 
@@ -962,28 +955,6 @@ contains
       ! reset the gap, since it is currently not updated in ancopt and numhess
       if (allocated(chk%wfn%emo)) then
          res%hl_gap = chk%wfn%emo(chk%wfn%ihomo + 1) - chk%wfn%emo(chk%wfn%ihomo)
-      end if
-
-      !> CPCM-X post-SCF solvation
-      if (allocated(calc%solvation)) then
-         if (allocated(calc%solvation%cpxsolvent)) then
-            select type (calc)
-            type is (TxTBCalculator)
-               call generic_header(env%unit, "CPCM-X post-SCF solvation evaluation", 49, 10)
-               if (set%gfn_method /= 2) call env%warning("CPCM-X was parametrized for GFN2-xTB. &
-                  &The results are probably inaccurate with other methods.")
-               Call cpx%setup(env, calc%solvation%cpxsolvent)
-               Call env%checkpoint("CPCM-X setup terminated")
-               cpxcalc = calc
-               deallocate (cpxcalc%solvation)
-               call cpxcalc%singlepoint(env, mol, chk, 1, .false., energy_gas, g, sigma, egap, res)
-          Call cpx%calc_solv(env, calc%solvation%cpxsolvent, energy_gas, 0.4_wp, 298.15_wp, 500, 0.0001_wp, res%e_total)
-               Call cpx%print(set%verbose)
-               Call env%checkpoint("CPCM-X post-SCF solvation evaluation terminated")
-            type is (TGFFCalculator)
-               call env%error("CPCM-X is not possible with a force field.", source)
-            end select
-         end if
       end if
 
       call env%checkpoint("Calculation terminated")
@@ -1769,20 +1740,6 @@ contains
                end if
             else
                call env%error("No solvent name provided for COSMO", source)
-            end if
-
-         case ('--cpcmx')
-            if (get_xtb_feature('cpcmx')) then
-               call args%nextArg(sec)
-               if (allocated(sec)) then
-                  call set_gbsa(env, 'solvent', 'infinity')
-                  call set_gbsa(env, 'cosmo', 'true')
-                  call set_gbsa(env, 'cpcmx', sec)
-               else
-                  call env%error("No solvent name provided for CPCM-X", source)
-               end if
-            else
-               call env%error("The CPCM-X library was not included in this version of xTB.", source)
             end if
 
          case ('--scc', '--sp')
