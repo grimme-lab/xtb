@@ -1614,6 +1614,8 @@ contains
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_scc(env, 'temp', sec)
+               !set etemp for tblite
+               idum = getValue(env, sec, tblite%etemp)
             else
                call env%error("Temperature in --etemp option is missing", source)
             end if
