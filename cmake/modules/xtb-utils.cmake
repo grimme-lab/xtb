@@ -20,6 +20,7 @@ macro(
    package
    methods
    url
+   rev
 )
 string(TOLOWER "${package}" _pkg_lc)
 string(TOUPPER "${package}" _pkg_uc)
@@ -45,7 +46,7 @@ foreach(method ${methods})
 
    # pkgconf case
    elseif("${method}" STREQUAL "pkgconf")
-      find_package("PkgConfig" QUIET) # built-in Find script 
+      find_package("PkgConfig" QUIET) # built-in Find script
       pkg_check_modules("${_pkg_uc}" QUIET "${package}") # check if it is a pkg-config module
       if("${_pkg_uc}_FOUND")
          message(STATUS "Found ${package} via pkg-config")
@@ -70,11 +71,11 @@ foreach(method ${methods})
       endif()
       set("${_pkg_uc}_SOURCE_DIR" "${PROJECT_SOURCE_DIR}/${${_pkg_uc}_SUBPROJECT}")
       set("${_pkg_uc}_BINARY_DIR" "${PROJECT_BINARY_DIR}/${${_pkg_uc}_SUBPROJECT}")
-      
+
       # if can be configured from the subprojects dir
       if(EXISTS "${${_pkg_uc}_SOURCE_DIR}/CMakeLists.txt")
          message(STATUS "Include ${package} from ${${_pkg_uc}_SUBPROJECT}")
-         
+
          add_subdirectory(
             "${${_pkg_uc}_SOURCE_DIR}"
             "${${_pkg_uc}_BINARY_DIR}"
@@ -102,10 +103,10 @@ foreach(method ${methods})
       FetchContent_Declare(
          "${_pkg_lc}"
          GIT_REPOSITORY "${url}"
-         GIT_TAG "HEAD"
+         GIT_TAG "${rev}"
       )
       FetchContent_MakeAvailable("${_pkg_lc}")
-      
+
       add_library("${package}::${package}" INTERFACE IMPORTED)
       target_link_libraries("${package}::${package}" INTERFACE "${package}")
 
