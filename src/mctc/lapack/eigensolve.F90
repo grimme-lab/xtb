@@ -216,6 +216,7 @@ end subroutine mctc_ssygvd_factorized
 
 
 subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
+   use xtb_tracying
    character(len=*), parameter :: source = 'mctc_lapack_dsygvd_factorized'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -224,24 +225,34 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
    real(dp), intent(out) :: eval(:)
    integer :: info, ldwork, liwork
 
+   type(xtb_zone) :: zone
+
    ldwork = size(self%dwork)
    liwork = size(self%iwork)
 
-   CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
+   if (do_tracying) call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="sygst", color=TracyColors%Pink)
 
+   CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
    if (info /= 0) then
       call env%error("Failed to reduce eigenvalue problem", source)
       return
    end if
 
-   CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%dwork, ldwork, self%iwork, liwork, info )
+   if (do_tracying) call zone%end()
+   if (do_tracying) call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="syevd", color=TracyColors%Purple)
 
+   CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%dwork, ldwork, self%iwork, liwork, info )
    if (info /= 0) then
       call env%error("Failed to compute eigenvalues and eigenvectors", source)
       return
    end if
 
+   if (do_tracying) call zone%end()
+   if (do_tracying) call zone%start("src/mctc/lapack/eigensolve.F90", source, __LINE__, zone_name="trsm", color=TracyColors%Purple)
+
    CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_dp, bmat_factorized, self%n, amat, self%n )
+
+   if (do_tracying) call zone%end()
 
 end subroutine mctc_dsygvd_factorized
 
