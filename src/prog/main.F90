@@ -1313,6 +1313,7 @@ contains
 !$    integer :: omp_get_num_threads, nproc
       integer :: nFlags
       integer :: idum, ndum
+      logical :: ldum
       real(wp) :: ddum
       character(len=:), allocatable :: flag, sec
       logical :: exist
@@ -1616,7 +1617,7 @@ contains
             if (allocated(sec)) then
                call set_scc(env, 'temp', sec)
                !set etemp for tblite
-               idum = getValue(env, sec, tblite%etemp)
+               ldum = getValue(env, sec, tblite%etemp)
             else
                call env%error("Temperature in --etemp option is missing", source)
             end if
