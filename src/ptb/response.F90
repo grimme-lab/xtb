@@ -122,7 +122,7 @@ contains
                [ .false., .false., .false., .false. ]
 
       !> Solver for the effective Hamiltonian
-      call ctx%new_solver(solver, bas%nao)
+      call ctx%new_solver(solver, ints%overlap, wfn%nel, wfn%kt)
 
       alpha = 0.0_wp
       if (present(efield)) then
@@ -304,7 +304,7 @@ contains
       logical, parameter :: debug = .false.
 
       !> Solver for the effective Hamiltonian
-      call ctx%new_solver(solver, bas%nao)
+      call ctx%new_solver(solver, ints%overlap, wfn%nel, wfn%kt)
 
       !> Reset H0 matrix
       ints%hamiltonian = 0.0_wp

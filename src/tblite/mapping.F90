@@ -81,17 +81,23 @@ subroutine convert_tblite_to_results(results, mol, chk, energy, converged, gradi
    !> (analytical) gradients
    real(wp), optional, intent(in) :: gradient(:,:)
 
-   
+   real(wp) :: nel
+   integer :: homo, nao
+
    results%e_total = energy
    results%converged = converged
 
 #if WITH_TBLITE
-   
-   ! do not overwrite dipole moments, if calculated (PTB case) ! 
+
+   ! do not overwrite dipole moments, if calculated (PTB case) !
    if (all(results%dipole == 0.0_wp)) then
       results%dipole = sum(chk%tblite%dpat(:, :, 1), 2) + matmul(mol%xyz, chk%tblite%qat(: ,1))
    endif
-   results%hl_gap = (chk%tblite%emo(chk%tblite%homo(1) + 1, 1) - chk%tblite%emo(chk%tblite%homo(1), 1)) * autoev
+   nel = sum(chk%tblite%focc(:, 1))
+   nao = size(chk%tblite%emo, 1)
+   homo = floor(nel)
+   homo = merge(homo+1, homo, mod(nel, 1.0_wp) > 0.5_wp)
+   results%hl_gap = (chk%tblite%emo(min(homo+1, nao), 1) - chk%tblite%emo(max(homo, 1), 1)) * autoev
 
 #endif
 
@@ -105,9 +111,20 @@ end subroutine convert_tblite_to_results
 subroutine from_tblite_wfn(wfn, tblite)
 
    use tblite_wavefunction, only : wavefunction_type
-   
-   type(TWavefunction), intent(inout) :: wfn 
+
+   type(TWavefunction), intent(inout) :: wfn
    type(wavefunction_type), intent(in) :: tblite
+
+   real(wp) :: nel_a, nel_b
+   integer :: homo_a, homo_b
+
+   nel_a = sum(tblite%focc(:, 1))
+   homo_a = floor(nel_a)
+   homo_a = merge(homo_a+1, homo_a, mod(nel_a, 1.0_wp) > 0.5_wp)
+
+   nel_b = sum(tblite%focc(:, 2))
+   homo_b = floor(nel_b)
+   homo_b = merge(homo_b+1, homo_b, mod(nel_b, 1.0_wp) > 0.5_wp)
 
    wfn%dipm = tblite%dpat(:, :, 1)
    wfn%nel = nint(tblite%nocc)
@@ -119,9 +136,9 @@ subroutine from_tblite_wfn(wfn, tblite)
    wfn%focc(:) = tblite%focc(:, 1)
    wfn%emo = tblite%emo(:, 1) * autoev
    wfn%C = tblite%coeff(:, :, 1)
-   wfn%ihomo = tblite%homo(1)
-   wfn%ihomoa = tblite%homo(1)
-   wfn%ihomob = tblite%homo(2)
+   wfn%ihomo = homo_a
+   wfn%ihomoa = homo_a
+   wfn%ihomob = homo_b
    wfn%qp = tblite%qpat(:, :, 1)
 
 end subroutine from_tblite_wfn
