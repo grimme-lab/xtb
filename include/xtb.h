@@ -225,13 +225,6 @@ xtb_setElectronicTemp(xtb_TEnvironment /* env */,
                       xtb_TCalculator /* calc */,
                       double /* temperature */) XTB_API_SUFFIX__VERSION_2_0_0;
 
-//// Calculate CPCM-X solvation energy
-extern XTB_API_ENTRY void XTB_API_CALL
-xtb_cpcmx_calc(xtb_TEnvironment /* env */,
-               xtb_TMolecule /* mol */,
-               xtb_TCalculator /* calc */,
-               xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_2_0_0;
-
 /// Perform singlepoint calculation
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_singlepoint(xtb_TEnvironment /* env */,
