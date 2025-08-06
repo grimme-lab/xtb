@@ -124,6 +124,7 @@ list(APPEND srcs
   "${dir}/pseudodiag.f90"
   "${dir}/qpot.f90"
   "${dir}/qsort.f90"
+  "${dir}/random_generators.f90"
   "${dir}/rdcoord2.f90"
   "${dir}/read_gfn_param.f90"
   "${dir}/readin.f90"
