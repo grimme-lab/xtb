@@ -186,10 +186,6 @@ subroutine help(iunit)
    "--tmcosmo SOLVENT/EPSILON",&
    "    same as --cosmo, but uses TM convention for writing the .cosmo files.",&
    "",&
-   "--cpcmx SOLVENT",&
-   "    extended conduction-like polarizable continuum solvation model (CPCM-X),",&
-   "    available solvents are all solvents included in the Minnesota Solvation Database.",&
-   "",&
    "--cma",&
    "    shifts molecule to center of mass and transforms cartesian coordinates into the",&
    "    coordinate system of the principle axis (not affected by ‘isotopes’-file).",&

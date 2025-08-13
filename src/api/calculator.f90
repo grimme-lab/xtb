@@ -420,13 +420,6 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid, charpt
          input%cosmo = .true.
       elseif (solv_model == 'tmcosmo') then
          input%tmcosmo = .true.
-      elseif (solv_model == 'cpcmx') then
-         ! CPCM-X does an initial SCF with COSMO and a special solvent
-         ! before running a second SCF with the actual solvent.
-         input%cosmo = .true.
-         input%solvent = 'infinity'
-
-         input%cpxsolvent = solvent
       else
          call env%ptr%error("Unknown solvation model", source)
          return
