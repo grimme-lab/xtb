@@ -1742,6 +1742,9 @@ contains
                call env%error("No solvent name provided for COSMO", source)
             end if
 
+         case ('--cpcmx')
+            call env%error("The CPCM-X library was excluded starting from xtb 6.7.1. Please, use older xtb.", source)
+
          case ('--scc', '--sp')
             call set_runtyp('scc')
 
