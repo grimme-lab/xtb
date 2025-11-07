@@ -101,6 +101,8 @@ module xtb_prog_main
    !> PTB related modules
    use xtb_main_json, only: main_ptb_json
 
+   use xtb_tracying
+
    implicit none
    private
 
@@ -215,8 +217,12 @@ contains
 
       type(TPrintTopo) :: printTopo ! gfnff topology printout list
 
+      type(xtb_zone) :: zone
+
       xenv%home = env%xtbhome
       xenv%path = env%xtbpath
+
+      if (do_tracying) call zone%start("src/prog/main.F90", source, __LINE__, color=TracyColors%Aqua)
 
       ! ------------------------------------------------------------------------
       !> read the command line arguments
@@ -1246,6 +1252,8 @@ contains
          write (env%unit, '(72("-"))')
          call print_filelist(env%unit)
       end if
+
+      if (do_tracying) call zone%end()
 
       ! ------------------------------------------------------------------------
       !  make some post processing afterward, show some timings and stuff

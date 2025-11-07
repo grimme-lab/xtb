@@ -53,6 +53,7 @@ contains
 
 subroutine newD3Model(dispm,nat,at)
    use xtb_disp_dftd4param
+   use xtb_tracying
    implicit none
    type(TDispersionModel), intent(out) :: dispm
    integer, intent(in)  :: nat
@@ -63,6 +64,9 @@ subroutine newD3Model(dispm,nat,at)
    real(wp) :: alpha(23),c6
 
    intrinsic :: nint
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "newD3Model", __LINE__, color=TracyColors%SteelBlue1)
 
    call init(dispm, maxElem=maxval(at))
 
@@ -105,6 +109,7 @@ end subroutine newD3Model
 
 subroutine newD4Model(dispm,g_a,g_c,mode)
    use xtb_disp_dftd4param
+   use xtb_tracying
    type(TDispersionModel), intent(out) :: dispm
    real(wp),intent(in)  :: g_a,g_c
    integer, intent(in)  :: mode
@@ -115,6 +120,9 @@ subroutine newD4Model(dispm,g_a,g_c,mode)
    real(wp) :: tmp_hq(7,118)
 
    intrinsic :: nint
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "newD4Model", __LINE__, color=TracyColors%SteelBlue1)
 
    call init(dispm)
 
@@ -587,6 +595,7 @@ end function fdmprdr_zerom
 
 subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
    use xtb_mctc_accuracy, only : wp
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
@@ -601,6 +610,9 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
    real(wp) :: twf,norm,aiw(23)
 
    intrinsic :: maxval
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "d4", __LINE__, color=TracyColors%SteelBlue1)
 
    allocate( itbl(7,nat), source = 0 )
 
@@ -658,6 +670,7 @@ end subroutine d4
 
 
 subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
@@ -673,6 +686,9 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    real(wp) :: c8abns,c10abns,r2,cutoff,oor6,oor8,oor10,r,gwgw,r4r2ij
    real(wp), parameter :: rthr = 72.0_wp ! slightly larger than in gradient
    real(wp), parameter :: gwcut = 1.0e-7_wp
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "build_wdispmat", __LINE__, color=TracyColors%SteelBlue1)
 
    ! acc enter data create(wdispmat) copyin(at, xyz, itbl, dispm, dispm%nref, &
    ! acc& c6abns, gw, par)
@@ -734,6 +750,7 @@ end subroutine build_wdispmat
 
 subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
    use xtb_mctc_blas, only : mctc_symv
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
@@ -753,6 +770,9 @@ subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
    real(wp),allocatable :: dumvec(:)
 
    intrinsic :: sum,dble
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "disppot", __LINE__, color=TracyColors%SteelBlue1)
 
    allocate( zetavec(ndim),zerovec(ndim),dumvec(ndim), source = 0._wp )
 
@@ -947,6 +967,7 @@ end subroutine pbc_d4
 !  coordination number for later use.
 subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, &
       &                      zetavec, zerovec, zetadcn, zerodcn, zetadq)
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
@@ -978,6 +999,9 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
    integer :: iat, ati, iref, icount
    real(wp) :: norm, dnorm, twf, gw, expw, expd, gwk, dgwk
    real(wp) :: gi, zi
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "weight_references", __LINE__, color=TracyColors%SteelBlue1)
 
    ! acc enter data create(zetavec, zerovec, zetadq, zetadq, zetadcn, zerodcn) &
    ! acc& copyin(dispm, dispm%nref, dispm%ncount, dispm%cn, dispm%q, atoms, &
@@ -1068,6 +1092,7 @@ end subroutine weight_references
 !  the coordination number.
 subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
       & c6, dc6dcn, dc6dq)
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
@@ -1088,6 +1113,9 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
 
    integer :: iat, jat, ati, atj, iref, jref
    real(wp) :: refc6, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "get_atomic_c6", __LINE__, color=TracyColors%SteelBlue1)
 
    !$acc enter data create(c6, dc6dcn, dc6dq) copyin(atoms, dispm, dispm%nref, dispm%c6, &
    !$acc& zetavec, zetadcn, zetadq)
@@ -1155,6 +1183,7 @@ subroutine d4_full_gradient_neigh &
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
@@ -1218,6 +1247,9 @@ subroutine d4_full_gradient_neigh &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "d4_full_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -1265,6 +1297,7 @@ subroutine d4_gradient_neigh &
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
@@ -1322,6 +1355,9 @@ subroutine d4_gradient_neigh &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), dEdcn(:), dEdq(:)
 
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "d4_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -1357,6 +1393,8 @@ end subroutine d4_gradient_neigh
 subroutine disp_gradient_neigh &
       & (mol, neighs, neighlist, par, r4r2, c6, dc6dcn, dc6dq, &
       &  energies, gradient, sigma, dEdcn, dEdq)
+
+   use xtb_tracying
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1395,6 +1433,9 @@ subroutine disp_gradient_neigh &
 
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "disp_gradient_neigh", __LINE__, color=TracyColors%SteelBlue1)
 
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
@@ -1627,6 +1668,7 @@ subroutine d4_full_gradient_latp &
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
@@ -1690,6 +1732,9 @@ subroutine d4_full_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "d4_full_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -1742,6 +1787,7 @@ subroutine d4_gradient_latp &
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
@@ -1799,6 +1845,9 @@ subroutine d4_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "d4_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -1832,6 +1881,8 @@ end subroutine d4_gradient_latp
 subroutine disp_gradient_latp &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, dc6dq, &
       &  energies, gradient, sigma, dEdcn, dEdq)
+
+   use xtb_tracying
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1871,6 +1922,9 @@ subroutine disp_gradient_latp &
    real(wp) :: cutoff2
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "disp_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
 
    nat = len(mol)
    cutoff2 = cutoff**2
@@ -1941,6 +1995,7 @@ subroutine d4_atm_gradient_latp &
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   use xtb_tracying
    type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
@@ -1990,6 +2045,9 @@ subroutine d4_atm_gradient_latp &
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
 
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "d4_atm_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
+
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
@@ -2024,6 +2082,8 @@ subroutine atm_gradient_latp &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
 
+   use xtb_tracying
+
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
 
@@ -2048,6 +2108,9 @@ subroutine atm_gradient_latp &
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
    logical :: doPBC
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "atm_gradient_latp", __LINE__, color=TracyColors%SteelBlue1)
 
    cutoff2 = cutoff**2
    nat = len(mol) ! workaround for legacy Intel Fortran compilers

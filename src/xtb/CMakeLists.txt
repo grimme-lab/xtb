@@ -19,7 +19,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/basisset.f90"
-  "${dir}/calculator.f90"
+  "${dir}/calculator.F90"
   "${dir}/coulomb.f90"
   "${dir}/data.f90"
   "${dir}/dispersion.f90"
@@ -28,7 +28,7 @@ list(APPEND srcs
   "${dir}/gfn1.f90"
   "${dir}/gfn2.f90"
   "${dir}/halogen.f90"
-  "${dir}/hamiltonian.f90"
+  "${dir}/hamiltonian.F90"
   "${dir}/hamiltonian_gpu.f90"
   "${dir}/multipole.f90"
   "${dir}/repulsion.F90"

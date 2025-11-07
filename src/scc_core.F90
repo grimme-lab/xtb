@@ -49,6 +49,8 @@ contains
 !! ========================================================================
 subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
    &                xyz,selfEnergy,S,aoat2,lao2,valao2,aoexp,ao2sh)
+   use xtb_tracying
+
    type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
    integer, intent(in)  :: n
@@ -69,6 +71,10 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
    integer  :: iat,jat,ish,jsh,il,jl,iZp,jZp
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
+
+   type(xtb_zone) :: zone
+
+   if (do_tracying) call zone%start("src/scc_core.F90", "Build_H0", __LINE__, color=TracyColors%Orchid2)
 
    H0=0.0_wp
 
@@ -110,6 +116,8 @@ end subroutine build_h0
 subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
       & H0, S, shellShift, aoat2, ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_tracying
+
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -128,6 +136,10 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
    integer  :: ii,jj,kk
    real(wp) :: dum
    real(wp) :: eh1,t8,t9,tgb,h1
+
+   type(xtb_zone) :: zone
+
+   if (do_tracying) call zone%start("src/scc_core.F90", "BuildIsoH1", __LINE__, color=TracyColors%Orchid2)
 
    H = 0.0_wp
 
@@ -154,6 +166,8 @@ end subroutine buildIsotropicH1
 subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
                          H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_tracying
+
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -181,6 +195,10 @@ subroutine buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mql
    integer  :: ii,jj,kk
    integer  :: ishell,jshell
    real(wp) :: dum,eh1,t8,t9,tgb
+
+   type(xtb_zone) :: zone
+
+   if (do_tracying) call zone%start("src/scc_core.F90", "BuildIsoAnisoH1", __LINE__, color=TracyColors%Orchid2)
 
    !$omp parallel default(none) &
    !$omp private(m, i, j, k, l, ii, jj, dum, eh1) &
@@ -273,6 +291,8 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq
    use xtb_embedding, only : electro_pcem
+
+   use xtb_tracying
 
    character(len=*), parameter :: source = 'scc_core'
 
@@ -408,9 +428,18 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: econverged
    logical  :: qconverged
 
+   type(xtb_zone) :: zone, zone_solve, zone_fact
+   type(xtb_frame) :: frame
+
+   if (do_tracying) call zone%start("src/scc_core.F90", source, __LINE__, color=TracyColors%Red)
+
+   if (do_tracying) call zone_fact%start("src/scc_core.F90", source, __LINE__, zone_name="S factorization", color=TracyColors%Blue)
+
    allocate(S_factorized(ndim, ndim), source = 0.0_wp )
    S_factorized = S
    call mctc_potrf(env, S_factorized)
+
+   if (do_tracying) call zone_fact%end()
 
    converged = .false.
    lastdiag = .false.
@@ -432,6 +461,8 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !! ------------------------------------------------------------------------
 !  Iteration entry point
    scc_iterator: do iter = 1, thisiter
+
+   if (do_tracying) call frame%start("SCC iter")
 
    ! set up ES potential
    atomicShift(:) = 0.0_wp
@@ -472,7 +503,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
+   if (do_tracying) call zone_solve%start("src/scc_core.F90", source, __LINE__, zone_name="solve", color=TracyColors%Red)
    call solver%fact_solve(env, H, S_factorized, emo)
+   if (do_tracying) call zone_solve%end()
    call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
@@ -623,6 +656,8 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    qq=q
 
 !  end of SCC convergence part
+
+   if (do_tracying) call frame%end()
 
 !! ------------------------------------------------------------------------
    if (econverged.and.qconverged) then
@@ -914,7 +949,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    logical, intent(out)  :: fail
 
    integer i,j,info,lwork,liwork,nfound,iu,nbf
-   integer, allocatable :: iwork(:),ifail(:)
+   integer, allocatable :: iwork(:)
    real(wp),allocatable :: aux  (:)
    real(wp) w0,w1,t0,t1
 
@@ -925,13 +960,13 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                                     call timing(t0,w0)
 !     if(ndim.gt.0)then
 !     USE DIAG IN NON-ORTHORGONAL BASIS
-      allocate (aux(1),iwork(1),ifail(ndim))
+      !allocate (aux(1),iwork(1),ifail(ndim))
       P = s
-      call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &!workspace query
-     &           -1,iwork,liwork,info)
-      lwork=int(aux(1))
-      liwork=iwork(1)
-      deallocate(aux,iwork)
+      !call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &!workspace query
+!     &           -1,iwork,liwork,info)
+      lwork=1+6*ndim+2*ndim*ndim
+      liwork=3+5*ndim
+!      deallocate(aux,iwork)
       allocate (aux(lwork),iwork(liwork))              !do it
       call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &
      &           lwork,iwork,liwork,info)
@@ -941,7 +976,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
          return
       endif
       X = H ! save
-      deallocate(aux,iwork,ifail)
+      deallocate(aux,iwork)
 
 !     else
 !        USE DIAG IN ORTHOGONAL BASIS WITH X=S^-1/2 TRAFO
@@ -983,6 +1018,7 @@ end subroutine solve
 subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    use xtb_mctc_convert, only : autoev
    use xtb_mctc_constants, only : kB
+   use xtb_tracying
    integer, intent(in)  :: norbs
    integer, intent(in)  :: nel
    real(wp),intent(in)  :: eig(norbs)
@@ -998,6 +1034,10 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    real(wp), parameter :: thr   = 1e-9_wp
    real(wp), parameter :: sqrttiny = sqrt(tiny(1.0_wp))
    integer :: ncycle,i,j,m,k,i1,i2
+
+   type(xtb_zone) :: zone
+
+   if (do_tracying) call zone%start("src/scc_core.F90", "fermismear", __LINE__, color=TracyColors%Orchid4)
 
    bkt = boltz*t
 
@@ -1175,12 +1215,16 @@ end subroutine occu
 ! X: scratch
 ! P  dmat
 subroutine dmat(ndim,focc,C,P)
+   use xtb_tracying
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: focc(:)
    real(wp),intent(in)  :: C(:,:)
    real(wp),intent(out) :: P(:,:)
    integer :: i,m
    real(wp),allocatable :: Ptmp(:,:)
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/scc_core.F90", "dmat", __LINE__, color=TracyColors%Red)
 
    allocate(Ptmp(ndim,ndim))
    ! acc enter data create(Ptmp(:,:)) copyin(C(:, :), focc(:), P(:, :))
@@ -1206,6 +1250,8 @@ end subroutine dmat
 
 ! Reference: I. Mayer, "Simple Theorems, Proofs, and Derivations in Quantum Chemistry", formula (7.35)
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
+   use xtb_tracying
+
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: P(ndim,ndim)
@@ -1216,6 +1262,9 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    real(wp),allocatable :: Ptmp(:,:)
    real(wp) xsum,rab
    integer i,j,k,m
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/scc_core.F90", "Wiberg", __LINE__, color=TracyColors%Orchid4)
 
    allocate(Ptmp(ndim,ndim))
    call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
@@ -1246,6 +1295,8 @@ end subroutine get_wiberg
 
 ! Reference: I. Mayer, "Simple Theorems, Proofs, and Derivations in Quantum Chemistry", formula (7.36)
 subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
+   use xtb_tracying
+
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: Pa(ndim,ndim)
@@ -1258,6 +1309,9 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    real(wp),allocatable :: Ptmp_b(:,:)
    real(wp) xsum,rab
    integer i,j,k,m
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/scc_core.F90", "UWiberg", __LINE__, color=TracyColors%Orchid4)
 
    allocate(Ptmp_a(ndim,ndim))
    allocate(Ptmp_b(ndim,ndim))
@@ -1406,12 +1460,17 @@ end subroutine mpop
 
 !> Mulliken pop shell wise
 subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
+   use xtb_tracying
+   implicit none
    integer nao,n,nshell,ao2sh(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
    real(wp)  qsh(nshell),ps
 
    integer i,j,ii,jj,ij
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/scc_core.F90", "mpopsh", __LINE__, color=TracyColors%LightYellow1)
 
    qsh=0
    do i=1,nao
@@ -1430,11 +1489,16 @@ end subroutine mpopsh
 
 
 subroutine qsh2qat(ash,qsh,qat)
+   use xtb_tracying
+
    integer, intent(in) :: ash(:)
    real(wp), intent(in) :: qsh(:)
    real(wp), intent(out) :: qat(:)
 
    integer :: iSh
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/scc_core.F90", "qsh2qat", __LINE__, color=TracyColors%LightYellow1)
 
    qat(:) = 0.0_wp
    do iSh = 1, size(qsh)
