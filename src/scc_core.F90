@@ -427,7 +427,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: converged
    logical  :: econverged
    logical  :: qconverged
-   integer  :: info
 
    type(xtb_zone) :: zone, zone_solve, zone_fact
    type(xtb_frame) :: frame
