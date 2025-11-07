@@ -363,7 +363,7 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    enddo
    !$omp end do nowait
 
-   !$omp do schedule(static)
+   !$omp do schedule(dynamic)
    do i = 1,nao
       ii = aoat2(i)
       ra(1:3) = xyz(1:3,ii)
