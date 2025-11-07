@@ -653,6 +653,10 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 !$ allocate(sigma_omp(size(sigma, dim=1), size(sigma, dim=2)), source = 0.0_wp)
 !$ allocate(dhdcn_omp(size(dhdcn, dim=1)), source = 0.0_wp)
 
+#ifndef _OPENMP
+   associate(g_omp => g, sigma_omp => sigma, dhdcn_omp => dhdcn)
+#endif
+
    !$omp do collapse(2) schedule(dynamic,32)
    do iat = 1,nat
       do jat = 1,nat
@@ -766,6 +770,10 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
       end do
    end do
    !$omp end do nowait
+
+#ifndef _OPENMP
+   end associate
+#endif
 
    !$omp critical (g)
 !$ g(:,:) = g + g_omp

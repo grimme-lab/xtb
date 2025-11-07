@@ -316,6 +316,10 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 !$ allocate(qp_omp(size(qp, dim=1), size(qp, dim=2)), source = 0.0_wp)
 !$ allocate(dipm_omp(size(dipm, dim=1), size(dipm, dim=2)), source = 0.0_wp)
 
+#ifndef _OPENMP
+   associate(dipm_omp => dipm, qp_omp => qp)
+#endif
+
    !$omp do schedule(dynamic,32) collapse(2)
    do i = 1,nao
       do j = 1,nao
@@ -393,6 +397,10 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
       enddo
    enddo
    !$omp end do nowait
+
+#ifndef _OPENMP
+   end associate
+#endif
 
    !$omp critical (dipm)
 !$ dipm(:,:) = dipm + dipm_omp

@@ -518,6 +518,10 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
 !$ allocate(djdr_omp(size(djdtr, dim=1), size(djdr, dim=2), size(djdr, dim=3)), source = 0.0_wp)
 !$ allocate(djdtr_omp(size(djdtr, dim=1), size(djdtr, dim=2)), source = 0.0_wp)
 
+#ifndef _OPENMP
+   associate (djdL_omp => djdL, djdr_omp => djdr, djdtr_omp => djdtr)
+#endif
+
    !$omp do collapse(2) schedule(dynamic,32)
    do iat = 1, nat
       do jat = 1, nat
@@ -547,6 +551,10 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
       end do
    end do
    !$omp end do nowait
+
+#ifndef _OPENMP
+   end associate
+#endif
 
    !$omp critical (djdr)
 !$ djdr(:,:,:) = djdr + djdr_omp

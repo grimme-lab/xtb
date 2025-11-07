@@ -391,7 +391,7 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
    real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den, cutoff2
 
    ! local arrays for OpenMP
-   real(wp), allocatable :: cn_omp(:), dcndr_omp(:,:,:), dcndL_omp(:,:,:)
+!$ real(wp), allocatable :: cn_omp(:), dcndr_omp(:,:,:), dcndL_omp(:,:,:)
    logical :: with_omp
 
    with_omp = .false.
@@ -408,6 +408,10 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
 !$ allocate(cn_omp(size(cn, dim=1)), source = 0.0_wp)
 !$ allocate(dcndr_omp(size(dcndr, dim=1), size(dcndr, dim=2), size(dcndr, dim=3)), source = 0.0_wp)
 !$ allocate(dcndL_omp(size(dcndL, dim=1), size(dcndL, dim=2), size(dcndL, dim=3)), source = 0.0_wp)
+
+#ifndef _OPENMP
+   associate (cn_omp => cn, dcndr_omp => dcndr, dcndL_omp => dcndL)
+#endif
 
    !$omp do
    do iat = 1, len(mol)
@@ -455,6 +459,10 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
       end do
    end do
    !$omp end do nowait
+
+#ifndef _OPENMP
+   end associate
+#endif
 
    !$omp critical (dcndL)
 !$ dcndL(:,:,:) = dcndL + dcndL_omp
