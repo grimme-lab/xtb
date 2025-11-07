@@ -17,6 +17,10 @@ jobs:
                  version: 11
                - os: ubuntu-24.04-arm
                  version: 14
+               - os: macos-15-intel
+                 version: 15
+               - os: macos-latest
+                 version: 13
                - os: macos-latest
                  version: 14
                - os: macos-latest
