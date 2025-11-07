@@ -456,17 +456,17 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
 
 !$ end associate
 
-   !$omp critical (dcndL)
+   !$omp critical (dcndL_crt)
 !$ dcndL(:,:,:) = dcndL + dcndL_omp
-   !$omp end critical (dcndL)
+   !$omp end critical (dcndL_crt)
 
-   !$omp critical (dcndr)
+   !$omp critical (dcndr_crt)
 !$ dcndr(:,:,:) = dcndr + dcndr_omp
-   !$omp end critical (dcndr)
+   !$omp end critical (dcndr_crt)
 
-   !$omp critical (cn)
+   !$omp critical (cn_crt)
 !$ cn(:) = cn + cn_omp
-   !$omp end critical (cn)
+   !$omp end critical (cn_crt)
 
    !$omp end parallel
 

@@ -398,13 +398,13 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 
 !$ end associate
 
-   !$omp critical (dipm)
+   !$omp critical (dipm_crt)
 !$ dipm(:,:) = dipm + dipm_omp
-   !$omp end critical (dipm)
+   !$omp end critical (dipm_crt)
 
-   !$omp critical (qp)
+   !$omp critical (qp_crt)
 !$ qp(:,:) = qp + qp_omp
-   !$omp end critical (qp)
+   !$omp end critical (qp_crt)
 
    !$omp end parallel
 

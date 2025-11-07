@@ -552,15 +552,15 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
 
 !$ end associate
 
-   !$omp critical (djdr)
+   !$omp critical (djdr_crt)
 !$ djdr(:,:,:) = djdr + djdr_omp
-   !$omp end critical (djdr)
-   !$omp critical (djdL)
+   !$omp end critical (djdr_crt)
+   !$omp critical (djdL_crt)
 !$ djdL(:,:,:) = djdL + djdL_omp
-   !$omp end critical (djdL)
-   !$omp critical (djdtr)
+   !$omp end critical (djdL_crt)
+   !$omp critical (djdtr_crt)
 !$ djdtr(:,:) = djdtr + djdtr_omp
-   !$omp end critical (djdtr)
+   !$omp end critical (djdtr_crt)
 
    !$omp end parallel
 

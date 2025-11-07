@@ -771,15 +771,15 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 
 !$ end associate
 
-   !$omp critical (g)
+   !$omp critical (g_crt)
 !$ g(:,:) = g + g_omp
-   !$omp end critical (g)
-   !$omp critical (sigma)
+   !$omp end critical (g_crt)
+   !$omp critical (sigma_crt)
 !$ sigma(:,:) = sigma + sigma_omp
-   !$omp end critical (sigma)
-   !$omp critical (dhdcn)
+   !$omp end critical (sigma_crt)
+   !$omp critical (dhdcn_crt)
 !$ dhdcn(:) = dhdcn + dhdcn_omp
-   !$omp end critical (dhdcn)
+   !$omp end critical (dhdcn_crt)
 
    !$omp end parallel
 
