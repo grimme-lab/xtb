@@ -392,10 +392,6 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
 
    ! local arrays for OpenMP
 !$ real(wp), allocatable :: cn_omp(:), dcndr_omp(:,:,:), dcndL_omp(:,:,:)
-   logical :: with_omp
-
-   with_omp = .false.
-!$ with_omp = .true.
 
    cn = 0.0_wp
    dcndr = 0.0_wp
