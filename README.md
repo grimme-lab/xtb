@@ -30,6 +30,9 @@ A short guide on the usage of each is given here, follow the linked instructions
   2. gfortran, gcc
   3. ifx, icx (some versions may not work)
 
+Known issues with combinations:
+  1. GCC-13 + MacOS + AArch64
+
 
 ### Meson
 
