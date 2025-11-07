@@ -653,9 +653,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 !$ allocate(sigma_omp(size(sigma, dim=1), size(sigma, dim=2)), source = 0.0_wp)
 !$ allocate(dhdcn_omp(size(dhdcn, dim=1)), source = 0.0_wp)
 
-#ifndef _OPENMP
-   associate(g_omp => g, sigma_omp => sigma, dhdcn_omp => dhdcn)
-#endif
+!$ associate(g => g_omp, sigma => sigma_omp, dhdcn => dhdcn_omp)
 
    !$omp do collapse(2) schedule(dynamic,32)
    do iat = 1,nat
@@ -740,14 +738,14 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                   enddo
                enddo
                ! save dE/dCN for CNi
-               dhdcn_omp(iat) = dhdcn_omp(iat) + dCN*dSEdcn(ish, iat)
+               dhdcn(iat) = dhdcn(iat) + dCN*dSEdcn(ish, iat)
                ! save dE/dCN for CNj
-               dhdcn_omp(jat) = dhdcn_omp(jat) + dCN*dSEdcn(jsh, jat)
-               g_omp(:,iat) = g_omp(:,iat)+g_xyz
-               g_omp(:,jat) = g_omp(:,jat)-g_xyz
-               sigma_omp(:, 1) = sigma_omp(:, 1) + g_xyz(1) * rij
-               sigma_omp(:, 2) = sigma_omp(:, 2) + g_xyz(2) * rij
-               sigma_omp(:, 3) = sigma_omp(:, 3) + g_xyz(3) * rij
+               dhdcn(jat) = dhdcn(jat) + dCN*dSEdcn(jsh, jat)
+               g(:,iat) = g(:,iat)+g_xyz
+               g(:,jat) = g(:,jat)-g_xyz
+               sigma(:, 1) = sigma(:, 1) + g_xyz(1) * rij
+               sigma(:, 2) = sigma(:, 2) + g_xyz(2) * rij
+               sigma(:, 3) = sigma(:, 3) + g_xyz(3) * rij
             enddo ! jsh : loop over shells on jat
          enddo  ! ish : loop over shells on iat
       enddo ! jat
@@ -765,15 +763,13 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 
             Pij = P(i,i)
             ! save dE/dCN for CNi
-            dhdcn_omp(iat) = dhdcn_omp(iat) + Pij*dSEdcn(ish, iat)*evtoau
+            dhdcn(iat) = dhdcn(iat) + Pij*dSEdcn(ish, iat)*evtoau
          end do
       end do
    end do
    !$omp end do nowait
 
-#ifndef _OPENMP
-   end associate
-#endif
+!$ end associate
 
    !$omp critical (g)
 !$ g(:,:) = g + g_omp
