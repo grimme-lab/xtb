@@ -662,7 +662,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    real(wp), parameter :: rthr = 1600.0_wp
 
    type(xtb_zone) :: zone, zone_omp
-   if (do_tracying) call zone%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, color=TracyColors%Gold3)
+   if (do_tracying) call zone%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, color=TracyColors%Gold3)
 
    thr2 = intcut
    point = 0.0_wp
