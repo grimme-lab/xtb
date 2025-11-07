@@ -8,8 +8,8 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [macos-latest, ubuntu-latest]
-            version: [12, 13, 14]
+            os: [ubuntu-latest]
+            version: [12, 13, 14, 15]
             include:
                - os: ubuntu-22.04
                  version: 10
@@ -17,6 +17,10 @@ jobs:
                  version: 11
                - os: ubuntu-24.04-arm
                  version: 14
+               - os: macos-latest
+                 version: 14
+               - os: macos-latest
+                 version: 15
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
