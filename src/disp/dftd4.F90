@@ -772,7 +772,7 @@ subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
    intrinsic :: sum,dble
 
    type(xtb_zone) :: zone
-   if (do_tracying) call zone%start("src/disp/dftd4.F90", "disppot", __LINE__, color=TracyColors%Steelblue1)
+   if (do_tracying) call zone%start("src/disp/dftd4.F90", "disppot", __LINE__, color=TracyColors%SteelBlue1)
 
    allocate( zetavec(ndim),zerovec(ndim),dumvec(ndim), source = 0._wp )
 
