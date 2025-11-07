@@ -181,7 +181,7 @@ OPTIONS
     requests FOD calculation
 
 *--cycles* 'INT'::
-    Maximum number of optimization cycles
+    maximum number of optimization cycles
 
 RUNTYPS
 ~~~~~~~
