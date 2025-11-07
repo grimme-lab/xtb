@@ -665,7 +665,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 !$ real(wp), allocatable :: g_omp(:, :), sigma_omp(:, :), dhdcn_omp(:)
 
    type(xtb_zone) :: zone, zone_omp
-   if (do_tracying) call zone%start("src/xtb/hamiltonian.F90", "build_dSDQH0", __LINE__, color=TracyColors%Gold3)
+   if (do_tracying) call zone%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, color=TracyColors%Gold3)
 
 
 
