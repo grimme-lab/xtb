@@ -478,19 +478,17 @@ jobs:
             path: ${{ github.workspace }} # This will download all files
          - name: Create SHA256 checksums
            run: |
-            cd ${{ env.OUTPUT_INTEL }}
-            sha256sum ${{ env.OUTPUT_INTEL }} > "${{ env.OUTPUT_INTEL }}.sha256"
-            cd ${{ env.OUTPUT_WINDOWS }}
-            sha256sum ${{ env.OUTPUT_WINDOWS }} > "${{ env.OUTPUT_WINDOWS }}.sha256"
+            sha256sum "${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}" > "${{ env.OUTPUT_INTEL }}.sha256"
+            sha256sum "${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}" > "${{ env.OUTPUT_WINDOWS }}.sha256"
          - name: Add ${{ env.OUTPUT_INTEL }} to release tag
            run: >-
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name ${{ env.OUTPUT_INTEL }} --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}
          - name: Add ${{ env.OUTPUT_INTEL }} SHA256 checksums to release tag
            run: >-
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_INTEL }}.sha256" --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}.sha256
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_INTEL }}.sha256" --file ${{ env.OUTPUT_INTEL }}.sha256
          - name: Add ${{ env.OUTPUT_WINDOWS }} to release tag
            run: >-
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name ${{ env.OUTPUT_WINDOWS }} --file ${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}
          - name: Add ${{ env.OUTPUT_WINDOWS }} SHA256 checksums to release tag
            run: >-
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_WINDOWS }}.sha256" --file ${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}.sha256
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_WINDOWS }}.sha256" --file ${{ env.OUTPUT_WINDOWS }}.sha256
