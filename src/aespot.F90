@@ -316,7 +316,9 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 !$ allocate(qp_omp(size(qp, dim=1), size(qp, dim=2)), source = 0.0_wp)
 !$ allocate(dipm_omp(size(dipm, dim=1), size(dipm, dim=2)), source = 0.0_wp)
 
-!$ associate(dipm => dipm_omp, qp => qp_omp)
+#ifndef _OPENMP
+   associate(dipm_omp => dipm, qp_omp => qp)
+#endif
 
    !$omp do schedule(dynamic,32) collapse(2)
    do i = 1,nao
@@ -336,8 +338,8 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
             pdmk = pij*dpint(k,j,i)
             tii = xk1*ps-pdmk
             tjj = xk2*ps-pdmk
-            dipm(k,jj) = dipm(k,jj)+tjj
-            dipm(k,ii) = dipm(k,ii)+tii
+            dipm_omp(k,jj) = dipm_omp(k,jj)+tjj
+            dipm_omp(k,ii) = dipm_omp(k,ii)+tii
             ! off-diagonal
             do l = 1,k-1
                kl = k*(k-1)/2+l
@@ -348,16 +350,16 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
                pqm = pij*qpint(kj,j,i)
                tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
                tjj = pdmk*xl2+pdml*xk2-xl2*xk2*ps-pqm
-               qp(kl,jj) = qp(kl,jj)+tjj
-               qp(kl,ii) = qp(kl,ii)+tii
+               qp_omp(kl,jj) = qp_omp(kl,jj)+tjj
+               qp_omp(kl,ii) = qp_omp(kl,ii)+tii
             enddo
             ! diagonal
             kl = k*(k+1)/2
             pqm = pij*qpint(k,j,i)
             tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
             tjj = 2.0_wp*pdmk*xk2-xk2*xk2*ps-pqm
-            qp(kl,jj) = qp(kl,jj)+tjj
-            qp(kl,ii) = qp(kl,ii)+tii
+            qp_omp(kl,jj) = qp_omp(kl,jj)+tjj
+            qp_omp(kl,ii) = qp_omp(kl,ii)+tii
          enddo
       enddo
    enddo
@@ -376,7 +378,7 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
          xk1 = ra(k)
          pdmk = pij*dpint(k,i,i)
          tii = xk1*ps-pdmk
-         dipm(k,ii) = dipm(k,ii)+tii
+         dipm_omp(k,ii) = dipm_omp(k,ii)+tii
          ! off-diagonal
          do l = 1,k-1
             kl = k*(k-1)/2+l
@@ -385,18 +387,20 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
             pdml = pij*dpint(l,i,i)
             pqm = pij*qpint(kj,i,i)
             tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
-            qp(kl,ii) = qp(kl,ii)+tii
+            qp_omp(kl,ii) = qp_omp(kl,ii)+tii
          enddo
          !diagonal
          kl = k*(k+1)/2
          pqm = pij*qpint(k,i,i)
          tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
-         qp(kl,ii) = qp(kl,ii)+tii
+         qp_omp(kl,ii) = qp_omp(kl,ii)+tii
       enddo
    enddo
    !$omp end do nowait
 
-!$ end associate
+#ifndef _OPENMP
+   end associate
+#endif
 
    !$omp critical (dipm_crt)
 !$ dipm(:,:) = dipm + dipm_omp

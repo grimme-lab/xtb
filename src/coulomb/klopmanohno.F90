@@ -518,7 +518,9 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
 !$ allocate(djdr_omp(size(djdtr, dim=1), size(djdr, dim=2), size(djdr, dim=3)), source = 0.0_wp)
 !$ allocate(djdtr_omp(size(djdtr, dim=1), size(djdtr, dim=2)), source = 0.0_wp)
 
-!$ associate (djdL => djdL_omp, djdr => djdr_omp, djdtr => djdtr_omp)
+#ifndef _OPENMP
+   associate (djdL_omp => djdL, djdr_omp => djdr, djdtr_omp => djdtr)
+#endif
 
    !$omp do collapse(2) schedule(dynamic,32)
    do iat = 1, nat
@@ -538,19 +540,21 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
                dS(:, 1) = 0.5_wp * dG(1) * vec
                dS(:, 2) = 0.5_wp * dG(2) * vec
                dS(:, 3) = 0.5_wp * dG(3) * vec
-               djdr(:, iat, jj+jsh) = djdr(:, iat, jj+jsh) - dG*qvec(ii+ish)
-               djdr(:, jat, ii+ish) = djdr(:, jat, ii+ish) + dG*qvec(jj+jsh)
-               djdtr(:, jj+jsh) = djdtr(:, jj+jsh) + dG*qvec(ii+ish)
-               djdtr(:, ii+ish) = djdtr(:, ii+ish) - dG*qvec(jj+jsh)
-               djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) + dS*qvec(ii+ish)
-               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(jj+jsh)
+               djdr_omp(:, iat, jj+jsh) = djdr_omp(:, iat, jj+jsh) - dG*qvec(ii+ish)
+               djdr_omp(:, jat, ii+ish) = djdr_omp(:, jat, ii+ish) + dG*qvec(jj+jsh)
+               djdtr_omp(:, jj+jsh) = djdtr_omp(:, jj+jsh) + dG*qvec(ii+ish)
+               djdtr_omp(:, ii+ish) = djdtr_omp(:, ii+ish) - dG*qvec(jj+jsh)
+               djdL_omp(:, :, jj+jsh) = djdL_omp(:, :, jj+jsh) + dS*qvec(ii+ish)
+               djdL_omp(:, :, ii+ish) = djdL_omp(:, :, ii+ish) + dS*qvec(jj+jsh)
             end do
          end do
       end do
    end do
    !$omp end do nowait
 
-!$ end associate
+#ifndef _OPENMP
+   end associate
+#endif
 
    !$omp critical (djdr_crt)
 !$ djdr(:,:,:) = djdr + djdr_omp

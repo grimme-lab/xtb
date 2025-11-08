@@ -405,7 +405,9 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
 !$ allocate(dcndr_omp(size(dcndr, dim=1), size(dcndr, dim=2), size(dcndr, dim=3)), source = 0.0_wp)
 !$ allocate(dcndL_omp(size(dcndL, dim=1), size(dcndL, dim=2), size(dcndL, dim=3)), source = 0.0_wp)
 
-!$ associate (cn => cn_omp, dcndr => dcndr_omp, dcndL => dcndL_omp)
+#ifndef _OPENMP
+   associate (cn_omp => cn, dcndr_omp => dcndr, dcndL_omp => dcndL)
+#endif
 
    !$omp do
    do iat = 1, len(mol)
@@ -430,23 +432,23 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
             countf = den * cfunc(kcn, r1, rc)
             countd = den * dfunc(kcn, r1, rc) * rij/r1
 
-            cn(iat) = cn(iat) + countf
+            cn_omp(iat) = cn_omp(iat) + countf
             if (iat /= jat) then
-               cn(jat) = cn(jat) + countf
+               cn_omp(jat) = cn_omp(jat) + countf
             end if
 
-            dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
-            dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
-            dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
-            dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+            dcndr_omp(:, iat, iat) = dcndr_omp(:, iat, iat) + countd
+            dcndr_omp(:, jat, jat) = dcndr_omp(:, jat, jat) - countd
+            dcndr_omp(:, iat, jat) = dcndr_omp(:, iat, jat) + countd
+            dcndr_omp(:, jat, iat) = dcndr_omp(:, jat, iat) - countd
 
             stress(:, 1) = countd(1) * rij
             stress(:, 2) = countd(2) * rij
             stress(:, 3) = countd(3) * rij
 
-            dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+            dcndL_omp(:, :, iat) = dcndL_omp(:, :, iat) + stress
             if (iat /= jat) then
-               dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+               dcndL_omp(:, :, jat) = dcndL_omp(:, :, jat) + stress
             end if
 
          end do
@@ -454,7 +456,9 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
    end do
    !$omp end do nowait
 
-!$ end associate
+#ifndef _OPENMP
+   end associate
+#endif
 
    !$omp critical (dcndL_crt)
 !$ dcndL(:,:,:) = dcndL + dcndL_omp

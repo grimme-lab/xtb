@@ -20,7 +20,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND srcs
   "${dir}/ewald.f90"
   "${dir}/gaussian.f90"
-  "${dir}/klopmanohno.f90"
+  "${dir}/klopmanohno.F90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

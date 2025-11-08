@@ -18,7 +18,7 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
-  "${dir}/coordinationnumber.f90"
+  "${dir}/coordinationnumber.F90"
   "${dir}/dftd3.f"
   "${dir}/dftd3.f90"
   "${dir}/dftd3_parameters.f90"
