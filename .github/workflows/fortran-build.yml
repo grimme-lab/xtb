@@ -480,15 +480,15 @@ jobs:
            run: |
             sha256sum "${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}" > "${{ env.OUTPUT_INTEL }}.sha256"
             sha256sum "${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}" > "${{ env.OUTPUT_WINDOWS }}.sha256"
-         - name: Add ${{ env.OUTPUT_INTEL }} to release tag
+         - name: Add Linux Intel to release tag
            run: >-
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name ${{ env.OUTPUT_INTEL }} --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}
-         - name: Add ${{ env.OUTPUT_INTEL }} SHA256 checksums to release tag
+         - name: Add Linux Intel SHA256 checksums to release tag
            run: >-
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_INTEL }}.sha256" --file ${{ env.OUTPUT_INTEL }}.sha256
-         - name: Add ${{ env.OUTPUT_WINDOWS }} to release tag
+         - name: Add Windows GNU to release tag
            run: >-
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name ${{ env.OUTPUT_WINDOWS }} --file ${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}
-         - name: Add ${{ env.OUTPUT_WINDOWS }} SHA256 checksums to release tag
+         - name: Add Windows GNU SHA256 checksums to release tag
            run: >-
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_WINDOWS }}.sha256" --file ${{ env.OUTPUT_WINDOWS }}.sha256
