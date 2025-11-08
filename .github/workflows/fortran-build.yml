@@ -335,16 +335,111 @@ jobs:
             meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --num-processes 1 --no-rebuild --suite xtb -t 120
            env:
             OMP_NUM_THREADS: 2,1
+   mingw-meson-static-build:
+      runs-on: windows-latest
+      strategy:
+         fail-fast: false
+         matrix:
+            include:
+               - { msystem: MINGW64, arch: x86_64 }
+      defaults:
+         run:
+            shell: msys2 {0}
+      steps:
+         - name: Checkout code
+           uses: actions/checkout@v4
+         - name: Setup MSYS2 toolchain
+           uses: msys2/setup-msys2@v2
+           with:
+            msystem: ${{ matrix.msystem }}
+            update: false
+            install: >-
+              git
+              mingw-w64-${{ matrix.arch }}-gcc-fortran
+              mingw-w64-${{ matrix.arch }}-openblas
+              mingw-w64-${{ matrix.arch }}-lapack
+              mingw-w64-${{ matrix.arch }}-python
+              mingw-w64-${{ matrix.arch }}-python-pip
+              mingw-w64-${{ matrix.arch }}-meson
+              mingw-w64-${{ matrix.arch }}-ninja
+              mingw-w64-${{ matrix.arch }}-binutils
+              mingw-w64-${{ matrix.arch }}-ntldd
+              zip
+         # Configure static build with an absolute install location
+         - name: Configure build (static)
+           run: >
+            meson setup ${{ env.BUILD_DIR }}
+            --prefix="$PWD/xtb-bleed-windows"
+            --libdir=lib
+            -Ddefault_library=static
+            -Dlapack=netlib
+            -Db_lto=false
+            --buildtype release
+            --optimization 2
+            --warnlevel=0
+           env:
+            CC: gcc
+            FC: gfortran
+            PKG_CONFIG_ALL_STATIC: "1"
+            CFLAGS: "-fno-strict-aliasing"
+            FFLAGS: "-fno-strict-aliasing"
+            LDFLAGS: "-static -static-libgcc -static-libgfortran -static-libstdc++ -Wl,--as-needed -lquadmath"
+         - name: Build project
+           run: |
+            meson compile -C ${{ env.BUILD_DIR }}
+         - name: Run unit tests
+           run: |
+            meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120 --suite xtb
+           env:
+            OMP_NUM_THREADS: 2
+         - name: Install package
+           run: |
+            meson install -C ${{ env.BUILD_DIR }} --no-rebuild
+         # Add BLAS/LAPACK DLLs if xtb.exe imports them
+         - name: Add BLAS/LAPACK DLLs if referenced
+           run: |
+            EXE="xtb-bleed-windows/bin/xtb.exe"
+            [ -f "$EXE" ] || { echo "::error::$EXE not found after install"; exit 1; }
+            for want in libblas.dll liblapack.dll; do
+              if objdump -p "$EXE" \
+                   | sed -n 's/^[[:space:]]*DLL Name:[[:space:]]*//Ip' \
+                   | tr -d '\r' \
+                   | tr '[:upper:]' '[:lower:]' \
+                   | grep -qxF "$want"
+              then
+                path="$(ntldd "$EXE" | awk -v want="$want" 'BEGIN{IGNORECASE=1} {gsub(/\r$/,""); if ($1==want) {print $3; exit}}')"
+                if [ -n "${path:-}" ] && [ -f "$path" ]; then
+                  echo "Bundling $want from $path"
+                  cp -n "$path" "xtb-bleed-windows/bin/"
+                else
+                  echo "::warning::$want referenced but ntldd could not resolve a path"
+                fi
+              else
+                echo "$want not referenced by xtb.exe; skipping."
+              fi
+            done
+         - name: Create distributable zip
+           run: |
+            zip -r xtb-bleed-windows.zip xtb-bleed-windows 
+         - name: Upload binary
+           if: github.event_name == 'push'
+           uses: actions/upload-artifact@v4
+           with:
+            name: xtb-bleed-windows.zip
+            path: xtb-bleed-windows.zip
+           
    # Inspired from https://github.com/endless-sky/endless-sky
    continuous-delivery:
       if: github.event_name == 'push'
       runs-on: ubuntu-latest
       needs:
          - intel-meson-build
+         - mingw-meson-static-build
       env:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          RELEASE_TAG: bleed
          OUTPUT_INTEL: xtb-bleed.tar.xz
+         OUTPUT_WINDOWS: xtb-bleed-windows.zip
       steps:
          - uses: actions/checkout@v4
          - name: Install github-release
@@ -381,13 +476,21 @@ jobs:
            uses: actions/download-artifact@v4.1.7
            with:
             path: ${{ github.workspace }} # This will download all files
-         - name: Create SHA256 checksum
+         - name: Create SHA256 checksums
            run: |
             cd ${{ env.OUTPUT_INTEL }}
-            sha256sum ${{ env.OUTPUT_INTEL }} > sha256.txt
+            sha256sum ${{ env.OUTPUT_INTEL }} > "${{ env.OUTPUT_INTEL }}.sha256"
+            cd ${{ env.OUTPUT_WINDOWS }}
+            sha256sum ${{ env.OUTPUT_WINDOWS }} > "${{ env.OUTPUT_WINDOWS }}.sha256"
          - name: Add ${{ env.OUTPUT_INTEL }} to release tag
            run: >-
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name ${{ env.OUTPUT_INTEL }} --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}
-         - name: Add SHA256 checksums to release tag
+         - name: Add ${{ env.OUTPUT_INTEL }} SHA256 checksums to release tag
            run: >-
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name sha256.txt --file ${{ env.OUTPUT_INTEL }}/sha256.txt
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_INTEL }}.sha256" --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}.sha256
+         - name: Add ${{ env.OUTPUT_WINDOWS }} to release tag
+           run: >-
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name ${{ env.OUTPUT_WINDOWS }} --file ${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}
+         - name: Add ${{ env.OUTPUT_WINDOWS }} SHA256 checksums to release tag
+           run: >-
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_WINDOWS }}.sha256" --file ${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}.sha256
