@@ -390,14 +390,26 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
    integer :: iat, jat, ati, atj, itr
    real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den, cutoff2
 
+   ! local arrays for OpenMP
+!$ real(wp), allocatable :: cn_omp(:), dcndr_omp(:,:,:), dcndL_omp(:,:,:)
+
    cn = 0.0_wp
    dcndr = 0.0_wp
    dcndL = 0.0_wp
    cutoff2 = cutoff**2
 
-   !$omp parallel do default(none) private(den) shared(enscale, rcov, en)&
-   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, trans, cutoff2) &
-   !$omp private(jat, itr, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+   !$omp parallel default(none) shared(mol, kcn, trans, cutoff2, enscale, rcov, en, cn, dcndr, dcndL) &
+   !$omp private(jat, itr, ati, atj, r2, rij, r1, rc, countf, countd, stress, den, cn_omp, dcndr_omp, dcndL_omp)
+
+!$ allocate(cn_omp(size(cn, dim=1)), source = 0.0_wp)
+!$ allocate(dcndr_omp(size(dcndr, dim=1), size(dcndr, dim=2), size(dcndr, dim=3)), source = 0.0_wp)
+!$ allocate(dcndL_omp(size(dcndL, dim=1), size(dcndL, dim=2), size(dcndL, dim=3)), source = 0.0_wp)
+
+#ifndef _OPENMP
+   associate (cn_omp => cn, dcndr_omp => dcndr, dcndL_omp => dcndL)
+#endif
+
+   !$omp do
    do iat = 1, len(mol)
       ati = mol%at(iat)
       do jat = 1, iat
@@ -420,29 +432,47 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
             countf = den * cfunc(kcn, r1, rc)
             countd = den * dfunc(kcn, r1, rc) * rij/r1
 
-            cn(iat) = cn(iat) + countf
+            cn_omp(iat) = cn_omp(iat) + countf
             if (iat /= jat) then
-               cn(jat) = cn(jat) + countf
+               cn_omp(jat) = cn_omp(jat) + countf
             end if
 
-            dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
-            dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
-            dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
-            dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+            dcndr_omp(:, iat, iat) = dcndr_omp(:, iat, iat) + countd
+            dcndr_omp(:, jat, jat) = dcndr_omp(:, jat, jat) - countd
+            dcndr_omp(:, iat, jat) = dcndr_omp(:, iat, jat) + countd
+            dcndr_omp(:, jat, iat) = dcndr_omp(:, jat, iat) - countd
 
             stress(:, 1) = countd(1) * rij
             stress(:, 2) = countd(2) * rij
             stress(:, 3) = countd(3) * rij
 
-            dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+            dcndL_omp(:, :, iat) = dcndL_omp(:, :, iat) + stress
             if (iat /= jat) then
-               dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+               dcndL_omp(:, :, jat) = dcndL_omp(:, :, jat) + stress
             end if
 
          end do
       end do
    end do
-   !$omp end parallel do
+   !$omp end do nowait
+
+#ifndef _OPENMP
+   end associate
+#endif
+
+   !$omp critical (dcndL_crt)
+!$ dcndL(:,:,:) = dcndL + dcndL_omp
+   !$omp end critical (dcndL_crt)
+
+   !$omp critical (dcndr_crt)
+!$ dcndr(:,:,:) = dcndr + dcndr_omp
+   !$omp end critical (dcndr_crt)
+
+   !$omp critical (cn_crt)
+!$ cn(:) = cn + cn_omp
+   !$omp end critical (cn_crt)
+
+   !$omp end parallel
 
 end subroutine ncoordLatP
 

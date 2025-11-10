@@ -18,5 +18,5 @@
 srcs += files(
   'ewald.f90',
   'gaussian.f90',
-  'klopmanohno.f90',
+  'klopmanohno.F90',
 )

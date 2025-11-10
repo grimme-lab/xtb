@@ -303,14 +303,24 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 
    integer i,j,k,l,ii,jj,kl,kj
 
+   ! local OpenMP variables
+!$ real(wp), allocatable :: dipm_omp(:,:), qp_omp(:,:)
+
    dipm = 0.0_wp
    qp = 0.0_wp
 
-   !$omp parallel do default(none) &
-   !$omp private(i,j,k,l,kl,kj,ii,jj,ra,pij,ps,xk1,xk2,xl1,xl2,pdmk,pdml,pqm,tii,tjj) &
-   !$omp shared(nao, nat, aoat2, s, p, dpint, qpint, xyz) &
-   !$omp reduction(+:dipm, qp) &
-   !$omp schedule(dynamic,32) collapse(2)
+   !$omp parallel default(none) &
+   !$omp private(i,j,k,l,kl,kj,ii,jj,ra,pij,ps,xk1,xk2,xl1,xl2,pdmk,pdml,pqm,tii,tjj,dipm_omp,qp_omp) &
+   !$omp shared(nao, nat, aoat2, s, p, dpint, qpint, xyz, dipm, qp)
+
+!$ allocate(qp_omp(size(qp, dim=1), size(qp, dim=2)), source = 0.0_wp)
+!$ allocate(dipm_omp(size(dipm, dim=1), size(dipm, dim=2)), source = 0.0_wp)
+
+#ifndef _OPENMP
+   associate(dipm_omp => dipm, qp_omp => qp)
+#endif
+
+   !$omp do schedule(dynamic,32) collapse(2)
    do i = 1,nao
       do j = 1,nao
          if (j >= i) cycle
@@ -328,8 +338,8 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
             pdmk = pij*dpint(k,j,i)
             tii = xk1*ps-pdmk
             tjj = xk2*ps-pdmk
-            dipm(k,jj) = dipm(k,jj)+tjj
-            dipm(k,ii) = dipm(k,ii)+tii
+            dipm_omp(k,jj) = dipm_omp(k,jj)+tjj
+            dipm_omp(k,ii) = dipm_omp(k,ii)+tii
             ! off-diagonal
             do l = 1,k-1
                kl = k*(k-1)/2+l
@@ -340,25 +350,22 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
                pqm = pij*qpint(kj,j,i)
                tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
                tjj = pdmk*xl2+pdml*xk2-xl2*xk2*ps-pqm
-               qp(kl,jj) = qp(kl,jj)+tjj
-               qp(kl,ii) = qp(kl,ii)+tii
+               qp_omp(kl,jj) = qp_omp(kl,jj)+tjj
+               qp_omp(kl,ii) = qp_omp(kl,ii)+tii
             enddo
             ! diagonal
             kl = k*(k+1)/2
             pqm = pij*qpint(k,j,i)
             tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
             tjj = 2.0_wp*pdmk*xk2-xk2*xk2*ps-pqm
-            qp(kl,jj) = qp(kl,jj)+tjj
-            qp(kl,ii) = qp(kl,ii)+tii
+            qp_omp(kl,jj) = qp_omp(kl,jj)+tjj
+            qp_omp(kl,ii) = qp_omp(kl,ii)+tii
          enddo
       enddo
    enddo
+   !$omp end do nowait
 
-   !$omp parallel do default(none) &
-   !$omp private(i,k,kl,kj,ii,ra,pij,ps,xk1,xl1,pdmk,pdml,pqm,tii) &
-   !$omp shared(nao, aoat2, xyz, p, s, dpint, qpint) &
-   !$omp reduction(+:dipm, qp) &
-   !$omp schedule(static)
+   !$omp do schedule(dynamic)
    do i = 1,nao
       ii = aoat2(i)
       ra(1:3) = xyz(1:3,ii)
@@ -371,7 +378,7 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
          xk1 = ra(k)
          pdmk = pij*dpint(k,i,i)
          tii = xk1*ps-pdmk
-         dipm(k,ii) = dipm(k,ii)+tii
+         dipm_omp(k,ii) = dipm_omp(k,ii)+tii
          ! off-diagonal
          do l = 1,k-1
             kl = k*(k-1)/2+l
@@ -380,15 +387,30 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
             pdml = pij*dpint(l,i,i)
             pqm = pij*qpint(kj,i,i)
             tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
-            qp(kl,ii) = qp(kl,ii)+tii
+            qp_omp(kl,ii) = qp_omp(kl,ii)+tii
          enddo
          !diagonal
          kl = k*(k+1)/2
          pqm = pij*qpint(k,i,i)
          tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
-         qp(kl,ii) = qp(kl,ii)+tii
+         qp_omp(kl,ii) = qp_omp(kl,ii)+tii
       enddo
    enddo
+   !$omp end do nowait
+
+#ifndef _OPENMP
+   end associate
+#endif
+
+   !$omp critical (dipm_crt)
+!$ dipm(:,:) = dipm + dipm_omp
+   !$omp end critical (dipm_crt)
+
+   !$omp critical (qp_crt)
+!$ qp(:,:) = qp + qp_omp
+   !$omp end critical (qp_crt)
+
+   !$omp end parallel
 
    ! remove trace
    do i = 1,nat

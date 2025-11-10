@@ -501,16 +501,28 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
    integer :: iat, jat, nat, ish, jsh, ii, jj, iid, jid
    real(wp) :: r1, g1, gij, vec(3), dG(3), dS(3, 3)
 
+   ! local OpenMP variables
+!$ real(wp), allocatable :: djdr_omp(:,:,:), djdtr_omp(:,:), djdL_omp(:,:,:)
+
    djdr(:, :, :) = 0.0_wp
    djdtr(:, :) = 0.0_wp
    djdL(:, :, :) = 0.0_wp
 
    nat = len(mol) ! workaround for legacy Intel Fortran compilers
 
-   !$omp parallel do default(none) reduction(+:djdr, djdtr, djdL) &
-   !$omp shared(mol, itbl, qvec, gExp, hardness, nat) &
-   !$omp private(iat, jat, ish, jsh, ii, jj, iid, jid, r1, g1, gij, vec, dG, dS) &
-   !$omp collapse(2) schedule(dynamic,32)
+   !$omp parallel default(none) &
+   !$omp shared(mol, itbl, qvec, gExp, hardness, nat, djdL, djdr, djdtr) &
+   !$omp private(iat, jat, ish, jsh, ii, jj, iid, jid, r1, g1, gij, vec, dG, dS, djdL_omp, djdr_omp, djdtr_omp)
+
+!$ allocate(djdL_omp(size(djdL, dim=1), size(djdL, dim=2), size(djdL, dim=3)), source = 0.0_wp)
+!$ allocate(djdr_omp(size(djdtr, dim=1), size(djdr, dim=2), size(djdr, dim=3)), source = 0.0_wp)
+!$ allocate(djdtr_omp(size(djdtr, dim=1), size(djdtr, dim=2)), source = 0.0_wp)
+
+#ifndef _OPENMP
+   associate (djdL_omp => djdL, djdr_omp => djdr, djdtr_omp => djdtr)
+#endif
+
+   !$omp do collapse(2) schedule(dynamic,32)
    do iat = 1, nat
       do jat = 1, nat
          if (jat >= iat) cycle
@@ -528,17 +540,33 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
                dS(:, 1) = 0.5_wp * dG(1) * vec
                dS(:, 2) = 0.5_wp * dG(2) * vec
                dS(:, 3) = 0.5_wp * dG(3) * vec
-               djdr(:, iat, jj+jsh) = djdr(:, iat, jj+jsh) - dG*qvec(ii+ish)
-               djdr(:, jat, ii+ish) = djdr(:, jat, ii+ish) + dG*qvec(jj+jsh)
-               djdtr(:, jj+jsh) = djdtr(:, jj+jsh) + dG*qvec(ii+ish)
-               djdtr(:, ii+ish) = djdtr(:, ii+ish) - dG*qvec(jj+jsh)
-               djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) + dS*qvec(ii+ish)
-               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(jj+jsh)
+               djdr_omp(:, iat, jj+jsh) = djdr_omp(:, iat, jj+jsh) - dG*qvec(ii+ish)
+               djdr_omp(:, jat, ii+ish) = djdr_omp(:, jat, ii+ish) + dG*qvec(jj+jsh)
+               djdtr_omp(:, jj+jsh) = djdtr_omp(:, jj+jsh) + dG*qvec(ii+ish)
+               djdtr_omp(:, ii+ish) = djdtr_omp(:, ii+ish) - dG*qvec(jj+jsh)
+               djdL_omp(:, :, jj+jsh) = djdL_omp(:, :, jj+jsh) + dS*qvec(ii+ish)
+               djdL_omp(:, :, ii+ish) = djdL_omp(:, :, ii+ish) + dS*qvec(jj+jsh)
             end do
          end do
       end do
    end do
-   !$omp end parallel do
+   !$omp end do nowait
+
+#ifndef _OPENMP
+   end associate
+#endif
+
+   !$omp critical (djdr_crt)
+!$ djdr(:,:,:) = djdr + djdr_omp
+   !$omp end critical (djdr_crt)
+   !$omp critical (djdL_crt)
+!$ djdL(:,:,:) = djdL + djdL_omp
+   !$omp end critical (djdL_crt)
+   !$omp critical (djdtr_crt)
+!$ djdtr(:,:) = djdtr + djdtr_omp
+   !$omp end critical (djdtr_crt)
+
+   !$omp end parallel
 
 end subroutine getCoulombDerivsCluster
 

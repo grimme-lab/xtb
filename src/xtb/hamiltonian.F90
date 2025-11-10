@@ -633,20 +633,31 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
    real(wp), parameter :: rthr = 1600.0_wp
 
+   ! local OpenMP variables
+!$ real(wp), allocatable :: g_omp(:, :), sigma_omp(:, :), dhdcn_omp(:)
+
    thr2 = intcut
    point = 0.0_wp
    ! call timing(t1,t3)
-   !$omp parallel do default(none) &
+   !$omp parallel default(none) &
    !$omp shared(nat, at, xyz, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
    !$omp& H0, S, ves, vs, vd, vq, intcut, nprim, primcount, caoshell, saoshell, &
-   !$omp& alp, cont) &
-   !$omp private(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp,ij, &
+   !$omp& alp, cont, g, sigma, dhdcn) &
+   !$omp private(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp,ij,i, &
    !$omp& icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp,dCN, &
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
    !$omp& mli,mlj,dum,dumdum,tmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
-   !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
-   !$omp reduction(+:g,sigma,dhdcn) &
-   !$omp collapse(2) schedule(dynamic,32)
+   !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr, g_omp, sigma_omp, dhdcn_omp)
+
+!$ allocate(g_omp(size(g, dim=1), size(g, dim=2)), source = 0.0_wp)
+!$ allocate(sigma_omp(size(sigma, dim=1), size(sigma, dim=2)), source = 0.0_wp)
+!$ allocate(dhdcn_omp(size(dhdcn, dim=1)), source = 0.0_wp)
+
+#ifndef _OPENMP
+   associate(g_omp => g, sigma_omp => sigma, dhdcn_omp => dhdcn)
+#endif
+
+   !$omp do collapse(2) schedule(dynamic,32)
    do iat = 1,nat
       do jat = 1,nat
          if (jat >= iat) cycle
@@ -729,23 +740,22 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                   enddo
                enddo
                ! save dE/dCN for CNi
-               dhdcn(iat) = dhdcn(iat) + dCN*dSEdcn(ish, iat)
+               dhdcn_omp(iat) = dhdcn_omp(iat) + dCN*dSEdcn(ish, iat)
                ! save dE/dCN for CNj
-               dhdcn(jat) = dhdcn(jat) + dCN*dSEdcn(jsh, jat)
-               g(:,iat) = g(:,iat)+g_xyz
-               g(:,jat) = g(:,jat)-g_xyz
-               sigma(:, 1) = sigma(:, 1) + g_xyz(1) * rij
-               sigma(:, 2) = sigma(:, 2) + g_xyz(2) * rij
-               sigma(:, 3) = sigma(:, 3) + g_xyz(3) * rij
+               dhdcn_omp(jat) = dhdcn_omp(jat) + dCN*dSEdcn(jsh, jat)
+               g_omp(:,iat) = g_omp(:,iat)+g_xyz
+               g_omp(:,jat) = g_omp(:,jat)-g_xyz
+               sigma_omp(:, 1) = sigma_omp(:, 1) + g_xyz(1) * rij
+               sigma_omp(:, 2) = sigma_omp(:, 2) + g_xyz(2) * rij
+               sigma_omp(:, 3) = sigma_omp(:, 3) + g_xyz(3) * rij
             enddo ! jsh : loop over shells on jat
          enddo  ! ish : loop over shells on iat
       enddo ! jat
    enddo  ! iat
+   !$omp end do nowait
 
    ! diagonal contributions
-   !$omp parallel do default(none) schedule(dynamic) reduction(+:dhdcn) &
-   !$omp shared(nat, at, nshell, hData, saoshell, P, dSEdcn) &
-   !$omp private(iat, izp, ish, ishtyp, iao, i, Pij)
+   !$omp do schedule(dynamic)
    do iat = 1, nat
       izp = at(iat)
       do ish = 1, nShell(izp)
@@ -755,10 +765,27 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 
             Pij = P(i,i)
             ! save dE/dCN for CNi
-            dhdcn(iat) = dhdcn(iat) + Pij*dSEdcn(ish, iat)*evtoau
+            dhdcn_omp(iat) = dhdcn_omp(iat) + Pij*dSEdcn(ish, iat)*evtoau
          end do
       end do
    end do
+   !$omp end do nowait
+
+#ifndef _OPENMP
+   end associate
+#endif
+
+   !$omp critical (g_crt)
+!$ g(:,:) = g + g_omp
+   !$omp end critical (g_crt)
+   !$omp critical (sigma_crt)
+!$ sigma(:,:) = sigma + sigma_omp
+   !$omp end critical (sigma_crt)
+   !$omp critical (dhdcn_crt)
+!$ dhdcn(:) = dhdcn + dhdcn_omp
+   !$omp end critical (dhdcn_crt)
+
+   !$omp end parallel
 
 end subroutine build_dSDQH0_noreset
 
