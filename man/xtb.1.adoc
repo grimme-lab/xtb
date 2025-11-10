@@ -180,6 +180,9 @@ OPTIONS
 *--fod*::
     requests FOD calculation
 
+*--cycles* 'INT'::
+    maximum number of optimization cycles
+
 RUNTYPS
 ~~~~~~~
 NOTE: You can only select *one* runtyp, only the first runtyp will be used
