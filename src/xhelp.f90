@@ -77,7 +77,7 @@ write(iunit,'(3x,a)') &
    "",&
    "for DIPRO refer to:",&
    "* J. Kohn, N. Gildemeister, S. Grimme, D. Fazzi, A. Hansen,",&
-   "  J. Chem. Phys., 2023, just accepted.",&
+   "  J. Chem. Phys. 159, 144106 (2023). DOI: 10.1063/5.0167484",&
    "",&
    "for PTB refer to:",&
    "* S. Grimme, M. Mueller, A. Hansen, J. Chem. Phys., 2023, 158, 124111.",&
