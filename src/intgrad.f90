@@ -537,7 +537,6 @@ pure subroutine multipole_3d(ri, rj, rc, rp, ai, aj, li, lj, s1d, s3d)
       do l = 0, li(k) + lj(k)
          val(k, 1) = val(k, 1) + s1d(l) * vv(l)
          val(k, 2) = val(k, 2) + (s1d(l+1) + rpc*s1d(l)) * vv(l)
-         print '(I1,I1,A,3I8,4F15.5)', k, l, " ", size(s1d), lbound(s1d), ubound(s1d), rpc, s1d(l:l+2)
          val(k, 3) = val(k, 3) + (s1d(l+2) + 2*rpc*s1d(l+1) + rpc*rpc*s1d(l)) * vv(l)
       end do
    end do
