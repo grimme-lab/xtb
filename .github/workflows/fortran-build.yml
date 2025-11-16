@@ -26,7 +26,7 @@ jobs:
          - name: Install CMake
            run: pip install ninja cmake
          - name: Configure build
-           run: cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DWITH_TBLITE=OFF -DWITH_CPCMX=OFF
+           run: cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }}
            env:
             FC: ${{ matrix.fc }}
             CC: ${{ matrix.cc }}
