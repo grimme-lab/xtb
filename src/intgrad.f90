@@ -506,7 +506,7 @@ pure subroutine overlap_3d(ri, rj, rp, ai, aj, li, lj, s1d, s3d)
 
 end subroutine overlap_3d
 
-subroutine multipole_3d(ri, rj, rc, rp, ai, aj, li, lj, s1d, s3d)
+pure subroutine multipole_3d(ri, rj, rc, rp, ai, aj, li, lj, s1d, s3d)
    real(wp), intent(in) :: ri(3)
    real(wp), intent(in) :: rj(3)
    real(wp), intent(in) :: rp(3)
@@ -729,7 +729,7 @@ pure subroutine shiftintg(g,s,r)
 end subroutine shiftintg
 
 
-subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
+pure subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
       &                nprim,primcount,alp,cont,sint)
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
@@ -877,7 +877,7 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,i
 end subroutine get_grad_overlap
 
 
-subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point, &
+pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point, &
       &                           intcut,nprim,primcount,alp,cont,ss,dd,qq)
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
