@@ -240,5 +240,9 @@ subroutine test_gfn2_hessian(error)
    end do
 
 end subroutine test_gfn2_hessian
-
+! TODO: linear h2o test for numhess
+! TODO: o1numhess for gfn1
+! TODO: o1numhess for gfn2
+! NOTES: 
+! - can probably reuse the arrays from above for testing (need to know the error threshold for new hessian)
 end module test_hessian
