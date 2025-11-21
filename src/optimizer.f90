@@ -794,7 +794,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    ! write geometry to log file !
    if (profile) call timer%measure(6,'optimization log')
    call writeMolecule(mol, ilog, format=fileType%xyz, energy=res%e_total, &
-      & gnorm=res%gnorm)
+      & gnorm=res%gnorm, number=iter)
    if (profile) call timer%measure(6)
 
 

@@ -235,21 +235,6 @@ subroutine fire &
    if (maxstep > 0) maxcycle = maxstep
    ! deactivate microcyles (seems to be expensive with only small gains)
 
-   ! open the logfile, the log is bound to unit 942, so we cannot use newunit
-   ! and have to hope that nobody else is currently occupying this identifier
-   opt%ilog = ilog
-   if (mol%npbc > 0) then
-      opt%ftype = fileType%vasp
-   else
-      opt%ftype = fileType%xyz
-   endif
-   !call open_file(opt%ilog,'xtbopt.log','w')
-   ! write starting structure to log
-   if (opt%ilog.ne.-1) then
-      call writeMolecule(mol, opt%ilog,format=opt%ftype, energy=energy, &
-         & gnorm=norm2(gradient))
-   endif
-
    ! get memory
    nat3 = 3*mol%n
    nvar = nat3
@@ -267,6 +252,21 @@ subroutine fire &
    minpr = opt%printlevel > 0
    pr    = opt%printlevel > 1
    debug = opt%printlevel > 2
+
+   ! open the logfile, the log is bound to unit 942, so we cannot use newunit
+   ! and have to hope that nobody else is currently occupying this identifier
+   opt%ilog = ilog
+   if (mol%npbc > 0) then
+      opt%ftype = fileType%vasp
+   else
+      opt%ftype = fileType%xyz
+   endif
+   !call open_file(opt%ilog,'xtbopt.log','w')
+   ! write starting structure to log
+   if (opt%ilog.ne.-1) then
+      call writeMolecule(mol, opt%ilog,format=opt%ftype, energy=energy, &
+         & gnorm=norm2(gradient), number=iter)
+   endif
 
    ! initial velocities
    velocities = -opt%time_step * gradient/opt%mass
@@ -529,20 +529,6 @@ subroutine l_ancopt &
       end select
    end if
 
-   ! open the logfile, the log is bound to unit 942, so we cannot use newunit
-   ! and have to hope that nobody else is currently occupying this identifier
-   opt%ilog = ilog
-   if (mol%npbc > 0) then
-      opt%ftype = fileType%vasp
-   else
-      opt%ftype = fileType%xyz
-   endif
-   !call open_file(opt%ilog,'xtbopt.log','w')
-   if (opt%ilog.ne.-1) then
-      call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
-         & gnorm=norm2(gradient))
-   endif
-
    ! get memory, allocate single and double precision arrays separately
    nat3 = 3*mol%n
    allocate( pmode(nat3,1), hessp(nat3*(nat3+1)/2), trafo(nat3,nat3), &
@@ -565,6 +551,20 @@ subroutine l_ancopt &
 
    call axis(mol%n,mol%at,mol%xyz,a,b,c)
    linear = c.lt.1.0e-10_wp
+
+   ! open the logfile, the log is bound to unit 942, so we cannot use newunit
+   ! and have to hope that nobody else is currently occupying this identifier
+   opt%ilog = ilog
+   if (mol%npbc > 0) then
+      opt%ftype = fileType%vasp
+   else
+      opt%ftype = fileType%xyz
+   endif
+   !call open_file(opt%ilog,'xtbopt.log','w')
+   if (opt%ilog.ne.-1) then
+      call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
+         & gnorm=norm2(gradient), number=iter)
+   endif
 
    ! different DOF in case of frag hess
    nat3 = 3 * mol%n
@@ -778,7 +778,7 @@ subroutine l_ancopt &
    ! step due to the logstep > 1, so we append the last structure to the optlog
    if (mod(iter,opt%logstep).ne.1.and.opt%ilog.ne.-1) then
       call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
-         & gnorm=norm2(gradient))
+         & gnorm=norm2(gradient), number=iter)
    end if
    !call close_file(opt%ilog)
    if (profile) call timer%measure(7)
@@ -1080,7 +1080,7 @@ subroutine lbfgs_relax &
       if (opt%ilog.ne.-1) then
          if (mod(icycle,opt%logstep).eq.1.or.opt%logstep.eq.1) then
             call writeMolecule(mol, opt%ilog,format=opt%ftype,energy=res%e_total, &
-               & gnorm=res%gnorm)
+               & gnorm=res%gnorm, number=iter)
          end if
       endif
       !call wrlog(mol%n,xyz,attyp,energy,gnorm,.false.)
@@ -1404,7 +1404,7 @@ subroutine inertial_relax &
       logthis = opt%ilog.ne.-1 .and. mod(istep-1,opt%logstep).eq.0
       if (logthis) then
          call writeMolecule(mol, opt%ilog,format=opt%ftype,energy=res%e_total, &
-            & gnorm=res%gnorm)
+            & gnorm=res%gnorm, number=iter)
       endif
 
       ! check for convergence of the energy change
