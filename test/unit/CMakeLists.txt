@@ -46,7 +46,6 @@ set(
   "thermo"
   "vertical"
   "wsc"
-  "cpx"
 )
 
 set(

@@ -119,7 +119,7 @@ jobs:
            env:
             FC: ${{ matrix.fc }}
             CC: ${{ matrix.cc }}
-            MESON_ARGS: ${{ '-Dlapack=netlib -Dtblite=disabled -Dcpcmx=disabled' }}
+            MESON_ARGS: ${{ '-Dlapack=netlib -Dtblite=disabled' }}
          - name: Build project
            run: meson compile -C ${{ env.BUILD_DIR }}
          - name: Run unit tests
@@ -148,7 +148,7 @@ jobs:
          - name: Install CMake
            run: pip3 install ninja cmake
          - name: Configure build
-           run: cmake -B ${{ env.BUILD_DIR }} -DWITH_CPCMX=false -DWITH_TBLITE=false -G Ninja
+           run: cmake -B ${{ env.BUILD_DIR }} -DWITH_TBLITE=false -G Ninja
            env:
             FC: ${{ matrix.fc }}
             CC: ${{ matrix.cc }}
