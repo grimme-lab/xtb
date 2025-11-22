@@ -762,7 +762,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine gfnff_hbset(n, at, xyz, topo, neigh, nlist, hbthr1, hbthr2)
-    use xtb_mctc_accuracy, only : wp
+    use xtb_mctc_accuracy, only: wp
     use xtb_gfnff_param
     implicit none
     integer, intent(in) :: n
