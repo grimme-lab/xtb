@@ -773,7 +773,8 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     type(TGFFNeighbourList), intent(inout) :: nlist
     real(wp), intent(in) :: hbthr1, hbthr2
 
-    integer :: i, j, k, nh, ia, ix, lin, ij, inh, jnh, iTri, iTrj, iTrDum
+    integer :: i, j, k, nh, ix
+    integer :: iTri, iTrj, iTrDum
     real(wp) :: rab, rmsd, rih, rjh
     logical :: ijnonbond, free
 
