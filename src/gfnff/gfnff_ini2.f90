@@ -1278,12 +1278,20 @@ end subroutine bond_hb_AHB_set0
 
     nhb1 = 0
     nhb2 = 0
+    nxb = 0
+
+    !$omp parallel default(none) &
+    !$omp reduction(+:nhb1, nhb2, nxb) &
+    !$omp shared(topo, neigh, xyz, hbthr1, hbthr2) &
+    !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh, ijnonbond, free)
+
     ! loop over hb-relevant AB atoms
+    !$omp do collapse(3) schedule(dynamic, 16)
     do ix = 1, topo%nathbAB
-      i = topo%hbatABl(1, ix)
-      j = topo%hbatABl(2, ix)
       do iTri = 1, neigh%nTrans ! go through i shifts
         do iTrj = 1, neigh%nTrans ! go through j shifts
+          i = topo%hbatABl(1, ix)
+          j = topo%hbatABl(2, ix)
           ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
           iTrDum = neigh%fTrSum(neigh%iTrNeg(iTri), iTrj)
           if (iTrDum > neigh%nTrans .or. iTrDum < -1 .or. iTrDum == 0) cycle
@@ -1333,17 +1341,20 @@ end subroutine bond_hb_AHB_set0
         end do ! iTrj
       end do ! iTri
     end do ! ix: relevant AB atoms
-    nxb = 0
+    !$omp end do nowait
+
+    !$omp do schedule(dynamic)
     do ix = 1, topo%natxbAB
-      !do iTrj=1, neigh%numctr
       i = topo%xbatABl(1, ix)
       j = topo%xbatABl(2, ix)
       iTrj = topo%xbatABl(4, ix)
       rab = sum((xyz(1:3, i) - (xyz(1:3, j) + neigh%transVec(1:3, iTrj)))**2)
       if (rab > hbthr2) cycle
       nxb = nxb + 1
-      !enddo
     end do
+    !$omp end do
+
+    !$omp end parallel
 
     ! the actual size can be larger, so make it save
     if (neigh%numctr > 1) then
