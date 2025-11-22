@@ -777,96 +777,95 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     real(wp) :: rab, rmsd, rih, rjh
     logical :: ijnonbond, free
 
+    ! update list if first call or substantial move occured
     rmsd = sqrt(sum((xyz - nlist%hbrefgeo)**2)) / dble(n)
+    if (.not.(rmsd < 1.d-6 .or. rmsd > 0.3d0)) return
 
-    if (rmsd < 1.d-6 .or. rmsd > 0.3d0) then ! update list if first call or substantial move occured
-      nlist%nhb1 = 0
-      nlist%nhb2 = 0
-      ! loop over hb-relevant AB atoms
-      do ix = 1, topo%nathbAB
-        i = topo%hbatABl(1, ix)
-        j = topo%hbatABl(2, ix)
-        do iTri = 1, neigh%nTrans ! go through i shifts
-          do iTrj = 1, neigh%nTrans ! go through j shifts
-            ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
-            iTrDum = neigh%fTrSum(neigh%iTrNeg(iTri), iTrj)
-            if (iTrDum > neigh%nTrans .or. iTrDum < -1 .or. iTrDum == 0) cycle ! cycle nonsense
-            rab = NORM2((xyz(:, i) + neigh%transVec(:, iTri)) &
-                - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
-            if (rab > hbthr1) cycle
-            ! check if ij bonded
-            if (iTrDum <= neigh%numctr .and. iTrDum > 0) then
-              ijnonbond = neigh%bpair(j, i, iTrDum) /= 1
-            else
-              ! i and j are not in neighboring cells
-              ijnonbond = .true.
+    nlist%nhb1 = 0
+    nlist%nhb2 = 0
+    ! loop over hb-relevant AB atoms
+    do ix = 1, topo%nathbAB
+      i = topo%hbatABl(1, ix)
+      j = topo%hbatABl(2, ix)
+      do iTri = 1, neigh%nTrans ! go through i shifts
+        do iTrj = 1, neigh%nTrans ! go through j shifts
+          ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
+          iTrDum = neigh%fTrSum(neigh%iTrNeg(iTri), iTrj)
+          if (iTrDum > neigh%nTrans .or. iTrDum < -1 .or. iTrDum == 0) cycle ! cycle nonsense
+          rab = NORM2((xyz(:, i) + neigh%transVec(:, iTri)) &
+              - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
+          if (rab > hbthr1) cycle
+          ! check if ij bonded
+          if (iTrDum <= neigh%numctr .and. iTrDum > 0) then
+            ijnonbond = neigh%bpair(j, i, iTrDum) /= 1
+          else
+            ! i and j are not in neighboring cells
+            ijnonbond = .true.
+          end if
+          ! loop over relevant H atoms
+          do k = 1, topo%nathbH
+            free = .true. ! tripplet not assigned yet
+            nh = topo%hbatHl(1, k) ! nh always in central cell
+            ! distances for non-cov bonded case
+            rih = NORM2(xyz(:, nh) - (xyz(:, i) + neigh%transVec(:, iTri)))**2
+            rjh = NORM2(xyz(:, nh) - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
+            ! check if i is the bonded A
+            if (iTri <= neigh%numctr) then ! nh is not shifted so bpair works without adjustment
+              if (neigh%bpair(i, nh, iTri) == 1 .and. ijnonbond) then
+                nlist%nhb2 = nlist%nhb2 + 1
+                nlist%hblist2(1, nlist%nhb2) = i
+                nlist%hblist2(2, nlist%nhb2) = j
+                nlist%hblist2(3, nlist%nhb2) = nh
+                nlist%hblist2(4, nlist%nhb2) = iTri
+                nlist%hblist2(5, nlist%nhb2) = iTrj
+                free = .false. ! not available for nhb1 !!!
+              end if
             end if
-            ! loop over relevant H atoms
-            do k = 1, topo%nathbH
-              free = .true. ! tripplet not assigned yet
-              nh = topo%hbatHl(1, k) ! nh always in central cell
-              ! distances for non-cov bonded case
-              rih = NORM2(xyz(:, nh) - (xyz(:, i) + neigh%transVec(:, iTri)))**2
-              rjh = NORM2(xyz(:, nh) - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
-              ! check if i is the bonded A
-              if (iTri <= neigh%numctr) then ! nh is not shifted so bpair works without adjustment
-                if (neigh%bpair(i, nh, iTri) == 1 .and. ijnonbond) then
-                  nlist%nhb2 = nlist%nhb2 + 1
-                  nlist%hblist2(1, nlist%nhb2) = i
-                  nlist%hblist2(2, nlist%nhb2) = j
-                  nlist%hblist2(3, nlist%nhb2) = nh
-                  nlist%hblist2(4, nlist%nhb2) = iTri
-                  nlist%hblist2(5, nlist%nhb2) = iTrj
-                  free = .false. ! not available for nhb1 !!!
-                end if
+            ! check if j is the bonded A
+            if (iTrj <= neigh%numctr .and. free) then
+              if (neigh%bpair(j, nh, iTrj) == 1 .and. ijnonbond) then
+                nlist%nhb2 = nlist%nhb2 + 1
+                nlist%hblist2(1, nlist%nhb2) = j
+                nlist%hblist2(2, nlist%nhb2) = i
+                nlist%hblist2(3, nlist%nhb2) = nh
+                nlist%hblist2(4, nlist%nhb2) = iTrj
+                nlist%hblist2(5, nlist%nhb2) = iTri
+                free = .false. ! not available for nhb1 !!!
               end if
-              ! check if j is the bonded A
-              if (iTrj <= neigh%numctr .and. free) then
-                if (neigh%bpair(j, nh, iTrj) == 1 .and. ijnonbond) then
-                  nlist%nhb2 = nlist%nhb2 + 1
-                  nlist%hblist2(1, nlist%nhb2) = j
-                  nlist%hblist2(2, nlist%nhb2) = i
-                  nlist%hblist2(3, nlist%nhb2) = nh
-                  nlist%hblist2(4, nlist%nhb2) = iTrj
-                  nlist%hblist2(5, nlist%nhb2) = iTri
-                  free = .false. ! not available for nhb1 !!!
-                end if
-              end if
-              ! check for non-cov bonded A
-              if (rab + rih + rjh < hbthr2 .and. free) then ! sum of rAB,rAH,rBH is below threshold
-                nlist%nhb1 = nlist%nhb1 + 1
-                nlist%hblist1(1, nlist%nhb1) = i
-                nlist%hblist1(2, nlist%nhb1) = j
-                nlist%hblist1(3, nlist%nhb1) = nh
-                nlist%hblist1(4, nlist%nhb1) = iTri
-                nlist%hblist1(5, nlist%nhb1) = iTrj
-              end if
-            end do ! k: relevant H atoms
-          end do ! iTrj
-        end do ! iTri
-      end do ! ix: relevant AB atoms
+            end if
+            ! check for non-cov bonded A
+            if (rab + rih + rjh < hbthr2 .and. free) then ! sum of rAB,rAH,rBH is below threshold
+              nlist%nhb1 = nlist%nhb1 + 1
+              nlist%hblist1(1, nlist%nhb1) = i
+              nlist%hblist1(2, nlist%nhb1) = j
+              nlist%hblist1(3, nlist%nhb1) = nh
+              nlist%hblist1(4, nlist%nhb1) = iTri
+              nlist%hblist1(5, nlist%nhb1) = iTrj
+            end if
+          end do ! k: relevant H atoms
+        end do ! iTrj
+      end do ! iTri
+    end do ! ix: relevant AB atoms
 
-      ! for nxb list only i is not shifted
-      nlist%nxb = 0
-      do ix = 1, topo%natxbAB
-        i = topo%xbatABl(1, ix) ! A
-        j = topo%xbatABl(2, ix) ! B
-        iTrj = topo%xbatABl(4, ix) ! iTrB
-        if (iTrj > neigh%nTrans .or. iTrj < -1 .or. iTrj == 0) cycle ! cycle nonsense
-        rab = NORM2(xyz(:, j) - xyz(:, i) + neigh%transVec(:, iTrj))**2
-        if (rab > hbthr2) cycle
-        nlist%nxb = nlist%nxb + 1
-        nlist%hblist3(1, nlist%nxb) = i ! A
-        nlist%hblist3(2, nlist%nxb) = j ! B
-        nlist%hblist3(3, nlist%nxb) = topo%xbatABl(3, ix) ! X
-        nlist%hblist3(4, nlist%nxb) = iTrj
-        nlist%hblist3(5, nlist%nxb) = topo%xbatABl(5, ix) ! iTrX
-        !enddo
-      end do
+    ! for nxb list only i is not shifted
+    nlist%nxb = 0
+    do ix = 1, topo%natxbAB
+      i = topo%xbatABl(1, ix) ! A
+      j = topo%xbatABl(2, ix) ! B
+      iTrj = topo%xbatABl(4, ix) ! iTrB
+      if (iTrj > neigh%nTrans .or. iTrj < -1 .or. iTrj == 0) cycle ! cycle nonsense
+      rab = NORM2(xyz(:, j) - xyz(:, i) + neigh%transVec(:, iTrj))**2
+      if (rab > hbthr2) cycle
+      nlist%nxb = nlist%nxb + 1
+      nlist%hblist3(1, nlist%nxb) = i ! A
+      nlist%hblist3(2, nlist%nxb) = j ! B
+      nlist%hblist3(3, nlist%nxb) = topo%xbatABl(3, ix) ! X
+      nlist%hblist3(4, nlist%nxb) = iTrj
+      nlist%hblist3(5, nlist%nxb) = topo%xbatABl(5, ix) ! iTrX
+      !enddo
+    end do
 
-      nlist%hbrefgeo = xyz
-
-    end if ! else do nothing
+    nlist%hbrefgeo = xyz
 
   end subroutine gfnff_hbset
 
