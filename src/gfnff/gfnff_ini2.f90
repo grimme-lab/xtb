@@ -792,8 +792,8 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
           ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
           iTrDum = neigh%fTrSum(neigh%iTrNeg(iTri), iTrj)
           if (iTrDum > neigh%nTrans .or. iTrDum < -1 .or. iTrDum == 0) cycle ! cycle nonsense
-          rab = NORM2((xyz(:, i) + neigh%transVec(:, iTri)) &
-              - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
+          rab = sum(((xyz(1:3, i) + neigh%transVec(1:3, iTri)) &
+                   - (xyz(1:3, j) + neigh%transVec(1:3, iTrj)))**2)
           if (rab > hbthr1) cycle
           ! check if ij bonded
           if (iTrDum <= neigh%numctr .and. iTrDum > 0) then
@@ -807,8 +807,8 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
             free = .true. ! tripplet not assigned yet
             nh = topo%hbatHl(1, k) ! nh always in central cell
             ! distances for non-cov bonded case
-            rih = NORM2(xyz(:, nh) - (xyz(:, i) + neigh%transVec(:, iTri)))**2
-            rjh = NORM2(xyz(:, nh) - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
+            rih = sum((xyz(1:3, nh) - (xyz(1:3, i) + neigh%transVec(1:3, iTri)))**2)
+            rjh = sum((xyz(1:3, nh) - (xyz(1:3, j) + neigh%transVec(1:3, iTrj)))**2)
             ! check if i is the bonded A
             if (iTri <= neigh%numctr) then ! nh is not shifted so bpair works without adjustment
               if (neigh%bpair(i, nh, iTri) == 1 .and. ijnonbond) then
@@ -854,7 +854,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       j = topo%xbatABl(2, ix) ! B
       iTrj = topo%xbatABl(4, ix) ! iTrB
       if (iTrj > neigh%nTrans .or. iTrj < -1 .or. iTrj == 0) cycle ! cycle nonsense
-      rab = NORM2(xyz(:, j) - xyz(:, i) + neigh%transVec(:, iTrj))**2
+      rab = sum((xyz(1:3, j) - xyz(1:3, i) + neigh%transVec(1:3, iTrj))**2)
       if (rab > hbthr2) cycle
       nlist%nxb = nlist%nxb + 1
       nlist%hblist3(1, nlist%nxb) = i ! A
