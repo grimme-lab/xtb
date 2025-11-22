@@ -765,12 +765,12 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     use xtb_mctc_accuracy, only : wp
     use xtb_gfnff_param
     implicit none
+    integer, intent(in) :: n
+    integer, intent(in) :: at(n)
+    real(wp), intent(in) :: xyz(3, n)
     type(TGFFTopology), intent(in) :: topo
     type(TNeigh), intent(inout) :: neigh
     type(TGFFNeighbourList), intent(inout) :: nlist
-    integer :: n
-    integer :: at(n)
-    real(wp) :: xyz(3, n)
     real(wp), intent(in) :: hbthr1, hbthr2
 
     integer :: i, j, k, nh, ia, ix, lin, ij, inh, jnh, iTri, iTrj, iTrDum
