@@ -1271,8 +1271,8 @@ end subroutine bond_hb_AHB_set0
     type(TGFFNeighbourList), intent(inout) :: nlist
     real(wp), intent(in) :: hbthr1, hbthr2
 
-    integer :: i, j, k, nh, ia, ix, lin, ij, inh, jnh
-    integer :: iTri, iTrj, iTrDum !iTrA,iTrH,iTrDum2,iTrAH,sw,nsw,shift
+    integer :: i, j, k, nh, ix
+    integer :: iTri, iTrj, iTrDum
     logical :: ijnonbond, free
     real(wp) :: rab, rih, rjh
 
