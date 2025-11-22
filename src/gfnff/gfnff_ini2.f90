@@ -783,12 +783,14 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 
     nlist%nhb1 = 0
     nlist%nhb2 = 0
+    nlist%nxb = 0
+
     ! loop over hb-relevant AB atoms
     do ix = 1, topo%nathbAB
-      i = topo%hbatABl(1, ix)
-      j = topo%hbatABl(2, ix)
       do iTri = 1, neigh%nTrans ! go through i shifts
         do iTrj = 1, neigh%nTrans ! go through j shifts
+          i = topo%hbatABl(1, ix)
+          j = topo%hbatABl(2, ix)
           ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
           iTrDum = neigh%fTrSum(neigh%iTrNeg(iTri), iTrj)
           if (iTrDum > neigh%nTrans .or. iTrDum < -1 .or. iTrDum == 0) cycle ! cycle nonsense
@@ -848,7 +850,6 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     end do ! ix: relevant AB atoms
 
     ! for nxb list only i is not shifted
-    nlist%nxb = 0
     do ix = 1, topo%natxbAB
       i = topo%xbatABl(1, ix) ! A
       j = topo%xbatABl(2, ix) ! B
