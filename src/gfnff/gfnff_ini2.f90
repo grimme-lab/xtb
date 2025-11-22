@@ -1257,108 +1257,109 @@ end subroutine bond_hb_AHB_set0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine gfnff_hbset0(n,at,xyz,topo,nhb1,nhb2,nxb,neigh,nlist,hbthr1,hbthr2)
-use xtb_mctc_accuracy, only : wp
-      use xtb_gfnff_param
-      implicit none
-      type(TGFFTopology), intent(in) :: topo
-      integer, intent(out) :: nhb1
-      integer, intent(out) :: nhb2
-      integer, intent(out) :: nxb
-      type(TNeigh), intent(inout) :: neigh 
-      type(TGFFNeighbourList), intent(inout) :: nlist
-      integer n
-      integer at(n)
-      real(wp) xyz(3,n)
-      real(wp),intent(in) :: hbthr1, hbthr2
+  subroutine gfnff_hbset0(n, at, xyz, topo, nhb1, nhb2, nxb, neigh, nlist, hbthr1, hbthr2)
+    use xtb_mctc_accuracy, only: wp
+    use xtb_gfnff_param
+    implicit none
+    type(TGFFTopology), intent(in) :: topo
+    integer, intent(out) :: nhb1
+    integer, intent(out) :: nhb2
+    integer, intent(out) :: nxb
+    type(TNeigh), intent(inout) :: neigh
+    type(TGFFNeighbourList), intent(inout) :: nlist
+    integer :: n
+    integer :: at(n)
+    real(wp) :: xyz(3, n)
+    real(wp), intent(in) :: hbthr1, hbthr2
 
-      integer i,j,k,nh,ia,ix,lin,ij,inh,jnh 
-      integer :: iTri,iTrj,iTrDum !iTrA,iTrH,iTrDum2,iTrAH,sw,nsw,shift
-      logical ijnonbond, free
-      real(wp) rab,rih,rjh
-      nhb1=0
-      nhb2=0
-      ! loop over hb-relevant AB atoms
-      do ix=1,topo%nathbAB  
-        i=topo%hbatABl(1,ix) 
-        j=topo%hbatABl(2,ix)
-        do iTri=1, neigh%nTrans ! go through i shifts
-          do iTrj=1, neigh%nTrans ! go through j shifts
-            ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
-            iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj)
-            if(iTrDum.gt.neigh%nTrans.or.iTrDum.lt.-1.or.iTrDum.eq.0) cycle 
-            if(iTrDum.eq.-1) then
-              rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
-              if(rab.gt.hbthr1) cycle
-              ijnonbond=.true. ! i and j are not in neighboring or same cell for iTrDum=-1
+    integer :: i, j, k, nh, ia, ix, lin, ij, inh, jnh
+    integer :: iTri, iTrj, iTrDum !iTrA,iTrH,iTrDum2,iTrAH,sw,nsw,shift
+    logical :: ijnonbond, free
+    real(wp) :: rab, rih, rjh
+    nhb1 = 0
+    nhb2 = 0
+    ! loop over hb-relevant AB atoms
+    do ix = 1, topo%nathbAB
+      i = topo%hbatABl(1, ix)
+      j = topo%hbatABl(2, ix)
+      do iTri = 1, neigh%nTrans ! go through i shifts
+        do iTrj = 1, neigh%nTrans ! go through j shifts
+          ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
+          iTrDum = neigh%fTrSum(neigh%iTrNeg(iTri), iTrj)
+          if (iTrDum > neigh%nTrans .or. iTrDum < -1 .or. iTrDum == 0) cycle
+          if (iTrDum == -1) then
+            rab = NORM2((xyz(:, i) + neigh%transVec(:, iTri)) &
+                - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
+            if (rab > hbthr1) cycle
+            ijnonbond = .true. ! i and j are not in neighboring or same cell for iTrDum=-1
+          else
+            ! check
+            rab = NORM2(xyz(:, i) - (xyz(:, j) + neigh%transVec(:, iTrDum)))**2
+            if (rab > hbthr1) cycle
+            ! check if ij bonded
+            if (iTrDum <= neigh%numctr) then
+              ijnonbond = neigh%bpair(j, i, iTrDum) /= 1
             else
-              ! check
-              rab=NORM2(xyz(:,i)-(xyz(:,j)+neigh%transVec(:,iTrDum)))**2
-              if(rab.gt.hbthr1) cycle
-              ! check if ij bonded
-              if(iTrDum.le.neigh%numctr) then
-                ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
-              else
-                ! i and j are not in neighboring cells
-                ijnonbond=.true.
-              endif
-            endif
-            ! loop over relevant H atoms
-            do k=1,topo%nathbH  
-              free=.true.
-              nh  =topo%hbatHl(1,k) ! nh always in central cell
-              ! distances for non-cov bonded case
-              rih=NORM2(xyz(:,nh)-(xyz(:,i)+neigh%transVec(:,iTri)))**2
-              rjh=NORM2(xyz(:,nh)-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
-              ! check if i is the bonded A    
-              if(iTri.le.neigh%numctr) then ! nh is not shifted so bpair works without adjustment 
-                if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
-                  nhb2=nhb2+1
-                  free=.false.
-                endif  
-              endif  
-              ! check if j is the bonded A
-              if(iTrj.le.neigh%numctr.and.free) then
-                if(neigh%bpair(j,nh,iTrj).eq.1.and.ijnonbond) then
-                  nhb2=nhb2+1
-                  free=.false.
-                endif  
-              endif  
-              ! check for non-cov bonded A  
-              if(rab+rih+rjh.lt.hbthr2.and.free) then ! sum of rAB,rAH,rBH is below threshold
-                nhb1=nhb1+1
-              endif
-            enddo ! k: relevant H atoms
-          enddo ! iTrj
-        enddo ! iTri
-      enddo ! ix: relevant AB atoms 
-      nxb =0
-      do ix=1,topo%natxbAB
-        !do iTrj=1, neigh%numctr
-          i =topo%xbatABl(1,ix)
-          j =topo%xbatABl(2,ix)
-          iTrj=topo%xbatABl(4,ix)
-          rab=NORM2(xyz(:,i)-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
-          if(rab.gt.hbthr2)cycle
-          nxb=nxb+1
-        !enddo
-      enddo
+              ! i and j are not in neighboring cells
+              ijnonbond = .true.
+            end if
+          end if
+          ! loop over relevant H atoms
+          do k = 1, topo%nathbH
+            free = .true.
+            nh = topo%hbatHl(1, k) ! nh always in central cell
+            ! distances for non-cov bonded case
+            rih = NORM2(xyz(:, nh) - (xyz(:, i) + neigh%transVec(:, iTri)))**2
+            rjh = NORM2(xyz(:, nh) - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
+            ! check if i is the bonded A
+            if (iTri <= neigh%numctr) then ! nh is not shifted so bpair works without adjustment
+              if (neigh%bpair(i, nh, iTri) == 1 .and. ijnonbond) then
+                nhb2 = nhb2 + 1
+                free = .false.
+              end if
+            end if
+            ! check if j is the bonded A
+            if (iTrj <= neigh%numctr .and. free) then
+              if (neigh%bpair(j, nh, iTrj) == 1 .and. ijnonbond) then
+                nhb2 = nhb2 + 1
+                free = .false.
+              end if
+            end if
+            ! check for non-cov bonded A
+            if (rab + rih + rjh < hbthr2 .and. free) then ! sum of rAB,rAH,rBH is below threshold
+              nhb1 = nhb1 + 1
+            end if
+          end do ! k: relevant H atoms
+        end do ! iTrj
+      end do ! iTri
+    end do ! ix: relevant AB atoms
+    nxb = 0
+    do ix = 1, topo%natxbAB
+      !do iTrj=1, neigh%numctr
+      i = topo%xbatABl(1, ix)
+      j = topo%xbatABl(2, ix)
+      iTrj = topo%xbatABl(4, ix)
+      rab = NORM2(xyz(:, i) - (xyz(:, j) + neigh%transVec(:, iTrj)))**2
+      if (rab > hbthr2) cycle
+      nxb = nxb + 1
+      !enddo
+    end do
 
-! the actual size can be larger, so make it save
-      if(neigh%numctr.gt.1)then
-        nhb1=(nhb1*27)
-        nhb2=(nhb2*27)
-      else
-        nhb1=(nhb1*6)
-        nhb2=(nhb2*6)
-      endif
-      if (nxb.gt.1000) then
-        nxb =(nxb *25)
-      else
-        nxb =(nxb *10)
-      endif        
+    ! the actual size can be larger, so make it save
+    if (neigh%numctr > 1) then
+      nhb1 = (nhb1 * 27)
+      nhb2 = (nhb2 * 27)
+    else
+      nhb1 = (nhb1 * 6)
+      nhb2 = (nhb2 * 6)
+    end if
+    if (nxb > 1000) then
+      nxb = (nxb * 25)
+    else
+      nxb = (nxb * 10)
+    end if
 
-      end subroutine gfnff_hbset0
+  end subroutine gfnff_hbset0
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! HB strength
