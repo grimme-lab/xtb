@@ -1260,21 +1260,22 @@ end subroutine bond_hb_AHB_set0
     use xtb_mctc_accuracy, only: wp
     use xtb_gfnff_param
     implicit none
+    integer, intent(in) :: n
+    integer, intent(in) :: at(n)
+    real(wp), intent(in) :: xyz(3, n)
     type(TGFFTopology), intent(in) :: topo
     integer, intent(out) :: nhb1
     integer, intent(out) :: nhb2
     integer, intent(out) :: nxb
     type(TNeigh), intent(inout) :: neigh
     type(TGFFNeighbourList), intent(inout) :: nlist
-    integer :: n
-    integer :: at(n)
-    real(wp) :: xyz(3, n)
     real(wp), intent(in) :: hbthr1, hbthr2
 
     integer :: i, j, k, nh, ia, ix, lin, ij, inh, jnh
     integer :: iTri, iTrj, iTrDum !iTrA,iTrH,iTrDum2,iTrAH,sw,nsw,shift
     logical :: ijnonbond, free
     real(wp) :: rab, rih, rjh
+
     nhb1 = 0
     nhb2 = 0
     ! loop over hb-relevant AB atoms
