@@ -1267,8 +1267,8 @@ end subroutine bond_hb_AHB_set0
     integer, intent(out) :: nhb1
     integer, intent(out) :: nhb2
     integer, intent(out) :: nxb
-    type(TNeigh), intent(inout) :: neigh
-    type(TGFFNeighbourList), intent(inout) :: nlist
+    type(TNeigh), intent(in) :: neigh
+    type(TGFFNeighbourList), intent(in) :: nlist
     real(wp), intent(in) :: hbthr1, hbthr2
 
     integer :: i, j, k, nh, ix
