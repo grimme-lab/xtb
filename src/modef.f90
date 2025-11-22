@@ -167,7 +167,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
             inquire(file=ctmp,exist=ex)
             if(ex) goto 444
          endif
-         write(*,'(''Erel (w.r.t input min / kcal :'' f8.3)') &
+         write(*,'(''Erel (w.r.t input min / kcal : '',f8.3)') &
          &       (ee-epot)*autokcal
          call open_file(ich,ctmp,'w')
          write(ich,*)mol%n
@@ -465,7 +465,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
                   inquire(file=ctmp,exist=ex)
                   if(ex) goto 44
                endif
-               write(*,'(''Erel (w.r.t input min / kcal :'' f8.3)')  &
+               write(*,'(''Erel (w.r.t input min / kcal : '',f8.3)')  &
                &       (ee-epot)*autokcal
                call open_file(ich,ctmp,'w')
                write(ich,*)mol%n
@@ -501,7 +501,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
             inquire(file=ctmp,exist=ex)
             if(ex) goto 45
          endif
-         write(*,'(''Erel (w.r.t input min / kcal :'' f8.3)')  &
+         write(*,'(''Erel (w.r.t input min / kcal : '',f8.3)')  &
          &           (ee-epot)*autokcal
          call open_file(ich,ctmp,'w')
          write(ich,*)mol%n
