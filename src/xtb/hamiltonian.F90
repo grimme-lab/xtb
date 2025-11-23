@@ -785,6 +785,8 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 !$ dhdcn(:) = dhdcn + dhdcn_omp
    !$omp end critical (dhdcn_crt)
 
+!$ deallocate(g_omp, sigma_omp, dhdcn_omp)
+
    !$omp end parallel
 
 end subroutine build_dSDQH0_noreset
