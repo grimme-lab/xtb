@@ -775,18 +775,39 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 
     integer :: i, j, k, nh, ix
     integer :: iTri, iTrj, iTrDum
-    real(wp) :: rab, rmsd, rih, rjh
+    real(wp) :: rmsd, rab, rih, rjh
     logical :: ijnonbond, free
+    integer :: nhb1, nhb2, nxb
+    integer, allocatable :: hblist1(:,:), hblist2(:,:), hblist3(:,:)
 
     ! update list if first call or substantial move occured
     rmsd = sqrt(sum((xyz - nlist%hbrefgeo)**2)) / dble(n)
     if (.not.(rmsd < 1.d-6 .or. rmsd > 0.3d0)) return
 
+
+    !$omp parallel default(none) &
+    !$omp shared(topo, neigh, nlist, xyz, hbthr1, hbthr2) &
+    !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh, nhb1, nhb2, nxb) &
+    !$omp private(ijnonbond, free, hblist1, hblist2, hblist3)
+
+    allocate(hblist1(5, nlist%nhb1), source=0)
+    allocate(hblist2(5, nlist%nhb2), source=0)
+    allocate(hblist3(5, nlist%nxb), source=0)
+
+    !$omp barrier
+    !$omp single
     nlist%nhb1 = 0
     nlist%nhb2 = 0
     nlist%nxb = 0
+    !$omp end single
+    !$omp barrier
+
+    nhb1 = 0
+    nhb2 = 0
+    nxb = 0
 
     ! loop over hb-relevant AB atoms
+    !$omp do collapse(3) schedule(dynamic, 16)
     do ix = 1, topo%nathbAB
       do iTri = 1, neigh%nTrans ! go through i shifts
         do iTrj = 1, neigh%nTrans ! go through j shifts
@@ -815,42 +836,51 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
             ! check if i is the bonded A
             if (iTri <= neigh%numctr) then ! nh is not shifted so bpair works without adjustment
               if (neigh%bpair(i, nh, iTri) == 1 .and. ijnonbond) then
-                nlist%nhb2 = nlist%nhb2 + 1
-                nlist%hblist2(1, nlist%nhb2) = i
-                nlist%hblist2(2, nlist%nhb2) = j
-                nlist%hblist2(3, nlist%nhb2) = nh
-                nlist%hblist2(4, nlist%nhb2) = iTri
-                nlist%hblist2(5, nlist%nhb2) = iTrj
+                nhb2 = nhb2 + 1
+                hblist2(1, nhb2) = i
+                hblist2(2, nhb2) = j
+                hblist2(3, nhb2) = nh
+                hblist2(4, nhb2) = iTri
+                hblist2(5, nhb2) = iTrj
                 free = .false. ! not available for nhb1 !!!
               end if
             end if
             ! check if j is the bonded A
             if (iTrj <= neigh%numctr .and. free) then
               if (neigh%bpair(j, nh, iTrj) == 1 .and. ijnonbond) then
-                nlist%nhb2 = nlist%nhb2 + 1
-                nlist%hblist2(1, nlist%nhb2) = j
-                nlist%hblist2(2, nlist%nhb2) = i
-                nlist%hblist2(3, nlist%nhb2) = nh
-                nlist%hblist2(4, nlist%nhb2) = iTrj
-                nlist%hblist2(5, nlist%nhb2) = iTri
+                nhb2 = nhb2 + 1
+                hblist2(1, nhb2) = j
+                hblist2(2, nhb2) = i
+                hblist2(3, nhb2) = nh
+                hblist2(4, nhb2) = iTrj
+                hblist2(5, nhb2) = iTri
                 free = .false. ! not available for nhb1 !!!
               end if
             end if
             ! check for non-cov bonded A
             if (rab + rih + rjh < hbthr2 .and. free) then ! sum of rAB,rAH,rBH is below threshold
-              nlist%nhb1 = nlist%nhb1 + 1
-              nlist%hblist1(1, nlist%nhb1) = i
-              nlist%hblist1(2, nlist%nhb1) = j
-              nlist%hblist1(3, nlist%nhb1) = nh
-              nlist%hblist1(4, nlist%nhb1) = iTri
-              nlist%hblist1(5, nlist%nhb1) = iTrj
+              nhb1 = nhb1 + 1
+              hblist1(1, nhb1) = i
+              hblist1(2, nhb1) = j
+              hblist1(3, nhb1) = nh
+              hblist1(4, nhb1) = iTri
+              hblist1(5, nhb1) = iTrj
             end if
           end do ! k: relevant H atoms
         end do ! iTrj
       end do ! iTri
     end do ! ix: relevant AB atoms
+    !$omp end do nowait
+
+    !$omp critical (nhb_list)
+    nlist%hblist1(:, nlist%nhb1 + 1:nlist%nhb1 + nhb1) = hblist1(:, 1:nhb1)
+    nlist%hblist2(:, nlist%nhb2 + 1:nlist%nhb2 + nhb2) = hblist2(:, 1:nhb2)
+    nlist%nhb1 = nlist%nhb1 + nhb1
+    nlist%nhb2 = nlist%nhb2 + nhb2
+    !$omp end critical (nhb_list)
 
     ! for nxb list only i is not shifted
+    !$omp do schedule(dynamic, 16)
     do ix = 1, topo%natxbAB
       i = topo%xbatABl(1, ix) ! A
       j = topo%xbatABl(2, ix) ! B
@@ -858,14 +888,21 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       if (iTrj > neigh%nTrans .or. iTrj < -1 .or. iTrj == 0) cycle ! cycle nonsense
       rab = sum((xyz(1:3, j) - xyz(1:3, i) + neigh%transVec(1:3, iTrj))**2)
       if (rab > hbthr2) cycle
-      nlist%nxb = nlist%nxb + 1
-      nlist%hblist3(1, nlist%nxb) = i ! A
-      nlist%hblist3(2, nlist%nxb) = j ! B
-      nlist%hblist3(3, nlist%nxb) = topo%xbatABl(3, ix) ! X
-      nlist%hblist3(4, nlist%nxb) = iTrj
-      nlist%hblist3(5, nlist%nxb) = topo%xbatABl(5, ix) ! iTrX
-      !enddo
+      nxb = nxb + 1
+      hblist3(1, nxb) = i ! A
+      hblist3(2, nxb) = j ! B
+      hblist3(3, nxb) = topo%xbatABl(3, ix) ! X
+      hblist3(4, nxb) = iTrj
+      hblist3(5, nxb) = topo%xbatABl(5, ix) ! iTrX
     end do
+    !$omp end do nowait
+
+    !$omp critical (nxb_list)
+    nlist%hblist3(:, nlist%nxb + 1:nlist%nxb + nxb) = hblist3(:, 1:nxb)
+    nlist%nxb = nlist%nxb + nxb
+    !$omp end critical (nxb_list)
+
+    !$omp end parallel
 
     nlist%hbrefgeo = xyz
 
