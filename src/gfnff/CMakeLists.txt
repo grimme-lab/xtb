@@ -25,7 +25,7 @@ list(APPEND srcs
   "${dir}/generator.f90"
   "${dir}/gfnff_eg.f90"
   "${dir}/gfnff_ini.f90"
-  "${dir}/gfnff_ini2.f90"
+  "${dir}/gfnff_ini2.F90"
   "${dir}/gfnff_param.f90"
   "${dir}/gfnff_qm.f90"
   "${dir}/gfnff_rab.f"

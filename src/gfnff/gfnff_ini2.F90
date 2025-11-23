@@ -778,21 +778,25 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     real(wp) :: rmsd, rab, rih, rjh
     logical :: ijnonbond, free
     integer :: nhb1, nhb2, nxb
-    integer, allocatable :: hblist1(:,:), hblist2(:,:), hblist3(:,:)
+!$  integer, allocatable :: hblist1(:,:), hblist2(:,:), hblist3(:,:)
 
     ! update list if first call or substantial move occured
     rmsd = sqrt(sum((xyz - nlist%hbrefgeo)**2)) / dble(n)
     if (.not.(rmsd < 1.d-6 .or. rmsd > 0.3d0)) return
-
 
     !$omp parallel default(none) &
     !$omp shared(topo, neigh, nlist, xyz, hbthr1, hbthr2) &
     !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh, nhb1, nhb2, nxb) &
     !$omp private(ijnonbond, free, hblist1, hblist2, hblist3)
 
-    allocate(hblist1(5, nlist%nhb1), source=0)
-    allocate(hblist2(5, nlist%nhb2), source=0)
-    allocate(hblist3(5, nlist%nxb), source=0)
+#ifndef _OPENMP
+    associate(hblist1 => nlist%hblist1, &
+              hblist2 => nlist%hblist2, &
+              hblist3 => nlist%hblist3)
+#endif
+!$  allocate(hblist1(5, nlist%nhb1), source=0)
+!$  allocate(hblist2(5, nlist%nhb2), source=0)
+!$  allocate(hblist3(5, nlist%nxb), source=0)
 
     !$omp barrier
     !$omp single
@@ -873,8 +877,8 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     !$omp end do nowait
 
     !$omp critical (nhb_list)
-    nlist%hblist1(:, nlist%nhb1 + 1:nlist%nhb1 + nhb1) = hblist1(:, 1:nhb1)
-    nlist%hblist2(:, nlist%nhb2 + 1:nlist%nhb2 + nhb2) = hblist2(:, 1:nhb2)
+!$  nlist%hblist1(:, nlist%nhb1 + 1:nlist%nhb1 + nhb1) = hblist1(:, 1:nhb1)
+!$  nlist%hblist2(:, nlist%nhb2 + 1:nlist%nhb2 + nhb2) = hblist2(:, 1:nhb2)
     nlist%nhb1 = nlist%nhb1 + nhb1
     nlist%nhb2 = nlist%nhb2 + nhb2
     !$omp end critical (nhb_list)
@@ -898,9 +902,13 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     !$omp end do nowait
 
     !$omp critical (nxb_list)
-    nlist%hblist3(:, nlist%nxb + 1:nlist%nxb + nxb) = hblist3(:, 1:nxb)
+!$  nlist%hblist3(:, nlist%nxb + 1:nlist%nxb + nxb) = hblist3(:, 1:nxb)
     nlist%nxb = nlist%nxb + nxb
     !$omp end critical (nxb_list)
+
+#ifndef _OPENMP
+    end associate
+#endif
 
     !$omp end parallel
 
