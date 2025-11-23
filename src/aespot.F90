@@ -410,6 +410,8 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 !$ qp(:,:) = qp + qp_omp
    !$omp end critical (qp_crt)
 
+!$ deallocate(dipm_omp, qp_omp)
+
    !$omp end parallel
 
    ! remove trace
