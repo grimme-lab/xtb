@@ -3362,6 +3362,10 @@ end subroutine rbxgfnff_eg
     real(wp), parameter :: fqq = 3.0_wp
     integer :: linij, linik, linjk, i, j, iTrDum, dm1, dm2
 
+    energy = 0.0_wp
+    g = 0.0_wp
+    ds = 0.0_wp
+
     fi = (1.d0 - fqq * q(iat))
     fi = min(max(fi, -4.0d0), 4.0d0)
     fj = (1.d0 - fqq * q(jat))
