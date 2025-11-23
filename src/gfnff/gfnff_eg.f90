@@ -3368,11 +3368,11 @@ end subroutine rbxgfnff_eg
     ds = 0.0_wp
 
     fi = (1.d0 - fqq * q(iat))
-    fi = min(max(fi, -4.0d0), 4.0d0)
+    fi = min(max(fi, -4.0_wp), 4.0_wp)
     fj = (1.d0 - fqq * q(jat))
-    fj = min(max(fj, -4.0d0), 4.0d0)
+    fj = min(max(fj, -4.0_wp), 4.0_wp)
     fk = (1.d0 - fqq * q(kat))
-    fk = min(max(fk, -4.0d0), 4.0d0)
+    fk = min(max(fk, -4.0_wp), 4.0_wp)
     ff = fi * fj * fk ! charge term
     c9 = ff * param%zb3atm(at(iat)) * param%zb3atm(at(jat)) * param%zb3atm(at(kat)) ! strength of interaction
     r2ij = sum((xyz(1:3, iat) - (xyz(1:3, jat) + neigh%transVec(1:3, iTrj)))**2)
@@ -3395,24 +3395,24 @@ end subroutine rbxgfnff_eg
     ijmk = r2ij + r2jk - r2ik
     rijk3 = r2ij * r2jk * r2ik
     rav3 = rijk3 * sr2ij * sr2jk * sr2ik ! R^9
-    ang = 0.375d0 * ijmk * imjk * mijk / rijk3
-    angr9 = (ang + 1.0d0) / rav3
+    ang = 0.375_wp * ijmk * imjk * mijk / rijk3
+    angr9 = (ang + 1.0_wp) / rav3
     energy = c9 * angr9 ! energy
 
     ! derivatives of each part w.r.t. r_ij,jk,ik
-    dang = -0.375d0 * (r2ij**3 + r2ij**2 * (r2jk + r2ik) &
-        & + r2ij * (3.0d0 * r2jk**2 + 2.0 * r2jk * r2ik + 3.0 * r2ik**2) &
-        & - 5.0 * (r2jk - r2ik)**2 * (r2jk + r2ik)) &
+    dang = -0.375_wp * (r2ij**3 + r2ij**2 * (r2jk + r2ik) &
+        & + r2ij * (3.0_wp * r2jk**2 + 2.0_wp * r2jk * r2ik + 3.0_wp * r2ik**2) &
+        & - 5.0_wp * (r2jk - r2ik)**2 * (r2jk + r2ik)) &
         & / (sr2ij * rijk3 * rav3)
     drij = -dang * c9
-    dang = -0.375d0 * (r2jk**3 + r2jk**2 * (r2ik + r2ij) &
-        & + r2jk * (3.0d0 * r2ik**2 + 2.0 * r2ik * r2ij + 3.0 * r2ij**2) &
-        & - 5.0 * (r2ik - r2ij)**2 * (r2ik + r2ij)) &
+    dang = -0.375_wp * (r2jk**3 + r2jk**2 * (r2ik + r2ij) &
+        & + r2jk * (3.0_wp * r2ik**2 + 2.0_wp * r2ik * r2ij + 3.0_wp * r2ij**2) &
+        & - 5.0_wp * (r2ik - r2ij)**2 * (r2ik + r2ij)) &
         & / (sr2jk * rijk3 * rav3)
     drjk = -dang * c9
-    dang = -0.375d0 * (r2ik**3 + r2ik**2 * (r2jk + r2ij) &
-        & + r2ik * (3.0d0 * r2jk**2 + 2.0 * r2jk * r2ij + 3.0 * r2ij**2) &
-        & - 5.0 * (r2jk - r2ij)**2 * (r2jk + r2ij)) &
+    dang = -0.375_wp * (r2ik**3 + r2ik**2 * (r2jk + r2ij) &
+        & + r2ik * (3.0_wp * r2jk**2 + 2.0_wp * r2jk * r2ij + 3.0_wp * r2ij**2) &
+        & - 5.0_wp * (r2jk - r2ij)**2 * (r2jk + r2ij)) &
         & / (sr2ik * rijk3 * rav3)
     drik = -dang * c9
 
