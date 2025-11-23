@@ -776,7 +776,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     integer :: i, j, k, nh, ix
     integer :: iTri, iTrj, iTrDum
     real(wp) :: rmsd, rab, rih, rjh
-    logical :: ijnonbond, free
+    logical :: ijnonbond
     integer :: nhb1, nhb2, nxb
 !$  integer, parameter :: N_MAX_LIST = 800 !< keep approx. 32 kb of integer(int64)
 !$  integer, allocatable :: hblist1(:,:), hblist2(:,:), hblist3(:,:)
@@ -792,7 +792,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     !$omp parallel default(none) &
     !$omp shared(topo, neigh, nlist, xyz, hbthr1, hbthr2) &
     !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh) &
-    !$omp private(ijnonbond, free, hblist1, hblist2, hblist3, nhb1, nhb2, nxb)
+    !$omp private(ijnonbond, hblist1, hblist2, hblist3, nhb1, nhb2, nxb)
 
 #ifndef _OPENMP
     associate(hblist1 => nlist%hblist1, &
@@ -829,7 +829,6 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
           end if
           ! loop over relevant H atoms
           do k = 1, topo%nathbH
-            free = .true. ! tripplet not assigned yet
             nh = topo%hbatHl(1, k) ! nh always in central cell
             ! distances for non-cov bonded case
             rih = sum((xyz(1:3, nh) - (xyz(1:3, i) + neigh%transVec(1:3, iTri)))**2)
@@ -844,11 +843,11 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
                 hblist2(4, nhb2) = iTri
                 hblist2(5, nhb2) = iTrj
 !$              if (nhb2 == N_MAX_LIST) call update_hblist2(nlist, hblist2, nhb2)
-                free = .false. ! not available for nhb1 !!!
+                cycle ! not available for nhb1 !!!
               end if
             end if
             ! check if j is the bonded A
-            if (iTrj <= neigh%numctr .and. free) then
+            if (iTrj <= neigh%numctr) then
               if (neigh%bpair(j, nh, iTrj) == 1 .and. ijnonbond) then
                 nhb2 = nhb2 + 1
                 hblist2(1, nhb2) = j
@@ -857,11 +856,11 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
                 hblist2(4, nhb2) = iTrj
                 hblist2(5, nhb2) = iTri
 !$              if (nhb2 == N_MAX_LIST) call update_hblist2(nlist, hblist2, nhb2)
-                free = .false. ! not available for nhb1 !!!
+                cycle ! not available for nhb1 !!!
               end if
             end if
             ! check for non-cov bonded A
-            if (rab + rih + rjh < hbthr2 .and. free) then ! sum of rAB,rAH,rBH is below threshold
+            if (rab + rih + rjh < hbthr2) then ! sum of rAB,rAH,rBH is below threshold
               nhb1 = nhb1 + 1
               hblist1(1, nhb1) = i
               hblist1(2, nhb1) = j
@@ -1351,7 +1350,7 @@ end subroutine bond_hb_AHB_set0
 
     integer :: i, j, k, nh, ix
     integer :: iTri, iTrj, iTrDum
-    logical :: ijnonbond, free
+    logical :: ijnonbond
     real(wp) :: rab, rih, rjh
 
     nhb1 = 0
@@ -1361,7 +1360,7 @@ end subroutine bond_hb_AHB_set0
     !$omp parallel default(none) &
     !$omp reduction(+:nhb1, nhb2, nxb) &
     !$omp shared(topo, neigh, xyz, hbthr1, hbthr2) &
-    !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh, ijnonbond, free)
+    !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh, ijnonbond)
 
     ! loop over hb-relevant AB atoms
     !$omp do collapse(3) schedule(dynamic, 16)
@@ -1392,7 +1391,6 @@ end subroutine bond_hb_AHB_set0
           end if
           ! loop over relevant H atoms
           do k = 1, topo%nathbH
-            free = .true.
             nh = topo%hbatHl(1, k) ! nh always in central cell
             ! distances for non-cov bonded case
             rih = sum((xyz(1:3, nh) - (xyz(1:3, i) + neigh%transVec(1:3, iTri)))**2)
@@ -1401,18 +1399,18 @@ end subroutine bond_hb_AHB_set0
             if (iTri <= neigh%numctr) then ! nh is not shifted so bpair works without adjustment
               if (neigh%bpair(i, nh, iTri) == 1 .and. ijnonbond) then
                 nhb2 = nhb2 + 1
-                free = .false.
+                cycle
               end if
             end if
             ! check if j is the bonded A
-            if (iTrj <= neigh%numctr .and. free) then
+            if (iTrj <= neigh%numctr) then
               if (neigh%bpair(j, nh, iTrj) == 1 .and. ijnonbond) then
                 nhb2 = nhb2 + 1
-                free = .false.
+                cycle
               end if
             end if
             ! check for non-cov bonded A
-            if (rab + rih + rjh < hbthr2 .and. free) then ! sum of rAB,rAH,rBH is below threshold
+            if (rab + rih + rjh < hbthr2) then ! sum of rAB,rAH,rBH is below threshold
               nhb1 = nhb1 + 1
             end if
           end do ! k: relevant H atoms
