@@ -3370,14 +3370,14 @@ end subroutine rbxgfnff_eg
     fk = min(max(fk, -4.0d0), 4.0d0)
     ff = fi * fj * fk ! charge term
     c9 = ff * param%zb3atm(at(iat)) * param%zb3atm(at(jat)) * param%zb3atm(at(kat)) ! strength of interaction
-    r2ij = NORM2(xyz(:, iat) - (xyz(:, jat) + neigh%transVec(:, iTrj)))**2
-    r2ik = NORM2(xyz(:, iat) - (xyz(:, kat) + neigh%transVec(:, iTrk)))**2
+    r2ij = sum((xyz(1:3, iat) - (xyz(1:3, jat) + neigh%transVec(1:3, iTrj)))**2)
+    r2ik = sum((xyz(1:3, iat) - (xyz(1:3, kat) + neigh%transVec(1:3, iTrk)))**2)
     iTrDum = neigh%fTrSum(neigh%iTrNeg(iTrj), iTrk)
     if (iTrDum <= 0 .or. iTrDum > neigh%numctr) then
-      r2jk = NORM2((xyz(:, kat) + neigh%transVec(:, iTrk)) &
-          - (xyz(:, jat) + neigh%transVec(:, iTrj)))**2
+      r2jk = sum(((xyz(:, kat) + neigh%transVec(:, iTrk)) &
+                - (xyz(:, jat) + neigh%transVec(:, iTrj)))**2)
     else
-      r2jk = NORM2(xyz(:, jat) - (xyz(:, kat) + neigh%transVec(:, iTrDum)))**2
+      r2jk = sum((xyz(:, jat) - (xyz(:, kat) + neigh%transVec(:, iTrDum)))**2)
     end if
     mijk = -r2ij + r2jk + r2ik
     imjk = r2ij - r2jk + r2ik
