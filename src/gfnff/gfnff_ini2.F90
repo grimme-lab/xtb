@@ -778,15 +778,13 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     real(wp) :: rmsd, rab, rih, rjh
     logical :: ijnonbond, free
     integer :: nhb1, nhb2, nxb
+!$  integer, parameter :: N_MAX_LIST = 800 !< keep approx. 32 kb of integer(int64)
 !$  integer, allocatable :: hblist1(:,:), hblist2(:,:), hblist3(:,:)
 
     ! update list if first call or substantial move occured
     rmsd = sqrt(sum((xyz - nlist%hbrefgeo)**2)) / dble(n)
     if (.not.(rmsd < 1.d-6 .or. rmsd > 0.3d0)) return
 
-    nhb1 = nlist%nhb1
-    nhb2 = nlist%nhb2
-    nxb = nlist%nxb
     nlist%nhb1 = 0
     nlist%nhb2 = 0
     nlist%nxb = 0
@@ -794,17 +792,16 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     !$omp parallel default(none) &
     !$omp shared(topo, neigh, nlist, xyz, hbthr1, hbthr2) &
     !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh) &
-    !$omp private(ijnonbond, free, hblist1, hblist2, hblist3) &
-    !$omp firstprivate(nhb1, nhb2, nxb)
+    !$omp private(ijnonbond, free, hblist1, hblist2, hblist3, nhb1, nhb2, nxb)
 
 #ifndef _OPENMP
     associate(hblist1 => nlist%hblist1, &
               hblist2 => nlist%hblist2, &
               hblist3 => nlist%hblist3)
 #endif
-!$  allocate(hblist1(5, nhb1), source=0)
-!$  allocate(hblist2(5, nhb2), source=0)
-!$  allocate(hblist3(5, nxb), source=0)
+!$  allocate(hblist1(5, N_MAX_LIST), source=0)
+!$  allocate(hblist2(5, N_MAX_LIST), source=0)
+!$  allocate(hblist3(5, N_MAX_LIST), source=0)
 
     nhb1 = 0
     nhb2 = 0
@@ -846,6 +843,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
                 hblist2(3, nhb2) = nh
                 hblist2(4, nhb2) = iTri
                 hblist2(5, nhb2) = iTrj
+!$              if (nhb2 == N_MAX_LIST) call update_hblist2(nlist, hblist2, nhb2)
                 free = .false. ! not available for nhb1 !!!
               end if
             end if
@@ -858,6 +856,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
                 hblist2(3, nhb2) = nh
                 hblist2(4, nhb2) = iTrj
                 hblist2(5, nhb2) = iTri
+!$              if (nhb2 == N_MAX_LIST) call update_hblist2(nlist, hblist2, nhb2)
                 free = .false. ! not available for nhb1 !!!
               end if
             end if
@@ -869,19 +868,13 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
               hblist1(3, nhb1) = nh
               hblist1(4, nhb1) = iTri
               hblist1(5, nhb1) = iTrj
+!$            if (nhb1 == N_MAX_LIST) call update_hblist1(nlist, hblist1, nhb1)
             end if
           end do ! k: relevant H atoms
         end do ! iTrj
       end do ! iTri
     end do ! ix: relevant AB atoms
     !$omp end do nowait
-
-    !$omp critical (nhb_list)
-!$  nlist%hblist1(:, nlist%nhb1 + 1:nlist%nhb1 + nhb1) = hblist1(:, 1:nhb1)
-!$  nlist%hblist2(:, nlist%nhb2 + 1:nlist%nhb2 + nhb2) = hblist2(:, 1:nhb2)
-    nlist%nhb1 = nlist%nhb1 + nhb1
-    nlist%nhb2 = nlist%nhb2 + nhb2
-    !$omp end critical (nhb_list)
 
     ! for nxb list only i is not shifted
     !$omp do schedule(dynamic, 16)
@@ -898,13 +891,13 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       hblist3(3, nxb) = topo%xbatABl(3, ix) ! X
       hblist3(4, nxb) = iTrj
       hblist3(5, nxb) = topo%xbatABl(5, ix) ! iTrX
+!$    if (nxb == N_MAX_LIST) call update_hblist3(nlist, hblist3, nxb)
     end do
     !$omp end do nowait
 
-    !$omp critical (nxb_list)
-!$  nlist%hblist3(:, nlist%nxb + 1:nlist%nxb + nxb) = hblist3(:, 1:nxb)
-    nlist%nxb = nlist%nxb + nxb
-    !$omp end critical (nxb_list)
+    call update_hblist1(nlist, hblist1, nhb1)
+    call update_hblist2(nlist, hblist2, nhb2)
+    call update_hblist3(nlist, hblist3, nxb)
 
 #ifndef _OPENMP
     end associate
@@ -914,6 +907,44 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     !$omp end parallel
 
     nlist%hbrefgeo = xyz
+
+  contains
+
+    subroutine update_hblist1(neigh_list, hblist, nhb)
+      type(TGFFNeighbourList), intent(inout) :: neigh_list
+      integer, intent(inout) :: nhb
+      integer, intent(inout) :: hblist(5, nhb)
+      !$omp critical (list1)
+!$    neigh_list%hblist1(:, nlist%nhb1 + 1:nlist%nhb1 + nhb) = hblist(:, 1:nhb)
+      neigh_list%nhb1 = neigh_list%nhb1 + nhb
+      !$omp end critical (list1)
+!$    nhb = 0
+!$    hblist = 0
+    end subroutine update_hblist1
+
+    subroutine update_hblist2(neigh_list, hblist, nhb)
+      type(TGFFNeighbourList), intent(inout) :: neigh_list
+      integer, intent(inout) :: nhb
+      integer, intent(inout) :: hblist(5, nhb)
+      !$omp critical (list2)
+!$    neigh_list%hblist2(:, nlist%nhb2 + 1:nlist%nhb2 + nhb) = hblist(:, 1:nhb)
+      neigh_list%nhb2 = neigh_list%nhb2 + nhb
+      !$omp end critical (list2)
+!$    nhb = 0
+!$    hblist = 0
+    end subroutine update_hblist2
+
+    subroutine update_hblist3(neigh_list, hblist, nxb)
+      type(TGFFNeighbourList), intent(inout) :: neigh_list
+      integer, intent(inout) :: nxb
+      integer, intent(inout) :: hblist(5, nxb)
+      !$omp critical (list3)
+!$    neigh_list%hblist3(:, nlist%nxb + 1:nlist%nxb + nxb) = hblist(:, 1:nxb)
+      neigh_list%nxb = neigh_list%nxb + nxb
+      !$omp end critical (list3)
+!$    nxb = 0
+!$    hblist = 0
+    end subroutine update_hblist3
 
   end subroutine gfnff_hbset
 
