@@ -3357,7 +3357,7 @@ end subroutine rbxgfnff_eg
     real(wp), intent(in) :: sqrab(n*(n+1)/2) ! squared dist
     real(wp), intent(in) :: srab( n*(n+1)/2) ! dist
 
-    real(wp) :: r2ij, r2jk, r2ik, sr2ij, sr2jk, sr2ik
+    real(wp) :: r2ij, r2jk, r2ik, sr2ij, sr2jk, sr2ik, invsr2ij, invsr2jk, invsr2ik
     real(wp) :: c9, mijk, imjk, ijmk, rijk3, ang, angr9, rav3
     real(wp) :: rij(3), rik(3), rjk(3), ri(3), rj(3), rk(3), drij, drik, drjk, dang, ff, fi, fj, fk
     real(wp), parameter :: fqq = 3.0_wp
@@ -3387,6 +3387,9 @@ end subroutine rbxgfnff_eg
     sr2ij = sqrt(r2ij)
     sr2ik = sqrt(r2ik)
     sr2jk = sqrt(r2jk)
+    invsr2ij = 1._wp / sr2ij
+    invsr2ik = 1._wp / sr2ik
+    invsr2jk = 1._wp / sr2jk
     mijk = -r2ij + r2jk + r2ik
     imjk = r2ij - r2jk + r2ik
     ijmk = r2ij + r2jk - r2ik
@@ -3420,12 +3423,12 @@ end subroutine rbxgfnff_eg
     else
       rjk = xyz(:, kat) - xyz(:, jat) + neigh%transVec(:, iTrDum)
     end if
-    g(:, 1) = drij * rij / sr2ij
-    g(:, 1) = g(:, 1) + drik * rik / sr2ik
-    g(:, 2) = drjk * rjk / sr2jk
-    g(:, 2) = g(:, 2) - drij * rij / sr2ij
-    g(:, 3) = -drik * rik / sr2ik
-    g(:, 3) = g(:, 3) - drjk * rjk / sr2jk
+    g(:, 1) = drij * rij * invsr2ij
+    g(:, 1) = g(:, 1) + drik * rik * invsr2ik
+    g(:, 2) = drjk * rjk * invsr2jk
+    g(:, 2) = g(:, 2) - drij * rij * invsr2ij
+    g(:, 3) = -drik * rik * invsr2ik
+    g(:, 3) = g(:, 3) - drjk * rjk * invsr2jk
 
     if (neigh%nTrans /= 1) then
       ri = xyz(:, iat)
@@ -3433,12 +3436,12 @@ end subroutine rbxgfnff_eg
       rk = xyz(:, kat) + neigh%transVec(:, iTrk)
       do dm1 = 1, 3
         do dm2 = dm1, 3
-          ds(dm1, dm2) = (drij * rij(dm2) / sr2ij) * ri(dm1) & ! i derivatives
-              & + (drik * rik(dm2) / sr2ik) * ri(dm1) &
-              & + (drjk * rjk(dm2) / sr2jk) * rj(dm1) & ! j derivatives
-              & - (drij * rij(dm2) / sr2ij) * rj(dm1) &
-              & - (drik * rik(dm2) / sr2ik) * rk(dm1) & ! k derivatives
-              & - (drjk * rjk(dm2) / sr2jk) * rk(dm1)
+          ds(dm1, dm2) = (drij * rij(dm2) * invsr2ij) * ri(dm1) & ! i derivatives
+              & + (drik * rik(dm2) * invsr2ik) * ri(dm1) &
+              & + (drjk * rjk(dm2) * invsr2jk) * rj(dm1) & ! j derivatives
+              & - (drij * rij(dm2) * invsr2ij) * rj(dm1) &
+              & - (drik * rik(dm2) * invsr2ik) * rk(dm1) & ! k derivatives
+              & - (drjk * rjk(dm2) * invsr2jk) * rk(dm1)
           ds(dm2, dm1) = ds(dm1, dm2)
         end do
       end do
