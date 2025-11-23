@@ -472,6 +472,8 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
 !$ cn(:) = cn + cn_omp
    !$omp end critical (cn_crt)
 
+!$ deallocate(cn_omp, dcndr_omp, dcndL_omp)
+
    !$omp end parallel
 
 end subroutine ncoordLatP

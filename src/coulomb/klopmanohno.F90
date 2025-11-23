@@ -566,6 +566,8 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
 !$ djdtr(:,:) = djdtr + djdtr_omp
    !$omp end critical (djdtr_crt)
 
+!$ deallocate(djdr_omp, djdtr_omp, djdL_omp)
+
    !$omp end parallel
 
 end subroutine getCoulombDerivsCluster
