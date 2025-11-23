@@ -909,6 +909,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 #ifndef _OPENMP
     end associate
 #endif
+!$  deallocate(hblist1, hblist2, hblist3)
 
     !$omp end parallel
 
