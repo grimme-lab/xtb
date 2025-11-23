@@ -727,7 +727,7 @@ endif
          l=topo%b3list(3,i)
          iTrk=topo%b3list(4,i)
          iTrl=topo%b3list(5,i)
-         call batmgfnff_eg(n,j,k,l,iTrk,iTrl,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,ds,param,neigh)
+         call batmgfnff_eg(n,j,k,l,iTrk,iTrl,at,xyz,topo%qa,etmp,g3tmp,ds,param,neigh)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -3345,8 +3345,7 @@ subroutine rbxgfnff_eg(n,A,B,X,iTrB,iTrX,at,xyz,q,energy,gdr,param,neigh,sigma)
 end subroutine rbxgfnff_eg
 
 !> taken from D3 ATM code
-  subroutine batmgfnff_eg(n, iat, jat, kat, iTrj, iTrk, at, xyz, q, sqrab, srab, energy, g, ds, &
-      param, neigh)
+  subroutine batmgfnff_eg(n, iat, jat, kat, iTrj, iTrk, at, xyz, q, energy, g, ds, param, neigh)
     use xtb_mctc_accuracy, only: wp
     implicit none
     type(TGFFData), intent(in) :: param
@@ -3354,14 +3353,12 @@ end subroutine rbxgfnff_eg
     integer, intent(in) :: iat, jat, kat, n, at(n), iTrj, iTrk
     real(wp), intent(in) :: xyz(3,n), q(n)
     real(wp), intent(out) :: energy, g(3,3), ds(3,3)
-    real(wp), intent(in) :: sqrab(n*(n+1)/2) ! squared dist
-    real(wp), intent(in) :: srab( n*(n+1)/2) ! dist
 
     real(wp) :: r2ij, r2jk, r2ik, sr2ij, sr2jk, sr2ik, invsr2ij, invsr2jk, invsr2ik
     real(wp) :: c9, mijk, imjk, ijmk, rijk3, ang, angr9, rav3
     real(wp) :: rij(3), rik(3), rjk(3), ri(3), rj(3), rk(3), drij, drik, drjk, dang, ff, fi, fj, fk
     real(wp), parameter :: fqq = 3.0_wp
-    integer :: linij, linik, linjk, i, j, iTrDum, dm1, dm2
+    integer :: iTrDum, dm1, dm2
 
     energy = 0.0_wp
     g = 0.0_wp
