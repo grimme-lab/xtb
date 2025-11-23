@@ -784,27 +784,27 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
     rmsd = sqrt(sum((xyz - nlist%hbrefgeo)**2)) / dble(n)
     if (.not.(rmsd < 1.d-6 .or. rmsd > 0.3d0)) return
 
+    nhb1 = nlist%nhb1
+    nhb2 = nlist%nhb2
+    nxb = nlist%nxb
+    nlist%nhb1 = 0
+    nlist%nhb2 = 0
+    nlist%nxb = 0
+
     !$omp parallel default(none) &
     !$omp shared(topo, neigh, nlist, xyz, hbthr1, hbthr2) &
-    !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh, nhb1, nhb2, nxb) &
-    !$omp private(ijnonbond, free, hblist1, hblist2, hblist3)
+    !$omp private(iTri, iTrj, iTrDum, ix, i, j, k, nh, rab, rih, rjh) &
+    !$omp private(ijnonbond, free, hblist1, hblist2, hblist3) &
+    !$omp firstprivate(nhb1, nhb2, nxb)
 
 #ifndef _OPENMP
     associate(hblist1 => nlist%hblist1, &
               hblist2 => nlist%hblist2, &
               hblist3 => nlist%hblist3)
 #endif
-!$  allocate(hblist1(5, nlist%nhb1), source=0)
-!$  allocate(hblist2(5, nlist%nhb2), source=0)
-!$  allocate(hblist3(5, nlist%nxb), source=0)
-
-    !$omp barrier
-    !$omp single
-    nlist%nhb1 = 0
-    nlist%nhb2 = 0
-    nlist%nxb = 0
-    !$omp end single
-    !$omp barrier
+!$  allocate(hblist1(5, nhb1), source=0)
+!$  allocate(hblist2(5, nhb2), source=0)
+!$  allocate(hblist3(5, nxb), source=0)
 
     nhb1 = 0
     nhb2 = 0
