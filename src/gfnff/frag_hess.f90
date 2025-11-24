@@ -337,7 +337,7 @@ module xtb_gfnff_fraghess
         integer                  :: nat3_cur                     ! nat in fragments * 3
         integer                  :: info                         ! for ssyev
         integer                  :: lwork                        ! for ssyev
-        logical                  :: hess_mask(3*nat,3*nat)       ! masked hessian array
+        integer                  :: at_i, at_j, l
         real(sp)                 :: ev_calc(3*nat,3*nat)         ! eigenvectors of entire system
         real(sp), allocatable    :: mini_hess(:,:)               ! eigenvectors of fragment
         real(sp), allocatable    :: eig(:)                       ! eigenvalues of fragment
@@ -349,37 +349,52 @@ module xtb_gfnff_fraghess
         nat3     = 3 * nat
 
 !$omp parallel default(none) &
-!$omp private(isystem,i,ii,j,jj,nat_cur,nat3_cur,mini_hess,hess_mask,eig,lwork,aux,info) &
+!$omp private(isystem,i,j,k,l,at_i,at_j,nat3_cur,mini_hess,eig,lwork,aux,info) &
 !$omp shared(nsystem,ev_calc,eig_calc,hess,nspinsyst,ispinsyst)
-!!$omp do schedule(static)
-!$omp do reduction(+:ev_calc,eig_calc)
+!$omp do schedule(dynamic)
         do isystem = 1 , nsystem
-           hess_mask = .false.
-           do i = 1,nspinsyst(isystem)
-              do j = 1,i
 
-                 nat_cur =  nspinsyst(isystem)
-                 nat3_cur = 3 * nat_cur
-                 ii = 3*ispinsyst(i,isystem)
-                 jj = 3*ispinsyst(j,isystem)
-                 hess_mask(ii-2:ii,jj-2:jj) = .true.
-                 hess_mask(jj-2:jj,ii-2:ii) = .true.
-
-               end do
-           end do
-
+           nat3_cur = 3 * nspinsyst(isystem)
            allocate( mini_hess(nat3_cur,nat3_cur), source = 0.0e0_sp )
            allocate( eig(nat3_cur), source = 0.0e0_sp )
 
-           mini_hess = reshape( pack( hess, mask = hess_mask ), shape( mini_hess ) )
+           ! Manual Pack
+           do i = 1, nspinsyst(isystem)
+              at_i = ispinsyst(i, isystem)
+              do j = 1, nspinsyst(isystem)
+                 at_j = ispinsyst(j, isystem)
+                 do k = 1, 3
+                    do l = 1, 3
+                       mini_hess(3*(i-1)+k, 3*(j-1)+l) = hess(3*(at_i-1)+k, 3*(at_j-1)+l)
+                    end do
+                 end do
+              end do
+           end do
+
            lwork = 1 + 6*nat3_cur + 2*nat3_cur**2
            allocate(aux(lwork))
            call ssyev ('V','U',nat3_cur,mini_hess,nat3_cur,eig,aux,lwork,info)
            deallocate(aux)
-!!$omp critical
-           ev_calc  = unpack( reshape( mini_hess, [ nat3_cur*nat3_cur ]  ), mask = hess_mask, field = ev_calc )
-           eig_calc = unpack( eig, mask = any(hess_mask,1), field = eig_calc )
-!!$omp end critical
+
+!$omp critical
+           ! Manual Unpack
+           do i = 1, nspinsyst(isystem)
+              at_i = ispinsyst(i, isystem)
+              ! Eigenvalues
+              do k = 1, 3
+                 eig_calc(3*(at_i-1)+k) = eig(3*(i-1)+k)
+              end do
+              ! Eigenvectors
+              do j = 1, nspinsyst(isystem)
+                 at_j = ispinsyst(j, isystem)
+                 do k = 1, 3
+                    do l = 1, 3
+                       ev_calc(3*(at_i-1)+k, 3*(at_j-1)+l) = mini_hess(3*(i-1)+k, 3*(j-1)+l)
+                    end do
+                 end do
+              end do
+           end do
+!$omp end critical
 
            deallocate( mini_hess,eig )
 
