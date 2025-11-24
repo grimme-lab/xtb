@@ -50,6 +50,9 @@ module xtb_docking_set_module
    integer, private, parameter :: p_str_length = 48
    integer, private, parameter :: p_arg_length = 24
 
+   ! Track whether the user explicitly provided --nfinal on the command line
+   logical, private :: n_opt_user_set = .false.
+
    public
 
       !abstract interface
@@ -197,6 +200,11 @@ contains
          set2 = .false.
       case ('nfinal')
          if (getValue(env, val, idum) .and. set3) n_opt = idum
+         if (set3) then
+            ! remember that the user explicitly requested a value for n_opt
+            ! so later defaults (e.g. from --fast) should not override it
+            n_opt_user_set = .true.
+         end if
          set3 = .false.
       case ('maxgen')
          if (getValue(env, val, idum) .and. set4) maxgen = idum
@@ -377,7 +385,9 @@ contains
             mxcma = 250         ! R points in CMA search 1000
             stepr = 4.0         ! R grid step in Bohr 2.5
             stepa = 60          ! angular grid size in deg. 45
-            n_opt = 4          ! # of final grad opts 15
+            if (.not. n_opt_user_set) then
+               n_opt = 4       ! # of final grad opts 15
+            end if
          end if
          set8 = .false.
       case('qcg')
@@ -385,7 +395,9 @@ contains
             !The following setups will become obsolete with next Crest version
             maxparent = 50      ! # of parents in gene pool 100
             maxgen = 7          ! # of generations 10
-            n_opt = 5          ! # of final grad opts 15
+            if (.not. n_opt_user_set) then
+               n_opt = 5       ! # of final grad opts 15
+            end if
             qcg = .true.
          end if
          set8 = .false.
