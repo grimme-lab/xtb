@@ -664,16 +664,11 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    ! local OpenMP variables
 !$ real(wp), allocatable :: g_omp(:, :), sigma_omp(:, :), dhdcn_omp(:)
 
-   type(xtb_zone) :: zone, zone_omp
+   type(xtb_zone) :: zone
    if (do_tracying) call zone%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, color=TracyColors%Gold3)
-
-
-
 
    thr2 = intcut
    point = 0.0_wp
-
-   if (do_tracying) call zone_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, zone_name="OMP_1", color=TracyColors%Yellow)
 
    ! call timing(t1,t3)
    !$omp parallel default(none) &
@@ -791,9 +786,6 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    enddo  ! iat
    !$omp end do nowait
 
-   if (do_tracying) call zone_omp%end()
-   if (do_tracying) call zone_omp%start("src/xtb/hamiltonian.F90", "build_dSDQH0_noreset", __LINE__, zone_name="OMP_2", color=TracyColors%Yellow)
-
    ! diagonal contributions
    !$omp do schedule(dynamic)
    do iat = 1, nat
@@ -813,6 +805,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 
 #ifndef _OPENMP
    end associate
+#endif
 
    !$omp critical (g_crt)
 !$ g(:,:) = g + g_omp
@@ -827,8 +820,6 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 !$ deallocate(g_omp, sigma_omp, dhdcn_omp)
 
    !$omp end parallel
-
-   if (do_tracying) call zone_omp%end()
 
 end subroutine build_dSDQH0_noreset
 
