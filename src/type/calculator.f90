@@ -227,4 +227,58 @@ subroutine hessian_point(self, env, mol0, chk0, iat, ic, step, energy, gradient,
 
 end subroutine hessian_point
 
+
+!> Evaluate hessian using O1NumHess algorithm
+!> Implementation according to Wang et al. (https://doi.org/10.48550/arXiv.2508.07544)
+subroutine o1hessian(self, env, mol0, chk0, list, step, hess)
+   character(len=*), parameter :: source = "hessian_numdiff_numdiff2_oldr"
+   !> Single point calculator
+   class(TCalculator), intent(inout) :: self
+   !> Computation environment
+   type(TEnvironment), intent(inout) :: env
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol0
+   !> Restart data
+   type(TRestart), intent(in) :: chk0
+   !> List of atoms to displace
+   integer, intent(in) :: list(:)
+   !> Step size for numerical differentiation
+   real(wp), intent(in) :: step
+   !> Array to add Hessian to
+   real(wp), intent(inout) :: hess(:, :)
+
+   type(scc_results) :: res
+   real(wp), allocatable :: distmat(:, :), h0(:, :), displdir(:, :), g(:, :), g0(:, :)
+   real(wp) :: energy, sigma(3, 3), egap
+   integer :: N, i, j
+   
+   ! ========== INITIALIZATION ==========
+   N = 3*mol%n
+   allocate(distmat(N, N), h0(N, N), displdir(N, N), g(N, 6)) ! 6 for non-linear, 5 for linear
+
+   ! hessian initial guess
+   do i = 1, N
+      ! unity as initial guess for hessian
+      ! TODO: do we have a better guess? Swart model hessian
+      h0(i, i) = 1.0_wp
+   end do
+
+   ! calculate unperturbed gradient
+   call self%singlepoint(env, mol0, chk0, -1, .true., energy, g0, sigma, egap, res)
+
+   ! set up initial displdir with trans, rot, and one vib mode
+
+   ! generate remaining displdirs based on distmat and dmax
+   ! TODO: compute neighbor list
+   ! TODO: populate displdir
+   
+   ! ========== GRADIENT DERIVATIVES ==========
+   ! get gradient derivatives for trans, rot and symmetric vib mode
+   ! calculate remaining gradient derivatives
+
+   ! ========== FINAL HESSIAN ==========
+   ! construct hessian from local hessian and odlr correction
+
+end subroutine hessian
+
 end module xtb_type_calculator

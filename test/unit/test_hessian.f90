@@ -240,9 +240,35 @@ subroutine test_gfn2_hessian(error)
    end do
 
 end subroutine test_gfn2_hessian
-! TODO: linear h2o test for numhess
+
+! TODO: linear h2o test
+! NOTE: need to get o1numhess from python implementation for reference
 ! TODO: o1numhess for gfn1
+subroutine test_gfn1_o1numhess(error)
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 3
+   real(wp),parameter :: thr = 1.0e-7_wp
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp,   -0.00000000077760_wp,    0.18829790750029_wp, &
+      & 0.00000000000000_wp,    1.45987612440076_wp,   -0.88615189669760_wp, &
+      &-0.00000000000000_wp,   -1.45987612362316_wp,   -0.88615189608629_wp],&
+      & shape(xyz))
+
+end subroutine test_gfn1_o1numhess
+
 ! TODO: o1numhess for gfn2
-! NOTES: 
-! - can probably reuse the arrays from above for testing (need to know the error threshold for new hessian)
+subroutine test_gfn2_o1numhess(error)
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 3
+   real(wp),parameter :: thr = 1.0e-7_wp
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp,   -0.00000000077760_wp,    0.18829790750029_wp, &
+      & 0.00000000000000_wp,    1.45987612440076_wp,   -0.88615189669760_wp, &
+      &-0.00000000000000_wp,   -1.45987612362316_wp,   -0.88615189608629_wp],&
+      & shape(xyz))
+
+end subroutine test_gfn2_o1numhess
+
 end module test_hessian
