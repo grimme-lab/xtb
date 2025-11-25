@@ -1,7 +1,7 @@
 = Building xtb with CMake
 
-To build `xtb` from the source in this repository the https://cmake.org/[CMake build system] can be employed.
-The build files used require a CMake verson version of >= 3.9 or newer.
+To build `xtb` from the source in this repository can be employed using the https://cmake.org/[CMake build system].
+The build files used require a CMake version of 3.17 or newer.
 We highly recommend to use CMake together with the https://ninja-build.org/[ninja] (version 1.10 required), but the default make build will work as well.
 
 == Getting CMake
@@ -26,23 +26,12 @@ pip install cmake ninja [--user]
 
 The recommended build for `xtb` is with Intel Parallel Studio using the Intel Fortran compiler and the Math Kernel Library as default backend.
 Precompiled, statically linked `xtb` binaries for Linux are provided at https://github.com/grimme-lab/xtb/releases/latest[release page].
-With CMake 3.13 and newer the configuration can be conveniently performed from the repository root by
+With CMake 3.17 and newer the configuration can be conveniently performed from the repository root by
 
 [source,bash]
 ----
 export FC=ifort CC=icc
 cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release
-----
-
-For older versions of CMake use
-
-[source,bash]
-----
-export FC=ifort CC=icc
-mkdir _build
-pushd _build
-cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..
-popd
 ----
 
 To build the project use
@@ -66,23 +55,12 @@ to build the project.
 == Configure GCC build
 
 `xtb` can also be compiled with GCC version 8 or later.
-The configuration with CMake 3.13 or newer can be performed conveniently with
+The configuration with CMake 3.17 or newer can be performed conveniently with
 
 [source,bash]
 ----
 export FC=gfortran CC=gcc
 cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release
-----
-
-For older versions of CMake you have to use
-
-[source,bash]
-----
-export FC=gfortran CC=gcc
-mkdir _build
-pushd _build
-cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..
-popd
 ----
 
 To compile and run `xtb` with GCC 7 (especially 7.3.0) the source code has to be patched at several placed, for appropriate patches visit the https://github.com/grimme-lab/xtb-feedstock[conda-forge feedstock repository].
