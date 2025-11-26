@@ -358,13 +358,13 @@ module xtb_gfnff_fraghess
            allocate( mini_hess(nat3_cur,nat3_cur), source = 0.0e0_sp )
            allocate( eig(nat3_cur), source = 0.0e0_sp )
 
-           ! Manual Pack (column-major friendly: fix column indices j,l)
-           do j = 1, nspinsyst(isystem)
-              at_j = ispinsyst(j, isystem)
-              do l = 1, 3
-                 do i = 1, nspinsyst(isystem)
-                    at_i = ispinsyst(i, isystem)
-                    do k = 1, 3
+           ! Manual Pack
+           do i = 1, nspinsyst(isystem)
+              at_i = ispinsyst(i, isystem)
+              do j = 1, nspinsyst(isystem)
+                 at_j = ispinsyst(j, isystem)
+                 do k = 1, 3
+                    do l = 1, 3
                        mini_hess(3*(i-1)+k, 3*(j-1)+l) = hess(3*(at_i-1)+k, 3*(at_j-1)+l)
                     end do
                  end do
@@ -378,20 +378,17 @@ module xtb_gfnff_fraghess
 
 !$omp critical
            ! Manual Unpack
-           ! Eigenvalues: separate pass
            do i = 1, nspinsyst(isystem)
               at_i = ispinsyst(i, isystem)
+              ! Eigenvalues
               do k = 1, 3
                  eig_calc(3*(at_i-1)+k) = eig(3*(i-1)+k)
               end do
-           end do
-           ! Eigenvectors: traverse columns first for contiguous access to mini_hess
-           do j = 1, nspinsyst(isystem)
-              at_j = ispinsyst(j, isystem)
-              do l = 1, 3
-                 do i = 1, nspinsyst(isystem)
-                    at_i = ispinsyst(i, isystem)
-                    do k = 1, 3
+              ! Eigenvectors
+              do j = 1, nspinsyst(isystem)
+                 at_j = ispinsyst(j, isystem)
+                 do k = 1, 3
+                    do l = 1, 3
                        ev_calc(3*(at_i-1)+k, 3*(at_j-1)+l) = mini_hess(3*(i-1)+k, 3*(j-1)+l)
                     end do
                  end do
