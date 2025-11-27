@@ -29,6 +29,7 @@
 
 subroutine pseudodiag(n,nocc,fmo,eig)
     use xtb_mctc_blas, only : mctc_rot
+    use xtb_tracying
 !$  use omp_lib
     implicit none
     !Dummy Arguments
@@ -61,6 +62,8 @@ subroutine pseudodiag(n,nocc,fmo,eig)
     real*4,allocatable :: alphaarr(:,:)
     real*4,allocatable :: betaarr(:,:)
 
+    type(xtb_zone) :: zone
+    if (do_tracying) call zone%start("src/pseudodiag.F90", "pseudodiag", __LINE__, color=TracyColors%Red)
 
     allocate(vector(n,n))
     vector = 0
@@ -140,4 +143,5 @@ subroutine pseudodiag(n,nocc,fmo,eig)
 
     fmo = vector
     deallocate(vector, alphaarr, betaarr)
+
 end

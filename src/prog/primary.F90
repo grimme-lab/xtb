@@ -27,6 +27,12 @@ program xtb_prog_primary
    use xtb_prog_submodules
    use xtb_type_environment
 
+#ifdef WITH_TRACY
+   use tracy
+   use iso_c_binding, only: c_int64_t
+#endif
+   use xtb_tracying
+
    implicit none
 
    !> Command line argument parser
@@ -37,6 +43,19 @@ program xtb_prog_primary
 
    !> Requested run mode
    integer :: runMode
+
+   type(xtb_zone) :: zone
+
+#ifdef WITH_TRACY
+   if (.not.tracy_profiler_started()) call tracy_startup_profiler()
+   call tracy_set_thread_name("xtb")
+   call zone%start("src/prog/primary.F90", "Tracy startup", __LINE__, color=TracyColors%Red)
+   ! wait connection
+   do while (.not.tracy_connected())
+      call sleep(1) ! GNU extension
+   end do
+   call zone%end()
+#endif
 
    !> start by initializing the MCTC library
    call mctc_init('xtb',11,.true.)
@@ -76,6 +95,11 @@ program xtb_prog_primary
       !> Run the IR submodule
       call xtbIR(env, argParser)
    end select
+
+#ifdef WITH_TRACY
+   ! if we here by some reason. Normally, terminate(..) should be called
+   call tracy_shutdown_profiler()
+#endif
 
 contains
 

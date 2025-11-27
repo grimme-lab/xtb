@@ -94,6 +94,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    use xtb_readin
 
+   use xtb_tracying
+
    implicit none
 
    character(len=*), parameter :: source = 'scf'
@@ -231,9 +233,13 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 !  broyden stuff
    logical  :: broy
 
+   type(xtb_zone) :: zone, zone_gemv, zone_multp_grad, zone_disp, zone_solv, zone_es
+
 ! ------------------------------------------------------------------------
 !  initialization
 ! ------------------------------------------------------------------------
+   if (do_tracying) call zone%start("src/scf_module.F90", source, __LINE__, color=TracyColors%Tan2)
+
    if (profile) call timer%new(7,.false.)
    if (profile) call timer%measure(1,"SCC setup")
    rmsq  =1.e+42_wp
@@ -723,11 +729,14 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    end if
 #endif
    ! setup CN gradient
+   if (do_tracying) call zone_gemv%start("src/scf_module.F90", source, __LINE__, zone_name="gemv", color=TracyColors%Firebrick2)
    call mctc_gemv(dcndr, dhdcn, gradient, beta=1.0_wp)
    call mctc_gemv(dcndL, dhdcn, sigma, beta=1.0_wp)
+   if (do_tracying) call zone_gemv%end()
 
    ! ------------------------------------------------------------------------
    ! multipole gradient
+   if (do_tracying) call zone_multp_grad%start("src/scf_module.F90", source, __LINE__, zone_name="multipole gradient", color=TracyColors%Firebrick2)
    if (allocated(xtbData%multipole)) then
       ! VS, VD, VQ-dependent potentials are changed w.r.t. SCF,
       ! since moment integrals are now computed with origin at
@@ -741,9 +750,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       call aniso_grad(mol%n, mol%at, mol%xyz, wfn%q, wfn%dipm, wfn%qp, &
          & aes%dipDamp, aes%quadDamp, radcn, dcndr, aes%gab3, aes%gab5, gradient)
    end if
+   if (do_tracying) call zone_multp_grad%end()
 
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
+   if (do_tracying) call zone_disp%start("src/scf_module.F90", source, __LINE__, zone_name="dispersion", color=TracyColors%Firebrick2)
    if (allocated(scD4)) then
       call latp%getLatticePoints(trans, 40.0_wp)
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
@@ -755,9 +766,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &
          &  energy=dum, gradient=gradient, sigma=sigma, e3=embd)
    endif
+   if (do_tracying) call zone_disp%end()
 
    ! ------------------------------------------------------------------------
    ! Solvation contributions from GBSA
+   if (do_tracying) call zone_solv%start("src/scf_module.F90", source, __LINE__, zone_name="solvation", color=TracyColors%Firebrick2)
    if (allocated(solvation)) then
       cm5(:)=wfn%q+cm5a
       call solvation%addGradient(env, mol%at, mol%xyz, cm5, wfn%qsh, gradient)
@@ -775,18 +788,22 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          gsasa = solvation%gsasa
       end select
    endif
+   if (do_tracying) call zone_solv%end()
 
    ! ------------------------------------------------------------------------
    ! Derivative of electrostatic energy
+   if (do_tracying) call zone_es%start("src/scf_module.F90", source, __LINE__, zone_name="electrostatic", color=TracyColors%Firebrick2)
    allocate(djdr(3, mol%n, basis%nshell))
    allocate(djdtr(3, basis%nshell))
    allocate(djdL(3, 3, basis%nshell))
    call coulomb%getCoulombDerivs(mol, wfn%qsh, djdr, djdtr, djdL)
    call mctc_gemv(djdr, wfn%qsh, gradient, beta=1.0_wp)
    !call mctc_gemv(djdL, wfn%qsh, sigma, beta=1.0_wp)
+   if (do_tracying) call zone_es%end()
 
    ! ------------------------------------------------------------------------
    ! ES point charge embedding
+   if (do_tracying) call zone_es%start("src/scf_module.F90", source, __LINE__, zone_name="electrostatic embedding", color=TracyColors%Firebrick2)
    if (lpcem) then
       if (xtbData%level == 1) then
          call pcem_grad_gfn1(xtbData%coulomb,gradient,pcem%grd,mol%n,pcem,mol%at, &
@@ -796,6 +813,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
             & xtbData%nshell,mol%xyz,wfn%qsh)
       end if
    end if
+   if (do_tracying) call zone_es%end()
 
    if (profile) call timer%measure(6)
    if (.not.pr.and.profile.and.minpr) &

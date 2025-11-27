@@ -39,6 +39,7 @@ subroutine geometry_optimization &
    use xtb_pbc_optimizer_lbfgs, only : lbfgs_input
    use xtb_pbc_optimizer_filter_cart, only : cartesian_filter, new_cartesian_filter
    use xtb_setparam
+   use xtb_tracying
 
    implicit none
    
@@ -99,9 +100,13 @@ subroutine geometry_optimization &
    type(lbfgs_input) :: opt_input
    type(cartesian_filter)  :: filter
 
+   type(xtb_zone) :: zone
+
 !----------------!
 ! Initialization !
 !----------------!
+
+   if (do_tracying) call zone%start("src/geoopt_driver.F90", source, __LINE__, color=TracyColors%Snow)
 
    final_sp = pr
 

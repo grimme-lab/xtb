@@ -21,7 +21,7 @@ prog += files(
   'info.f90',
   'irmod.f90',
   'main.F90',
-  'primary.f90',
+  'primary.F90',
   'submodules.f90',
   'thermo.f90',
   'topology.f90',

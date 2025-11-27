@@ -97,12 +97,15 @@ contains
 !  factor somewhere hidden in the implementation below.
 !! ------------------------------------------------------------------------
 subroutine mh_swart(xyz,n,hess,at,modh)
+
    use xtb_mctc_constants
    use xtb_mctc_convert
    use xtb_mctc_param, only: rad => covalent_radius_2009
 
    use xtb_type_setvar
    use xtb_type_param
+
+   use xtb_tracying
 
    implicit none
 
@@ -117,6 +120,9 @@ subroutine mh_swart(xyz,n,hess,at,modh)
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
    real(wp) :: kd
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/model_hessian.F90", "mh_swart", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -722,6 +728,8 @@ subroutine mh_lindh_d2(xyz,n,hess,at,modh)
    use xtb_type_setvar
    use xtb_type_param
 
+   use xtb_tracying
+
    implicit none
 
    integer, intent(in)  :: n
@@ -747,6 +755,9 @@ subroutine mh_lindh_d2(xyz,n,hess,at,modh)
    real(wp) :: kd
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/model_hessian.F90", "mh_lindh_d2", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -803,6 +814,8 @@ subroutine mh_lindh(xyz,n,hess,at,modh)
    use xtb_type_setvar
    use xtb_type_param
 
+   use xtb_tracying
+
    implicit none
 
    integer, intent(in)  :: n
@@ -828,6 +841,9 @@ subroutine mh_lindh(xyz,n,hess,at,modh)
    real(wp) :: kd
    logical, allocatable :: lcutoff(:,:)
    type(chrg_parameter) :: chrgeq
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/model_hessian.F90", "mh_lindh", __LINE__, color=TracyColors%HotPink2)
 
    allocate( lcutoff(n,n), source=.false.)
 
@@ -1773,6 +1789,7 @@ end function fk_vdw
 
 subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
    use xtb_type_param
+   use xtb_tracying
    implicit none
 
 !! ------------------------------------------------------------------------
@@ -1835,6 +1852,12 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
    integer  :: lwork
    integer  :: info
    real(wp) :: test(1)
+
+!!
+!  xTB-Tracy profiler
+!!
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/model_hessian.F90", "mh_eeq", __LINE__, color=TracyColors%HotPink2)
 
 !! ------------------------------------------------------------------------
 !  initizialization
@@ -2083,6 +2106,7 @@ end subroutine mh_eeq
 end module xtb_modelhessian
 
       subroutine ddvopt(Cart,nAtoms,Hess,iANr,s6)
+      use xtb_tracying
       Implicit Integer(i-n)
       Implicit Real*8 (a-h, o-z)
 ! include "common/real.inc" (molpro 2002.6)
@@ -2158,6 +2182,8 @@ end module xtb_modelhessian
      &      46*2.d0/
 !cc End: VDWx ccccccccccccccccc
 
+   type(xtb_zone) :: zone
+
 !
 !------- Statement functions
 !
@@ -2166,6 +2192,8 @@ end module xtb_modelhessian
       Ind(i,iAtom,j,jAtom)=Jnd(Max(ixyz(i,iAtom),ixyz(j,jAtom)), &
      &                         Min(ixyz(i,iAtom),ixyz(j,jAtom)))
 !end
+
+       if (do_tracying) call zone%start("src/model_hessian.F90", "ddvopt", __LINE__, color=TracyColors%HotPink2)
 
 !cc VDWx cccccccccccccccccccc
        c6 =   50.0
@@ -2646,6 +2674,7 @@ end module xtb_modelhessian
            End Do          ! iAtom
         End Do             ! kAtom
       End Do               ! jAtom
+
       Return
       End
 
@@ -2654,6 +2683,7 @@ end module xtb_modelhessian
       use xtb_gfnff_topology, only : TGFFTopology
       use xtb_gfnff_neighbor, only : TNeigh
       use xtb_type_timer
+      use xtb_tracying
       Implicit Integer (i-n)
       Implicit Real*8 (a-h, o-z)
       type(TGFFData), intent(in) :: param
@@ -2721,12 +2751,17 @@ end module xtb_modelhessian
      &          One2C2=0.2662567690426443D-04)
 
       type(tb_timer) :: timer
+
+      type(xtb_zone) :: zone
+
 !     inline fct
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
       ixyz(i,iAtom) = (iAtom-1)*3 + i
       Jnd(i,j) = i*(i-1)/2 +j
       Ind(i,iAtom,j,jAtom)=Jnd(Max(ixyz(i,iAtom),ixyz(j,jAtom)),&
      &                         Min(ixyz(i,iAtom),ixyz(j,jAtom)))
+
+      if (do_tracying) call zone%start("src/model_hessian.F90", "gff_ddvopt", __LINE__, color=TracyColors%HotPink2)
 
 !     map heavy atoms to Z<=54
       do i=1,nAtoms
@@ -3128,6 +3163,7 @@ end module xtb_modelhessian
 
       if (profile) call timer%measure(3)
       if (profile) call timer%write(6,'modhes')
+
       Return
       End
 

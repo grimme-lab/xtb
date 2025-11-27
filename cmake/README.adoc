@@ -1,7 +1,7 @@
 = Building xtb with CMake
 
-To build `xtb` from the source in this repository the https://cmake.org/[CMake build system] can be employed.
-The build files used require a CMake verson version of >= 3.9 or newer.
+To build `xtb` from the source in this repository can be employed using the https://cmake.org/[CMake build system].
+The build files used require a CMake version of 3.17 or newer.
 We highly recommend to use CMake together with the https://ninja-build.org/[ninja] (version 1.10 required), but the default make build will work as well.
 
 == Getting CMake
@@ -26,23 +26,12 @@ pip install cmake ninja [--user]
 
 The recommended build for `xtb` is with Intel Parallel Studio using the Intel Fortran compiler and the Math Kernel Library as default backend.
 Precompiled, statically linked `xtb` binaries for Linux are provided at https://github.com/grimme-lab/xtb/releases/latest[release page].
-With CMake 3.13 and newer the configuration can be conveniently performed from the repository root by
+With CMake 3.17 and newer the configuration can be conveniently performed from the repository root by
 
 [source,bash]
 ----
 export FC=ifort CC=icc
 cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release
-----
-
-For older versions of CMake use
-
-[source,bash]
-----
-export FC=ifort CC=icc
-mkdir _build
-pushd _build
-cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..
-popd
 ----
 
 To build the project use
@@ -66,23 +55,12 @@ to build the project.
 == Configure GCC build
 
 `xtb` can also be compiled with GCC version 8 or later.
-The configuration with CMake 3.13 or newer can be performed conveniently with
+The configuration with CMake 3.17 or newer can be performed conveniently with
 
 [source,bash]
 ----
 export FC=gfortran CC=gcc
 cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release
-----
-
-For older versions of CMake you have to use
-
-[source,bash]
-----
-export FC=gfortran CC=gcc
-mkdir _build
-pushd _build
-cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..
-popd
 ----
 
 To compile and run `xtb` with GCC 7 (especially 7.3.0) the source code has to be patched at several placed, for appropriate patches visit the https://github.com/grimme-lab/xtb-feedstock[conda-forge feedstock repository].
@@ -127,6 +105,8 @@ ninja -C _build install
 If you have chosen make as generator use the same command with make.
 Depending on the installation prefix and your user rights ninja/make might ask for the `root` access to perform the installation.
 
+
+
 === Advanced configuration of install destinations
 
 The CMake installation uses the install directories as defined by the https://www.gnu.org/prep/standards/html_node/Directory-Variables.html[GNU Coding Standards] and implemented in the https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html[`GNUInstallDirs`] module.
@@ -170,3 +150,34 @@ usr
         ├── param_gfn2-xtb.txt
         └── param_ipea-xtb.txt
 ----
+
+== Profiling xtb with Tracy
+
+`xtb` can be profiled using the in-source https://github.com/wolfpld/tracy[Tracy] profiler.
+To enable this feature, add the extra `-DWITH_TRACY=ON` flag during configuration:
+
+[source,bash]
+----
+cmake -B_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release -DWITH_TRACY=ON
+----
+
+Compile xtb as usual. The resulting build will act as a Tracy client.
+Note that it will be configured with the latest commit of Tracy, so you must also fetch the latest Tracy sources and compile the Tracy GUI server.
+For detailed instructions on building the server, refer to the Tracy repository and its documentation.
+
+Once the server is running, you can start profiling `xtb`.
+`xtb` is configured to wait for an incoming connection from the server before beginning a calculation.
+After the connection is established, you will see the running `xtb` job in the console along with real-time visual updates in the Tracy GUI showing which parts of the code are being executed.
+
+=== Profiling on a remote server
+
+If you want to profile `xtb` running on a remote machine, select a port to use -- for example, `4444`.
+Then, create an SSH tunnel with port forwarding:
+
+[source,bash]
+----
+ssh -L 4444:localhost:4444 <remote-server>
+----
+
+This makes the remote server’s port `4444` accessible on your local machine.
+In the Tracy GUI, set the IP address to `127.0.0.1` and the Port to `4444` to connect to the remotely running instance of `xtb`.

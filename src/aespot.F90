@@ -32,6 +32,7 @@ contains
 ! ndp,nqp          : number of elements to be computed in Fock matrix with X-dip and X-qpole terms
 ! matdlst,matqlst  : index list, to which AO, the ndp/nqp potential terms refer to
 subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
+   use xtb_tracying
    implicit none
    integer, intent(in)    :: nao
    integer, intent(inout) :: ndp,nqp
@@ -45,6 +46,10 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
    ! stuff for potential
 
    integer i,j,k,l,m,ii,jj,ll,kk,mq,md,ij
+
+   type(xtb_zone) :: zone
+
+   if (do_tracying) call zone%start("src/aespot.F90", "setdqlist", __LINE__, color=TracyColors%OliveDrab1)
 
    ! INFO: this threshold must be slightly larger than max(0,thr2),
    !       where thr2 is the one used in screening in routine aesdqint
@@ -82,6 +87,7 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
    enddo
    ndp = md
    nqp = mq
+
 end subroutine setdqlist
 
 ! scalecamm: scale all anisotropic CAMMs by element-specific parameters
@@ -134,6 +140,7 @@ end subroutine unscalecamm
 ! dipm(3,nat)      : cumulative atomic dipole moments (x,y,z)
 ! qp(6,nat)        : traceless(!) cumulative atomic quadrupole moments (xx,xy,yy,xz,yz,zz)
 subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+   use xtb_tracying
    implicit none
    integer, intent(in) :: nao,nat,aoat2(:)
    real(wp), intent(in) :: s(:, :)
@@ -143,6 +150,9 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp), intent(in) :: xyz(:, :)
    real(wp), intent(out):: dipm(:, :)
    real(wp), intent(out):: qp(:, :)
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/aespot.F90", "mmompop", __LINE__, color=TracyColors%OliveDrab1)
 
 #ifdef XTB_GPU
    call mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
@@ -425,6 +435,7 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    enddo
 
 end subroutine mmompop_cpu
+
 end subroutine mmompop
 
 
@@ -440,6 +451,7 @@ end subroutine mmompop
 ! e           : E_AES
 subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    use xtb_lin, only : lin
+   use xtb_tracying
    implicit none
    class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(:)
@@ -451,6 +463,10 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    ! stuff for potential
    real(wp), intent(in) :: gab3(:,:),gab5(:,:)
    real(wp), intent(in) :: dipm(:,:),qp(:,:)
+
+   type(xtb_zone) :: zone
+
+   if (do_tracying) call zone%start("src/aespot.F90", "aniso_electro", __LINE__, color=TracyColors%OliveDrab1)
 
 #ifdef XTB_GPU
    call aniso_electro_gpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
@@ -565,7 +581,6 @@ subroutine aniso_electro_gpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    ! acc& at, xyz, q, dipm, qp, gab3, gab5)
 end subroutine aniso_electro_gpu
 
-
 subroutine aniso_electro_cpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
 
    implicit none
@@ -675,6 +690,7 @@ end subroutine aniso_electro
 ! vq(6,nat)        : quadrupole proportional potential
 subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
    use xtb_lin, only : lin
+   use xtb_tracying
    implicit none
    integer, intent(in) :: nat,nao,aoat2(nao)
    real(wp), intent(in) :: dpint(3,nao,nao),s(nao,nao)
@@ -683,6 +699,11 @@ subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
    real(wp), intent(out) :: e
    real(wp) eaes,pji,fji
    integer i,j,k,l,ii,jj,ij,kl,kj
+
+   type(xtb_zone) :: zone
+
+   if (do_tracying) call zone%start("src/aespot.F90", "fockelectro", __LINE__, color=TracyColors%OliveDrab1)
+
    ! CAMM
    eaes = 0.0_wp
    ij = 0
@@ -706,6 +727,7 @@ subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
    eaes = 0.250_wp*eaes
    !      write(*,*) 'EAES',eaes
    e = eaes
+
 end subroutine fockelectro
 
 
@@ -726,6 +748,7 @@ end subroutine fockelectro
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
 subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
+   use xtb_tracying
    implicit none
    class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(:)
@@ -738,6 +761,10 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    real(wp) r2ab,t1b,t2b,t3b,t4b,dum3b,dum5b,dtmp(3),qtmp(6),g3,g5
    real(wp) qs1,qs2
    integer i,j,k,l1,l2,ll,m,mx,ki,kj
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/aespot.F90", "setvsdq", __LINE__, color=TracyColors%OliveDrab1)
+
    vs = 0.0_wp
    vd = 0.0_wp
    vq = 0.0_wp
@@ -860,6 +887,7 @@ end subroutine setvsdq
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
 subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
+   use xtb_tracying
    implicit none
    class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(:)
@@ -872,6 +900,10 @@ subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    real(wp) r2ab,t1b,t2b,t3b,t4b,dum3b,dum5b,dtmp(3),qtmp(6),g3,g5
    real(wp) qs1,qs2
    integer i,j,k,l1,l2,ll,m,mx,ki,kj
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/aespot.F90", "setdvsdq", __LINE__, color=TracyColors%OliveDrab1)
+
    vs = 0.0_wp
    vd = 0.0_wp
    vq = 0.0_wp
@@ -960,6 +992,7 @@ end subroutine setdvsdq
 subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
    use xtb_mctc_convert
    use xtb_lin, only : lin
+   use xtb_tracying
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -967,6 +1000,10 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
    real(wp), intent(out) :: dip,d3(:)
    real(wp) rr1(3),rr2(3),tma(6),tmb(6),tmc(6),dum
    integer i,j,k,l
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/aespot.F90", "molmom", __LINE__, color=TracyColors%OliveDrab1)
+
    rr1 = 0.0_wp
    rr2 = 0.0_wp
    write(iunit,'(a)')
@@ -1070,6 +1107,7 @@ end subroutine molqdip
 subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
       & radcn,dcn,gab3,gab5,g)
    use xtb_lin, only : lin
+   use xtb_tracying
    !gab3 Hellmann-Feynman terms correct, shift terms to be tested yet
    implicit none
    integer, intent(in)   :: nat,at(:)
@@ -1083,6 +1121,10 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
    real(wp) dgab3,dgab5,damp1,damp2,ddamp,qs2
 
    integer i,j,k,l,m,ki,kj,kl
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/aespot.F90", "aniso_grad", __LINE__, color=TracyColors%OliveDrab1)
+
    do i = 1,nat
       q1 = q(i)
       rr(1:3) = xyz(1:3,i)
@@ -1162,6 +1204,7 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
       g(:,:) = g-tmp2*dcn(:,:,i)
 
    enddo
+
 end subroutine aniso_grad
 
 
@@ -1217,6 +1260,7 @@ end subroutine checkspars
 
 ! zero-damped gab
 subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
+   use xtb_tracying
    implicit none
    integer, intent(in) :: nat,at(:)
    real(wp), intent(in)  ::  xyz(:,:),radcn(:)
@@ -1226,6 +1270,9 @@ subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
 
    real(wp) tmp1,tmp2,rr(3)
    integer i,j,k,l,lin
+
+   type(xtb_zone) :: zone
+   if (do_tracying) call zone%start("src/aespot.F90", "mmomgabzero", __LINE__, color=TracyColors%OliveDrab1)
 
    !!!!!!! set up damped Coulomb operators for multipole interactions
    gab3 = 0.0_wp ! for r**-2 decaying q-dip term
