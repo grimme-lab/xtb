@@ -3364,11 +3364,11 @@ end subroutine rbxgfnff_eg
     g = 0.0_wp
     ds = 0.0_wp
 
-    fi = (1.d0 - fqq * q(iat))
+    fi = (1.0_wp - fqq * q(iat))
     fi = min(max(fi, -4.0_wp), 4.0_wp)
-    fj = (1.d0 - fqq * q(jat))
+    fj = (1.0_wp - fqq * q(jat))
     fj = min(max(fj, -4.0_wp), 4.0_wp)
-    fk = (1.d0 - fqq * q(kat))
+    fk = (1.0_wp - fqq * q(kat))
     fk = min(max(fk, -4.0_wp), 4.0_wp)
     ff = fi * fj * fk ! charge term
     c9 = ff * param%zb3atm(at(iat)) * param%zb3atm(at(jat)) * param%zb3atm(at(kat)) ! strength of interaction
