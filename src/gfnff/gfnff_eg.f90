@@ -727,7 +727,7 @@ endif
          l=topo%b3list(3,i)
          iTrk=topo%b3list(4,i)
          iTrl=topo%b3list(5,i)
-         call batmgfnff_eg(n,j,k,l,iTrk,iTrl,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,ds,param,neigh)
+         call batmgfnff_eg(n,j,k,l,iTrk,iTrl,at,xyz,topo%qa,etmp,g3tmp,ds,param,neigh)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -3345,95 +3345,105 @@ subroutine rbxgfnff_eg(n,A,B,X,iTrB,iTrX,at,xyz,q,energy,gdr,param,neigh,sigma)
 end subroutine rbxgfnff_eg
 
 !> taken from D3 ATM code
-subroutine batmgfnff_eg(n,iat,jat,kat,iTrj,iTrk,at,xyz,q,sqrab,srab,energy,g,ds,param,neigh)
-   implicit none
-   type(TGFFData), intent(in) :: param
-   type(TNeigh), intent(inout) :: neigh
-   integer, intent(in) :: iat,jat,kat,n,at(n),iTrj,iTrk
-   real*8, intent(in) :: xyz(3,n),q(n)
-   real*8, intent(out) :: energy,g(3,3),ds(3,3)
-   real*8, intent(in) :: sqrab(n*(n+1)/2)   ! squared dist
-   real*8, intent(in) :: srab (n*(n+1)/2)   ! dist
+  subroutine batmgfnff_eg(n, iat, jat, kat, iTrj, iTrk, at, xyz, q, energy, g, ds, param, neigh)
+    implicit none
+    type(TGFFData), intent(in) :: param
+    type(TNeigh), intent(in) :: neigh
+    integer, intent(in) :: iat, jat, kat, n, at(n), iTrj, iTrk
+    real(wp), intent(in) :: xyz(3,n), q(n)
+    real(wp), intent(out) :: energy, g(3,3), ds(3,3)
 
-   real*8 r2ij,r2jk,r2ik,c9,mijk,imjk,ijmk,rijk3,ang,angr9,rav3
-   real*8 rij(3),rik(3),rjk(3),ri(3),rj(3),rk(3),drij,drik,drjk,dang,ff,fi,fj,fk,fqq
-   parameter (fqq=3.0d0)
-   integer :: linij,linik,linjk,i,j,iTrDum,dm1,dm2
+    real(wp) :: r2ij, r2jk, r2ik, sr2ij, sr2jk, sr2ik, invsr2ij, invsr2jk, invsr2ik
+    real(wp) :: c9, mijk, imjk, ijmk, rijk3, ang, angr9, rav3
+    real(wp) :: rij(3), rik(3), rjk(3), ri(3), rj(3), rk(3), drij, drik, drjk, dang, ff, fi, fj, fk
+    real(wp), parameter :: fqq = 3.0_wp
+    integer :: iTrDum, dm1, dm2
 
-   fi=(1.d0-fqq*q(iat))
-   fi=min(max(fi,-4.0d0),4.0d0)
-   fj=(1.d0-fqq*q(jat))
-   fj=min(max(fj,-4.0d0),4.0d0)
-   fk=(1.d0-fqq*q(kat))
-   fk=min(max(fk,-4.0d0),4.0d0)
-   ff=fi*fj*fk ! charge term
-   c9=ff*param%zb3atm(at(iat))*param%zb3atm(at(jat))*param%zb3atm(at(kat)) ! strength of interaction
-   r2ij=NORM2(xyz(:,iat)-(xyz(:,jat)+neigh%transVec(:,iTrj)))**2
-   r2ik=NORM2(xyz(:,iat)-(xyz(:,kat)+neigh%transVec(:,iTrk)))**2
-   iTrDum=neigh%fTrSum(neigh%iTrNeg(iTrj),iTrk)
-   if(iTrDum.le.0.or.iTrDum.gt.neigh%numctr) then
-      r2jk=NORM2((xyz(:,kat)+neigh%transVec(:,iTrk))-(xyz(:,jat)+neigh%transVec(:,iTrj)))**2
-   else
-      r2jk=NORM2(xyz(:,jat)-(xyz(:,kat)+neigh%transVec(:,iTrDum)))**2
-   endif
-   mijk=-r2ij+r2jk+r2ik
-   imjk= r2ij-r2jk+r2ik
-   ijmk= r2ij+r2jk-r2ik
-   rijk3=r2ij*r2jk*r2ik
-   rav3=rijk3**1.5 ! R^9
-   ang=0.375d0*ijmk*imjk*mijk/rijk3
-   angr9=(ang +1.0d0)/rav3
-   energy=c9*angr9 ! energy
+    energy = 0.0_wp
+    g = 0.0_wp
+    ds = 0.0_wp
 
-!     derivatives of each part w.r.t. r_ij,jk,ik
-           dang=-0.375d0*(r2ij**3+r2ij**2*(r2jk+r2ik) &
-  &             +r2ij*(3.0d0*r2jk**2+2.0*r2jk*r2ik+3.0*r2ik**2) &
-  &             -5.0*(r2jk-r2ik)**2*(r2jk+r2ik)) &
-  &             /(sqrt(r2ij)*rijk3*rav3)
-           drij=-dang*c9
-           dang=-0.375d0*(r2jk**3+r2jk**2*(r2ik+r2ij) &
-  &             +r2jk*(3.0d0*r2ik**2+2.0*r2ik*r2ij+3.0*r2ij**2) &
-  &             -5.0*(r2ik-r2ij)**2*(r2ik+r2ij)) &
-  &             /(sqrt(r2jk)*rijk3*rav3)
-           drjk=-dang*c9
-           dang=-0.375d0*(r2ik**3+r2ik**2*(r2jk+r2ij) &
-  &             +r2ik*(3.0d0*r2jk**2+2.0*r2jk*r2ij+3.0*r2ij**2) &
-  &             -5.0*(r2jk-r2ij)**2*(r2jk+r2ij)) &
-  &             /(sqrt(r2ik)*rijk3*rav3)
-           drik=-dang*c9
+    fi = (1.0_wp - fqq * q(iat))
+    fi = min(max(fi, -4.0_wp), 4.0_wp)
+    fj = (1.0_wp - fqq * q(jat))
+    fj = min(max(fj, -4.0_wp), 4.0_wp)
+    fk = (1.0_wp - fqq * q(kat))
+    fk = min(max(fk, -4.0_wp), 4.0_wp)
+    ff = fi * fj * fk ! charge term
+    c9 = ff * param%zb3atm(at(iat)) * param%zb3atm(at(jat)) * param%zb3atm(at(kat)) ! strength of interaction
+    r2ij = sum((xyz(1:3, iat) - (xyz(1:3, jat) + neigh%transVec(1:3, iTrj)))**2)
+    r2ik = sum((xyz(1:3, iat) - (xyz(1:3, kat) + neigh%transVec(1:3, iTrk)))**2)
+    iTrDum = neigh%fTrSum(neigh%iTrNeg(iTrj), iTrk)
+    if (iTrDum <= 0 .or. iTrDum > neigh%numctr) then
+      r2jk = sum(((xyz(:, kat) + neigh%transVec(:, iTrk)) &
+                - (xyz(:, jat) + neigh%transVec(:, iTrj)))**2)
+    else
+      r2jk = sum((xyz(:, jat) - (xyz(:, kat) + neigh%transVec(:, iTrDum)))**2)
+    end if
+    sr2ij = sqrt(r2ij)
+    sr2ik = sqrt(r2ik)
+    sr2jk = sqrt(r2jk)
+    invsr2ij = 1._wp / sr2ij
+    invsr2ik = 1._wp / sr2ik
+    invsr2jk = 1._wp / sr2jk
+    mijk = -r2ij + r2jk + r2ik
+    imjk = r2ij - r2jk + r2ik
+    ijmk = r2ij + r2jk - r2ik
+    rijk3 = r2ij * r2jk * r2ik
+    rav3 = rijk3 * sr2ij * sr2jk * sr2ik ! R^9
+    ang = 0.375_wp * ijmk * imjk * mijk / rijk3
+    angr9 = (ang + 1.0_wp) / rav3
+    energy = c9 * angr9 ! energy
 
-   rij=xyz(:,jat)-xyz(:,iat)+neigh%transVec(:,iTrj)
-   rik=xyz(:,kat)-xyz(:,iat)+neigh%transVec(:,iTrk)
-   if(iTrDum.le.0.or.iTrDum.gt.neigh%numctr) then
-      rjk=(xyz(:,kat)+neigh%transVec(:,iTrk))-(xyz(:,jat)+neigh%transVec(:,iTrj))
-   else
-      rjk=xyz(:,kat)-xyz(:,jat)+neigh%transVec(:,iTrDum)
-   endif
-   g(:,1  )=         drij*rij/sqrt(r2ij)
-   g(:,1  )=g(:,1  )+drik*rik/sqrt(r2ik)
-   g(:,2  )=         drjk*rjk/sqrt(r2jk)
-   g(:,2  )=g(:,2  )-drij*rij/sqrt(r2ij)
-   g(:,3  )=        -drik*rik/sqrt(r2ik)
-   g(:,3  )=g(:,3  )-drjk*rjk/sqrt(r2jk)
+    ! derivatives of each part w.r.t. r_ij,jk,ik
+    dang = -0.375_wp * (r2ij**3 + r2ij**2 * (r2jk + r2ik) &
+        & + r2ij * (3.0_wp * r2jk**2 + 2.0_wp * r2jk * r2ik + 3.0_wp * r2ik**2) &
+        & - 5.0_wp * (r2jk - r2ik)**2 * (r2jk + r2ik)) &
+        & / (sr2ij * rijk3 * rav3)
+    drij = -dang * c9
+    dang = -0.375_wp * (r2jk**3 + r2jk**2 * (r2ik + r2ij) &
+        & + r2jk * (3.0_wp * r2ik**2 + 2.0_wp * r2ik * r2ij + 3.0_wp * r2ij**2) &
+        & - 5.0_wp * (r2ik - r2ij)**2 * (r2ik + r2ij)) &
+        & / (sr2jk * rijk3 * rav3)
+    drjk = -dang * c9
+    dang = -0.375_wp * (r2ik**3 + r2ik**2 * (r2jk + r2ij) &
+        & + r2ik * (3.0_wp * r2jk**2 + 2.0_wp * r2jk * r2ij + 3.0_wp * r2ij**2) &
+        & - 5.0_wp * (r2jk - r2ij)**2 * (r2jk + r2ij)) &
+        & / (sr2ik * rijk3 * rav3)
+    drik = -dang * c9
 
-   if(neigh%nTrans.ne.1) then
-     ri = xyz(:,iat)
-     rj = xyz(:,jat)+neigh%transVec(:,iTrj)
-     rk = xyz(:,kat)+neigh%transVec(:,iTrk)
-     do dm1=1, 3                            
-       do dm2=dm1,3                        
-         ds(dm1,dm2) =    (drij*rij(dm2)/sqrt(r2ij))*ri(dm1)  & ! i derivatives
-                      & + (drik*rik(dm2)/sqrt(r2ik))*ri(dm1)  &
-                      & + (drjk*rjk(dm2)/sqrt(r2jk))*rj(dm1)  & ! j derivatives
-                      & - (drij*rij(dm2)/sqrt(r2ij))*rj(dm1)  &
-                      & - (drik*rik(dm2)/sqrt(r2ik))*rk(dm1)  & ! k derivatives
-                      & - (drjk*rjk(dm2)/sqrt(r2jk))*rk(dm1) 
-         ds(dm2,dm1) = ds(dm1,dm2)     
-       enddo                                 
-     enddo                                   
-   endif
+    rij = xyz(:, jat) - xyz(:, iat) + neigh%transVec(:, iTrj)
+    rik = xyz(:, kat) - xyz(:, iat) + neigh%transVec(:, iTrk)
+    if (iTrDum <= 0 .or. iTrDum > neigh%numctr) then
+      rjk = (xyz(:, kat) + neigh%transVec(:, iTrk)) - (xyz(:, jat) + neigh%transVec(:, iTrj))
+    else
+      rjk = xyz(:, kat) - xyz(:, jat) + neigh%transVec(:, iTrDum)
+    end if
+    g(:, 1) = drij * rij * invsr2ij
+    g(:, 1) = g(:, 1) + drik * rik * invsr2ik
+    g(:, 2) = drjk * rjk * invsr2jk
+    g(:, 2) = g(:, 2) - drij * rij * invsr2ij
+    g(:, 3) = -drik * rik * invsr2ik
+    g(:, 3) = g(:, 3) - drjk * rjk * invsr2jk
 
-end subroutine batmgfnff_eg
+    if (neigh%nTrans /= 1) then
+      ri = xyz(:, iat)
+      rj = xyz(:, jat) + neigh%transVec(:, iTrj)
+      rk = xyz(:, kat) + neigh%transVec(:, iTrk)
+      do dm1 = 1, 3
+        do dm2 = dm1, 3
+          ds(dm1, dm2) = (drij * rij(dm2) * invsr2ij) * ri(dm1) & ! i derivatives
+              & + (drik * rik(dm2) * invsr2ik) * ri(dm1) &
+              & + (drjk * rjk(dm2) * invsr2jk) * rj(dm1) & ! j derivatives
+              & - (drij * rij(dm2) * invsr2ij) * rj(dm1) &
+              & - (drik * rik(dm2) * invsr2ik) * rk(dm1) & ! k derivatives
+              & - (drjk * rjk(dm2) * invsr2jk) * rk(dm1)
+          ds(dm2, dm1) = ds(dm1, dm2)
+        end do
+      end do
+    end if
+
+  end subroutine batmgfnff_eg
 
 !> torsion term for rotation around triple bonded carbon
 subroutine sTors_eg(m, n, xyz, topo, energy, dg)
