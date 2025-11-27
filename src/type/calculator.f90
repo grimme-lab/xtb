@@ -230,8 +230,8 @@ end subroutine hessian_point
 
 !> Evaluate hessian using O1NumHess algorithm
 !> Implementation according to Wang et al. (https://doi.org/10.48550/arXiv.2508.07544)
-subroutine o1hessian(self, env, mol0, chk0, list, step, hess)
-   character(len=*), parameter :: source = "hessian_numdiff_numdiff2_oldr"
+subroutine odlrhessian(self, env, mol0, chk0, list, step, hess)
+   character(len=*), parameter :: source = "hessian_odlr"
    !> Single point calculator
    class(TCalculator), intent(inout) :: self
    !> Computation environment
@@ -249,12 +249,14 @@ subroutine o1hessian(self, env, mol0, chk0, list, step, hess)
 
    type(scc_results) :: res
    real(wp), allocatable :: distmat(:, :), h0(:, :), displdir(:, :), g(:, :), g0(:, :)
-   real(wp) :: energy, sigma(3, 3), egap
-   integer :: N, i, j
+   real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3)
+   real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
+   logical :: linear
+   integer :: N, i, j, k, Ntr
    
    ! ========== INITIALIZATION ==========
-   N = 3*mol%n
-   allocate(distmat(N, N), h0(N, N), displdir(N, N), g(N, 6)) ! 6 for non-linear, 5 for linear
+   N = 3*mol0%n
+   allocate(distmat(N, N), h0(N, N), displdir(N, N), g(N, N))
 
    ! hessian initial guess
    do i = 1, N
@@ -266,7 +268,58 @@ subroutine o1hessian(self, env, mol0, chk0, list, step, hess)
    ! calculate unperturbed gradient
    call self%singlepoint(env, mol0, chk0, -1, .true., energy, g0, sigma, egap, res)
 
-   ! set up initial displdir with trans, rot, and one vib mode
+   ! setup distmat
+   do i = 0, mol0%n - 1
+      do j = i, mol0%n - 1
+         dist = mol0%dist(i, j) ! substract vdw radii
+         distmat(3*i+1:3*i+3+1, 3*j+1:3*j+3+1) = dist
+         distmat(3*j+1:3*j+3+1, 3*i+1:3*i+3+1) = dist
+      end do
+   end do
+
+   ! set up initial displdir with trans, rot, and totally symmetric vib mode
+   ! get trans, rot displacements
+   Imat0 = 0.0_wp
+   do i = 1, mol0%n
+      vec = mol0%xyz(:, i) - barycenter(:)
+      Imat0 = Imat0 + matmul(vec, transpose(vec))
+   end do
+   Imat = Imat0 * identity3
+   do i = 1, 3
+      do j = 1, 3
+         do k = 1, mol0%n
+            Imat(i, j) = (mol0%xyz(i, k) - barycenter(i)) * (mol0%xyz(j, k) - barycenter(j))
+         end do
+      end do
+   end do
+
+   ! TODO: compute interial moment and inertial tensor
+
+   ! translational displacements
+   do i = 0, N - 1
+      displdir(3*i+1, 1) = 1.0_wp/sqrt(mol0%n)
+      displdir(3*i+1+1, 2) = 1.0_wp/sqrt(mol0%n)
+      displdir(3*i+2+1, 3) = 1.0_wp/sqrt(mol0%n)
+   end do
+   
+   ! rotational displacements
+   Ntr = 3
+   do i = 1, 3
+      if (inertia(i) < 1e-4_wp) cycle
+      do j = 0, mol0%n - 1
+         crossprod(ax(:, i), mol0%xyz(:, j) - barycenter(:), cross)
+         displdir(3*j+1:3*j+3+1, Ntr) = cross
+      end do
+      displdir(:, Ntr) = displdir(:, Ntr) / norm2(displdir(:, Ntr))
+      Ntr = Ntr + 1
+      ! NOTE: is this really correct to normalize before adding more Ntr?
+   end do
+
+   ! totally symmetric vibrational displacement
+   do i = 0, mol0%n - 1
+      displdir(3*i+1:3*i+3+1, Ntr) = mol0%xyz(:, i) - barycenter(:) ! FIXME: Ntr index
+      displdir(3*i+1:3*i+3+1, Ntr) = displdir(3*i+1:3*i+3+1, Ntr) / norm2(displdir(3*i+1:3*i+3+1, Ntr))
+   end do
 
    ! generate remaining displdirs based on distmat and dmax
    ! TODO: compute neighbor list
@@ -279,6 +332,6 @@ subroutine o1hessian(self, env, mol0, chk0, list, step, hess)
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
 
-end subroutine hessian
+end subroutine odlrhessian
 
 end module xtb_type_calculator
