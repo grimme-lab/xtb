@@ -3346,7 +3346,6 @@ end subroutine rbxgfnff_eg
 
 !> taken from D3 ATM code
   subroutine batmgfnff_eg(n, iat, jat, kat, iTrj, iTrk, at, xyz, q, energy, g, ds, param, neigh)
-    use xtb_mctc_accuracy, only: wp
     implicit none
     type(TGFFData), intent(in) :: param
     type(TNeigh), intent(in) :: neigh
