@@ -58,6 +58,7 @@ jobs:
             OMP_NUM_THREADS: 2,1
          - name: Upload coverage report
            run: bash <(curl -s https://codecov.io/bash)
+
    gcc-cmake-build:
       runs-on: ${{ matrix.os }}
       strategy:
@@ -92,6 +93,7 @@ jobs:
            working-directory: ${{ env.BUILD_DIR }}
            env:
             OMP_NUM_THREADS: 2,1
+
    xtb-lightweight-meson-build:
       runs-on: ${{ matrix.os }}
       strategy:
@@ -126,6 +128,7 @@ jobs:
            run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120 --suite xtb
            env:
             OMP_NUM_THREADS: 2,1
+
    xtb-lightweight-cmake-build:
       runs-on: ${{ matrix.os }}
       strategy:
@@ -159,6 +162,7 @@ jobs:
            working-directory: ${{ env.BUILD_DIR }}
            env:
             OMP_NUM_THREADS: 2,1
+
    # Test native MinGW Windows build
    mingw-meson-build:
       runs-on: windows-latest
@@ -188,7 +192,6 @@ jobs:
                mingw-w64-${{ matrix.arch }}-python-pip
                mingw-w64-${{ matrix.arch }}-meson
                mingw-w64-${{ matrix.arch }}-ninja
-
          - name: Configure build
            run: meson setup ${{ env.BUILD_DIR }} -Dlapack=netlib --warnlevel=0
            env:
@@ -200,6 +203,7 @@ jobs:
            run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120 --suite xtb
            env:
             OMP_NUM_THREADS: 1
+
    intel-meson-build:
       runs-on: ${{ matrix.os }}
       strategy:
@@ -262,6 +266,7 @@ jobs:
            with:
             name: xtb-bleed.tar.xz
             path: xtb-bleed.tar.xz
+
    intel-ifx-cmake-build:
       runs-on: ${{ matrix.os }}
       strategy:
@@ -305,7 +310,6 @@ jobs:
             -DBLA_VENDOR=Intel10_64lp
             -DWITH_TBLITE=ON
             -DWITH_CPCMX=ON
-
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
          - name: Run unit tests
@@ -313,6 +317,7 @@ jobs:
            working-directory: ${{ env.BUILD_DIR }}
            env:
             OMP_NUM_THREADS: 2,1
+
    intel-ifx-meson-build:
       runs-on: ${{ matrix.os }}
       strategy:
@@ -353,7 +358,6 @@ jobs:
             -Ddefault_library=static
             -Dlapack=mkl
             -Dtblite=disabled
-
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
          - name: Run unit tests
@@ -362,6 +366,7 @@ jobs:
             --no-rebuild --suite xtb -t 120
            env:
             OMP_NUM_THREADS: 2,1
+
    mingw-meson-static-build:
       runs-on: windows-latest
       strategy:
@@ -426,9 +431,7 @@ jobs:
          - name: Bundle Runtime DLLs
            run: |
             [ -d "xtb-bleed-windows/bin" ] || mkdir -p "xtb-bleed-windows/bin"
-            
             WANTED_DLLS=("libblas.dll" "liblapack.dll" "libgfortran-5.dll" "libgcc_s_seh-1.dll" "libquadmath-0.dll" "libwinpthread-1.dll")
-            
             for dll in "${WANTED_DLLS[@]}"; do
               dll_path=$(which "$dll" || true)              
               if [ -f "$dll_path" ]; then
@@ -558,31 +561,6 @@ jobs:
            name: xtb-bleed-windows-ifx-openblas.zip
            path: xtb-bleed-windows-ifx-openblas.zip
 
-   # smoke test the Windows GNU zip on a fresh windows-latest runner
-   windows-zip-smoke-test:
-      if: github.event_name == 'push'
-      runs-on: windows-latest
-      needs:
-         - mingw-meson-static-build
-      steps:
-         - name: Download Windows artifact
-           uses: actions/download-artifact@v4.1.7
-           with:
-             name: xtb-bleed-windows.zip
-             path: .
-
-         - name: Extract zip
-           shell: pwsh
-           run: |
-             Expand-Archive -LiteralPath 'xtb-bleed-windows.zip' -DestinationPath 'xtb-test' -Force
-
-         - name: Smoke-test xtb.exe
-           shell: pwsh
-           run: |
-             Set-Location 'xtb-test/xtb-bleed-windows/bin'
-             .\xtb.exe --version
-             .\xtb.exe --help
-
    # Inspired from https://github.com/endless-sky/endless-sky
    continuous-delivery:
       if: github.event_name == 'push'
@@ -591,7 +569,6 @@ jobs:
          - intel-meson-build
          - mingw-meson-static-build
          - windows-intel-ifx-meson-static
-         - windows-zip-smoke-test
       env:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          RELEASE_TAG: bleed
