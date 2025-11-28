@@ -247,12 +247,14 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess)
    !> Array to add Hessian to
    real(wp), intent(inout) :: hess(:, :)
 
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
    type(scc_results) :: res
-   real(wp), allocatable :: distmat(:, :), h0(:, :), displdir(:, :), g(:, :), g0_tmp(:, :), g0(:), x(:), gr(:, :), gl(:, :)
-   real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0
+   real(wp), allocatable :: distmat(:, :), h0(:, :), displdir(:, :), g(:, :), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :)
+   real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0, query(1), displmax
    real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
    logical :: linear
-   integer :: N, i, j, k, Ntr, info
+   integer :: N, i, j, k, Ntr, info, lwork
    
    ! ========== INITIALIZATION ==========
    ! NOTE: maybe this needs to go to numhess?
@@ -267,9 +269,9 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess)
    end do
 
    ! calculate unperturbed gradient
-   call self%singlepoint(env, mol0, chk0, -1, .true., energy, g0_tmp, sigma, egap, res)
+   call self%singlepoint(env, mol0, chk0, -1, .true., energy, tmp_grad, sigma, egap, res)
    ! gradients need to be flattened since hessian is also "flat"
-   g0 = reshape(g0_tmp, [N])
+   g0 = reshape(tmp_grad, [N])
 
    ! setup distmat
    do i = 1, mol0%n
@@ -304,7 +306,11 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess)
       end do
    end do
 
-   call dsyev('V', 'U', 3, ax, 3, inertia, aux, info)
+   lwork = -1
+   call dsyev('V', 'U', 3, ax, 3, inertia, query, lwork, info)
+   lwork = int(query(1))
+   allocate(aux(lwork))
+   call dsyev('V', 'U', 3, ax, 3, inertia, aux, lwork, info)
 
    ! rotational displacements
    Ntr = 3 ! number of translational and rotational degrees of freedom
@@ -333,9 +339,195 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess)
    ! TODO: get gradients along rotational displacements
    
    ! ========== GRADIENT DERIVATIVES ==========
+   do i = Ntr + 1, N
+      displmax = maxval(abs(displdir(:, i)))
+      ! TODO: what about double sided stuff?
+      call mol%copy(mol0)
+      call chk%copy(chk0)
+      x = reshape(mol0%xyz, [N])
+      x = x + step*displdir(:, i)/displmax
+      mol%xyz = reshape(x, [3, mol0%n])
+      call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
+      g(:, i) = reshape(tmp_grad, [N])
+      g(:, i) = (g(:, i) - g0(:))/step*displmax
+   end do
 
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
+   ! compute local hessian
+   ! TODO: conjugate gradient solver
+
+   ! compute low rank correction
+
+   contains
+   
+   !> Main routine to recover local Hessian using Conjugate Gradient
+   subroutine gen_local_hessian(n, ndispl, distmat, displdir, g, dmax, ddmax, lam, bet, hess_out)
+      real(dp), allocatable :: rhsv(:), hnumv(:)
+      logical, allocatable :: mask(:,:), mask_tril(:,:)
+      integer :: i, j, ndim
+      
+      ! 1. Calculate Regularization Term W2
+      allocate(W2(n,n))
+      do j = 1, n
+         do i = 1, n
+               W2(i,j) = lam * (max(0.0_dp, distmat(i,j) - dmax))**(2.0_dp * bet)
+         end do
+      end do
+
+      ! 2. Calculate RHS = (g * displdir.T). Symmetrized.
+      allocate(RHS(n,n))
+      ! Call BLAS DGEMM: RHS = 1.0 * g * displdir^T
+      call dgemm('N', 'T', n, n, ndispl, 1.0_dp, g, n, displdir, n, 0.0_dp, RHS, n)
+      
+      ! Force Symmetry
+      do j = 1, n
+         do i = 1, n
+               RHS(i,j) = 0.5_dp * (RHS(i,j) + RHS(j,i))
+         end do
+      end do
+
+      ! 3. Precompute D * D^T for the operator
+      allocate(D_DT(n,n))
+      call dgemm('N', 'T', n, n, ndispl, 1.0_dp, displdir, n, displdir, n, 0.0_dp, D_DT, n)
+
+      ! 4. Masks and Packing
+      allocate(mask(n,n), mask_tril(n,n))
+      mask = (distmat < (dmax + ddmax))
+      forall(i=1:n, j=1:n) mask_tril(i,j) = mask(i,j) .and. (i >= j)
+      
+      ! RHS Vector (b in Ax=b)
+      rhsv = pack(RHS, mask_tril)
+      ndim = size(rhsv)
+      
+      allocate(hnumv(ndim))
+      hnumv = rhsv ! Initial guess = RHS (common heuristic)
+
+      ! 5. Call Conjugate Gradient Solver
+      call cg_solver(ndim, rhsv, hnumv, matvec_wrapper)
+
+      ! 6. Recover Hessian from vector
+      hess_out = unpack_sym(hnumv, mask_tril, n)
+
+   contains
+
+   !> Assumes A is Symmetric Positive Definite
+   subroutine cg_solver(n, b, x, matvec)
+      integer, intent(in) :: n
+      real(dp), intent(in) :: b(n)       ! RHS
+      real(dp), intent(inout) :: x(n)    ! Solution (Input: Initial Guess)
+      ! Procedure pointer for the matrix-vector product
+      interface
+         subroutine matvec(v_in, v_out)
+               import :: dp
+               real(dp), intent(in) :: v_in(:)
+               real(dp), intent(out) :: v_out(:)
+         end subroutine matvec
+      end interface
+
+      ! Work arrays
+      real(dp), allocatable :: r(:), p(:), Ap(:)
+      real(dp) :: alpha, beta, rsold, rsnew
+      integer :: k
+      real(dp), parameter :: tol = 1.0e-14_dp
+      integer, parameter :: max_iter = 1000
+      
+      ! BLAS functions
+      real(dp), external :: ddot
+      
+      allocate(r(n), p(n), Ap(n))
+      
+      ! 1. r = b - A * x
+      call matvec(x, Ap)
+      r = b - Ap
+      
+      ! 2. p = r
+      p = r
+      
+      ! 3. rsold = r' * r
+      rsold = ddot(n, r, 1, r, 1)
+      
+      ! Check for immediate convergence
+      if (sqrt(rsold) < tol) return
+
+      ! 4. Iteration loop
+      do k = 1, max_iter
+         
+         ! Ap = A * p
+         call matvec(p, Ap)
+         
+         ! alpha = rsold / (p' * Ap)
+         alpha = rsold / ddot(n, p, 1, Ap, 1)
+         
+         ! x = x + alpha * p
+         call daxpy(n, alpha, p, 1, x, 1)
+         
+         ! r = r - alpha * Ap
+         call daxpy(n, -alpha, Ap, 1, r, 1)
+         
+         ! rsnew = r' * r
+         rsnew = ddot(n, r, 1, r, 1)
+         
+         if (sqrt(rsnew) < tol) exit
+         
+         ! beta = rsnew / rsold
+         beta = rsnew / rsold
+         
+         ! p = r + beta * p
+         ! We do p = beta*p + r by scaling p first then adding r
+         call dscal(n, beta, p, 1)
+         call daxpy(n, 1.0_dp, r, 1, p, 1)
+         
+         rsold = rsnew
+      end do
+      
+      if (k > max_iter) then
+         print *, "Warning: CG did not converge within max iterations"
+      end if
+
+   end subroutine cg_solver
+
+   !> Helper to unpack vector to Symmetric Matrix
+   function unpack_sym(v, mask, n) result(H)
+      real(dp), intent(in) :: v(:)
+      logical, intent(in) :: mask(n,n)
+      integer, intent(in) :: n
+      real(dp) :: H(n,n)
+      integer :: i, j
+      
+      H = 0.0_dp
+      ! Unpack lower triangle based on mask
+      H = unpack(v, mask, field=0.0_dp)
+      
+      ! Symmetrize (Copy lower to upper)
+      do j = 1, n
+         do i = j+1, n
+               H(j,i) = H(i,j)
+         end do
+      end do
+   end function unpack_sym
+
+   !> Simple BLAS wrapper for daxpy (y = alpha*x + y)
+   !> Note: Modern Fortran compilers link BLAS automatically or via -lblas
+   subroutine daxpy(n, alpha, x, incx, y, incy)
+      use iso_c_binding
+      integer, intent(in) :: n, incx, incy
+      real(dp), intent(in) :: alpha
+      real(dp), intent(in) :: x(*)
+      real(dp), intent(inout) :: y(*)
+      ! This interface is usually provided by the external library, 
+      ! explicitly defined here just in case specific linking is needed.
+      ! In practice, remove this body and use 'external'.
+   end subroutine daxpy
+
+   !> BLAS scaler (x = alpha*x)
+   subroutine dscal(n, alpha, x, incx)
+      integer, intent(in) :: n, incx
+      real(dp), intent(in) :: alpha
+      real(dp), intent(inout) :: x(*)
+   end subroutine dscal
+
+   end subroutine gen_local_hessian
 
 end subroutine odlrhessian
 
