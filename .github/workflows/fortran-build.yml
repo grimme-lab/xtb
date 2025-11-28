@@ -44,7 +44,7 @@ jobs:
          - name: Install meson
            run: pip install meson==1.7.0 ninja
          - name: Configure build
-           run: >-
+           run: >
             meson setup ${{ env.BUILD_DIR }} --buildtype=debug --warnlevel=0 -Db_coverage=true ${{ env.MESON_ARGS }}
            env:
             FC: gfortran-${{ matrix.version }}
@@ -114,7 +114,7 @@ jobs:
          - name: Install meson
            run: pip3 install meson==0.62.0 ninja cmake
          - name: Configure build
-           run: >-
+           run: >
             meson setup ${{ env.BUILD_DIR }} --buildtype=debug --warnlevel=0 ${{ env.MESON_ARGS }}
            env:
             FC: ${{ matrix.fc }}
@@ -180,7 +180,15 @@ jobs:
             msystem: ${{ matrix.msystem }}
             update: false
             install: >-
-               git mingw-w64-${{ matrix.arch }}-gcc-fortran mingw-w64-${{ matrix.arch }}-openblas mingw-w64-${{ matrix.arch }}-lapack mingw-w64-${{ matrix.arch }}-python mingw-w64-${{ matrix.arch }}-python-pip mingw-w64-${{ matrix.arch }}-meson mingw-w64-${{ matrix.arch }}-ninja
+               git
+               mingw-w64-${{ matrix.arch }}-gcc-fortran
+               mingw-w64-${{ matrix.arch }}-openblas
+               mingw-w64-${{ matrix.arch }}-lapack
+               mingw-w64-${{ matrix.arch }}-python
+               mingw-w64-${{ matrix.arch }}-python-pip
+               mingw-w64-${{ matrix.arch }}-meson
+               mingw-w64-${{ matrix.arch }}-ninja
+
          - name: Configure build
            run: meson setup ${{ env.BUILD_DIR }} -Dlapack=netlib --warnlevel=0
            env:
@@ -228,13 +236,18 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
             printenv >> $GITHUB_ENV
          - name: Configure meson build
-           run: >-
-            meson setup ${{ env.BUILD_DIR }} --prefix=/ --libdir=lib -Dfortran_link_args="-lifcoremt -static" -Ddefault_library=static -Dlapack=mkl
+           run: >
+            meson setup ${{ env.BUILD_DIR }} --prefix=/ --libdir=lib
+            -Dfortran_link_args="-lifcoremt -static"
+            -Ddefault_library=static
+            -Dlapack=mkl
+
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
          - name: Run unit tests
-           run: >-
-            meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --num-processes 1 --no-rebuild --suite xtb -t 120
+           run: >
+            meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --num-processes 1
+            --no-rebuild --suite xtb -t 120
            env:
             OMP_NUM_THREADS: 2,1
          - name: Install package
@@ -284,8 +297,15 @@ jobs:
             source /opt/intel/oneapi/setvars.sh --force
             printenv >> $GITHUB_ENV
          - name: Configure cmake build
-           run: >-
-            cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_C_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifx -DBLA_VENDOR=Intel10_64lp -DWITH_TBLITE=false 
+           run: >
+            cmake -B ${{ env.BUILD_DIR }} -G Ninja
+            -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+            -DCMAKE_C_COMPILER=icx
+            -DCMAKE_Fortran_COMPILER=ifx
+            -DBLA_VENDOR=Intel10_64lp
+            -DWITH_TBLITE=ON
+            -DWITH_CPCMX=ON
+
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
          - name: Run unit tests
@@ -326,13 +346,20 @@ jobs:
             source /opt/intel/oneapi/setvars.sh --force
             printenv >> $GITHUB_ENV
          - name: Configure meson build
-           run: >-
-            CC=${{ env.CC }} FC=${{ env.FC }} meson setup ${{ env.BUILD_DIR }} --prefix=/ --libdir=lib -Dfortran_link_args="-lifcoremt -static" -Ddefault_library=static -Dlapack=mkl -Dtblite=disabled
+           run: >
+            CC=${{ env.CC }} FC=${{ env.FC }} meson setup ${{ env.BUILD_DIR }}
+            --prefix=/ --libdir=lib
+            -Dfortran_link_args="-lifcoremt -static"
+            -Ddefault_library=static
+            -Dlapack=mkl
+            -Dtblite=disabled
+
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
          - name: Run unit tests
-           run: >-
-            meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --num-processes 1 --no-rebuild --suite xtb -t 120
+           run: >
+            meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --num-processes 1
+            --no-rebuild --suite xtb -t 120
            env:
             OMP_NUM_THREADS: 2,1
    mingw-meson-static-build:
@@ -395,39 +422,167 @@ jobs:
          - name: Install package
            run: |
             meson install -C ${{ env.BUILD_DIR }} --no-rebuild
-         # Add BLAS/LAPACK DLLs if xtb.exe imports them
-         - name: Add BLAS/LAPACK DLLs if referenced
+
+         - name: Bundle Runtime DLLs
            run: |
-            EXE="xtb-bleed-windows/bin/xtb.exe"
-            [ -f "$EXE" ] || { echo "::error::$EXE not found after install"; exit 1; }
-            for want in libblas.dll liblapack.dll; do
-              if objdump -p "$EXE" \
-                   | sed -n 's/^[[:space:]]*DLL Name:[[:space:]]*//Ip' \
-                   | tr -d '\r' \
-                   | tr '[:upper:]' '[:lower:]' \
-                   | grep -qxF "$want"
-              then
-                path="$(ntldd "$EXE" | awk -v want="$want" 'BEGIN{IGNORECASE=1} {gsub(/\r$/,""); if ($1==want) {print $3; exit}}')"
-                if [ -n "${path:-}" ] && [ -f "$path" ]; then
-                  echo "Bundling $want from $path"
-                  cp -n "$path" "xtb-bleed-windows/bin/"
-                else
-                  echo "::warning::$want referenced but ntldd could not resolve a path"
-                fi
+            [ -d "xtb-bleed-windows/bin" ] || mkdir -p "xtb-bleed-windows/bin"
+            
+            WANTED_DLLS=("libblas.dll" "liblapack.dll" "libgfortran-5.dll" "libgcc_s_seh-1.dll" "libquadmath-0.dll" "libwinpthread-1.dll")
+            
+            for dll in "${WANTED_DLLS[@]}"; do
+              dll_path=$(which "$dll" || true)              
+              if [ -f "$dll_path" ]; then
+                echo "Bundling $dll from $dll_path"
+                cp "$dll_path" "xtb-bleed-windows/bin/"
               else
-                echo "$want not referenced by xtb.exe; skipping."
+                echo "::warning::$dll not found in PATH. The binary might fail on other machines."
               fi
             done
          - name: Create distributable zip
            run: |
-            zip -r xtb-bleed-windows.zip xtb-bleed-windows 
+            zip -r xtb-bleed-windows.zip xtb-bleed-windows
          - name: Upload binary
            if: github.event_name == 'push'
            uses: actions/upload-artifact@v4
            with:
             name: xtb-bleed-windows.zip
             path: xtb-bleed-windows.zip
+
+   windows-intel-ifx-meson-static:
+     runs-on: windows-latest
+     strategy:
+       fail-fast: false
+       matrix:
+         toolchain:
+           - { compiler: intel, version: '2024.1' }
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+       - name: Setup Python
+         uses: actions/setup-python@v5
+         with:
+           python-version: '3.12'
+       - name: Setup Fortran
+         uses: fortran-lang/setup-fortran@v1
+         with:
+           compiler: ${{ matrix.toolchain.compiler }}
+           version: ${{ matrix.toolchain.version }}
+       - name: Install OpenBLAS via Micromamba
+         uses: mamba-org/setup-micromamba@v2
+         with:
+           environment-name: blas-env
+           condarc: |
+             channels:
+               - conda-forge
+               - defaults
+           create-args: >-
+             python=3.12
+             openblas
+             pkg-config
+             meson
+             ninja
+           generate-run-shell: false
+       - name: Configure Environment with OpenBLAS location found by meson
+         shell: cmd
+         run: |
+           set "BLAS_ENV_ROOT=%MAMBA_ROOT_PREFIX%\envs\blas-env"
+           set "BLAS_ENV_LIB=%BLAS_ENV_ROOT%\Library"
+           set "PKG_CONFIG_DIR=%BLAS_ENV_LIB%\lib\pkgconfig"
+           copy "%PKG_CONFIG_DIR%\openblas.pc" "%PKG_CONFIG_DIR%\lapack.pc"
+           copy "%PKG_CONFIG_DIR%\openblas.pc" "%PKG_CONFIG_DIR%\blas.pc"
+           echo PKG_CONFIG_PATH=%PKG_CONFIG_DIR%>> %GITHUB_ENV%
+           echo PATH=%BLAS_ENV_ROOT%\Scripts;%BLAS_ENV_LIB%\bin;%PATH%>> %GITHUB_ENV%
+       - name: Meson Setup
+         shell: cmd
+         run: |
+           meson setup builddir --prefix=%CD%/install --libdir=lib ^
+             -Dlapack=openblas ^
+             -Ddefault_library=static ^
+             -Dc_args="/MT" ^
+             -Dfortran_args="/fpp /names:lowercase /assume:underscore /D__GNUC__ /libs:static /threads" ^
+             -Dfortran_link_args="/Qopenmp /Qopenmp-link:static /ALTERNATENAME:omp_get_num_threads_=omp_get_num_threads /ALTERNATENAME:omp_set_num_threads_=omp_set_num_threads /ALTERNATENAME:system_=SYSTEM /FORCE:MULTIPLE"
+       - name: Patch Source Code to remove DLLEXPORT/DLLIMPORT
+         shell: powershell
+         run: |
+           Write-Host "Patching source files in subprojects to remove DLLEXPORT/DLLIMPORT..."
+           Get-ChildItem -Path subprojects -Recurse -Include *.f90,*.F90 | ForEach-Object {
+               $file = $_.FullName
+               $content = Get-Content $file
+               if ($content -match 'DLLEXPORT|DLLIMPORT') {
+                   Write-Host "  Patching: $file"
+                   $newContent = $content | Where-Object { $_ -notmatch 'DLLEXPORT|DLLIMPORT' }
+                   Set-Content -Path $file -Value $newContent
+               }
+           }
+       - name: Build
+         shell: cmd
+         run: ninja -C builddir
+      #  - name: Test
+      #    shell: cmd
+      #    run: |
+      #      set OMP_NUM_THREADS=2,1
+      #      meson test -C builddir --print-errorlogs --num-processes 1 ^
+      #        --no-rebuild --suite xtb -t 120
+       - name: Install
+         shell: cmd
+         run: ninja -C builddir install
+       - name: Bundle Runtime DLLs (OpenBLAS and IntelOMP)
+         shell: cmd
+         run: |
+           if not exist "install\bin" mkdir "install\bin"
            
+           set "BLAS_ENV_ROOT=%MAMBA_ROOT_PREFIX%\envs\blas-env"
+           if exist "%BLAS_ENV_ROOT%\Library\bin\openblas*.dll" (
+             copy "%BLAS_ENV_ROOT%\Library\bin\openblas*.dll" "install\bin\"
+           )
+
+           for %%d in (libiomp5md.dll) do (
+             where /q %%d
+             if not errorlevel 1 (
+               for /f "usebackq tokens=*" %%f in (`where %%d`) do (
+                  echo Found %%f
+                  copy "%%f" "install\bin\"
+               )
+             ) else (
+               echo Warning: %%d not found in PATH.
+             )
+           )
+       - name: Package artifact
+         shell: cmd
+         run: |
+           cd install
+           powershell -Command "Compress-Archive * ../xtb-bleed-windows-ifx-openblas.zip"
+       - name: Upload artifact
+         uses: actions/upload-artifact@v4
+         with:
+           name: xtb-bleed-windows-ifx-openblas.zip
+           path: xtb-bleed-windows-ifx-openblas.zip
+
+   # smoke test the Windows GNU zip on a fresh windows-latest runner
+   windows-zip-smoke-test:
+      if: github.event_name == 'push'
+      runs-on: windows-latest
+      needs:
+         - mingw-meson-static-build
+      steps:
+         - name: Download Windows artifact
+           uses: actions/download-artifact@v4.1.7
+           with:
+             name: xtb-bleed-windows.zip
+             path: .
+
+         - name: Extract zip
+           shell: pwsh
+           run: |
+             Expand-Archive -LiteralPath 'xtb-bleed-windows.zip' -DestinationPath 'xtb-test' -Force
+
+         - name: Smoke-test xtb.exe
+           shell: pwsh
+           run: |
+             Set-Location 'xtb-test/xtb-bleed-windows/bin'
+             .\xtb.exe --version
+             .\xtb.exe --help
+
    # Inspired from https://github.com/endless-sky/endless-sky
    continuous-delivery:
       if: github.event_name == 'push'
@@ -435,11 +590,14 @@ jobs:
       needs:
          - intel-meson-build
          - mingw-meson-static-build
+         - windows-intel-ifx-meson-static
+         - windows-zip-smoke-test
       env:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          RELEASE_TAG: bleed
          OUTPUT_INTEL: xtb-bleed.tar.xz
          OUTPUT_WINDOWS: xtb-bleed-windows.zip
+         OUTPUT_WINDOWS_IFX: xtb-bleed-windows-ifx-openblas.zip
       steps:
          - uses: actions/checkout@v4
          - name: Install github-release
@@ -465,8 +623,9 @@ jobs:
                echo "RELEASE_COMMAND=edit" >> $GITHUB_ENV
             fi
          - name: Setup continuous release
-           run: >-
-            github-release ${{ env.RELEASE_COMMAND }} --tag ${{ env.RELEASE_TAG }} --name "Bleeding edge version" --description "$DESCRIPTION" --pre-release
+           run: >
+            github-release ${{ env.RELEASE_COMMAND }} --tag ${{ env.RELEASE_TAG }}
+            --name "Bleeding edge version" --description "$DESCRIPTION" --pre-release
            env:
             DESCRIPTION: |
                Created on ${{ env.TIME }} UTC by @${{ github.actor }} with commit ${{ github.sha }}.
@@ -475,20 +634,33 @@ jobs:
          - name: Download Artifacts
            uses: actions/download-artifact@v4.1.7
            with:
-            path: ${{ github.workspace }} # This will download all files
+            path: ${{ github.workspace }}
          - name: Create SHA256 checksums
            run: |
             sha256sum "${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}" > "${{ env.OUTPUT_INTEL }}.sha256"
             sha256sum "${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}" > "${{ env.OUTPUT_WINDOWS }}.sha256"
+            sha256sum "${{ env.OUTPUT_WINDOWS_IFX }}/${{ env.OUTPUT_WINDOWS_IFX }}" > "${{ env.OUTPUT_WINDOWS_IFX }}.sha256"
          - name: Add Linux Intel to release tag
-           run: >-
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name ${{ env.OUTPUT_INTEL }} --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}
+           run: >
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
+            --name ${{ env.OUTPUT_INTEL }} --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}
          - name: Add Linux Intel SHA256 checksums to release tag
-           run: >-
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_INTEL }}.sha256" --file ${{ env.OUTPUT_INTEL }}.sha256
+           run: >
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
+            --name "${{ env.OUTPUT_INTEL }}.sha256" --file ${{ env.OUTPUT_INTEL }}.sha256
          - name: Add Windows GNU to release tag
-           run: >-
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name ${{ env.OUTPUT_WINDOWS }} --file ${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}
+           run: >
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
+            --name ${{ env.OUTPUT_WINDOWS }} --file ${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}
          - name: Add Windows GNU SHA256 checksums to release tag
-           run: >-
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace --name "${{ env.OUTPUT_WINDOWS }}.sha256" --file ${{ env.OUTPUT_WINDOWS }}.sha256
+           run: >
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
+            --name "${{ env.OUTPUT_WINDOWS }}.sha256" --file ${{ env.OUTPUT_WINDOWS }}.sha256
+         - name: Add Windows Intel to release tag
+           run: >
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
+            --name ${{ env.OUTPUT_WINDOWS_IFX }} --file ${{ env.OUTPUT_WINDOWS_IFX }}/${{ env.OUTPUT_WINDOWS_IFX }}
+         - name: Add Windows Intel SHA256 checksums to release tag
+           run: >
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
+            --name "${{ env.OUTPUT_WINDOWS_IFX }}.sha256" --file ${{ env.OUTPUT_WINDOWS_IFX }}.sha256
