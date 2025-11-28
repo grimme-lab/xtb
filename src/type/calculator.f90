@@ -248,13 +248,14 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess)
    real(wp), intent(inout) :: hess(:, :)
 
    type(scc_results) :: res
-   real(wp), allocatable :: distmat(:, :), h0(:, :), displdir(:, :), g(:, :), g0(:, :)
-   real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3)
+   real(wp), allocatable :: distmat(:, :), h0(:, :), displdir(:, :), g(:, :), g0_tmp(:, :), g0(:), x(:), gr(:, :), gl(:, :)
+   real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0
    real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
    logical :: linear
-   integer :: N, i, j, k, Ntr
+   integer :: N, i, j, k, Ntr, info
    
    ! ========== INITIALIZATION ==========
+   ! NOTE: maybe this needs to go to numhess?
    N = 3*mol0%n
    allocate(distmat(N, N), h0(N, N), displdir(N, N), g(N, N))
 
@@ -266,68 +267,72 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess)
    end do
 
    ! calculate unperturbed gradient
-   call self%singlepoint(env, mol0, chk0, -1, .true., energy, g0, sigma, egap, res)
+   call self%singlepoint(env, mol0, chk0, -1, .true., energy, g0_tmp, sigma, egap, res)
+   ! gradients need to be flattened since hessian is also "flat"
+   g0 = reshape(g0_tmp, [N])
 
    ! setup distmat
-   do i = 0, mol0%n - 1
-      do j = i, mol0%n - 1
+   do i = 1, mol0%n
+      do j = i, mol0%n
          dist = mol0%dist(i, j) ! substract vdw radii
-         distmat(3*i+1:3*i+3+1, 3*j+1:3*j+3+1) = dist
-         distmat(3*j+1:3*j+3+1, 3*i+1:3*i+3+1) = dist
+         distmat(3*i-2:3*i, 3*j-2:3*j) = dist
+         distmat(3*j-2:3*j, 3*i-2:3*i) = dist
       end do
    end do
 
-   ! set up initial displdir with trans, rot, and totally symmetric vib mode
-   ! get trans, rot displacements
+   ! set up initial displdir with trans, rot, and totally symmetric vib mode first
+   ! translational displacements
+   do i = 1, N
+      displdir(3*i-2, 1) = 1.0_wp/sqrt(real(mol0%n, wp))
+      displdir(3*i-1, 2) = 1.0_wp/sqrt(real(mol0%n, wp))
+      displdir(3*i, 3) = 1.0_wp/sqrt(real(mol0%n, wp))
+   end do
+   
+   ! calculate inertial moment and axes
+   barycenter = sum(mol0%xyz, dim=2) / real(mol0%n, wp)
    Imat0 = 0.0_wp
    do i = 1, mol0%n
       vec = mol0%xyz(:, i) - barycenter(:)
       Imat0 = Imat0 + matmul(vec, transpose(vec))
    end do
-   Imat = Imat0 * identity3
+   ax = Imat0 * identity3
    do i = 1, 3
       do j = 1, 3
          do k = 1, mol0%n
-            Imat(i, j) = (mol0%xyz(i, k) - barycenter(i)) * (mol0%xyz(j, k) - barycenter(j))
+            ax(i, j) = ax(i, j) - (mol0%xyz(i, k) - barycenter(i)) * (mol0%xyz(j, k) - barycenter(j))
          end do
       end do
    end do
 
-   ! TODO: compute interial moment and inertial tensor
+   call dsyev('V', 'U', 3, ax, 3, inertia, aux, info)
 
-   ! translational displacements
-   do i = 0, N - 1
-      displdir(3*i+1, 1) = 1.0_wp/sqrt(mol0%n)
-      displdir(3*i+1+1, 2) = 1.0_wp/sqrt(mol0%n)
-      displdir(3*i+2+1, 3) = 1.0_wp/sqrt(mol0%n)
-   end do
-   
    ! rotational displacements
-   Ntr = 3
+   Ntr = 3 ! number of translational and rotational degrees of freedom
    do i = 1, 3
       if (inertia(i) < 1e-4_wp) cycle
-      do j = 0, mol0%n - 1
+      do j = 1, mol0%n
          crossprod(ax(:, i), mol0%xyz(:, j) - barycenter(:), cross)
-         displdir(3*j+1:3*j+3+1, Ntr) = cross
+         displdir(3*j-2:3*j, Ntr+1) = cross
       end do
-      displdir(:, Ntr) = displdir(:, Ntr) / norm2(displdir(:, Ntr))
+      displdir(:, Ntr+1) = displdir(:, Ntr+1) / norm2(displdir(:, Ntr+1))
       Ntr = Ntr + 1
-      ! NOTE: is this really correct to normalize before adding more Ntr?
    end do
 
    ! totally symmetric vibrational displacement
-   do i = 0, mol0%n - 1
-      displdir(3*i+1:3*i+3+1, Ntr) = mol0%xyz(:, i) - barycenter(:) ! FIXME: Ntr index
-      displdir(3*i+1:3*i+3+1, Ntr) = displdir(3*i+1:3*i+3+1, Ntr) / norm2(displdir(3*i+1:3*i+3+1, Ntr))
+   do i = 1, mol0%n
+      displdir(3*i-2:3*i, Ntr+1) = mol0%xyz(:, i) - barycenter(:)
+      displdir(3*i-2:3*i, Ntr+1) = displdir(3*i-2:3*i, Ntr+1) / norm2(displdir(3*i-2:3*i, Ntr+1))
    end do
 
    ! generate remaining displdirs based on distmat and dmax
    ! TODO: compute neighbor list
    ! TODO: populate displdir
+   ! NOTE: orthonormalize displdir?
+
+   g = 0.0_wp
+   ! TODO: get gradients along rotational displacements
    
    ! ========== GRADIENT DERIVATIVES ==========
-   ! get gradient derivatives for trans, rot and symmetric vib mode
-   ! calculate remaining gradient derivatives
 
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
