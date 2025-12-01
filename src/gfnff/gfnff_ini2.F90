@@ -842,7 +842,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
                 hblist2(3, nhb2) = nh
                 hblist2(4, nhb2) = iTri
                 hblist2(5, nhb2) = iTrj
-!$              if (nhb2 == N_MAX_LIST) call update_hblist2(nlist, hblist2, nhb2)
+!$              if (nhb2 == N_MAX_LIST) call update_hblist2(nlist, nhb2, hblist2)
                 cycle ! not available for nhb1 !!!
               end if
             end if
@@ -855,7 +855,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
                 hblist2(3, nhb2) = nh
                 hblist2(4, nhb2) = iTrj
                 hblist2(5, nhb2) = iTri
-!$              if (nhb2 == N_MAX_LIST) call update_hblist2(nlist, hblist2, nhb2)
+!$              if (nhb2 == N_MAX_LIST) call update_hblist2(nlist, nhb2, hblist2)
                 cycle ! not available for nhb1 !!!
               end if
             end if
@@ -867,7 +867,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
               hblist1(3, nhb1) = nh
               hblist1(4, nhb1) = iTri
               hblist1(5, nhb1) = iTrj
-!$            if (nhb1 == N_MAX_LIST) call update_hblist1(nlist, hblist1, nhb1)
+!$            if (nhb1 == N_MAX_LIST) call update_hblist1(nlist, nhb1, hblist1)
             end if
           end do ! k: relevant H atoms
         end do ! iTrj
@@ -890,13 +890,13 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       hblist3(3, nxb) = topo%xbatABl(3, ix) ! X
       hblist3(4, nxb) = iTrj
       hblist3(5, nxb) = topo%xbatABl(5, ix) ! iTrX
-!$    if (nxb == N_MAX_LIST) call update_hblist3(nlist, hblist3, nxb)
+!$    if (nxb == N_MAX_LIST) call update_hblist3(nlist, nxb, hblist3)
     end do
     !$omp end do nowait
 
-    call update_hblist1(nlist, hblist1, nhb1)
-    call update_hblist2(nlist, hblist2, nhb2)
-    call update_hblist3(nlist, hblist3, nxb)
+    call update_hblist1(nlist, nhb1, hblist1)
+    call update_hblist2(nlist, nhb2, hblist2)
+    call update_hblist3(nlist, nxb, hblist3)
 
 #ifndef _OPENMP
     end associate
@@ -909,7 +909,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 
   contains
 
-    subroutine update_hblist1(neigh_list, hblist, nhb)
+    subroutine update_hblist1(neigh_list, nhb, hblist)
       type(TGFFNeighbourList), intent(inout) :: neigh_list
       integer, intent(inout) :: nhb
       integer, intent(inout) :: hblist(5, nhb)
@@ -921,7 +921,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 !$    hblist = 0
     end subroutine update_hblist1
 
-    subroutine update_hblist2(neigh_list, hblist, nhb)
+    subroutine update_hblist2(neigh_list, nhb, hblist)
       type(TGFFNeighbourList), intent(inout) :: neigh_list
       integer, intent(inout) :: nhb
       integer, intent(inout) :: hblist(5, nhb)
@@ -933,7 +933,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 !$    hblist = 0
     end subroutine update_hblist2
 
-    subroutine update_hblist3(neigh_list, hblist, nxb)
+    subroutine update_hblist3(neigh_list, nxb, hblist)
       type(TGFFNeighbourList), intent(inout) :: neigh_list
       integer, intent(inout) :: nxb
       integer, intent(inout) :: hblist(5, nxb)
