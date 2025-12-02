@@ -451,116 +451,6 @@ jobs:
             name: xtb-bleed-windows.zip
             path: xtb-bleed-windows.zip
 
-   windows-intel-ifx-meson-static:
-     runs-on: windows-latest
-     strategy:
-       fail-fast: false
-       matrix:
-         toolchain:
-           - { compiler: intel, version: '2024.1' }
-     steps:
-       - name: Checkout code
-         uses: actions/checkout@v4
-       - name: Setup Python
-         uses: actions/setup-python@v5
-         with:
-           python-version: '3.12'
-       - name: Setup Fortran
-         uses: fortran-lang/setup-fortran@v1
-         with:
-           compiler: ${{ matrix.toolchain.compiler }}
-           version: ${{ matrix.toolchain.version }}
-       - name: Install OpenBLAS via Micromamba
-         uses: mamba-org/setup-micromamba@v2
-         with:
-           environment-name: blas-env
-           condarc: |
-             channels:
-               - conda-forge
-               - defaults
-           create-args: >-
-             python=3.12
-             openblas
-             pkg-config
-             meson
-             ninja
-           generate-run-shell: false
-       - name: Configure Environment with OpenBLAS location found by meson
-         shell: cmd
-         run: |
-           set "BLAS_ENV_ROOT=%MAMBA_ROOT_PREFIX%\envs\blas-env"
-           set "BLAS_ENV_LIB=%BLAS_ENV_ROOT%\Library"
-           set "PKG_CONFIG_DIR=%BLAS_ENV_LIB%\lib\pkgconfig"
-           copy "%PKG_CONFIG_DIR%\openblas.pc" "%PKG_CONFIG_DIR%\lapack.pc"
-           copy "%PKG_CONFIG_DIR%\openblas.pc" "%PKG_CONFIG_DIR%\blas.pc"
-           echo PKG_CONFIG_PATH=%PKG_CONFIG_DIR%>> %GITHUB_ENV%
-           echo PATH=%BLAS_ENV_ROOT%\Scripts;%BLAS_ENV_LIB%\bin;%PATH%>> %GITHUB_ENV%
-       - name: Meson Setup
-         shell: cmd
-         run: |
-           meson setup builddir --prefix=%CD%/install --libdir=lib ^
-             -Dlapack=openblas ^
-             -Ddefault_library=static ^
-             -Dc_args="/MT" ^
-             -Dfortran_args="/fpp /names:lowercase /assume:underscore /D__GNUC__ /libs:static /threads" ^
-             -Dfortran_link_args="/Qopenmp /Qopenmp-link:static /ALTERNATENAME:omp_get_num_threads_=omp_get_num_threads /ALTERNATENAME:omp_set_num_threads_=omp_set_num_threads /ALTERNATENAME:system_=SYSTEM /FORCE:MULTIPLE"
-       - name: Patch Source Code to remove DLLEXPORT/DLLIMPORT
-         shell: powershell
-         run: |
-           Write-Host "Patching source files in subprojects to remove DLLEXPORT/DLLIMPORT..."
-           Get-ChildItem -Path subprojects -Recurse -Include *.f90,*.F90 | ForEach-Object {
-               $file = $_.FullName
-               $content = Get-Content $file
-               if ($content -match 'DLLEXPORT|DLLIMPORT') {
-                   Write-Host "  Patching: $file"
-                   $newContent = $content | Where-Object { $_ -notmatch 'DLLEXPORT|DLLIMPORT' }
-                   Set-Content -Path $file -Value $newContent
-               }
-           }
-       - name: Build
-         shell: cmd
-         run: ninja -C builddir
-      #  - name: Test
-      #    shell: cmd
-      #    run: |
-      #      set OMP_NUM_THREADS=2,1
-      #      meson test -C builddir --print-errorlogs --num-processes 1 ^
-      #        --no-rebuild --suite xtb -t 120
-       - name: Install
-         shell: cmd
-         run: ninja -C builddir install
-       - name: Bundle Runtime DLLs (OpenBLAS and IntelOMP)
-         shell: cmd
-         run: |
-           if not exist "install\bin" mkdir "install\bin"
-           
-           set "BLAS_ENV_ROOT=%MAMBA_ROOT_PREFIX%\envs\blas-env"
-           if exist "%BLAS_ENV_ROOT%\Library\bin\openblas*.dll" (
-             copy "%BLAS_ENV_ROOT%\Library\bin\openblas*.dll" "install\bin\"
-           )
-
-           for %%d in (libiomp5md.dll) do (
-             where /q %%d
-             if not errorlevel 1 (
-               for /f "usebackq tokens=*" %%f in (`where %%d`) do (
-                  echo Found %%f
-                  copy "%%f" "install\bin\"
-               )
-             ) else (
-               echo Warning: %%d not found in PATH.
-             )
-           )
-       - name: Package artifact
-         shell: cmd
-         run: |
-           cd install
-           powershell -Command "Compress-Archive * ../xtb-bleed-windows-ifx-openblas.zip"
-       - name: Upload artifact
-         uses: actions/upload-artifact@v4
-         with:
-           name: xtb-bleed-windows-ifx-openblas.zip
-           path: xtb-bleed-windows-ifx-openblas.zip
-
    # Inspired from https://github.com/endless-sky/endless-sky
    continuous-delivery:
       if: github.event_name == 'push'
@@ -568,13 +458,11 @@ jobs:
       needs:
          - intel-meson-build
          - mingw-meson-static-build
-         - windows-intel-ifx-meson-static
       env:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          RELEASE_TAG: bleed
          OUTPUT_INTEL: xtb-bleed.tar.xz
          OUTPUT_WINDOWS: xtb-bleed-windows.zip
-         OUTPUT_WINDOWS_IFX: xtb-bleed-windows-ifx-openblas.zip
       steps:
          - uses: actions/checkout@v4
          - name: Install github-release
@@ -616,7 +504,6 @@ jobs:
            run: |
             sha256sum "${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}" > "${{ env.OUTPUT_INTEL }}.sha256"
             sha256sum "${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}" > "${{ env.OUTPUT_WINDOWS }}.sha256"
-            sha256sum "${{ env.OUTPUT_WINDOWS_IFX }}/${{ env.OUTPUT_WINDOWS_IFX }}" > "${{ env.OUTPUT_WINDOWS_IFX }}.sha256"
          - name: Add Linux Intel to release tag
            run: >
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace
@@ -633,11 +520,3 @@ jobs:
            run: >
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace
             --name "${{ env.OUTPUT_WINDOWS }}.sha256" --file ${{ env.OUTPUT_WINDOWS }}.sha256
-         - name: Add Windows Intel to release tag
-           run: >
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
-            --name ${{ env.OUTPUT_WINDOWS_IFX }} --file ${{ env.OUTPUT_WINDOWS_IFX }}/${{ env.OUTPUT_WINDOWS_IFX }}
-         - name: Add Windows Intel SHA256 checksums to release tag
-           run: >
-            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
-            --name "${{ env.OUTPUT_WINDOWS_IFX }}.sha256" --file ${{ env.OUTPUT_WINDOWS_IFX }}.sha256
