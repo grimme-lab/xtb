@@ -1426,20 +1426,6 @@ end subroutine bond_hb_AHB_set0
 
     !$omp end parallel
 
-    ! the actual size can be larger, so make it save
-    if (neigh%numctr > 1) then
-      nhb1 = (nhb1 * 27)
-      nhb2 = (nhb2 * 27)
-    else
-      nhb1 = (nhb1 * 6)
-      nhb2 = (nhb2 * 6)
-    end if
-    if (nxb > 1000) then
-      nxb = (nxb * 25)
-    else
-      nxb = (nxb * 10)
-    end if
-
   end subroutine gfnff_hbset0
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
