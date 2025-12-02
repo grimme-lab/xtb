@@ -1372,22 +1372,15 @@ end subroutine bond_hb_AHB_set0
           ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
           iTrDum = neigh%fTrSum(neigh%iTrNeg(iTri), iTrj)
           if (iTrDum > neigh%nTrans .or. iTrDum < -1 .or. iTrDum == 0) cycle
-          if (iTrDum == -1) then
-            rab = sum(((xyz(1:3, i) + neigh%transVec(1:3, iTri)) &
-                     - (xyz(1:3, j) + neigh%transVec(1:3, iTrj)))**2)
-            if (rab > hbthr1) cycle
-            ijnonbond = .true. ! i and j are not in neighboring or same cell for iTrDum=-1
+          rab = sum(((xyz(1:3, i) + neigh%transVec(1:3, iTri)) &
+                   - (xyz(1:3, j) + neigh%transVec(1:3, iTrj)))**2)
+          if (rab > hbthr1) cycle
+          ! check if ij bonded
+          if (iTrDum <= neigh%numctr .and. iTrDum > 0) then
+            ijnonbond = neigh%bpair(j, i, iTrDum) /= 1
           else
-            ! check
-            rab = sum((xyz(1:3, i) - (xyz(1:3, j) + neigh%transVec(1:3, iTrDum)))**2)
-            if (rab > hbthr1) cycle
-            ! check if ij bonded
-            if (iTrDum <= neigh%numctr) then
-              ijnonbond = neigh%bpair(j, i, iTrDum) /= 1
-            else
-              ! i and j are not in neighboring cells
-              ijnonbond = .true.
-            end if
+            ! i and j are not in neighboring cells
+            ijnonbond = .true.
           end if
           ! loop over relevant H atoms
           do k = 1, topo%nathbH
@@ -1424,7 +1417,8 @@ end subroutine bond_hb_AHB_set0
       i = topo%xbatABl(1, ix)
       j = topo%xbatABl(2, ix)
       iTrj = topo%xbatABl(4, ix)
-      rab = sum((xyz(1:3, i) - (xyz(1:3, j) + neigh%transVec(1:3, iTrj)))**2)
+      if (iTrj > neigh%nTrans .or. iTrj < -1 .or. iTrj == 0) cycle
+      rab = sum((xyz(1:3, j) - (xyz(1:3, i) + neigh%transVec(1:3, iTrj)))**2)
       if (rab > hbthr2) cycle
       nxb = nxb + 1
     end do
