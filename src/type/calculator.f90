@@ -245,6 +245,22 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    real(wp), intent(in) :: step
    !> Array to add Hessian to
    real(wp), intent(inout) :: hess(:, :)
+   
+   ! UFF vdw radii - could be replaced with any other vdw radii i guess
+   real(wp), parameter :: vdw_radii(1:104) = [ &
+      2.886_wp, 2.362_wp, 2.451_wp, 2.745_wp, 4.083_wp, 3.851_wp, 3.66_wp, 3.5_wp, 3.364_wp, &
+      3.243_wp, 2.983_wp, 3.021_wp, 4.499_wp, 4.295_wp, 4.147_wp, 4.035_wp, 3.947_wp, 3.868_wp, &
+      3.812_wp, 3.399_wp, 3.295_wp, 3.175_wp, 3.144_wp, 3.023_wp, 2.961_wp, 2.912_wp, 2.872_wp, &
+      2.834_wp, 3.495_wp, 2.763_wp, 4.383_wp, 4.28_wp, 4.23_wp, 4.205_wp, 4.189_wp, 4.141_wp, &
+      4.114_wp, 3.641_wp, 3.345_wp, 3.124_wp, 3.165_wp, 3.052_wp, 2.998_wp, 2.963_wp, 2.929_wp, &
+      2.899_wp, 3.148_wp, 2.848_wp, 4.463_wp, 4.392_wp, 4.42_wp, 4.47_wp, 4.5_wp, 4.404_wp, &
+      4.517_wp, 3.703_wp, 3.522_wp, 3.556_wp, 3.606_wp, 3.575_wp, 3.547_wp, 3.52_wp, 3.493_wp, &
+      3.368_wp, 3.451_wp, 3.428_wp, 3.409_wp, 3.391_wp, 3.374_wp, 3.355_wp, 3.64_wp, 3.141_wp, &
+      3.17_wp, 3.069_wp, 2.954_wp, 3.12_wp, 2.84_wp, 2.754_wp, 3.293_wp, 2.705_wp, 4.347_wp, &
+      4.297_wp, 4.37_wp, 4.709_wp, 4.75_wp, 4.765_wp, 4.9_wp, 3.677_wp, 3.478_wp, 3.396_wp, &
+      3.424_wp, 3.395_wp, 3.424_wp, 3.424_wp, 3.381_wp, 3.326_wp, 3.339_wp, 3.313_wp, 3.299_wp, &
+      3.286_wp, 3.274_wp, 3.248_wp, 3.236_wp &
+   ] / 2.0_wp / autoaa
 
    type(TMolecule) :: mol
    type(TRestart) :: chk
@@ -259,7 +275,6 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    ! ========== INITIALIZATION ==========
    ! NOTE: maybe this needs to go to numhess?
    N = 3 * mol0%n
-   allocate(distmat(N, N), h0(N, N), displdir(N, N), g(N, N))
 
    ! hessian initial guess
    allocate(h0v(N*(N+1)/2))
@@ -273,14 +288,17 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    g0 = reshape(tmp_grad,[N])
 
    ! setup distmat
+   allocate(distmat(N, N))
    do i = 1, mol0%n
       do j = i, mol0%n
-         dist = mol0%dist(i, j) ! substract vdw radii
+         ! effective distmat
+         dist = mol0%dist(i, j) - vdw_radii(mol0%at(i)) - vdw_radii(mol0%at(j))
          distmat(3 * i - 2:3 * i, 3 * j - 2:3 * j) = dist
          distmat(3 * j - 2:3 * j, 3 * i - 2:3 * i) = dist
       end do
    end do
 
+   allocate(displdir(N, N))
    ! set up initial displdir with trans, rot, and totally symmetric vib mode first
    ! translational displacements
    do i = 1, N
@@ -329,22 +347,22 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
       displdir(3 * i - 2:3 * i, Ntr + 1) = displdir(3 * i - 2:3 * i, Ntr + 1) / norm2(displdir(3 * i - 2:3 * i, Ntr + 1))
    end do
 
+   ! TODO: get gradient derivs along rotational displacements - in numhess
+
    ! generate remaining displdirs based on distmat and dmax
    ! compute neighbor list
-   ! NOTE: original o1numhess implementation creates neighbor list based on distance and tries to create
-   ! a minimal connected graph
    call get_neighbor_list(distmat, N, dmax, neighborlist)
    
+   ! TODO: orthonormalize displdir?
    ! populate displdir
    call gen_displdir(N, Ntr, h0, displdir, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
-   ! TODO: orthonormalize displdir?
 
+   allocate(g(N, ndispl_final))
    g = 0.0_wp
-   ! TODO: get gradient derivs along rotational displacements
    
    ! ========== GRADIENT DERIVATIVES ==========
-   do i = Ntr + 1, N
+   do i = Ntr + 1, ndispl_final
       displmax = maxval(abs(displdir(:, i)))
       ! TODO: what about double sided stuff?
       call mol%copy(mol0)
@@ -360,6 +378,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
    ! compute local hessian
+   ! FIXME: don't pass complete displdir since we only use ndispl_final displacements
    call gen_local_hessian(distmat, displdir, g, dmax, hess)
 
    ! compute low rank correction
@@ -931,17 +950,6 @@ subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
                ! Calc candidates
                ev1 = (coverage(idx) * ev(idx) + locev(k)) / (coverage(idx) + 1.0_wp)
                ev2 = (coverage(idx) * ev(idx) - locev(k)) / (coverage(idx) + 1.0_wp)
-               
-               ! Simple scalar norm approximation or overlap check?
-               ! The python code computes norm of the scalar update? No, it implies norm of accumulated vector.
-               ! But here we iterate element-wise. 
-               ! Python: "norm1 = np.linalg.norm(ev1)" where ev1 is vector.
-               ! Actually, in Python loop `j`, `ev[nblist]` is a slice.
-               ! Calculating true norms of the updated *global* vector slice:
-               
-               ! Since we update elementwise in Fortran loop for clarity, let's look at the decision logic.
-               ! The python logic compares the norm of the slice `ev[nblist]`.
-               ! norm1 = sqrt( sum( (new_slice_vals)^2 ) )
                
                ! We calculate norms squared for decision
                norm1 = 0.0_wp

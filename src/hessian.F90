@@ -185,6 +185,11 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
+   ! TODO: odlr hessian steps go here, complete replacement of default hessian
+   ! - setup of translational, rotational, symmetric vib displacements
+   ! - precalculation of trans/rot/vib gradients
+   ! - recompute if imaginary frequencies found
+
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
