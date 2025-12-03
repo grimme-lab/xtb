@@ -250,7 +250,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    type(TRestart) :: chk
    type(scc_results) :: res
    type(adj_list) :: neighborlist
-   real(wp), allocatable :: distmat(:, :), h0(:, :), displdir(:, :), g(:, :), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :)
+   real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), displdir(:, :), g(:, :), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0, query(1), displmax
    real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1],[3, 3])
    logical :: linear
@@ -262,7 +262,9 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    allocate(distmat(N, N), h0(N, N), displdir(N, N), g(N, N))
 
    ! hessian initial guess
-   call swart_hessian(mol0%xyz, mol0%at, cov_radii, h0)
+   allocate(h0v(N*(N+1)/2))
+   call ddvopt(mol0%xyz, mol0%n, h0v, mol0%at, 20.0_wp)
+   h0 = unpack_sym(h0v, mask, N) ! TODO: mask??
 
    ! calculate unperturbed gradient
    call self%singlepoint(env, mol0, chk0, -1, .true., energy, tmp_grad, sigma, egap, res)
@@ -1023,198 +1025,5 @@ subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
    end do
 
 end subroutine gen_displdir
-
-! Wilson B matrix for bonds (returns length 6)
-function bmat_bond(xyz, i, j) result(B)
-   real(wp), intent(in) :: xyz(:,:)
-   integer, intent(in) :: i, j
-   real(wp) :: B(6), vec(3), l
-   
-   vec = xyz(:,i) - xyz(:,j)
-   l = norm2(vec)
-   B = 0.0_wp
-   B(1:3) = vec / l
-   B(4:6) = -vec / l
-end function bmat_bond
-
-! Wilson B matrix for linear angles (returns 2x9)
-function bmat_linangle(xyz, i, j, k) result(B)
-   real(wp), intent(in) :: xyz(:,:)
-   integer, intent(in) :: i, j, k
-   real(wp) :: B(2,9), v1(3), v2(3), vn(3), vn2(3)
-   real(wp) :: l1, l2, nvn
-   
-   v1 = xyz(:,i) - xyz(:,j)
-   v2 = xyz(:,k) - xyz(:,j)
-   l1 = norm2(v1); l2 = norm2(v2)
-   
-   vn = crossProd(v1, v2)
-   nvn = norm2(vn)
-   
-   if (nvn < 1.0e-15_wp) then
-      vn = [1.0_wp, 0.0_wp, 0.0_wp]
-      vn = vn - dot_product(vn, v1)/(l1**2)*v1
-      if (norm2(vn) < 1.0e-15_wp) then
-            vn = [0.0_wp, 1.0_wp, 0.0_wp]
-            vn = vn - dot_product(vn, v1)/(l1**2)*v1
-      end if
-   end if
-   vn = vn / norm2(vn)
-   vn2 = crossProd(v1-v2, vn)
-   vn2 = vn2 / norm2(vn2)
-
-   B = 0.0_wp
-   ! Row 2 (index 2 in Fortran) matches Python B[1,:]
-   B(2,1:3) = vn / l1
-   B(2,7:9) = vn / l2
-   B(2,4:6) = -B(2,1:3) - B(2,7:9)
-   ! Row 1 (index 1 in Fortran) matches Python B[0,:]
-   B(1,1:3) = vn2 / l1
-   B(1,7:9) = vn2 / l2
-   B(1,4:6) = -B(1,1:3) - B(1,7:9)
-end function bmat_linangle
-
-! Wilson B matrix for nonlinear angles (returns length 9)
-function bmat_angle(xyz, i, j, k) result(B)
-   real(wp), intent(in) :: xyz(:,:)
-   integer, intent(in) :: i, j, k
-   real(wp) :: B(9), v1(3), v2(3), nv1(3), nv2(3)
-   real(wp) :: l1, l2, dl(2,6), dnvec(2,3,6), dip(9)
-   integer :: ii, m
-
-   v1 = xyz(:,i) - xyz(:,j)
-   v2 = xyz(:,k) - xyz(:,j)
-   l1 = norm2(v1); l2 = norm2(v2)
-   nv1 = v1/l1; nv2 = v2/l2
-   
-   dl = 0.0_wp
-   dl(1,1:3) = nv1; dl(1,4:6) = -nv1
-   dl(2,1:3) = nv2; dl(2,4:6) = -nv2
-   
-   dnvec = 0.0_wp
-   do m = 1, 6
-      dnvec(1,:,m) = -nv1 * dl(1,m) / l1
-      dnvec(2,:,m) = -nv2 * dl(2,m) / l2
-   end do
-   
-   do m = 1, 3
-      dnvec(1,m,m)   = dnvec(1,m,m)   + 1.0_wp/l1
-      dnvec(2,m,m)   = dnvec(2,m,m)   + 1.0_wp/l2
-      dnvec(1,m,m+3) = dnvec(1,m,m+3) - 1.0_wp/l1
-      dnvec(2,m,m+3) = dnvec(2,m,m+3) - 1.0_wp/l2
-   end do
-
-   do m = 1, 3
-      dip(m)   = dot_product(dnvec(1,:,m), nv2)
-      dip(m+3) = dot_product(dnvec(1,:,m+3), nv2) + dot_product(dnvec(2,:,m+3), nv1)
-      dip(m+6) = dot_product(dnvec(2,:,m), nv1)
-   end do
-
-   B = -dip / sqrt(max(1.0e-15_wp, 1.0_wp - dot_product(nv1, nv2)**2))
-end function bmat_angle
-
-! Swart's model Hessian
-subroutine swart_hessian(xyz, atnums, cov_radii, H)
-   real(wp), intent(in) :: xyz(:,:) ! (3, natom)
-   integer, intent(in)  :: atnums(:)
-   real(wp), intent(in) :: cov_radii(:) 
-   real(wp), intent(out), allocatable :: H(:,:)
-
-   integer :: n, i, j, k, p, q
-   real(wp) :: d_ij, eq_dist, hint, costh, sinth, th1, scalelin, s_ijjk
-   real(wp), allocatable :: scfunc(:,:), covrad(:)
-   real(wp) :: Bb(6), Ba(9), Blin(2,9)
-   integer :: idx_b(6), idx_a(9)
-   real(wp), parameter :: wthr = 0.3_wp, f = 0.12_wp, tolth = 0.2_wp
-
-   n = size(atnums)
-   allocate(H(3*n, 3*n), scfunc(n,n), covrad(n))
-   H = 0.0_wp
-   scfunc = 0.0_wp
-
-   do i = 1, n
-      covrad(i) = cov_radii(atnums(i))
-   end do
-
-   ! Screening function and Distances
-   do i = 1, n
-      do j = i+1, n
-            d_ij = norm2(xyz(:,i) - xyz(:,j))
-            eq_dist = covrad(i) + covrad(j)
-            scfunc(i,j) = exp(1.0_wp - d_ij/eq_dist)
-            scfunc(j,i) = scfunc(i,j)
-      end do
-   end do
-
-   ! Bonds
-   do i = 1, n
-      do j = i+1, n
-            hint = 0.35_wp * scfunc(i,j)**3
-            Bb = bmat_bond(xyz, i, j)
-            
-            idx_b(1:3) = [(3*(i-1)+p, p=1,3)]
-            idx_b(4:6) = [(3*(j-1)+p, p=1,3)]
-            
-            do p = 1, 6
-               do q = 1, 6
-                  H(idx_b(p), idx_b(q)) = H(idx_b(p), idx_b(q)) + hint * Bb(p) * Bb(q)
-               end do
-            end do
-      end do
-   end do
-
-   ! Angles
-   do i = 1, n
-      do j = 1, n
-            if (i == j .or. scfunc(i,j) < (wthr**2 / exp(1.0_wp))) cycle
-            do k = i+1, n
-               if (k == j) cycle
-               s_ijjk = scfunc(i,j) * scfunc(j,k)
-               if (s_ijjk < wthr**2) cycle
-
-               costh = dot_product(xyz(:,i)-xyz(:,j), xyz(:,k)-xyz(:,j)) / &
-                        (norm2(xyz(:,i)-xyz(:,j)) * norm2(xyz(:,k)-xyz(:,j)))
-               costh = max(-1.0_wp, min(1.0_wp, costh)) 
-               sinth = sqrt(max(0.0_wp, 1.0_wp - costh**2))
-               
-               hint = 0.075_wp * (s_ijjk**2) * ((f + (1.0_wp-f)*sinth)**2)
-               Ba = bmat_angle(xyz, i, j, k)
-               
-               if (costh > 1.0_wp - tolth) then
-                  th1 = 1.0_wp - costh
-               else 
-                  th1 = 1.0_wp + costh
-               end if
-
-               idx_a(1:3) = [(3*(i-1)+p, p=1,3)]
-               idx_a(4:6) = [(3*(j-1)+p, p=1,3)]
-               idx_a(7:9) = [(3*(k-1)+p, p=1,3)]
-
-               if (th1 < tolth) then
-                  scalelin = (1.0_wp - (th1/tolth)**2)**2
-                  if (costh > 1.0_wp - tolth) then ! Near 180
-                        Blin = bmat_linangle(xyz, i, j, k)
-                        Ba = scalelin * Blin(1,:) + (1.0_wp - scalelin) * Ba
-                        ! Out-of-plane linear term
-                        do p = 1, 9
-                           do q = 1, 9
-                              H(idx_a(p), idx_a(q)) = H(idx_a(p), idx_a(q)) + &
-                                                      hint * Blin(2,p) * Blin(2,q)
-                           end do
-                        end do
-                  else ! Near 0
-                        Ba = (1.0_wp - scalelin) * Ba
-                  end if
-               end if
-               
-               do p = 1, 9
-                  do q = 1, 9
-                        H(idx_a(p), idx_a(q)) = H(idx_a(p), idx_a(q)) + hint * Ba(p) * Ba(q)
-                  end do
-               end do
-            end do
-      end do
-   end do
-end subroutine swart_hessian
 
 end module xtb_type_calculator
