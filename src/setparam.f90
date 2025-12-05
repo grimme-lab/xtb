@@ -107,7 +107,7 @@ module xtb_setparam
       !> inner region charge
       integer  :: innerchrg
 
-      !> explicite charges (inner:outer)
+      !> explicit charges (inner:outer)
       logical :: fixed_chrgs= .false.
       
       !> cut high order(>1) covalent bonds
@@ -119,7 +119,7 @@ module xtb_setparam
       !> dummy execution to check inner region geo and chrg
       logical :: cut_inner = .false.
 
-      !> explicite spin (inner:outer)
+      !> explicit spin (inner:outer)
       logical :: fixed_spin = .false.
 
       !> inner region spin
