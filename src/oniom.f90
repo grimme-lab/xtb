@@ -292,12 +292,17 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    ! define inner region charge !
    inner_mol%chrg = real(set%oniom_settings%innerchrg)
 
+   ! define inner region unpaired electrons
+   inner_mol%uhf = set%oniom_settings%innerspin
+
    ! --cut flag termination !
    if (set%oniom_settings%cut_inner) then
       
       write(env%unit,'(a)')
       write(env%unit,'(2x,72("-"))')
       write(env%unit,'(2x,"|",24x,a,1x,i0,22x,"|")') "INNER REGION CHARGE = ", nint(inner_mol%chrg)
+      write(env%unit, '(2x,"|",24x,a,1x,i0,10x,"|")') "INNER REGION UNPAIRED ELECTRONS = ", inner_mol%uhf
+      write(env%unit, '(2x,"|",24x,a,1x,i0,10x,"|")') "WHOLE REGION UNPAIRED ELECTRONS = ", mol%uhf
       write(env%unit,'(2x,72("-"))')
       write(env%unit,'(a)')
       call terminate(0)

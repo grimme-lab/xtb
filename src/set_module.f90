@@ -1201,18 +1201,43 @@ end subroutine set_chrg
 
 
 subroutine set_spin(env,val)
+
    implicit none
+
    character(len=*), parameter :: source = 'set_spin'
+
    type(TEnvironment), intent(inout) :: env
+
    character(len=*),intent(in) :: val
+
    integer  :: err
    integer  :: idum
+   integer :: ind, idum1, idum2
    logical,save :: set1 = .true.
+
    if (set1) then
-      if (getValue(env,val,idum)) then
-         set%nalphabeta = idum
-      else
-         call env%error('Spin could not be read from your argument',source)
+
+      ind = index(val,":")
+
+      if (ind.ne.0) then
+         if ( getValue(env, val(:ind-1), idum1)  .and. &
+            & getValue(env, val(ind+1:), idum2)) then
+            set%oniom_settings%fixed_spin = .true.
+            set%oniom_settings%innerspin = idum1
+            set%nalphabeta = idum2
+         else
+            call env%error('Spin could not be read from your argument', source)
+            
+         end if
+
+      ! conventional
+      else 
+
+         if (getValue(env,val,idum)) then
+            set%nalphabeta = idum
+         else
+            call env%error('Spin could not be read from your argument',source)
+         endif
       endif
    endif
    set1 = .false.

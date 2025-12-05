@@ -682,7 +682,9 @@ contains
          if (.not. set%oniom_settings%fixed_chrgs) then
             set%oniom_settings%innerchrg = calculateCharge(calc, env, mol, chk)
          end if
-
+         if (.not. set%oniom_settings%fixed_spin) then
+            set%oniom_settings%innerspin = mol%uhf
+         end if
       end select
       !-------------------------------------------------------------------------
       !> DIPRO calculation of coupling integrals for dimers
