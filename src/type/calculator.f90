@@ -45,6 +45,8 @@ module xtb_type_calculator
       !> Perform hessian calculation
       procedure :: hessian
 
+      procedure :: odlrhessian
+
       !> Write informative printout
       procedure(writeInfo), deferred :: writeInfo
 
@@ -229,7 +231,7 @@ end subroutine hessian_point
 
 !> Evaluate hessian using O1NumHess algorithm
 !> Implementation according to Wang et al. (https://doi.org/10.48550/arXiv.2508.07544)
-subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this needs to return displdir and g for more manipulations
+subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    character(len=*), parameter :: source = "hessian_odlr"
    !> Single point calculator
    class(TCalculator), intent(inout) :: self
@@ -243,6 +245,10 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    integer, intent(in) :: list(:)
    !> Step size for numerical differentiation
    real(wp), intent(in) :: step
+   !> Displacement directions
+   real(wp), intent(inout) :: displdir(:, :)
+   !> Gradients
+   real(wp), intent(inout) :: g(:, :)
    !> Array to add Hessian to
    real(wp), intent(inout) :: hess(:, :)
    
@@ -266,7 +272,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    type(TRestart) :: chk
    type(scc_results) :: res
    type(adj_list) :: neighborlist
-   real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), displdir(:, :), g(:, :), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :)
+   real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0, query(1), displmax
    real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1],[3, 3])
    logical :: linear
@@ -277,9 +283,14 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    N = 3 * mol0%n
 
    ! hessian initial guess
-   allocate(h0v(N*(N+1)/2))
-   call ddvopt(mol0%xyz, mol0%n, h0v, mol0%at, 20.0_wp)
-   h0 = unpack_sym(h0v, mask, N) ! TODO: mask??
+   ! allocate(h0v(N*(N+1)/2))
+   ! call ddvopt(mol0%xyz, mol0%n, h0v, mol0%at, 20.0_wp)
+   ! h0 = unpack_sym(h0v, mask, N) ! TODO: mask??
+   allocate(h0(N, N))
+   h0 = 0.0_wp
+   do i = 1, N
+      h0(i, i) = 1.0_wp
+   end do
 
    ! calculate unperturbed gradient
    call self%singlepoint(env, mol0, chk0, -1, .true., energy, tmp_grad, sigma, egap, res)
@@ -289,64 +300,69 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
 
    ! setup distmat
    allocate(distmat(N, N))
+   ! do i = 1, mol0%n
+   !    do j = i, mol0%n
+   !       ! effective distmat
+   !       dist = mol0%dist(i, j) - vdw_radii(mol0%at(i)) - vdw_radii(mol0%at(j))
+   !       distmat(3 * i - 2:3 * i, 3 * j - 2:3 * j) = dist
+   !       distmat(3 * j - 2:3 * j, 3 * i - 2:3 * i) = dist
+   !    end do
+   ! end do
    do i = 1, mol0%n
-      do j = i, mol0%n
-         ! effective distmat
-         dist = mol0%dist(i, j) - vdw_radii(mol0%at(i)) - vdw_radii(mol0%at(j))
-         distmat(3 * i - 2:3 * i, 3 * j - 2:3 * j) = dist
-         distmat(3 * j - 2:3 * j, 3 * i - 2:3 * i) = dist
+      do j = 1, mol0%n
+         distmat(i, j) = abs(i - j)
       end do
    end do
 
    allocate(displdir(N, N))
-   ! set up initial displdir with trans, rot, and totally symmetric vib mode first
-   ! translational displacements
-   do i = 1, N
-      displdir(3 * i - 2, 1) = 1.0_wp / sqrt(real(mol0%n, wp))
-      displdir(3 * i - 1, 2) = 1.0_wp / sqrt(real(mol0%n, wp))
-      displdir(3 * i, 3) = 1.0_wp / sqrt(real(mol0%n, wp))
-   end do
-   
-   ! calculate inertial moment and axes
-   barycenter = sum(mol0%xyz, dim=2) / real(mol0%n, wp)
-   Imat0 = 0.0_wp
-   do i = 1, mol0%n
-      vec = mol0%xyz(:, i) - barycenter(:)
-      Imat0 = Imat0 + matmul(vec, transpose(vec))
-   end do
-   ax = Imat0 * identity3
-   do i = 1, 3
-      do j = 1, 3
-         do k = 1, mol0%n
-            ax(i, j) = ax(i, j) - (mol0%xyz(i, k) - barycenter(i)) * (mol0%xyz(j, k) - barycenter(j))
-         end do
-      end do
-   end do
-
-   lwork = -1
-   call dsyev('V', 'U', 3, ax, 3, inertia, query, lwork, info)
-   lwork = int(query(1))
-   allocate(aux(lwork))
-   call dsyev('V', 'U', 3, ax, 3, inertia, aux, lwork, info)
-
-   ! rotational displacements
-   Ntr = 3 ! number of translational and rotational degrees of freedom
-   do i = 1, 3
-      if (inertia(i) < 1e-4_wp) cycle
-      do j = 1, mol0%n
-         crossProd(ax(:, i), mol0%xyz(:, j) - barycenter(:), cross)
-         displdir(3 * j - 2:3 * j, Ntr + 1) = cross
-      end do
-      displdir(:, Ntr + 1) = displdir(:, Ntr + 1) / norm2(displdir(:, Ntr + 1))
-      Ntr = Ntr + 1
-   end do
-
-   ! totally symmetric vibrational displacement
-   do i = 1, mol0%n
-      displdir(3 * i - 2:3 * i, Ntr + 1) = mol0%xyz(:, i) - barycenter(:)
-      displdir(3 * i - 2:3 * i, Ntr + 1) = displdir(3 * i - 2:3 * i, Ntr + 1) / norm2(displdir(3 * i - 2:3 * i, Ntr + 1))
-   end do
-
+   ! ! set up initial displdir with trans, rot, and totally symmetric vib mode first
+   ! ! translational displacements
+   ! do i = 1, N
+   !    displdir(3 * i - 2, 1) = 1.0_wp / sqrt(real(mol0%n, wp))
+   !    displdir(3 * i - 1, 2) = 1.0_wp / sqrt(real(mol0%n, wp))
+   !    displdir(3 * i, 3) = 1.0_wp / sqrt(real(mol0%n, wp))
+   ! end do
+   !
+   ! ! calculate inertial moment and axes
+   ! barycenter = sum(mol0%xyz, dim=2) / real(mol0%n, wp)
+   ! Imat0 = 0.0_wp
+   ! do i = 1, mol0%n
+   !    vec = mol0%xyz(:, i) - barycenter(:)
+   !    Imat0 = Imat0 + matmul(vec, transpose(vec))
+   ! end do
+   ! ax = Imat0 * identity3
+   ! do i = 1, 3
+   !    do j = 1, 3
+   !       do k = 1, mol0%n
+   !          ax(i, j) = ax(i, j) - (mol0%xyz(i, k) - barycenter(i)) * (mol0%xyz(j, k) - barycenter(j))
+   !       end do
+   !    end do
+   ! end do
+   !
+   ! lwork = -1
+   ! call dsyev('V', 'U', 3, ax, 3, inertia, query, lwork, info)
+   ! lwork = int(query(1))
+   ! allocate(aux(lwork))
+   ! call dsyev('V', 'U', 3, ax, 3, inertia, aux, lwork, info)
+   !
+   ! ! rotational displacements
+   ! Ntr = 3 ! number of translational and rotational degrees of freedom
+   ! do i = 1, 3
+   !    if (inertia(i) < 1e-4_wp) cycle
+   !    do j = 1, mol0%n
+   !       crossProd(ax(:, i), mol0%xyz(:, j) - barycenter(:), cross)
+   !       displdir(3 * j - 2:3 * j, Ntr + 1) = cross
+   !    end do
+   !    displdir(:, Ntr + 1) = displdir(:, Ntr + 1) / norm2(displdir(:, Ntr + 1))
+   !    Ntr = Ntr + 1
+   ! end do
+   !
+   ! ! totally symmetric vibrational displacement
+   ! do i = 1, mol0%n
+   !    displdir(3 * i - 2:3 * i, Ntr + 1) = mol0%xyz(:, i) - barycenter(:)
+   !    displdir(3 * i - 2:3 * i, Ntr + 1) = displdir(3 * i - 2:3 * i, Ntr + 1) / norm2(displdir(3 * i - 2:3 * i, Ntr + 1))
+   ! end do
+   !
    ! TODO: get gradient derivs along rotational displacements - in numhess
 
    ! generate remaining displdirs based on distmat and dmax
@@ -355,11 +371,12 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, hess) ! TODO: this nee
    
    ! TODO: orthonormalize displdir?
    ! populate displdir
+   Ntr = 0
    call gen_displdir(N, Ntr, h0, displdir, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
 
    allocate(g(N, ndispl_final))
-   g = 0.0_wp
+   g = 0.0_wp ! TODO: this should not be done in general since gradient derivs might be input
    
    ! ========== GRADIENT DERIVATIVES ==========
    do i = Ntr + 1, ndispl_final
@@ -405,7 +422,7 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    real(wp), allocatable :: rhsv(:), hnumv(:)
    real(wp), allocatable :: W2(:, :), RHS(:, :), D_DT(:, :)
    logical, allocatable :: mask(:, :), mask_tril(:, :)
-   integer :: l, m, ndim, ndispl = size(displdir, 1)
+   integer :: l, m, ndim, ndispl = size(displdir, 1), N = size(distmat, 1)
    
    ! 1. Calculate Regularization Term W2
    allocate(W2(N, N))
@@ -416,13 +433,13 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    end do
 
    ! 2. Calculate RHS = (g * displdir^T)
-   allocate(RHS(N, N))
+   allocate(RHS(ndispl, ndispl))
    ! Call BLAS DGEMM: RHS = 1.0 * g * displdir^T
-   call dgemm('N', 'T', N, N, ndispl, 1.0_wp, g, N, displdir, N, 0.0_wp, RHS, N)
+   call dgemm('N', 'T', N, ndispl, ndispl, 1.0_wp, g, N, displdir, N, 0.0_wp, RHS, ndispl)
    
    ! Force Symmetry
-   do m = 1, N
-      do l = 1, N
+   do m = 1, ndispl
+      do l = 1, ndispl
             RHS(l, m) = 0.5_wp * (RHS(l, m) + RHS(m, l))
       end do
    end do
