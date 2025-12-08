@@ -185,6 +185,7 @@ contains
       real(wp), parameter :: sstep = 1.0_wp * 10.0_wp**(-6), sstep2 = 0.5_wp / sstep ! for numerical sigma
       real(wp) :: er, el
       logical :: coffee ! if debugging gets really though, get a coffee
+      integer :: iter_needed = 0
 
 !! ------------------------------------------------------------------------
 !  undocumented and unexplainable variables go here
@@ -846,7 +847,7 @@ contains
          ! calculation !
          call geometry_optimization &
             &     (env, mol, chk, calc, &
-        &      egap,set%etemp,set%maxscciter,set%optset%maxoptcycle,etot,g,sigma,set%optset%optlev,.true.,.false.,murks)
+        &      egap,set%etemp,set%maxscciter,set%optset%maxoptcycle,etot,g,sigma,set%optset%optlev,.true.,.false.,murks, iter_needed)
 
          ! save results !
          res%e_total = etot
@@ -1013,7 +1014,7 @@ contains
 
       call generic_header(iprop, 'Property Printout', 49, 10)
       if (lgrad) then
-         call writeResultsTurbomole(mol, energy=etot, gradient=g, sigma=sigma)
+         call writeResultsTurbomole(mol, energy=etot, gradient=g, sigma=sigma, cycle=iter_needed)
          if (allocated(basename)) then
             cdum = basename//'.engrad'
          else
