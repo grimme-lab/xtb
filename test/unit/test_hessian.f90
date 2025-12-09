@@ -43,7 +43,9 @@ subroutine collect_hessian(testsuite)
 
    testsuite = [ &
       new_unittest("gfn1", test_gfn1_hessian), &
-      new_unittest("gfn2", test_gfn2_hessian) &
+      new_unittest("gfn2", test_gfn2_hessian), &
+      new_unittest("gfn1_o1numhess", test_gfn1_o1numhess), &
+      new_unittest("gfn2_o1numhess", test_gfn2_o1numhess) &
       ]
 
 end subroutine collect_hessian
