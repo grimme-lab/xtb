@@ -17,6 +17,7 @@
 
 !> abstract calculator that hides implementation details from calling codes
 module xtb_type_calculator
+   use xtb_mctc_convert, only : autoaa
    use xtb_mctc_math, only : crossProd
    use xtb_mctc_accuracy, only : wp
    use xtb_solv_model, only : TSolvModel
@@ -45,6 +46,7 @@ module xtb_type_calculator
       !> Perform hessian calculation
       procedure :: hessian
 
+      !> Perform ODLR approximated numerical hessian
       procedure :: odlrhessian
 
       !> Write informative printout
@@ -229,7 +231,6 @@ subroutine hessian_point(self, env, mol0, chk0, iat, ic, step, energy, gradient,
 
 end subroutine hessian_point
 
-!> Evaluate hessian using O1NumHess algorithm
 !> Implementation according to Wang et al. (https://doi.org/10.48550/arXiv.2508.07544)
 subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    character(len=*), parameter :: source = "hessian_odlr"
@@ -253,7 +254,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    real(wp), intent(inout) :: hess(:, :)
    
    ! UFF vdw radii - could be replaced with any other vdw radii i guess
-   real(wp), parameter :: vdw_radii(1:104) = [ &
+   real(wp), parameter :: vdw_radii(1:103) = [ &
       2.886_wp, 2.362_wp, 2.451_wp, 2.745_wp, 4.083_wp, 3.851_wp, 3.66_wp, 3.5_wp, 3.364_wp, &
       3.243_wp, 2.983_wp, 3.021_wp, 4.499_wp, 4.295_wp, 4.147_wp, 4.035_wp, 3.947_wp, 3.868_wp, &
       3.812_wp, 3.399_wp, 3.295_wp, 3.175_wp, 3.144_wp, 3.023_wp, 2.961_wp, 2.912_wp, 2.872_wp, &
@@ -267,20 +268,25 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
       3.424_wp, 3.395_wp, 3.424_wp, 3.424_wp, 3.381_wp, 3.326_wp, 3.339_wp, 3.313_wp, 3.299_wp, &
       3.286_wp, 3.274_wp, 3.248_wp, 3.236_wp &
    ] / 2.0_wp / autoaa
+   real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp
 
    type(TMolecule) :: mol
    type(TRestart) :: chk
    type(scc_results) :: res
-   type(adj_list) :: neighborlist
+   type(adj_list), allocatable :: neighborlist(:)
    real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0, query(1), displmax
-   real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1],[3, 3])
+   real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1],[3, 3]), final_err
    logical :: linear
-   integer :: N, i, j, k, Ntr, info, lwork
+   integer, allocatable :: nbcounts(:)
+   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb
    
    ! ========== INITIALIZATION ==========
    ! NOTE: maybe this needs to go to numhess?
    N = 3 * mol0%n
+
+   call mol%copy(mol0)
+   call chk%copy(chk0)
 
    ! hessian initial guess
    ! allocate(h0v(N*(N+1)/2))
@@ -293,7 +299,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    end do
 
    ! calculate unperturbed gradient
-   call self%singlepoint(env, mol0, chk0, -1, .true., energy, tmp_grad, sigma, egap, res)
+   call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
 
    ! gradients need to be flattened since hessian is also "flat"
    g0 = reshape(tmp_grad,[N])
@@ -314,7 +320,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
       end do
    end do
 
-   allocate(displdir(N, N))
+   ! allocate(displdir(N, N))
    ! ! set up initial displdir with trans, rot, and totally symmetric vib mode first
    ! ! translational displacements
    ! do i = 1, N
@@ -367,7 +373,13 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
 
    ! generate remaining displdirs based on distmat and dmax
    ! compute neighbor list
-   call get_neighbor_list(distmat, N, dmax, neighborlist)
+   call get_neighbor_list(distmat, dmax, neighborlist)
+   allocate(nbcounts(N))
+   max_nb = 0
+   do i = 1, N
+      nbcounts(i) = size(neighborlist(i)%neighbors)
+      if (nbcounts(i) > max_nb) max_nb = nbcounts(i)
+   end do
    
    ! TODO: orthonormalize displdir?
    ! populate displdir
@@ -375,7 +387,6 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    call gen_displdir(N, Ntr, h0, displdir, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
 
-   allocate(g(N, ndispl_final))
    g = 0.0_wp ! TODO: this should not be done in general since gradient derivs might be input
    
    ! ========== GRADIENT DERIVATIVES ==========
@@ -398,7 +409,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    call gen_local_hessian(distmat, displdir, g, dmax, hess)
 
    ! compute low rank correction
-   call lr_loop(g, hess, displdir, final_err)
+   call lr_loop(ndispl_final, g, hess, displdir, final_err)
 
 end subroutine odlrhessian
 
@@ -421,9 +432,12 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    integer, allocatable :: idx_map(:, :)
    real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), D(:, :)
    logical, allocatable :: mask(:, :), mask_ut(:, :)
-   integer :: i, j, k, ndim, ndispl = size(displdir, 1), N = size(distmat, 1), idx_ij, idx_kl
+   integer :: i, j, k, l, ndim, ndispl, N, idx_ij, idx_kl, info
    real(wp) :: Dij_dot_Dkl
-   
+
+   ndispl = size(displdir, 1)
+   N = size(distmat, 1)
+
    ! Calculate Regularization Term W2
    allocate(W2(N, N))
    W2 = lam * max(0.0_wp, distmat(:, :) - dmax)**(2.0_wp * bet)
@@ -461,7 +475,7 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    end do
 
    allocate(D(N, N))
-   call dgemm('N', 'T', N, N, ndisp, 1.0_dp, displdir, N, displdir, N, 0.0_wp, D, N)
+   call dgemm('N', 'T', N, N, ndispl, 1.0_wp, displdir, N, displdir, N, 0.0_wp, D, N)
 
    ! Compute A
    allocate(A(ndim, ndim))
@@ -473,16 +487,16 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
          if (.not. mask_ut(i, j)) cycle
          idx_ij = idx_map(i, j)
          
-         do i = 2, n
-            do k = 1, i - 1
-               if (.not. mask_ut(k, i)) cycle
-               idx_kl = idx_map(k, i)
+         do l = 2, n
+            do k = 1, l - 1
+               if (.not. mask_ut(k, l)) cycle
+               idx_kl = idx_map(k, l)
                
                !  Only compute upper triangle of A (it's symmetric)
                if (idx_kl < idx_ij) cycle
                
                !  A[(i,j),(k,l)] = D(i,k)*D(j,l) + D(i,l)*D(j,k)
-               Dij_dot_Dkl = D(i,k)*D(j,i) + D(i,i)*D(j,k)
+               Dij_dot_Dkl = D(i,k)*D(j,l) + D(i,l)*D(j,k)
                
                A(idx_ij, idx_kl) = Dij_dot_Dkl
                
@@ -520,24 +534,27 @@ end subroutine gen_local_hessian
 
 !> Corrects Hessian hnum using a symmetric, low-rank update
 !> so that g approx hnum * displdir
-subroutine lr_loop(g_in, hess_out, d_in, final_err)
-   real(wp), intent(in) :: g_in(N, N)    ! Input Gradients
-   real(wp), intent(inout) :: hess_out(N, N) ! Hessian to correct
-   real(wp), intent(in) :: d_in(N, N)    ! Displacement directions
+subroutine lr_loop(ndispl, g_in, hess_out, d_in, final_err)
+   integer, intent(in) :: ndispl
+   real(wp), intent(in) :: g_in(:, :)    ! Input Gradients
+   real(wp), intent(inout) :: hess_out(:, :) ! Hessian to correct
+   real(wp), intent(in) :: d_in(:, :)    ! Displacement directions
    real(wp), intent(out) :: final_err ! Final residual error
 
    real(wp), parameter :: mingrad_LR = 1.0e-3_wp
-   real(wp), parameter :: thresh_LR = 1.0_e - 8_wp
+   real(wp), parameter :: thresh_LR = 1.0e-8_wp
    integer, parameter :: maxiter_LR = 100
 
    ! Local variables
    real(wp), allocatable :: g_local(:, :), displdir_local(:, :)
    real(wp), allocatable :: resid(:, :), hcorr(:, :)
-   real(wp) :: dampfac, err0, err, norm_g, norm_gi
-   integer :: i, j, it
+   real(wp) :: dampfac, err0, err, norm_g, norm_gi, val
+   integer :: i, j, it, N
    
    ! BLAS Helper
    real(wp), external :: dnrm2
+
+   N = size(g_in, 1)
 
    allocate(g_local(N, N), displdir_local(N, N))
    allocate(resid(N, N), hcorr(N, N))
@@ -546,7 +563,7 @@ subroutine lr_loop(g_in, hess_out, d_in, final_err)
    g_local = 0.0_wp
    displdir_local = 0.0_wp
    
-   do i = 1, k
+   do i = 1, ndispl
       ! Python: norm_gi = max(norm(g[:,i]), mingrad)
       norm_gi = max(dnrm2(n, g_in(:, i), 1), mingrad_LR)
       
@@ -558,8 +575,8 @@ subroutine lr_loop(g_in, hess_out, d_in, final_err)
    dampfac = 1.0_wp
    err0 = huge(1.0_wp)
    
-   ! Calculate Frobenius norm of entire matrix G (treated as vector of size n*k)
-   norm_g = dnrm2(N * k, g_local, 1)
+   ! Calculate Frobenius norm of entire matrix G (treated as vector of size n*ndispl)
+   norm_g = dnrm2(N * ndispl, g_local, 1)
 
    ! 2. Iterative Correction Loop
    loop_lr: do it = 1, maxiter_LR
@@ -568,7 +585,7 @@ subroutine lr_loop(g_in, hess_out, d_in, final_err)
       
       ! Call DGEMM: C = alpha*A*B + beta*C
       ! resid = (-1.0) * hnum * d + (1.0) * resid
-      call dgemm('N', 'N', N, k, N, -1.0_wp, hess_out, N, displdir_local, N, 1.0_wp, resid, N)
+      call dgemm('N', 'N', N, ndispl, N, -1.0_wp, hess_out, N, displdir_local, N, 1.0_wp, resid, N)
       
       err = dnrm2(N * N, resid, 1)
       
@@ -592,14 +609,13 @@ subroutine lr_loop(g_in, hess_out, d_in, final_err)
 
       ! hcorr = resid * d^T
       ! DGEMM: C = alpha*A*B^T + beta*C
-      call dgemm('N', 'T', N, N, k, 1.0_wp, resid, N, displdir_local, N, 0.0_wp, hcorr, N)
+      call dgemm('N', 'T', N, N, ndispl, 1.0_wp, resid, N, displdir_local, N, 0.0_wp, hcorr, N)
       
       ! Symmetrize hcorr and Apply Update to hnum
       ! hnum = hnum + dampfac * 0.5 * (hcorr + hcorr^T)
       do j = 1, N
             do i = 1, N
                ! Average off-diagonals
-               real(wp) :: val
                val = 0.5_wp * (hcorr(i, j) + hcorr(j, i))
                hess_out(i, j) = hess_out(i, j) + (dampfac * val)
             end do
@@ -641,11 +657,12 @@ subroutine get_neighbor_list(distmat, dmax, nblist)
    integer, allocatable :: labels(:)
    real(wp), allocatable :: comp_dist(:, :)
    integer, allocatable :: mst_matrix(:, :)
-   integer :: i, j, ncomp, N = size(distmat, 1)
    real(wp) :: d, min_d
    real(wp), parameter :: eps = 1.0e-8_wp
+   integer :: i, j, ncomp, N
 
-   allocate(nblist(n))
+   N = size(distmat, 1)
+   allocate(nblist(N))
 
    ! 1. Calculate Initial Neighbors
    do i = 1, N - 1
@@ -821,7 +838,7 @@ subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
    integer, intent(in) :: n, ndispl0, max_nb
    real(wp), intent(in) :: h0(n,n)
    real(wp), intent(in) :: displdir0(n, ndispl0)
-   integer, intent(in) :: nblist(max_nb, n)     ! 2D array for neighbor indices
+   type(adj_list), intent(in) :: nblist(:)
    integer, intent(in) :: nbcounts(n)           ! Actual number of neighbors per atom
    real(wp), intent(in) :: eps, eps2
    
@@ -863,7 +880,7 @@ subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
       ! --- Inner Loop: Iterate over atoms/DoFs ---
       do j = 1, n
             nnb = nbcounts(j)
-            nb_idx(1:nnb) = nblist(1:nnb, j)
+            nb_idx(1:nnb) = nblist(j)%neighbors(1:nnb)
 
             ! Skip if subspace saturated (heuristic from Python code)
             if (nnb <= n_curr) cycle
