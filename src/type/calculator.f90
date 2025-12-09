@@ -299,12 +299,14 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    end do
 
    ! calculate unperturbed gradient
+   write(env%unit, '(A)') "Calculating unperturbed gradient"
    call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
 
    ! gradients need to be flattened since hessian is also "flat"
    g0 = reshape(tmp_grad,[N])
 
    ! setup distmat
+   write(env%unit, '(A)') "Distmat setup"
    allocate(distmat(N, N))
    ! do i = 1, mol0%n
    !    do j = i, mol0%n
@@ -373,6 +375,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
 
    ! generate remaining displdirs based on distmat and dmax
    ! compute neighbor list
+   write(env%unit, '(A)') "Getting neighbor list"
    call get_neighbor_list(distmat, dmax, neighborlist)
    allocate(nbcounts(N))
    max_nb = 0
@@ -383,6 +386,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    
    ! TODO: orthonormalize displdir?
    ! populate displdir
+   write(env%unit, '(A)') "Generating displacements"
    Ntr = 0
    call gen_displdir(N, Ntr, h0, displdir, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
@@ -390,6 +394,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    g = 0.0_wp ! TODO: this should not be done in general since gradient derivs might be input
    
    ! ========== GRADIENT DERIVATIVES ==========
+   write(env%unit, '(A)') "Calculating gradient derivatives"
    do i = Ntr + 1, ndispl_final
       displmax = maxval(abs(displdir(:, i)))
       ! TODO: what about double sided stuff?
@@ -406,9 +411,11 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
    ! compute local hessian
+   write(env%unit, '(A)') "Computing local Hessian"
    call gen_local_hessian(distmat, displdir, g, dmax, hess)
 
    ! compute low rank correction
+   write(env%unit, '(A)') "Computing low rank correction"
    call lr_loop(ndispl_final, g, hess, displdir, final_err)
 
 end subroutine odlrhessian
