@@ -303,7 +303,7 @@ subroutine test_gfn1_o1numhess(error)
    call init(env)
    call init(mol, sym, xyz)
 
-   allocate(gradient(3,mol%n), hessian(3*mol%n,3*mol%n))
+   allocate(gradient(3,mol%n), dipgrad(3,3*mol%n), hessian(3*mol%n,3*mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
 
