@@ -395,7 +395,6 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
    ! compute local hessian
-   ! FIXME: don't pass complete displdir since we only use ndispl_final displacements
    call gen_local_hessian(distmat, displdir, g, dmax, hess)
 
    ! compute low rank correction
@@ -403,7 +402,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
 
 end subroutine odlrhessian
 
-!> Main routine to recover local Hessian using Conjugate Gradient
+!> Main routine to recover local Hessian
 subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    !> Distance matrix between atoms
    real(wp), intent(in) :: distmat(:, :)
@@ -419,52 +418,103 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    real(wp), parameter :: lam = 1.0e-2_wp, bet = 1.5_wp, ddmax = 5.0_wp
    
    ! Local work arrays
-   real(wp), allocatable :: rhsv(:), hnumv(:)
-   real(wp), allocatable :: W2(:, :), RHS(:, :), D_DT(:, :)
-   logical, allocatable :: mask(:, :), mask_tril(:, :)
-   integer :: l, m, ndim, ndispl = size(displdir, 1), N = size(distmat, 1)
+   integer, allocatable :: idx_map(:, :)
+   real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), D(:, :)
+   logical, allocatable :: mask(:, :), mask_ut(:, :)
+   integer :: i, j, k, ndim, ndispl = size(displdir, 1), N = size(distmat, 1), idx_ij, idx_kl
+   real(wp) :: Dij_dot_Dkl
    
-   ! 1. Calculate Regularization Term W2
+   ! Calculate Regularization Term W2
    allocate(W2(N, N))
-   do m = 1, N
-      do l = 1, N
-            W2(l, m) = lam * (max(0.0_wp, distmat(l, m) - dmax))**(2.0_wp * bet)
-      end do
-   end do
+   W2 = lam * max(0.0_wp, distmat(:, :) - dmax)**(2.0_wp * bet)
 
-   ! 2. Calculate RHS = (g * displdir^T)
-   allocate(RHS(ndispl, ndispl))
-   ! Call BLAS DGEMM: RHS = 1.0 * g * displdir^T
-   call dgemm('N', 'T', N, ndispl, ndispl, 1.0_wp, g, N, displdir, N, 0.0_wp, RHS, ndispl)
-   
-   ! Force Symmetry
-   do m = 1, ndispl
-      do l = 1, ndispl
-            RHS(l, m) = 0.5_wp * (RHS(l, m) + RHS(m, l))
-      end do
-   end do
+   ! Calculate rhs
+   allocate(rhs(N, N))
+   call dgemm('N', 'T', N, N, ndispl, 1.0_wp, g, N, displdir, N, 0.0_wp, rhs, N)
+   rhs = 0.5_wp * (rhs + transpose(rhs))
 
-   ! 3. Precompute D * D^T for the operator
-   allocate(D_DT(N, N))
-   call dgemm('N', 'T', N, N, ndispl, 1.0_wp, displdir, N, displdir, N, 0.0_wp, D_DT, N)
-
-   ! 4. Masks and Packing
-   allocate(mask(N, N), mask_tril(N, N))
+   ! Masks and Packing
+   allocate(mask(N, N), mask_ut(N, N))
    mask = (distmat < (dmax + ddmax))
-   forall(l=1:N, m=1:N) mask_tril(l, m) = mask(l, m) .and. (l >= m)
+   mask_ut = .false.
+   do j = 2, N
+      do i = 1, j - 1
+         mask_ut(i, j) = mask(i, j)
+      end do
+   end do
    
    ! RHS Vector (b in Ax=b)
-   rhsv = pack(RHS, mask_tril)
+   rhsv = pack(rhs, mask_ut)
    ndim = size(rhsv)
-   
-   allocate(hnumv(ndim))
-   hnumv = rhsv ! Initial guess = RHS
 
-   ! 5. Call Conjugate Gradient Solver
-   call cg_solver(ndim, rhsv, hnumv, matvec_wrapper)
+   !  Build index mapping from (i,j) to packed index
+   idx_map = 0
+   k = 0
+   do j = 2, n
+      do i = 1, j - 1
+            if (mask_ut(i, j)) then
+               k = k + 1
+               idx_map(i, j) = k
+               idx_map(j, i) = k  ! Symmetric access
+            end if
+      end do
+   end do
 
-   ! 6. Recover Hessian from vector
-   hess_out = unpack_sym(hnumv, mask_tril, N)
+   allocate(D(N, N))
+   call dgemm('N', 'T', N, N, ndisp, 1.0_dp, displdir, N, displdir, N, 0.0_wp, D, N)
+
+   ! Compute A
+   allocate(A(ndim, ndim))
+
+   A = 0.0_wp
+      
+   do j = 2, n
+      do i = 1, j - 1
+         if (.not. mask_ut(i, j)) cycle
+         idx_ij = idx_map(i, j)
+         
+         do i = 2, n
+            do k = 1, i - 1
+               if (.not. mask_ut(k, i)) cycle
+               idx_kl = idx_map(k, i)
+               
+               !  Only compute upper triangle of A (it's symmetric)
+               if (idx_kl < idx_ij) cycle
+               
+               !  A[(i,j),(k,l)] = D(i,k)*D(j,l) + D(i,l)*D(j,k)
+               Dij_dot_Dkl = D(i,k)*D(j,i) + D(i,i)*D(j,k)
+               
+               A(idx_ij, idx_kl) = Dij_dot_Dkl
+               
+               !  Add regularization on diagonal
+               if (idx_ij == idx_kl) then
+                     A(idx_ij, idx_kl) = A(idx_ij, idx_kl) + W2(i, j)
+               end if
+               
+               ! Fill lower triangle
+               if (idx_kl > idx_ij) then
+                     A(idx_kl, idx_ij) = A(idx_ij, idx_kl)
+               end if
+            end do
+         end do
+      end do
+   end do
+
+   ! Solve
+   call dposv('U', ndim, 1, A, ndim, rhsv, ndim, info)
+
+   ! Recover Hessian from vector
+   hess_out = unpack_sym(rhsv, mask_ut, N)
+
+   ! Fill lower triangle
+   do j = 2, N
+      do i = 1, j - 1
+         hess_out(i, j) = hess_out(j, i)
+      end do
+   end do
+
+   ! Free memory
+   deallocate(idx_map, mask, mask_ut, A, rhsv, rhs)
 
 end subroutine gen_local_hessian
 
@@ -562,82 +612,6 @@ subroutine lr_loop(g_in, hess_out, d_in, final_err)
    final_err = err
 
 end subroutine lr_loop
-
-!> Assumes A is Symmetric Positive Definite
-subroutine cg_solver(n, b, x, matvec)
-   integer, intent(in) :: n
-   real(wp), intent(in) :: b(n)       ! RHS
-   real(wp), intent(inout) :: x(n)    ! Solution (Input: Initial Guess)
-   ! Procedure pointer for the matrix-vector product
-   interface
-      subroutine matvec(v_in, v_out)
-            import :: wp
-            real(wp), intent(in) :: v_in(:)
-            real(wp), intent(out) :: v_out(:)
-      end subroutine matvec
-   endinterface
-
-   ! Work arrays
-   real(wp), allocatable :: r(:), p(:), Ap(:)
-   real(wp) :: alpha, beta, rsold, rsnew
-   integer :: k
-   real(wp), parameter :: tol = 1.0e-14_wp
-   integer, parameter :: max_iter = 1000
-   
-   ! BLAS functions
-   real(wp), external :: ddot, daxpy, dscal
-   
-   allocate(r(n), p(n), Ap(n))
-   
-   ! 1. r = b - A * x
-   call matvec(x, Ap)
-   r = b - Ap
-   
-   ! 2. p = r
-   p = r
-   
-   ! 3. rsold = r' * r
-   rsold = ddot(n, r, 1, r, 1)
-   
-   ! Check for immediate convergence
-   if (sqrt(rsold) < tol) return
-
-   ! 4. Iteration loop
-   do k = 1, max_iter
-      
-      ! Ap = A * p
-      call matvec(p, Ap)
-      
-      ! alpha = rsold / (p' * Ap)
-      alpha = rsold / ddot(n, p, 1, Ap, 1)
-      
-      ! x = x + alpha * p
-      call daxpy(n, alpha, p, 1, x, 1)
-      
-      ! r = r - alpha * Ap
-      call daxpy(n, -alpha, Ap, 1, r, 1)
-      
-      ! rsnew = r' * r
-      rsnew = ddot(n, r, 1, r, 1)
-      
-      if (sqrt(rsnew) < tol) exit
-      
-      ! beta = rsnew / rsold
-      beta = rsnew / rsold
-      
-      ! p = r + beta * p
-      ! We do p = beta*p + r by scaling p first then adding r
-      call dscal(n, beta, p, 1)
-      call daxpy(n, 1.0_wp, r, 1, p, 1)
-      
-      rsold = rsnew
-   end do
-   
-   if (k > max_iter) then
-      print *, "Warning: CG did not converge within max iterations"
-   end if
-
-end subroutine cg_solver
 
 !> Helper to unpack vector to Symmetric Matrix
 function unpack_sym(v, mask, n) result(H)
