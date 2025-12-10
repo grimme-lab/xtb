@@ -29,12 +29,13 @@ module xtb_io_writer_turbomole
 contains
 
 
-subroutine writeResultsTurbomole(mol, unit, energy, gradient, sigma)
+subroutine writeResultsTurbomole(mol, unit, energy, gradient, sigma, cycle)
    type(TMolecule), intent(in) :: mol
    integer, intent(in), optional :: unit
    real(wp), intent(in), optional :: energy
    real(wp), intent(in), optional :: gradient(:, :)
    real(wp), intent(in), optional :: sigma(:, :)
+   integer, intent(in), optional :: cycle
    integer :: ien, igr, igl
    real(wp) :: en
 
@@ -62,11 +63,11 @@ subroutine writeResultsTurbomole(mol, unit, energy, gradient, sigma)
    end if
 
    if (present(gradient)) then
-      call writeGradientTurbomole(igr, mol%xyz, mol%sym, en, gradient)
+      call writeGradientTurbomole(igr, mol%xyz, mol%sym, en, gradient, cycle)
    end if
 
    if (present(sigma) .and. mol%npbc > 0) then
-      call writeGradLattTurbomole(igl, mol%lattice, en, sigma)
+      call writeGradLattTurbomole(igl, mol%lattice, en, sigma, cycle)
    end if
 
    if (present(unit)) then
@@ -100,17 +101,18 @@ subroutine writeEnergyTurbomole(unit, energy)
 end subroutine writeEnergyTurbomole
 
 
-subroutine writeGradientTurbomole(unit, xyz, sym, energy, gradient)
+subroutine writeGradientTurbomole(unit, xyz, sym, energy, gradient, cycle)
    integer, intent(in) :: unit
    real(wp), intent(in) :: xyz(:, :)
    character(len=*), intent(in) :: sym(:)
    real(wp), intent(in) :: energy
    real(wp), intent(in) :: gradient(:, :)
+   integer, intent(in) :: cycle
    integer :: i
 
    write(unit, '("$grad")')
    write(unit, '(2x,"cycle =",1x,i6,4x,"SCF energy =",f18.11,3x,'//&
-      &        '"|dE/dxyz| =",f10.6)') 1, energy, norm2(gradient)
+      &        '"|dE/dxyz| =",f10.6)') cycle, energy, norm2(gradient)
    do i = 1, size(xyz, dim=2)
       write(unit, '(3(F20.14,2x),4x,a2)') xyz(1,i), xyz(2,i), xyz(3,i), sym(i)
    end do
@@ -121,12 +123,13 @@ subroutine writeGradientTurbomole(unit, xyz, sym, energy, gradient)
 end subroutine writeGradientTurbomole
 
 
-subroutine writeGradLattTurbomole(unit, lattice, energy, sigma)
+subroutine writeGradLattTurbomole(unit, lattice, energy, sigma, cycle)
    integer, intent(in) :: unit
    real(wp), intent(in) :: lattice(:, :)
    real(wp), intent(in) :: energy
    real(wp), intent(in) :: sigma(:, :)
    real(wp) :: gradlatt(3, 3), inv_lat(3, 3)
+   integer, intent(in) :: cycle
    integer :: i
 
    inv_lat = mat_inv_3x3(lattice)
@@ -134,7 +137,7 @@ subroutine writeGradLattTurbomole(unit, lattice, energy, sigma)
 
    write(unit, '("$gradlatt")')
    write(unit, '(2x,"cycle =",1x,i6,4x,"SCF energy =",f18.11,3x,'//&
-      &        '"|dE/dlatt| =",f10.6)') 1, energy, norm2(gradlatt)
+      &        '"|dE/dlatt| =",f10.6)') cycle, energy, norm2(gradlatt)
    do i = 1, size(lattice, dim=2)
       write(unit, '(3(F20.14,2x))') lattice(1, i), lattice(2, i), lattice(3, i)
    end do

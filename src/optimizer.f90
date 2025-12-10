@@ -120,7 +120,7 @@ end subroutine get_optthr
 
 !> Approximate Normal Coordinate rational function optimizer 
 subroutine ancopt(env,ilog,mol,chk,calc, &
-      &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
+      &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail, iter_needed)
    
    use xtb_mctc_convert
    use xtb_mctc_la
@@ -234,6 +234,9 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    
    !> current iteration 
    integer :: iter
+
+   !> number of cycles optimization took
+   integer, intent(out), optional :: iter_needed
 
    !> number of atomic coordinates
    integer :: nat3
@@ -594,6 +597,9 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    endif
 
    mol = molopt ! copy optimized geometry back to molecule
+   if (present(iter_needed)) then
+      iter_needed = iter
+   end if
 
    if (pr.and.profile) call timer%write(env%unit,'ANCopt') ! write timer report
 

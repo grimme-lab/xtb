@@ -36,7 +36,7 @@ module xtb_pbc_optimizer_driver
 
 !> Driver for performing geometry optimization
 !subroutine    relax(self, ctx, mol, calc, filter, accuracy, verbosity)
-subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail)
+subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, iter_needed)
   use xtb_pbc, only: cross_product
   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
   !> Instance of the optimization driver
@@ -70,6 +70,9 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail)
   real(wp) :: energy
   !> gradient and stress tensor
   real(wp), allocatable :: gxyz(:, :), sigma(:, :)
+
+  !> number of cycles needed for optimization
+  integer, intent(out), optional :: iter_needed
 
   !> Convergence accuracy
   real(wp) :: accuracy
@@ -216,6 +219,10 @@ endif
     write(*,*) ''
     write(env%unit,'(a,i6,a)') "Geometry optimization converged after"&
             &,step," steps."
+  end if
+
+  if (present(iter_needed)) then
+    iter_needed = step
   end if
 
 end subroutine relax_pbc
