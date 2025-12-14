@@ -20,7 +20,7 @@ option(
   type: 'combo',
   value: 'auto',
   yield: true,
-  choices: ['auto', 'mkl', 'mkl-rt', 'openblas', 'netlib', 'custom'],
+  choices: ['auto', 'mkl', 'mkl-rt', 'openblas', 'netlib', 'accelerate', 'custom'],
   description: 'Linear algebra backend for program.',
 )
 
