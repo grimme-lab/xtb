@@ -74,6 +74,13 @@ endif()
 find_package("LAPACK" REQUIRED)
 find_package("BLAS" REQUIRED)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  if("${BLAS_LIBRARIES}" MATCHES "Accelerate\\.framework")
+    include(cmake/DarwinAccelerateAliases.cmake)
+    apply_framework_accelerate_aliases()
+  endif()
+endif()
+
 
 if(NOT EXISTS "${PROJECT_BINARY_DIR}/include")
    file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
