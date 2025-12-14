@@ -68,6 +68,23 @@ jobs:
             fc: [gfortran-14]
             cc: [gcc-14]
             build: [Release, Debug]
+            include:
+               - os: macos-15-intel
+                 fc: gfortran-15
+                 cc: gcc-15
+                 build: Release
+               - os: macos-latest
+                 fc: gfortran-14
+                 cc: gcc-14
+                 build: Release
+               - os: macos-latest
+                 fc: gfortran-15
+                 cc: gcc-15
+                 build: Debug
+               - os: macos-latest
+                 fc: gfortran-15
+                 cc: gcc-15
+                 build: Release
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
