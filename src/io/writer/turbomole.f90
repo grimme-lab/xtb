@@ -29,13 +29,13 @@ module xtb_io_writer_turbomole
 contains
 
 
-subroutine writeResultsTurbomole(mol, unit, energy, gradient, sigma, cycle)
+subroutine writeResultsTurbomole(mol, unit, energy, gradient, sigma, iter_number)
    type(TMolecule), intent(in) :: mol
    integer, intent(in), optional :: unit
    real(wp), intent(in), optional :: energy
    real(wp), intent(in), optional :: gradient(:, :)
    real(wp), intent(in), optional :: sigma(:, :)
-   integer, intent(in), optional :: cycle
+   integer, intent(in), optional :: iter_number
    integer :: ien, igr, igl
    real(wp) :: en
 
@@ -63,11 +63,11 @@ subroutine writeResultsTurbomole(mol, unit, energy, gradient, sigma, cycle)
    end if
 
    if (present(gradient)) then
-      call writeGradientTurbomole(igr, mol%xyz, mol%sym, en, gradient, cycle)
+      call writeGradientTurbomole(igr, mol%xyz, mol%sym, en, gradient, iter_number)
    end if
 
    if (present(sigma) .and. mol%npbc > 0) then
-      call writeGradLattTurbomole(igl, mol%lattice, en, sigma, cycle)
+      call writeGradLattTurbomole(igl, mol%lattice, en, sigma, iter_number)
    end if
 
    if (present(unit)) then
@@ -123,13 +123,13 @@ subroutine writeGradientTurbomole(unit, xyz, sym, energy, gradient, iter_number)
 end subroutine writeGradientTurbomole
 
 
-subroutine writeGradLattTurbomole(unit, lattice, energy, sigma, cycle)
+subroutine writeGradLattTurbomole(unit, lattice, energy, sigma, iter_number)
    integer, intent(in) :: unit
    real(wp), intent(in) :: lattice(:, :)
    real(wp), intent(in) :: energy
    real(wp), intent(in) :: sigma(:, :)
    real(wp) :: gradlatt(3, 3), inv_lat(3, 3)
-   integer, intent(in) :: cycle
+   integer, intent(in) :: iter_number
    integer :: i
 
    inv_lat = mat_inv_3x3(lattice)
@@ -137,7 +137,7 @@ subroutine writeGradLattTurbomole(unit, lattice, energy, sigma, cycle)
 
    write(unit, '("$gradlatt")')
    write(unit, '(2x,"cycle =",1x,i6,4x,"SCF energy =",f18.11,3x,'//&
-      &        '"|dE/dlatt| =",f10.6)') cycle, energy, norm2(gradlatt)
+      &        '"|dE/dlatt| =",f10.6)') iter_number, energy, norm2(gradlatt)
    do i = 1, size(lattice, dim=2)
       write(unit, '(3(F20.14,2x))') lattice(1, i), lattice(2, i), lattice(3, i)
    end do
