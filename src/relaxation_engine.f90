@@ -130,7 +130,7 @@ contains
 !> frontend implementation of the fast inertial relaxation engine
 subroutine fire &
       &   (env,ilog,mol,chk,calc, &
-      &    optlevel,maxstep,energy,egap,gradient,sigma,printlevel,fail)
+      &    optlevel,maxstep,energy,egap,gradient,sigma,printlevel,fail, iter_needed)
 
    use xtb_mctc_convert
 
@@ -176,6 +176,7 @@ subroutine fire &
    real(wp), intent(inout) :: sigma(3,3)
    integer, intent(in) :: printlevel
    logical, intent(out) :: fail
+   integer, intent(out), optional :: iter_needed
 
    logical :: minpr
    logical :: pr
@@ -378,6 +379,10 @@ subroutine fire &
    ! save optimized geometry
    mol = molopt
 
+   if (present(iter_needed)) then
+      iter_needed = iter
+   end if
+
    ! we cannot be sure that the geometry was written in the last optimization
    ! step due to the logstep > 1, so we append the last structure to the optlog
    if (mod(iter-1,opt%logstep).ne.0 .and. opt%ilog.ne.-1) then
@@ -395,7 +400,7 @@ end subroutine fire
 !  approximate normal coordinate rational function optimizer (L-ANCopt)
 subroutine l_ancopt &
       &   (env,ilog,mol,chk,calc, &
-      &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail)
+      &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail, iter_needed)
 
    use xtb_mctc_convert
    use xtb_mctc_lapack, only : lapack_syev
@@ -447,6 +452,7 @@ subroutine l_ancopt &
    real(wp), intent(inout) :: sigma(3,3)
    integer, intent(in) :: printlevel
    logical, intent(out) :: fail
+   integer, intent(out), optional :: iter_needed
 
    logical :: minpr
    logical :: pr
@@ -772,6 +778,10 @@ subroutine l_ancopt &
 
    ! save optimized geometry
    mol = molopt
+
+   if (present(iter_needed)) then
+      iter_needed = iter
+   end if
 
    if (profile) call timer%measure(7,"optimization log")
    ! we cannot be sure that the geometry was written in the last optimization
