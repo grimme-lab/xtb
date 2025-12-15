@@ -101,18 +101,18 @@ subroutine writeEnergyTurbomole(unit, energy)
 end subroutine writeEnergyTurbomole
 
 
-subroutine writeGradientTurbomole(unit, xyz, sym, energy, gradient, cycle)
+subroutine writeGradientTurbomole(unit, xyz, sym, energy, gradient, iter_number)
    integer, intent(in) :: unit
    real(wp), intent(in) :: xyz(:, :)
    character(len=*), intent(in) :: sym(:)
    real(wp), intent(in) :: energy
    real(wp), intent(in) :: gradient(:, :)
-   integer, intent(in) :: cycle
+   integer, intent(in) :: iter_number
    integer :: i
 
    write(unit, '("$grad")')
    write(unit, '(2x,"cycle =",1x,i6,4x,"SCF energy =",f18.11,3x,'//&
-      &        '"|dE/dxyz| =",f10.6)') cycle, energy, norm2(gradient)
+      &        '"|dE/dxyz| =",f10.6)') iter_number, energy, norm2(gradient)
    do i = 1, size(xyz, dim=2)
       write(unit, '(3(F20.14,2x),4x,a2)') xyz(1,i), xyz(2,i), xyz(3,i), sym(i)
    end do
