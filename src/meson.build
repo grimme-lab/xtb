@@ -122,6 +122,7 @@ srcs += files(
   'pseudodiag.f90',
   'qpot.f90',
   'qsort.f90',
+  'random_generators.f90',
   'rdcoord2.f90',
   'read_gfn_param.f90',
   'readin.f90',

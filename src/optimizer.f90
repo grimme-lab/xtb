@@ -307,7 +307,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    character(len=9):: hessfmt
 
    ! print ANCopt header !
-   call ancopt_header(env%unit,set%veryverbose)
+   if (pr) call ancopt_header(env%unit,set%veryverbose)
    
    if(mol%n.eq.1) return ! skip optimization for 1 atom 
 

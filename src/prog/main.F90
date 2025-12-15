@@ -98,6 +98,7 @@ module xtb_prog_main
    use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
+   use random_generators, only: normal_distribution
    !> PTB related modules
    use xtb_main_json, only: main_ptb_json
 
@@ -1160,25 +1161,44 @@ contains
             metaset%xyz(:, :, metaset%nstruc) = mol%xyz
             ! randomize structure to avoid zero RMSD
             do i = 1, mol%n
-               do j = 1, 3
-                  call random_number(er)
-                  mol%xyz(j, i) = mol%xyz(j, i) + 1.0e-6_wp * er
-               end do
+               if (.not. fixset%is_fixed(i)) then
+                  do j = 1, 3
+                     mol%xyz(j, i) = mol%xyz(j, i) + normal_distribution(metaset%global_width, 0.0_wp)
+                  end do
+               end if
             end do
+            block
+               real(wp) :: Xc(3), Yc(3) !< centroids of structures
+               real(wp) :: U(3,3) !< rotation matrix, not used
+               real(wp) :: dummy(1,1) !< gradient of rmsd; if .true. must have a proper dimensions
+               real(wp) :: rmsd_val !< computed RMSD
+               call rmsd(mol%n, mol%xyz, metaset%xyz(:, :, metaset%nstruc), &
+                 &       0, U, Xc, Yc, rmsd_val, .false., dummy)
+               write (env%unit, '("RMSD of distorted structure: ", F10.6)') rmsd_val
+            end block
             call geometry_optimization &
                &     (env, mol, chk, calc, &
                &      egap, set%etemp, set%maxscciter, set%optset%maxoptcycle, etot, g, sigma, &
                &      set%optset%optlev, set%verbose, .true., murks)
+            block
+               real(wp) :: Xc(3), Yc(3) !< centroids of structures
+               real(wp) :: U(3,3) !< rotation matrix, not used
+               real(wp) :: dummy(1,1) !< gradient of rmsd; if .true. must have a proper dimensions
+               real(wp) :: rmsd_val !< computed RMSD
+               call rmsd(mol%n, mol%xyz, metaset%xyz(:, :, metaset%nstruc), &
+                 &       0, U, Xc, Yc, rmsd_val, .false., dummy)
+               write (env%unit, '("RMSD between previously optimized and newly optimized structures: ", F10.6)') rmsd_val
+            end block
             if (.not. set%verbose) then
                write (env%unit, '("current energy:",1x,f20.8)') etot
             end if
+            call writeMolecule(mol, ich, fileType%xyz, energy=etot, gnorm=norm2(g))
             if (murks) then
-               call close_file(ich)
                write (env%unit, '(/,3x,"***",1x,a,1x,"***",/)') &
                   "FAILED TO CONVERGE GEOMETRY OPTIMIZATION"
-               call touch_file('NOT_CONVERGED')
+               mol%xyz = metaset%xyz(:, :, metaset%nstruc)
             end if
-            call writeMolecule(mol, ich, fileType%xyz, energy=etot, gnorm=norm2(g))
+            flush (env%unit)
          end do
          call close_file(ich)
          call stop_timing(6)

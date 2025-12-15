@@ -257,7 +257,7 @@ $metadyn (6.1 only)
 *scale factor*='int','real',...::
     scales the factor 'int' with 'real'
 *alp*='real'::
-    width of the Gaussian potential used in the rmsd criteria
+    width of the Gaussian potential used in the rmsd criteria or width of the Gaussian for random displacement for --metaopt
 *coord*='file'::
     external structures to initialize the rmsd criteria (xmol format required)
 *atoms*: 'list',...::
