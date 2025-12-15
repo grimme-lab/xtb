@@ -77,7 +77,7 @@ jobs:
                  fc: gfortran-14
                  cc: gcc-14
                  build: Release
-# Illegal instructions for xtb/gfn2, xtb/ptb tests
+# Illegal instructions for xtb/gfn2 (https://github.com/grimme-lab/xtb/issues/1372), xtb/ptb (https://github.com/grimme-lab/xtb/issues/1373) tests
 #               - os: macos-latest
 #                 fc: gfortran-15
 #                 cc: gcc-15
