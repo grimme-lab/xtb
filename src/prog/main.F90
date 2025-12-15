@@ -1014,7 +1014,7 @@ contains
 
       call generic_header(iprop, 'Property Printout', 49, 10)
       if (lgrad) then
-         call writeResultsTurbomole(mol, energy=etot, gradient=g, sigma=sigma, cycle=iter_needed)
+         call writeResultsTurbomole(mol, energy=etot, gradient=g, sigma=sigma, iter_number=iter_needed)
          if (allocated(basename)) then
             cdum = basename//'.engrad'
          else
