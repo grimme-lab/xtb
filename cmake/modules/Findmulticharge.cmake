@@ -14,14 +14,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-set(_lib "tblite")
-set(_pkg "TBLITE")
-set(_url "https://github.com/tblite/tblite")
-set(_rev "v0.5.0")
+set(_lib "multicharge")
+set(_pkg "MULTICHARGE")
+set(_url "https://github.com/grimme-lab/multicharge")
+set(_rev "v0.3.1")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
    set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
-   set("_${_pkg}_FIND_METHOD")
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/xtb-utils.cmake")
