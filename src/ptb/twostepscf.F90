@@ -29,7 +29,7 @@ module xtb_ptb_scf
    use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_blas, only: gemv
    use tblite_context, only: context_type
-   use tblite_scf_solver, only: solver_type
+   use tblite_scf_diag, only: diag_solver_type
    use tblite_scf_iterator, only: get_qat_from_qsh
    use tblite_adjlist, only: adjacency_list, new_adjacency_list
    use tblite_cutoff, only: get_lattice_points
@@ -121,7 +121,7 @@ contains
       !> (optional) Electric field
       real(wp), intent(in), optional :: efield(:)
       !> Electronic solver
-      class(solver_type), allocatable :: solver
+      class(diag_solver_type), allocatable :: solver
       !> Error type
       type(error_type), allocatable :: error
       !> Coulomb potential
@@ -164,7 +164,8 @@ contains
                               .false., .false., .false., .false.] 
 
       !> Solver for the effective Hamiltonian
-      call ctx%new_solver(solver, bas%nao)
+      !call ctx%new_solver(solver, bas%nao)
+      call ctx%new_solver(solver, ints%overlap, wfn%nel, wfn%kt)
 
       if (present(efield)) then
          efield_object = electric_field(efield)
@@ -643,7 +644,7 @@ contains
       !> Tight-binding wavefunction data
       type(wavefunction_type), intent(inout) :: wfn
       !> Solver for the general eigenvalue problem
-      class(solver_type), intent(inout) :: solver
+      class(diag_solver_type), intent(inout) :: solver
       !> Integral container
       type(integral_type), intent(in) :: ints
       !> Electronic entropy
