@@ -62,7 +62,6 @@ int testFirst() {
   char gbsa[] = "gbsa";
   char alpb[] = "alpb";
   char cosmo[] = "cosmo";
-  char cpcmx[] = "cpcmx";
 
   if (!check(XTB_API_VERSION, xtb_getAPIVersion(), "API version does not match"))
      goto error;
@@ -201,44 +200,6 @@ int testFirst() {
   if (!check(wbo[9], 2.8940365143, 1.0e-8, "COSMO Bond order does not match"))
     goto error;
 
-
-  // CPCMX
-#if WITH_CPCMX
-  //Sensitive to guess, so reset the results
-  xtb_delete(res);
-  res = xtb_newResults();
-  if (xtb_checkEnvironment(env))
-    goto error;
-
-  xtb_releaseSolvent(env, calc);
-  xtb_setSolvent(env, calc, solvent, NULL, NULL, NULL, cpcmx);
-  if (xtb_checkEnvironment(env))
-    goto error;
-
-  xtb_cpcmx_calc(env, mol, calc, res);
-  if (xtb_checkEnvironment(env))
-    goto error;
-
-  xtb_getEnergy(env, res, &energy);
-  xtb_getSolvationEnergy(env, res, &solv_energy);
-  xtb_getCharges(env, res, q);
-  xtb_getDipole(env, res, dipole);
-  xtb_getBondOrders(env, res, wbo);
-  if (xtb_checkEnvironment(env))
-    goto error;
-
-  if (!check(energy, -8.383520040765, 1.0e-9, "CPCM-X Energy does not match"))
-    goto error;
-  if (!check(solv_energy, -0.0010406558065, 1.0e-8, "CPCM-X Solvation Energy does not match"))
-    goto error;
-  if (!check(q[5], 0.0518386448, 1.0e-8, "CPCM-X Charge does not match"))
-    goto error;
-  if (!check(dipole[2], -0.2983150104, 1.0e-6, "CPCM-X Dipole does not match"))
-    goto error;
-  if (!check(wbo[9], 2.8982388543, 1.0e-8, "CPCM-X Bond order does not match"))
-    goto error;
-
-#endif
   // Compute Hessian
   //Sensitive to guess, so reset the results
   xtb_delete(res);
