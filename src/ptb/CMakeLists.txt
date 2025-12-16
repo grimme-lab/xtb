@@ -35,6 +35,7 @@ list(APPEND srcs
   "${dir}/plusu.F90"
   "${dir}/property.F90"
   "${dir}/response.F90"
+  "${dir}/solver.F90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

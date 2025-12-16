@@ -26,7 +26,7 @@ module xtb_ptb_ncoord
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
-   use tblite_data_covrad, only: get_covalent_rad
+   use mctc_data, only: get_covalent_rad
 
    implicit none
 

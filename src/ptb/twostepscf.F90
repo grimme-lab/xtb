@@ -29,13 +29,11 @@ module xtb_ptb_scf
    use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_blas, only: gemv
    use tblite_context, only: context_type
-   use tblite_scf_diag, only: diag_solver_type
    use tblite_scf_iterator, only: get_qat_from_qsh
    use tblite_adjlist, only: adjacency_list, new_adjacency_list
    use tblite_cutoff, only: get_lattice_points
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
    use tblite_wavefunction_fermi, only: get_fermi_filling
-   use tblite_wavefunction_type, only: get_density_matrix
    use tblite_wavefunction_mulliken, only: get_mulliken_atomic_multipoles, &
       & get_mulliken_shell_charges, get_mayer_bond_orders, get_molecular_quadrupole_moment, &
       & get_molecular_dipole_moment
@@ -44,7 +42,7 @@ module xtb_ptb_scf
    use tblite_container, only: container_type, container_cache
    use tblite_external_field, only: electric_field
 
-   use multicharge_model, only: mchrg_model_type
+   use multicharge, only: mchrg_model_type
 
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
    use xtb_ptb_param, only: ptbGlobals, rf
@@ -59,13 +57,14 @@ module xtb_ptb_scf
    use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
    use xtb_ptb_coulomb, only: coulomb_potential
    use xtb_ptb_plusu, only: plusu_potential_type
+   use xtb_ptb_solver, only : ptb_solver_type, new_ptb_solver
 
    use xtb_readin, only: bool2string, bool2int
 
    implicit none
    private
 
-   public :: twostepscf, get_density
+   public :: twostepscf
 
    character(len=*), private, parameter :: outfmt = &
                                            '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
@@ -103,7 +102,7 @@ contains
       !> Auxiliary integral type
       type(aux_integral_type), intent(out) :: auxints
       !> Initialized EEQ model
-      type(mchrg_model_type), intent(in) :: eeqmodel
+      class(mchrg_model_type), intent(in) :: eeqmodel
       !> Molecular dipole moment
       real(wp), intent(out) :: dipole(3)
       !> Molecular quadrupole moment
@@ -120,8 +119,8 @@ contains
       real(wp), allocatable, intent(out) :: v_es_sh(:)
       !> (optional) Electric field
       real(wp), intent(in), optional :: efield(:)
-      !> Electronic solver
-      class(diag_solver_type), allocatable :: solver
+      !> PTB electronic solver
+      class(ptb_solver_type), allocatable :: ptbsolver
       !> Error type
       type(error_type), allocatable :: error
       !> Coulomb potential
@@ -141,7 +140,7 @@ contains
       integer :: i, j, isp, izp, iat, ish, iid, is
       !> Coordination numbers
       real(wp), intent(out) :: cn_star(mol%nat)
-      real(wp) :: cn(mol%nat), cn_eeq(mol%nat)
+      real(wp) :: cn(mol%nat), cn_eeq(mol%nat), qloc_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
       !> Lattice points
       real(wp), allocatable :: lattr(:, :)
@@ -152,7 +151,7 @@ contains
       !> Shell populations required for Pauli XC potential
       real(wp), allocatable :: psh(:, :)
       !> Electronic entropy
-      real(wp) :: ts
+      !real(wp) :: ts
       !> Tmp variable for dipole moment
       real(wp) :: tmpdip(3)
       real(wp), allocatable :: mulliken_qsh(:, :), mulliken_qat(:, :)
@@ -163,9 +162,8 @@ contains
                               .false., .false., .false., .false., .false., .false., &
                               .false., .false., .false., .false.] 
 
-      !> Solver for the effective Hamiltonian
-      !call ctx%new_solver(solver, bas%nao)
-      call ctx%new_solver(solver, ints%overlap, wfn%nel, wfn%kt)
+      !> Solver for the effective Hamiltonian (specified for each diagonalization)
+      allocate(ptbsolver)
 
       if (present(efield)) then
          efield_object = electric_field(efield)
@@ -329,7 +327,7 @@ contains
       !   |______| |_|  \___|  \___|  \__| |_|     \___/
 
       !> EEQ call
-      call eeqmodel%solve(mol, cn_eeq, qvec=wfn%qat(:, 1))
+      call eeqmodel%solve(mol, error, cn_eeq, qloc_eeq, qvec=wfn%qat(:, 1))
       if (debug(8)) then !##### DEV WRITE #####
          write (*, *) "EEQ charges:"
          do i = 1, mol%nat
@@ -477,7 +475,9 @@ contains
          return
       end if
       call get_alpha_beta_occupation(wfn%nocc, wfn%nuhf, wfn%nel(1), wfn%nel(2))
-      call get_density(wfn, solver, ints, ts, error)
+
+      call new_ptb_solver(ptbsolver, wfn%nel, wfn%kt)
+      call ptbsolver%get_density(wfn%coeff, ints%overlap, wfn%emo, wfn%focc, wfn%density, error)
       if (allocated(error)) then
          call ctx%set_error(error)
          return
@@ -592,7 +592,8 @@ contains
       call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
       ints%hamiltonian = wfn%coeff(:, :, 1)
-      call get_density(wfn, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
+      call new_ptb_solver(ptbsolver, wfn%nel, wfn%kt, ptbGlobals%geps, ptbGlobals%geps0)
+      call ptbsolver%get_density(wfn%coeff, ints%overlap, wfn%emo, wfn%focc, wfn%density, error)
       if (allocated(error)) then
          call ctx%set_error(error)
          return
@@ -638,71 +639,6 @@ contains
       end if
 
    end subroutine twostepscf
-
-   !> TAKEN OVER FROM TBLITE - modified in order to use the PTB parameters
-   subroutine get_density(wfn, solver, ints, ts, error, keps_param, keps0_param)
-      !> Tight-binding wavefunction data
-      type(wavefunction_type), intent(inout) :: wfn
-      !> Solver for the general eigenvalue problem
-      class(diag_solver_type), intent(inout) :: solver
-      !> Integral container
-      type(integral_type), intent(in) :: ints
-      !> Electronic entropy
-      real(wp), intent(out) :: ts
-      !> Error handling
-      type(error_type), allocatable, intent(out) :: error
-      !> Linear regression cofactors for the orbital energies
-      real(wp), intent(in), optional :: keps_param, keps0_param
-      real(wp) :: keps, keps0
-
-      real(wp) :: e_fermi, stmp(2)
-      real(wp), allocatable :: focc(:)
-      integer :: spin
-
-      if (present(keps_param)) then
-         keps = keps_param
-      else
-         keps = 0.0_wp
-      end if
-      if (present(keps0_param)) then
-         keps0 = keps0_param
-      else
-         keps0 = 0.0_wp
-      end if
-
-      select case (wfn%nspin)
-      case default
-         call solver%solve(wfn%coeff(:, :, 1), ints%overlap, wfn%emo(:, 1), error)
-         if (allocated(error)) return
-         wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
-
-         allocate (focc(size(wfn%focc, 1)))
-         wfn%focc(:, :) = 0.0_wp
-         do spin = 1, 2
-            call get_fermi_filling(wfn%nel(spin), wfn%kt, wfn%emo(:, 1), &
-               & wfn%homo(spin), focc, e_fermi)
-            call get_electronic_entropy(focc, wfn%kt, stmp(spin))
-            wfn%focc(:, 1) = wfn%focc(:, 1) + focc
-         end do
-         ts = sum(stmp)
-
-         call get_density_matrix(wfn%focc(:, 1), wfn%coeff(:, :, 1), wfn%density(:, :, 1))
-      case (2)
-         wfn%coeff = 2 * wfn%coeff
-         do spin = 1, 2
-            call solver%solve(wfn%coeff(:, :, spin), ints%overlap, wfn%emo(:, spin), error)
-            if (allocated(error)) return
-            wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
-
-            call get_fermi_filling(wfn%nel(spin), wfn%kt, wfn%emo(:, spin), &
-               & wfn%homo(spin), wfn%focc(:, spin), e_fermi)
-            call get_electronic_entropy(wfn%focc(:, spin), wfn%kt, stmp(spin))
-            call get_density_matrix(wfn%focc(:, spin), wfn%coeff(:, :, spin), &
-               & wfn%density(:, :, spin))
-         end do
-         ts = sum(stmp)
-      end select
-   end subroutine get_density
 
    pure function id_to_atom(mol, idparam) result(atomparam)
       !> Molecular structure data

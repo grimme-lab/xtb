@@ -17,7 +17,7 @@
 set(_lib "multicharge")
 set(_pkg "MULTICHARGE")
 set(_url "https://github.com/grimme-lab/multicharge")
-set(_rev "v0.3.1")
+set(_rev "v0.5.0")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
    set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
