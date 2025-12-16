@@ -327,7 +327,7 @@ contains
       !> EEQ call
       call eeqmodel%solve(mol, error, cn_eeq, qloc_eeq, qvec=wfn%qat(:, 1))
       if (allocated(error)) then
-         call env%error('Could not solve the EEQ model', source)
+         call ctx%set_error(error)
          return
       end if
       if (debug(8)) then !##### DEV WRITE #####
