@@ -159,15 +159,15 @@ contains
       & rad=ptbData%eeq%alp, eta=ptbData%eeq%gam, kcnchi=ptbData%eeq%cnf)
       if (allocated(local_error)) then
          call test_failed(error, 'Could not initialize EEQ model')
-         return 
+         return
       end if 
       call move_alloc(tmp_eeqmodel, eeqmodel)
       allocate (q_eeq(mol%nat))
       call eeqmodel%solve(mol, local_error, cn_eeq, qloc, qvec=q_eeq)
       if (allocated(local_error)) then
          call test_failed(error, 'Could not solve the EEQ model')
-         return 
-      end if 
+         return
+      end if
 
       do i = 1, mol%nat
          call check_(error, q_eeq(i), q_exp(i), thr=thr, &

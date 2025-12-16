@@ -81,7 +81,7 @@ subroutine convert_tblite_to_results(results, mol, chk, energy, converged, gradi
    !> (analytical) gradients
    real(wp), optional, intent(in) :: gradient(:,:)
 
-   integer :: homo 
+   integer :: homo
 
    results%e_total = energy
    results%converged = converged
@@ -114,7 +114,7 @@ subroutine from_tblite_wfn(wfn, tblite)
    type(TWavefunction), intent(inout) :: wfn 
    type(wavefunction_type), intent(in) :: tblite
 
-   integer :: homo(2) 
+   integer :: homo(2)
 
    ! Need to find the HOMO/LUMO first
    homo(1) = merge(tblite%nel(1)+1, tblite%nel(1), mod(tblite%nel(1), 1.0_wp) > 0.5_wp)

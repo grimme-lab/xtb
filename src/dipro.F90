@@ -351,7 +351,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    !> scmat=S_dim*C_dim
    call gemm(overlap, coeff2, scmat)
    do j = start_index(1), end_index(1)
-      orbprint(1)=homo(1,2)-j!wfx(1)%homo(max(2,1))-j
+      orbprint(1)=homo(1,2)-j
 
       y(:,1)=0
       !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
@@ -363,7 +363,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
       efrag(1)=dot( y(:,1), scratch)
 
       do k = start_index(2), end_index(2)
-         orbprint(2)=homo(2,2)!wfx(2)%homo(max(2,1))-k
+         orbprint(2)=homo(2,2)-k
 
          y(:,2)=0
          !> y_mon2(ifr)=C_mon2(k)*S_dim*C_dim

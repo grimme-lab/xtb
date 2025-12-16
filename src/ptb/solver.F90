@@ -57,14 +57,14 @@ contains
       if (present(keps_param)) then
          self%keps_param = keps_param
       else
-         self%keps_param = 0.0_wp 
+         self%keps_param = 0.0_wp
       end if
 
       if (present(keps0_param)) then
          self%keps0_param = keps0_param
       else
-         self%keps0_param = 0.0_wp 
-      end if 
+         self%keps0_param = 0.0_wp
+      end if
    end subroutine
 
    subroutine get_density(self, hmat, smat, eval, focc, density, error)
@@ -96,22 +96,22 @@ contains
          ! Linear shift of the orbital energies
          eval(:, 1) = eval(:, 1) * (1.0_wp + self%keps_param) + self%keps0_param
 
-         focc(:, :) = 0.0_wp 
+         focc(:, :) = 0.0_wp
          do spin = 1, 2
             call get_fermi_filling(self%nel(spin), self%kt, eval(:, 1), &
                & homo, focc(:, spin), e_fermi)
          end do
          focc(:, 1) = focc(:, 1) + focc(:, 2)
-         call get_density_matrix(focc(:, 1), hmat(:, :, 1), density(:, :, 1))
-         focc(:, 2) = focc(:, 1) - focc(:, 2)
+         focc(:, 2) = focc(:, 1) - 2.0_wp * focc(:, 2)
+         call get_density_matrix(focc(:, 1), hmat(:, :, 1), density(:, :, 1))     
       case (2)
-         hmat(:, :, :) = 2*hmat
+         hmat(:, :, :) = 2.0_wp * hmat
          do spin = 1, 2
             call self%solve(hmat(:, :, spin), smat, eval(:, spin), error)
             if (allocated(error)) return
 
             ! Linear shift of the orbital energies
-            eval(:, 1) = eval(:, 1) * (1.0_wp + self%keps_param) + self%keps0_param
+            eval(:, spin) = eval(:, spin) * (1.0_wp + self%keps_param) + self%keps0_param
 
             call get_fermi_filling(self%nel(spin), self%kt, eval(:, spin), &
                & homo, focc(:, spin), e_fermi)
