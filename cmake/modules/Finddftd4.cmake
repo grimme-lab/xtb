@@ -1,6 +1,5 @@
 # This file is part of xtb.
-#
-# Copyright (C) 2023 Marcel Müller
+# SPDX-Identifier: LGPL-3.0-or-later
 #
 # xtb is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by
@@ -15,23 +14,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-srcs += files(
-  'calculator.F90',
-  'param.F90',
-  'data.f90',
-  'vdzp.F90',
-  'twostepscf.F90',
-  'integrals.F90',
-  'mmlpopanalysis.F90',
-  'ncoord.F90',
-  'corebasis.F90',
-  'hamiltonian.F90',
-  'guess.F90',
-  'paulixc.F90',
-  'integral_types.F90',
-  'coulomb.F90',
-  'plusu.F90',
-  'property.F90',
-  'response.F90',
-  'solver.F90',
-)
+set(_lib "dftd4")
+set(_pkg "DFTD4")
+set(_url "https://github.com/dftd4/dftd4")
+set(_rev "v4.0.1")
+
+if(NOT DEFINED "${_pkg}_FIND_METHOD")
+   set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/xtb-utils.cmake")
+
+xtb_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_rev}")
+
+unset(_lib)
+unset(_pkg)
+unset(_url)
+unset(_rev)

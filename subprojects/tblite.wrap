@@ -1,4 +1,4 @@
 [wrap-git]
 directory = tblite
 url = https://github.com/tblite/tblite
-revision = v0.4.0
+revision = head

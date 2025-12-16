@@ -105,7 +105,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    type(wavefunction_type), allocatable :: wfx(:)
 
    !> Molecular gradient, strain derivatives
-   real(wp), allocatable :: gradient(:, :), sigma(:,:), nel(:)
+   real(wp), allocatable :: gradient(:, :), sigma(:,:), nel(:), homo(:,:)
    real(wp), allocatable :: overlap(:, :), trans(:, :), wbo(:, :), chrg(:), p2mat(:,:), coeff2(:,:),loc(:,:)
    real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:),y(:,:),Edim(:,:)
    integer, allocatable :: spinfrag(:), start_index(:),end_index(:),orbprint(:)
@@ -206,7 +206,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    nao = size(wfn%emo)
    allocate(orbital(nao, nfrag,nao), efrag(nfrag), scmat(nao, nao), fdim(nao, nao), &
       & scratch(nao), mfrag(nfrag), wfx(nfrag), chrg(nfrag), spinfrag(nfrag), &
-      & start_index(nfrag),end_index(nfrag),orbprint(nfrag),nel(nfrag))
+      & start_index(nfrag), end_index(nfrag), orbprint(nfrag), nel(nfrag), homo(nfrag, 2))
 
 !==================================external files CHRG & UHF read-in====================================
 
@@ -270,7 +270,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
       call new_wavefunction(wfx(ifr), mfrag(ifr)%nat, fcalc(ifr)%bas%nsh, fcalc(ifr)%bas%nao, &
          & 1, set%etemp * ktoau)
 
-     !> mol%type (dimer) == mfrag%type (fragments), wfn (dimer) == wfx (fragments), calc (dimer)==fcalc(fragments)
+      !> mol%type (dimer) == mfrag%type (fragments), wfn (dimer) == wfx (fragments), calc (dimer)==fcalc(fragments)
       wfx%nspin=1
       call xtb_singlepoint(ctx, mfrag(ifr), fcalc(ifr), wfx(ifr), tblite%accuracy, energy)
       if (ctx%failed()) then
@@ -279,6 +279,14 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
       end if
 
       nel(ifr)=wfx(ifr)%nel(1)+wfx(ifr)%nel(2)
+
+      ! Find HOMO index
+      homo(ifr,1) = merge(wfx(ifr)%nel(1)+1, wfx(ifr)%nel(1), mod(wfx(ifr)%nel(1), 1.0_wp) > 0.5_wp)
+      if (size(wfx(ifr)%nel, 1) == 2) then
+         homo(ifr,2) = merge(wfx(ifr)%nel(2)+1, wfx(ifr)%nel(2), mod(wfx(ifr)%nel(2), 1.0_wp) > 0.5_wp)
+      else
+         homo(ifr,2) = homo(ifr,1)
+      end if
 
 !==================================DIPRO==================================================
 
@@ -313,8 +321,8 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
 
    do ifr=1,nfrag
       do j = 1, fcalc(ifr)%bas%nao
-         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(2),1) - dipro%othr/autoev) .and.&
-           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(2)+1,1) + dipro%othr/autoev)) then
+         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(homo(ifr,2),1) - dipro%othr/autoev) .and.&
+           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(homo(ifr,2)+1,1) + dipro%othr/autoev)) then
            if (start_index(ifr).eq.-1) then 
                    start_index(ifr) = j
               end if
@@ -343,7 +351,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    !> scmat=S_dim*C_dim
    call gemm(overlap, coeff2, scmat)
    do j = start_index(1), end_index(1)
-      orbprint(1)=wfx(1)%homo(max(2,1))-j
+      orbprint(1)=homo(1,2)-j
 
       y(:,1)=0
       !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
@@ -355,7 +363,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
       efrag(1)=dot( y(:,1), scratch)
 
       do k = start_index(2), end_index(2)
-         orbprint(2)=wfx(2)%homo(max(2,1))-k
+         orbprint(2)=homo(2,2)-k
 
          y(:,2)=0
          !> y_mon2(ifr)=C_mon2(k)*S_dim*C_dim

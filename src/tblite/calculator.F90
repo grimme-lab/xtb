@@ -34,7 +34,8 @@ module xtb_tblite_calculator
    use tblite_results, only : results_type
    use tblite_spin, only : spin_polarization, new_spin_polarization
    use tblite_solvation, only : new_solvation, solvation_type
-   use tblite_wavefunction, only : wavefunction_type, new_wavefunction, sad_guess, eeq_guess
+   use tblite_wavefunction, only : wavefunction_type, new_wavefunction, &
+      & sad_guess, eeq_guess, eeqbc_guess
    use tblite_xtb_calculator, only : xtb_calculator, new_xtb_calculator
    use tblite_xtb_gfn2, only : new_gfn2_calculator, export_gfn2_param
    use tblite_xtb_gfn1, only : new_gfn1_calculator, export_gfn1_param
@@ -252,7 +253,9 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
       case("sad")
          call sad_guess(struc, calc%tblite, wfn)
       case("eeq")
-         call eeq_guess(struc, calc%tblite, wfn)
+         call eeq_guess(struc, calc%tblite, wfn, error)
+      case("eeqbc")
+         call eeqbc_guess(struc, calc%tblite, wfn, error)
       case("ceh")
          block 
             use tblite_context, only : context_type, context_terminal

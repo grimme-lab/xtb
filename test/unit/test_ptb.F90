@@ -107,9 +107,10 @@ contains
    end subroutine test_ptb_basis
 
    subroutine test_ptb_eeq(error)
+      use mctc_env, only : mctc_error_type => error_type
       use xtb_ptb_param, only: ptbGlobals, initPTB
       use xtb_ptb_ncoord, only: ncoord_erf
-      use multicharge_model, only: new_mchrg_model, mchrg_model_type
+      use multicharge_model, only: new_eeq_model, mchrg_model_type, eeq_model
       use xtb_ptb_data, only: TPTBData
 
       type(error_type), allocatable, intent(out) :: error
@@ -120,11 +121,14 @@ contains
       !> Structure type (mctc-lib)
       type(structure_type) :: mol
       !> EEQ Model
-      type(mchrg_model_type) :: eeqmodel
-      real(wp), allocatable :: cn_eeq(:)
+      class(mchrg_model_type), allocatable :: eeqmodel
+
+      real(wp), allocatable :: cn_eeq(:), qloc(:)
       integer :: i
       !> EEQ charges
       real(wp), allocatable :: q_eeq(:)
+      type(eeq_model), allocatable :: tmp_eeqmodel
+      type(mctc_error_type), allocatable :: local_error
 
       real(wp), parameter :: q_exp(16) = [ &
       &  0.191209985_wp, &
@@ -150,10 +154,20 @@ contains
       call initPTB(ptbData, mol%num)
       allocate (cn_eeq(mol%nat))
       call ncoord_erf(mol, ptbGlobals%kerfcn_eeq, 25.0_wp, cn_eeq)
-      call new_mchrg_model(eeqmodel, chi=ptbData%eeq%chi, &
-      & rad=ptbData%eeq%alp, eta=ptbData%eeq%gam, kcn=ptbData%eeq%cnf)
+      allocate(tmp_eeqmodel)
+      call new_eeq_model(tmp_eeqmodel, mol, local_error, chi=ptbData%eeq%chi, &
+      & rad=ptbData%eeq%alp, eta=ptbData%eeq%gam, kcnchi=ptbData%eeq%cnf)
+      if (allocated(local_error)) then
+         call test_failed(error, 'Could not initialize EEQ model')
+         return
+      end if 
+      call move_alloc(tmp_eeqmodel, eeqmodel)
       allocate (q_eeq(mol%nat))
-      call eeqmodel%solve(mol, cn_eeq, qvec=q_eeq)
+      call eeqmodel%solve(mol, local_error, cn_eeq, qloc, qvec=q_eeq)
+      if (allocated(local_error)) then
+         call test_failed(error, 'Could not solve the EEQ model')
+         return
+      end if
 
       do i = 1, mol%nat
          call check_(error, q_eeq(i), q_exp(i), thr=thr, &

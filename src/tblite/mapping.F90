@@ -81,7 +81,8 @@ subroutine convert_tblite_to_results(results, mol, chk, energy, converged, gradi
    !> (analytical) gradients
    real(wp), optional, intent(in) :: gradient(:,:)
 
-   
+   integer :: homo
+
    results%e_total = energy
    results%converged = converged
 
@@ -91,7 +92,11 @@ subroutine convert_tblite_to_results(results, mol, chk, energy, converged, gradi
    if (all(results%dipole == 0.0_wp)) then
       results%dipole = sum(chk%tblite%dpat(:, :, 1), 2) + matmul(mol%xyz, chk%tblite%qat(: ,1))
    endif
-   results%hl_gap = (chk%tblite%emo(chk%tblite%homo(1) + 1, 1) - chk%tblite%emo(chk%tblite%homo(1), 1)) * autoev
+
+   ! we need to find the HOMO/LUMO first
+   homo = merge(chk%tblite%nel(1)+1, chk%tblite%nel(1), &
+      & mod(chk%tblite%nel(1), 1.0_wp) > 0.5_wp)
+   results%hl_gap = (chk%tblite%emo(homo + 1, 1) - chk%tblite%emo(homo, 1)) * autoev
 
 #endif
 
@@ -109,6 +114,16 @@ subroutine from_tblite_wfn(wfn, tblite)
    type(TWavefunction), intent(inout) :: wfn 
    type(wavefunction_type), intent(in) :: tblite
 
+   integer :: homo(2)
+
+   ! Need to find the HOMO/LUMO first
+   homo(1) = merge(tblite%nel(1)+1, tblite%nel(1), mod(tblite%nel(1), 1.0_wp) > 0.5_wp)
+   if (size(tblite%nel, 1) == 2) then
+      homo(2) = merge(tblite%nel(2)+1, tblite%nel(2), mod(tblite%nel(2), 1.0_wp) > 0.5_wp)
+   else
+      homo(2) = homo(1)
+   end if
+
    wfn%dipm = tblite%dpat(:, :, 1)
    wfn%nel = nint(tblite%nocc)
    wfn%P = tblite%density(:, :, 1)
@@ -119,9 +134,9 @@ subroutine from_tblite_wfn(wfn, tblite)
    wfn%focc(:) = tblite%focc(:, 1)
    wfn%emo = tblite%emo(:, 1) * autoev
    wfn%C = tblite%coeff(:, :, 1)
-   wfn%ihomo = tblite%homo(1)
-   wfn%ihomoa = tblite%homo(1)
-   wfn%ihomob = tblite%homo(2)
+   wfn%ihomo = homo(1)
+   wfn%ihomoa = homo(1)
+   wfn%ihomob = homo(2)
    wfn%qp = tblite%qpat(:, :, 1)
 
 end subroutine from_tblite_wfn

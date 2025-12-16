@@ -38,7 +38,7 @@ module xtb_ptb_calculator
 #if WITH_TBLITE
    use xtb_tblite_mapping, only : convert_tblite_to_wfn, convert_tblite_to_results
 
-   use multicharge_model, only: new_mchrg_model, mchrg_model_type
+   use multicharge_model, only: new_eeq_model, mchrg_model_type, eeq_model
 
    use tblite_basis_type, only: basis_type
    use tblite_context, only: context_type
@@ -71,7 +71,7 @@ module xtb_ptb_calculator
       type(basis_type) :: bas, cbas
 
       !> EEQ Model
-      type(mchrg_model_type) :: eeqmodel
+      class(mchrg_model_type), allocatable :: eeqmodel
 #endif
 
       !> Parametrisation data base
@@ -127,6 +127,8 @@ contains
 #if WITH_TBLITE
       !> mctc-io structure type
       type(structure_type) :: mol
+      type(eeq_model), allocatable :: tmp_eeqmodel
+      type(error_type), allocatable :: error
 
       mol = struc
 
@@ -164,8 +166,14 @@ contains
       call add_core_basis(mol, calc%ptbData%corepotential, calc%cbas)
       
       !> set up the EEQ model
-      call new_mchrg_model(calc%eeqmodel, chi=calc%ptbData%eeq%chi, &
-      & rad=calc%ptbData%eeq%alp, eta=calc%ptbData%eeq%gam, kcn=calc%ptbData%eeq%cnf)
+      allocate(tmp_eeqmodel)
+      call new_eeq_model(tmp_eeqmodel, mol, error, chi=calc%ptbData%eeq%chi, &
+      & rad=calc%ptbData%eeq%alp, eta=calc%ptbData%eeq%gam, kcnchi=calc%ptbData%eeq%cnf)
+      if (allocated(error)) then
+         call env%error('Could not initialize EEQ model', source)
+         return
+      end if
+      call move_alloc(tmp_eeqmodel, calc%eeqmodel)
 
       !> check for external point charge field
       !> not implemented yet
