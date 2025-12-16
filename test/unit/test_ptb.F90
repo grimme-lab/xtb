@@ -1376,8 +1376,6 @@ contains
       allocate (psh(ptb_save%bas%nsh, chk%tblite%nspin), source=0.0_wp)
       psh = get_psh_from_qsh(chk%tblite, ptb_save%bas)
 
-      write(*,*) "hallo", chk%wfn%q
-
       do iat = 1, struc%n
          call check_(error, chk%wfn%q(iat), q_ref(iat), thr=thr2)
       end do
