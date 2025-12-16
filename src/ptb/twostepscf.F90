@@ -42,7 +42,7 @@ module xtb_ptb_scf
    use tblite_container, only: container_type, container_cache
    use tblite_external_field, only: electric_field
 
-   use multicharge, only: mchrg_model_type
+   use multicharge_model, only: mchrg_model_type
 
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
    use xtb_ptb_param, only: ptbGlobals, rf
