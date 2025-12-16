@@ -42,7 +42,7 @@ module xtb_ptb_scf
    use tblite_container, only: container_type, container_cache
    use tblite_external_field, only: electric_field
 
-   use multicharge, only: mchrg_model_type
+   use multicharge_model, only: mchrg_model_type
 
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
    use xtb_ptb_param, only: ptbGlobals, rf
@@ -150,8 +150,6 @@ contains
       real(wp) :: nel
       !> Shell populations required for Pauli XC potential
       real(wp), allocatable :: psh(:, :)
-      !> Electronic entropy
-      !real(wp) :: ts
       !> Tmp variable for dipole moment
       real(wp) :: tmpdip(3)
       real(wp), allocatable :: mulliken_qsh(:, :), mulliken_qat(:, :)
@@ -328,6 +326,10 @@ contains
 
       !> EEQ call
       call eeqmodel%solve(mol, error, cn_eeq, qloc_eeq, qvec=wfn%qat(:, 1))
+      if (allocated(error)) then
+         call env%error('Could not solve the EEQ model', source)
+         return
+      end if
       if (debug(8)) then !##### DEV WRITE #####
          write (*, *) "EEQ charges:"
          do i = 1, mol%nat
