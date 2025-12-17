@@ -603,14 +603,14 @@ subroutine numhess_rmsd( &
       do ic = 1, 3
          ii = (ia-1)*3+ic
 
-         tmol=mol
+         call tmol%copy(mol)
          tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
 
          gr = 0.0_wp
          ebias = 0.0_wp
          call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gr)
 
-         tmol=mol
+         call tmol%copy(mol)
          tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
 
          gl = 0.0_wp

@@ -1096,6 +1096,7 @@ contains
           (set%runtyp == p_run_omd) .or. (set%runtyp == p_run_screen) .or. &
           (set%runtyp == p_run_metaopt) .or. (set%runtyp == p_run_bhess)) then
          call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
+         if (mol%ftype == 0) mol%ftype = getFileType(tmpname)
          write (env%unit, '(/,a,1x,a,/)') &
             "optimized geometry written to:", tmpname
          call open_file(ich, tmpname, 'w')
