@@ -282,12 +282,11 @@ subroutine get_neighbor_list(distmat, dmax, nblist)
    allocate(nblist(N))
 
    ! 1. Calculate Initial Neighbors
-   do i = 1, N - 1
-      do j = i + 1, N
+   do i = 1, N
+      do j = 1, N
             d = distmat(i, j)
             if (d < dmax) then
                call add_neighbor(nblist(i), j)
-               call add_neighbor(nblist(j), i)
             end if
       end do
    end do
@@ -451,17 +450,17 @@ subroutine prim_mst(nc, dists, adj_mst)
    end do
 end subroutine prim_mst
 
-subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
-                        eps, eps2, displdir, ndispl_final)
+subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
+                        eps, eps2, displdir, ndispl_final, displdir0)
    integer, intent(in) :: n, ndispl0, max_nb
    real(wp), intent(in) :: h0(n,n)
-   real(wp), intent(in) :: displdir0(n, ndispl0)
    type(adj_list), intent(in) :: nblist(:)
    integer, intent(in) :: nbcounts(n)           ! Actual number of neighbors per atom
    real(wp), intent(in) :: eps, eps2
    
-   real(wp), intent(out) :: displdir(n,n)
+   real(wp), allocatable, intent(out) :: displdir(:, :)
    integer, intent(out) :: ndispl_final
+   real(wp), intent(in), optional :: displdir0(n, ndispl0)
 
    ! Local variables
    integer :: i, j, k, p, q, nnb, info, n_curr, idx, local_max_ind
@@ -472,14 +471,17 @@ subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
    real(wp) :: S(max_nb), loceigs(max_nb)
    real(wp) :: ev1, ev2, norm1, norm2, v_norm, d_dot
    integer, allocatable :: iwork(:)
-   real(wp), allocatable :: work(:)
+   real(wp), allocatable :: work(:), displdir_tmp(:, :)
    real(wp) :: norm_locev_max
    logical :: early_break
 
    ! Initialize
-   displdir = 0.0_wp
-   displdir(:, 1:ndispl0) = displdir0
-   
+   allocate(displdir_tmp(n, n))
+   displdir_tmp = 0.0_wp
+   if (present(displdir0)) then
+      displdir_tmp(:, 1:ndispl0) = displdir0
+   end if
+
    ! Workspace for LAPACK (allocate generously)
    allocate(work(10*max_nb + 10*n)) 
    allocate(iwork(8*max_nb))
@@ -514,7 +516,7 @@ subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
             ! Form matrix A = displdir[neighbors, 0:n_curr]
             do p = 1, n_curr
                do q = 1, nnb
-                  vec_subset(q, p) = displdir(nb_idx(q), p)
+                  vec_subset(q, p) = displdir_tmp(nb_idx(q), p)
                end do
             end do
 
@@ -636,14 +638,15 @@ subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
       ! Project out previous columns from global ev
       do k = 1, n_curr
             ! d = dot(ev, displdir(:,k))
-            d_dot = dot_product(ev, displdir(:, k))
+            d_dot = dot_product(ev, displdir_tmp(:, k))
             ! ev = ev - d * displdir(:,k)
-            ev = ev - d_dot * displdir(:, k)
+            ev = ev - d_dot * displdir_tmp(:, k)
       end do
 
       ! --- Check Norm ---
       v_norm = sqrt(dot_product(ev, ev))
       
+      print *, "v_norm = ", v_norm
       if (v_norm < eps2) then
             early_break = .true.
             exit ! Break out of i loop
@@ -653,10 +656,13 @@ subroutine gen_displdir(n, ndispl0, h0, displdir0, max_nb, nblist, nbcounts, &
 
       ! Normalize and store
       ev = ev / v_norm
-      displdir(:, n_curr + 1) = ev
+      displdir_tmp(:, n_curr + 1) = ev
 
       ndispl_final = n_curr + 1
    end do
+
+   allocate(displdir(n, ndispl_final))
+   displdir(:, :) = displdir_tmp(:, 1:ndispl_final)
 
 end subroutine gen_displdir
 

@@ -230,7 +230,7 @@ subroutine hessian_point(self, env, mol0, chk0, iat, ic, step, energy, gradient,
 end subroutine hessian_point
 
 !> Implementation according to Wang et al. (https://doi.org/10.48550/arXiv.2508.07544)
-subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
+subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    character(len=*), parameter :: source = "hessian_odlr"
    !> Single point calculator
    class(TCalculator), intent(inout) :: self
@@ -245,11 +245,13 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    !> Step size for numerical differentiation
    real(wp), intent(in) :: step
    !> Displacement directions
-   real(wp), intent(inout) :: displdir(:, :)
+   real(wp), intent(in) :: displdir0(:, :)
    !> Gradients
-   real(wp), intent(inout) :: g(:, :)
+   real(wp), allocatable, intent(inout) :: g(:, :)
    !> Array to add Hessian to
    real(wp), intent(inout) :: hess(:, :)
+   !> Array for displacement directions
+   real(wp), allocatable :: displdir(:, :)
    
    ! UFF vdw radii - could be replaced with any other vdw radii i guess
    real(wp), parameter :: vdw_radii(1:103) = [ &
@@ -272,16 +274,17 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    type(TRestart) :: chk
    type(scc_results) :: res
    type(adj_list), allocatable :: neighborlist(:)
-   real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :)
+   real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :), gtmp(:, :)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0, query(1), displmax
    real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1],[3, 3]), final_err
    logical :: linear
    integer, allocatable :: nbcounts(:)
-   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb
+   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ginit
    
    ! ========== INITIALIZATION ==========
    ! NOTE: maybe this needs to go to numhess?
    N = 3 * mol0%n
+   ginit = size(g, 2)
 
    call mol%copy(mol0)
    call chk%copy(chk0)
@@ -386,10 +389,14 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir, g, hess)
    ! populate displdir
    write(env%unit, '(A)') "Generating displacements"
    Ntr = 0
-   call gen_displdir(N, Ntr, h0, displdir, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
+   call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
 
-   g = 0.0_wp ! TODO: this should not be done in general since gradient derivs might be input
+   ! allocate g with correct size
+   allocate(gtmp(N, ndispl_final))
+   gtmp(:, 1:ginit) = g
+   call move_alloc(gtmp, g)
+   g(:, ginit+1:ndispl_final) = 0.0_wp
    
    ! ========== GRADIENT DERIVATIVES ==========
    write(env%unit, '(A)') "Calculating gradient derivatives"
