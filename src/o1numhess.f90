@@ -463,13 +463,13 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    real(wp), intent(in), optional :: displdir0(n, ndispl0)
 
    ! Local variables
-   integer :: i, j, k, p, q, nnb, info, n_curr, idx, local_max_ind
+   integer :: i, j, k, p, q, nnb, info, n_curr, idx, local_max_ind, locind
    integer :: nb_idx(max_nb)
    real(wp) :: ev(n), coverage(n), locev(max_nb), submat(max_nb, max_nb)
    real(wp) :: projmat(max_nb, max_nb), eye(max_nb, max_nb)
    real(wp) :: vec_subset(max_nb, n), U(max_nb, max_nb), VT(max_nb, max_nb)
    real(wp) :: S(max_nb), loceigs(max_nb)
-   real(wp) :: ev1, ev2, norm1, norm2, v_norm, d_dot
+   real(wp) :: norm1, norm2, v_norm, d_dot
    integer, allocatable :: iwork(:)
    real(wp), allocatable :: work(:), displdir_tmp(:, :)
    real(wp) :: norm_locev_max
@@ -562,45 +562,35 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
             end do
 
             ! 3. Diagonalization (Eigen decomposition)
-            ! dsyev: computes eigenvalues and eigenvectors
+            ! dsyev: computes eigenvalues and eigenvectors in ascending order
             call dsyev('V', 'U', nnb, submat, max_nb, loceigs, work, 10*max_nb, info)
             
-            ! Eigenvectors stored in submat columns. Last one is max due to ascending sort in dsyev.
-            locev(1:nnb) = submat(1:nnb, nnb)
+            ! Find the index of maximum eigenvalue (first occurrence for ties, like Python's argmax)
+            ! dsyev sorts ascending, so normally we'd take the last, but for ties we need first max
+            locind = maxloc(loceigs(1:nnb), dim=1)
+            locev(1:nnb) = submat(1:nnb, locind)
 
             ! 4. Patching / Phase fixing
+            ! First, find index of maximum absolute value in locev (for deterministic sign fix)
             local_max_ind = 1
-            norm_locev_max = -1.0_wp
-            
-            do k = 1, nnb
-               idx = nb_idx(k)
-               
-               ! Calc candidates
-               ev1 = (coverage(idx) * ev(idx) + locev(k)) / (coverage(idx) + 1.0_wp)
-               ev2 = (coverage(idx) * ev(idx) - locev(k)) / (coverage(idx) + 1.0_wp)
-               
-               ! We calculate norms squared for decision
-               norm1 = 0.0_wp
-               norm2 = 0.0_wp
-               do p = 1, nnb
-                  idx = nb_idx(p)
-                  if (p == k) then ! This index helps us find max element for later
-                        if (abs(locev(p)) > norm_locev_max) then
-                           norm_locev_max = abs(locev(p))
-                           local_max_ind = p
-                        end if
-                  end if
-                  
-                  ! Recompute tentative slices for norm
-                  norm1 = norm1 + ((coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp))**2
-                  norm2 = norm2 + ((coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp))**2
-               end do
-               norm1 = sqrt(norm1)
-               norm2 = sqrt(norm2)
-               
-               ! Apply decision to ALL neighbors at once (loop break/structure needed)
-               exit ! We have the norms for the patch, stop k loop, update all p
+            norm_locev_max = abs(locev(1))
+            do p = 2, nnb
+               if (abs(locev(p)) > norm_locev_max) then
+                  norm_locev_max = abs(locev(p))
+                  local_max_ind = p
+               end if
             end do
+            
+            ! Calculate norms for sign decision
+            norm1 = 0.0_wp
+            norm2 = 0.0_wp
+            do p = 1, nnb
+               idx = nb_idx(p)
+               norm1 = norm1 + ((coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp))**2
+               norm2 = norm2 + ((coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp))**2
+            end do
+            norm1 = sqrt(norm1)
+            norm2 = sqrt(norm2)
             
             ! Apply update
             if (norm1 > norm2 + eps) then
@@ -646,7 +636,6 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       ! --- Check Norm ---
       v_norm = sqrt(dot_product(ev, ev))
       
-      print *, "v_norm = ", v_norm
       if (v_norm < eps2) then
             early_break = .true.
             exit ! Break out of i loop
