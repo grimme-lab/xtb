@@ -25,7 +25,8 @@ module xtb_type_calculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart, only : TRestart
-   use xtb_o1numhess, only : adj_list, gen_local_hessian, lr_loop, gen_displdir, get_neighbor_list
+   use xtb_o1numhess, only : adj_list, gen_local_hessian, &
+   & lr_loop, gen_displdir, get_neighbor_list
    implicit none
 
    public :: TCalculator
@@ -49,6 +50,8 @@ module xtb_type_calculator
 
       !> Perform ODLR approximated numerical hessian
       procedure :: odlrhessian
+
+      procedure :: get_gradient_derivs
 
       !> Write informative printout
       procedure(writeInfo), deferred :: writeInfo
@@ -400,18 +403,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    
    ! ========== GRADIENT DERIVATIVES ==========
    write(env%unit, '(A)') "Calculating gradient derivatives"
-   do i = Ntr + 1, ndispl_final
-      displmax = maxval(abs(displdir(:, i)))
-      ! TODO: what about double sided stuff?
-      call mol%copy(mol0)
-      call chk%copy(chk0)
-      x = reshape(mol0%xyz,[N])
-      x = x + step * displdir(:, i) / displmax
-      mol%xyz = reshape(x,[3, mol0%n])
-      call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
-      g(:, i) = reshape(tmp_grad,[N])
-      g(:, i) = (g(:, i) - g0(:)) / step * displmax
-   end do
+   call get_gradient_derivs(self, env, step, Ntr, ndispl_final, displdir, mol0, chk0, g0, g)
 
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
@@ -424,4 +416,41 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    call lr_loop(ndispl_final, g, hess, displdir, final_err)
 
 end subroutine odlrhessian
+
+subroutine get_gradient_derivs(self, env, step, Ntr, ndispl_final, displdir, mol0, chk0, g0, g)
+   class(TCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   real(wp), intent(in) :: step
+   integer, intent(in) :: Ntr, ndispl_final
+   real(wp), intent(in) :: displdir(:, :)
+   type(TMolecule), intent(in) :: mol0
+   type(TRestart), intent(in) :: chk0
+   real(wp), intent(in) :: g0(:)
+   real(wp), intent(inout) :: g(:, :)
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(scc_results) :: res
+   integer :: i, N
+   real(wp) :: displmax, sigma(3, 3), energy, egap
+   real(wp), allocatable :: tmp_grad(:, :)
+   real(wp), allocatable :: x(:)
+
+   allocate(tmp_grad(3, mol0%n))
+   tmp_grad = 0.0_wp
+   N = 3 * mol0%n
+   do i = Ntr + 1, ndispl_final
+      displmax = maxval(abs(displdir(:, i)))
+      ! TODO: what about double sided stuff?
+      call mol%copy(mol0)
+      call chk%copy(chk0)
+      x = reshape(mol0%xyz,[N])
+      x = x + step * displdir(:, i) / displmax
+      mol%xyz = reshape(x,[3, mol0%n])
+      call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
+      g(:, i) = reshape(tmp_grad,[N])
+      g(:, i) = (g(:, i) - g0(:)) / step * displmax
+   end do
+end subroutine get_gradient_derivs
+
 end module xtb_type_calculator

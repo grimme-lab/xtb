@@ -29,7 +29,7 @@ module test_hessian
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
-   use xtb_o1numhess, only : gen_displdir, get_neighbor_list, adj_list
+   use xtb_o1numhess, only : gen_displdir, get_neighbor_list, adj_list, gen_local_hessian
    implicit none
    private
 
@@ -49,7 +49,8 @@ subroutine collect_hessian(testsuite)
       new_unittest("gfn1_o1numhess", test_gfn1_o1numhess), &
       new_unittest("gfn2_o1numhess", test_gfn2_o1numhess), &
       new_unittest("o1numhess_nblist", test_nblist_o1numhess), &
-      new_unittest("o1numhess_gen_displdir", test_gendispldir_o1numhess) &
+      new_unittest("o1numhess_gen_displdir", test_gendispldir_o1numhess), &
+      new_unittest("o1numhess_local_hessian", test_local_hessian_o1numhess) &
       ]
 
 end subroutine collect_hessian
@@ -9588,13 +9589,88 @@ subroutine test_local_hessian_o1numhess(error)
       & -2.49533904192162009e-01_wp, 5.81286365004134997e-01_wp, 1.55134377303580012e-01_wp, &
       & 0.00000000000000000e+00_wp, 0.00000000000000000e+00_wp, 0.00000000000000000e+00_wp, &
       & 8.33162824947950020e-03_wp, -4.49557865367527024e-03_wp, 5.34151725425823995e-02_wp, &
-      & -5.69257186084519973e-02_wp, 1.55134377303580012e-01_wp, -6.42862305196194028e-02_wp, &],&
+      & -5.69257186084519973e-02_wp, 1.55134377303580012e-01_wp, -6.42862305196194028e-02_wp],&
       & shape(hessian_ref))
+   real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp, step = 1.0e-6_wp
 
-   ! TODO: calculate displdir
-   ! TODO: calculate gradient derivs
-   ! TODO: calculate local hessian
-   ! TODO: compare
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
+   type(adj_list), allocatable :: neighborlist(:)
+   real(wp) :: energy, sigma(3, 3), egap
+   real(wp), allocatable :: distmat(:, :), displdir(:, :), tmp_grad(:, :), h0(:, :), g0(:), g(:, :), hessian(:, :)
+   integer, allocatable :: nbcounts(:)
+   integer :: i, j, N, max_nb, Ntr, ndispl_final
+
+   ! calculate displdir
+   N = 3 * nat
+
+   ! setup distmat
+   allocate(distmat(N, N))
+   do i = 1, N
+      do j = 1, N
+         distmat(i, j) = abs(i - j)
+      end do
+   end do
+
+   ! compute neighbor list
+   print *, "get_neighbor_list"
+   call get_neighbor_list(distmat, dmax, neighborlist)
+   allocate(nbcounts(N))
+   max_nb = 0
+   do i = 1, N
+      nbcounts(i) = size(neighborlist(i)%neighbors)
+      if (nbcounts(i) > max_nb) max_nb = nbcounts(i)
+   end do
+   
+   allocate(h0(N, N))
+   do i = 1, N
+      h0(i, i) = 1.0_wp
+   end do
+
+   ! populate displdir
+   Ntr = 0
+   print *, "gen_displdir"
+   call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
+
+   ! calculate gradient derivs
+   call init(env)
+   call init(mol, sym, xyz)
+
+   ! use GFN1
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, chk)
+   print *, "g0"
+   allocate(tmp_grad(3, mol%n))
+   call calc%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
+   g0 = reshape(tmp_grad,[N])
+   allocate(g(N, ndispl_final))
+   g = 0.0_wp
+   print *, "grad derivs"
+   call calc%get_gradient_derivs(env, step, Ntr, ndispl_final, displdir, mol, chk, g0, g)
+
+   ! calculate local hessian
+   print *, "local hessian"
+   allocate(hessian(N, N))
+   call gen_local_hessian(distmat, displdir, g, dmax, hessian)
+
+   ! compare
+   if (any(abs(hessian - hessian_ref) > thr)) then
+      call test_failed(error, "Local Hessians do not match")
+
+      print *, "--- hessian ---"
+      do i = 1, N
+         print '(*(F21.14))', hessian(i, :) 
+      end do
+
+      print *, "--- Ref. hessian ---"
+      do i = 1, N
+         print '(*(F21.14))', hessian_ref(i, :) 
+      end do
+   end if
+
 end subroutine test_local_hessian_o1numhess
 
 end module test_hessian

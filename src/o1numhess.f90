@@ -79,6 +79,7 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    ndim = size(rhsv)
 
    !  Build index mapping from (i,j) to packed index
+   allocate(idx_map(N, N))
    idx_map = 0
    k = 0
    do j = 2, n
@@ -144,8 +145,8 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
       end do
    end do
 
-   ! Free memory
-   deallocate(idx_map, mask, mask_ut, A, rhsv, rhs)
+   ! ! Free memory - should not be necessary?
+   ! deallocate(idx_map, mask, mask_ut, A, rhsv, rhs)
 
 end subroutine gen_local_hessian
 
@@ -654,5 +655,4 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    displdir(:, :) = displdir_tmp(:, 1:ndispl_final)
 
 end subroutine gen_displdir
-
 end module xtb_o1numhess
