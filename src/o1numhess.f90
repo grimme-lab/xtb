@@ -46,11 +46,9 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    real(wp), parameter :: lam = 1.0e-2_wp, bet = 1.5_wp, ddmax = 5.0_wp
    
    ! Local work arrays
-   integer, allocatable :: idx_map(:, :)
-   real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), D(:, :)
-   logical, allocatable :: mask(:, :), mask_ut(:, :)
-   integer :: i, j, k, l, ndim, ndispl, N, idx_ij, idx_kl, info
-   real(wp) :: Dij_dot_Dkl
+   real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), D(:, :), Dprime(:, :), unit_vec(:), f1(:, :), f(:, :), tmp(:, :)
+   logical, allocatable :: mask(:, :)
+   integer :: i, j, k, l, ndim, ndispl, N, info
 
    ndispl = size(displdir, 1)
    N = size(distmat, 1)
@@ -61,93 +59,43 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
 
    ! Calculate rhs
    allocate(rhs(N, N))
-   call dgemm('N', 'T', N, N, ndispl, 1.0_wp, g, N, displdir, N, 0.0_wp, rhs, N)
-   rhs = 0.5_wp * (rhs + transpose(rhs))
+   rhs = 0.0_wp
+   ! call dgemm('N', 'T', N, N, ndispl, 1.0_wp, g, N, displdir, N, 0.0_wp, rhs, N)
+   rhs = matmul(g, transpose(displdir))
+   ! rhs = 0.5_wp * (rhs + transpose(rhs))
 
    ! Masks and Packing
-   allocate(mask(N, N), mask_ut(N, N))
+   allocate(mask(N, N))
    mask = (distmat < (dmax + ddmax))
-   mask_ut = .false.
-   do j = 2, N
-      do i = 1, j - 1
-         mask_ut(i, j) = mask(i, j)
+   do i = 1, N
+      do j = 1, i - 1
+         mask(i, j) = .false.
       end do
    end do
    
    ! RHS Vector (b in Ax=b)
-   rhsv = pack(rhs, mask_ut)
+   ! rhsv = pack(transpose(rhs), mask)
+   rhsv = pack_sym(rhs, mask)
    ndim = size(rhsv)
 
-   !  Build index mapping from (i,j) to packed index
-   allocate(idx_map(N, N))
-   idx_map = 0
-   k = 0
-   do j = 2, n
-      do i = 1, j - 1
-            if (mask_ut(i, j)) then
-               k = k + 1
-               idx_map(i, j) = k
-               idx_map(j, i) = k  ! Symmetric access
-            end if
-      end do
-   end do
-
-   allocate(D(N, N))
-   call dgemm('N', 'T', N, N, ndispl, 1.0_wp, displdir, N, displdir, N, 0.0_wp, D, N)
-
    ! Compute A
-   allocate(A(ndim, ndim))
-
+   allocate(A(ndim, ndim), unit_vec(ndim), tmp(N, N))
    A = 0.0_wp
-      
-   do j = 2, n
-      do i = 1, j - 1
-         if (.not. mask_ut(i, j)) cycle
-         idx_ij = idx_map(i, j)
-         
-         do l = 2, n
-            do k = 1, l - 1
-               if (.not. mask_ut(k, l)) cycle
-               idx_kl = idx_map(k, l)
-               
-               !  Only compute upper triangle of A (it's symmetric)
-               if (idx_kl < idx_ij) cycle
-               
-               !  A[(i,j),(k,l)] = D(i,k)*D(j,l) + D(i,l)*D(j,k)
-               Dij_dot_Dkl = D(i,k)*D(j,l) + D(i,l)*D(j,k)
-               
-               A(idx_ij, idx_kl) = Dij_dot_Dkl
-               
-               !  Add regularization on diagonal
-               if (idx_ij == idx_kl) then
-                     A(idx_ij, idx_kl) = A(idx_ij, idx_kl) + W2(i, j)
-               end if
-               
-               ! Fill lower triangle
-               if (idx_kl > idx_ij) then
-                     A(idx_kl, idx_ij) = A(idx_ij, idx_kl)
-               end if
-            end do
-         end do
-      end do
+   do i = 1, ndim
+      unit_vec = 0.0_wp
+      unit_vec(i) = 1.0_wp
+      tmp = unpack_sym(unit_vec, mask, N)
+      f1 = matmul(matmul(tmp, displdir), transpose(displdir))
+      f1 = (f1 + transpose(f1)) / 2.0_wp
+      f = W2 * tmp
+      A(:, i) = pack_sym(f1 + f, mask)
    end do
 
    ! Solve
    call dposv('U', ndim, 1, A, ndim, rhsv, ndim, info)
 
    ! Recover Hessian from vector
-   hess_out = unpack_sym(rhsv, mask_ut, N)
-
-   ! Fill lower triangle
-   do j = 2, N
-      do i = 1, j - 1
-         hess_out(i, j) = hess_out(j, i)
-      end do
-   end do
-
-   ! ! Free memory - should not be necessary?
-   ! deallocate(idx_map, mask, mask_ut, A, rhsv, rhs)
-
+   hess_out = unpack_sym(rhsv, mask, N)
 end subroutine gen_local_hessian
 
 !> Corrects Hessian hnum using a symmetric, low-rank update
@@ -256,16 +204,25 @@ function unpack_sym(v, mask, n) result(H)
    integer :: i, j
    
    H = 0.0_wp
-   ! Unpack lower triangle based on mask
    H = unpack(v, mask, field=0.0_wp)
    
-   ! Symmetrize (Copy lower to upper)
-   do j = 1, n - 1
-      do i = j + 1, n
-            H(j, i) = H(i, j)
+   ! Symmetrize
+   do i = 1, n
+      do j = 1, i - 1
+         H(i, j) = H(j, i)
       end do
    end do
 end function unpack_sym
+
+function pack_sym(m, mask) result(v)
+   real(wp), intent(in) :: m(:, :)
+   logical, intent(in) :: mask(:, :)
+   real(wp), allocatable :: v(:)
+   integer :: i, j, n
+   
+   ! symmetrize, then pack
+   v = pack((m + transpose(m)) * 0.5_wp, mask)
+end function pack_sym
 
 subroutine get_neighbor_list(distmat, dmax, nblist)
    real(wp), intent(in) :: distmat(:, :)
