@@ -54,15 +54,12 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    ndispl = size(displdir, 1)
    N = size(distmat, 1)
 
-   print *, "displdir"
-   do i = 1, N
-      print *, displdir(i, :)
-   end do
-
-   print *, "g"
-   do i = 1, N
-      print *, g(i, :)
-   end do
+   ! print *, "====================="
+   ! print *, "g"
+   ! do i = 1, N
+   !    print *, g(i, :)
+   ! end do
+   ! print *, "====================="
 
    ! Calculate Regularization Term W2
    allocate(W2(N, N))
@@ -90,6 +87,7 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    ndim = size(rhsv)
 
    ! Compute A
+   ! TODO: this needs to become more (RAM) efficient (use iterative solver)
    allocate(A(ndim, ndim), unit_vec(ndim), tmp(N, N))
    A = 0.0_wp
    do i = 1, ndim
@@ -107,12 +105,6 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    tmp5 = A
    allocate(ipiv(ndim))
    call dgesv(ndim, 1, A, ndim, ipiv, rhsv, ndim, info)
-   if (info /= 0) then
-      print *, "Error: dgesv failed with info", info
-   end if
-   print *, "Info: ", info
-   tmp2 = matmul(tmp5, rhsv) - tmp3
-   print *, "Error: ", sqrt(sum(tmp2**2))
 
    ! Recover Hessian from vector
    hess_out = unpack_sym(rhsv, mask, N)
@@ -120,11 +112,11 @@ end subroutine gen_local_hessian
 
 !> Corrects Hessian hnum using a symmetric, low-rank update
 !> so that g approx hnum * displdir
-subroutine lr_loop(ndispl, g_in, hess_out, d_in, final_err)
+subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
    integer, intent(in) :: ndispl
-   real(wp), intent(in) :: g_in(:, :)    ! Input Gradients
+   real(wp), intent(in) :: g(:, :)    ! Input Gradients
    real(wp), intent(inout) :: hess_out(:, :) ! Hessian to correct
-   real(wp), intent(in) :: d_in(:, :)    ! Displacement directions
+   real(wp), intent(in) :: displdir(:, :)    ! Displacement directions
    real(wp), intent(out) :: final_err ! Final residual error
 
    real(wp), parameter :: mingrad_LR = 1.0e-3_wp
@@ -132,48 +124,28 @@ subroutine lr_loop(ndispl, g_in, hess_out, d_in, final_err)
    integer, parameter :: maxiter_LR = 100
 
    ! Local variables
-   real(wp), allocatable :: g_local(:, :), displdir_local(:, :)
    real(wp), allocatable :: resid(:, :), hcorr(:, :)
-   real(wp) :: dampfac, err0, err, norm_g, norm_gi, val
+   real(wp) :: dampfac, err0, err, norm_g
    integer :: i, j, it, N
    
    ! BLAS Helper
    real(wp), external :: dnrm2
 
-   N = size(g_in, 1)
-
-   allocate(g_local(N, N), displdir_local(N, N))
-   allocate(resid(N, N), hcorr(N, N))
-
-   ! 1. Weighting Step
-   g_local = 0.0_wp
-   displdir_local = 0.0_wp
-   
-   do i = 1, ndispl
-      ! Python: norm_gi = max(norm(g[:,i]), mingrad)
-      norm_gi = max(dnrm2(n, g_in(:, i), 1), mingrad_LR)
-      
-      ! Scale columns
-      g_local(:, i) = (mingrad_LR / norm_gi) * g_in(:, i)
-      displdir_local(:, i) = (mingrad_LR / norm_gi) * d_in(:, i)
-   end do
+   N = size(g, 1)
 
    dampfac = 1.0_wp
    err0 = huge(1.0_wp)
    
    ! Calculate Frobenius norm of entire matrix G (treated as vector of size n*ndispl)
-   norm_g = dnrm2(N * ndispl, g_local, 1)
+   norm_g = dnrm2(N * ndispl, g, 1)
 
    ! 2. Iterative Correction Loop
    loop_lr: do it = 1, maxiter_LR
       
-      resid = g_local ! Copy g to resid first
-      
-      ! Call DGEMM: C = alpha*A*B + beta*C
-      ! resid = (-1.0) * hnum * d + (1.0) * resid
-      call dgemm('N', 'N', N, ndispl, N, -1.0_wp, hess_out, N, displdir_local, N, 1.0_wp, resid, N)
-      
-      err = dnrm2(N * N, resid, 1)
+      resid = g - matmul(hess_out, displdir)
+
+      err = dnrm2(N * ndispl, resid, 1)
+      print *, err
       
       if (err < thresh_LR) then
             ! Converged successfully
@@ -190,22 +162,9 @@ subroutine lr_loop(ndispl, g_in, hess_out, d_in, final_err)
             ! print *, 'Damping factor reduced to', dampfac
       end if
       
-      ! (Optional: Print iteration status)
-      ! print *, 'Iter', it, 'Error', err
-
-      ! hcorr = resid * d^T
-      ! DGEMM: C = alpha*A*B^T + beta*C
-      call dgemm('N', 'T', N, N, ndispl, 1.0_wp, resid, N, displdir_local, N, 0.0_wp, hcorr, N)
-      
-      ! Symmetrize hcorr and Apply Update to hnum
-      ! hnum = hnum + dampfac * 0.5 * (hcorr + hcorr^T)
-      do j = 1, N
-            do i = 1, N
-               ! Average off-diagonals
-               val = 0.5_wp * (hcorr(i, j) + hcorr(j, i))
-               hess_out(i, j) = hess_out(i, j) + (dampfac * val)
-            end do
-      end do
+      hcorr = matmul(resid, transpose(displdir))
+      hcorr = 0.5_wp * (hcorr + transpose(hcorr))
+      hess_out = hess_out + dampfac * hcorr
       
       err0 = err
       
@@ -441,16 +400,15 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    real(wp), intent(in), optional :: displdir0(n, ndispl0)
 
    ! Local variables
-   integer :: i, j, k, p, q, nnb, info, n_curr, idx, local_max_ind, locind
+   integer :: i, j, k, p, q, nnb, info, n_curr, idx, local_max_ind, locind, z
    integer :: nb_idx(max_nb)
    real(wp) :: ev(n), coverage(n), locev(max_nb), submat(max_nb, max_nb)
-   real(wp) :: projmat(max_nb, max_nb), eye(max_nb, max_nb)
-   real(wp) :: vec_subset(max_nb, n), U(max_nb, max_nb), VT(max_nb, max_nb)
-   real(wp) :: S(max_nb), loceigs(max_nb)
-   real(wp) :: norm1, norm2, v_norm, d_dot
+   real(wp) :: projmat(max_nb, n), eye(max_nb, max_nb)
+   real(wp) :: vec_subset(max_nb, n)
+   real(wp) :: loceigs(max_nb)
+   real(wp) :: norm_ev1, norm_ev2, v_norm, d_dot
    integer, allocatable :: iwork(:)
    real(wp), allocatable :: work(:), displdir_tmp(:, :)
-   real(wp) :: norm_locev_max
    logical :: early_break
 
    ! Initialize
@@ -460,6 +418,11 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       displdir_tmp(:, 1:ndispl0) = displdir0
    end if
 
+   eye = 0.0_wp
+   do i = 1, max_nb
+      eye(i, i) = 1.0_wp
+   end do
+
    ! Workspace for LAPACK (allocate generously)
    allocate(work(10*max_nb + 10*n)) 
    allocate(iwork(8*max_nb))
@@ -468,7 +431,6 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    ndispl_final = ndispl0
 
    ! --- Outer Loop: Generate new directions ---
-   ! Corresponds to Python: for i in range(N-Ndispl0)
    do i = 1, n - ndispl0
       
       n_curr = ndispl0 + i - 1 ! Number of existing vectors
@@ -497,47 +459,23 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
                   vec_subset(q, p) = displdir_tmp(nb_idx(q), p)
                end do
             end do
+            ! do z = 1, nnb
+            !    print *, vec_subset(z, :n_curr)
+            ! end do
+            ! print *, "======================"
 
-            ! Perform SVD on vec_subset to find basis: A = U * S * VT
-            ! We define rank based on S > eps
             if (n_curr > 0) then
-               call dgesdd('S', nnb, n_curr, vec_subset, max_nb, S, U, max_nb, &
-                           VT, max_nb, work, -1, iwork, info) ! Query size
-               call dgesdd('S', nnb, n_curr, vec_subset, max_nb, S, U, max_nb, &
-                           VT, max_nb, work, int(work(1)), iwork, info)
+               projmat(:nnb, :n_curr) = -orth(vec_subset(:nnb, :n_curr)) ! TODO: why minus?
+               projmat(:nnb, :nnb) = eye(:nnb, :nnb) - matmul(projmat(:nnb, :n_curr), transpose(projmat(:nnb, :n_curr)))
             else
-               U = 0.0_wp ! No existing vectors
-               S = 0.0_wp
-            end if
-
-            ! Construct Projector: P = I - sum(u*u.T) for significant singular values
-            eye = 0.0_wp
-            do p = 1, nnb; eye(p,p) = 1.0_wp; end do
-            
-            if (n_curr > 0) then
-               do k = 1, min(nnb, n_curr)
-                  if (S(k) > 1.0d-13) then ! Numerical threshold for rank
-                        do p = 1, nnb
-                           do q = 1, nnb
-                              eye(q, p) = eye(q, p) - U(q, k) * U(p, k)
-                           end do
-                        end do
-                  end if
-               end do
+               projmat(:nnb, :nnb) = eye(:nnb, :nnb)
             end if
             
             ! submat = P * submat * P.T
-            ! Step A: temp = P * submat
-            call dgemm('N', 'N', nnb, nnb, nnb, 1.0_wp, eye, max_nb, submat, max_nb, 0.0_wp, projmat, max_nb)
-            ! Step B: submat = temp * P.T
-            call dgemm('N', 'T', nnb, nnb, nnb, 1.0_wp, projmat, max_nb, eye, max_nb, 0.0_wp, submat, max_nb)
+            submat(:nnb, :nnb) = matmul(projmat(:nnb, :nnb), matmul(submat(:nnb, :nnb), transpose(projmat(:nnb, :nnb))))
             
             ! Symmetrize
-            do p = 1, nnb
-               do q = 1, nnb
-                     submat(q,p) = 0.5_wp * (submat(q,p) + submat(p,q))
-               end do
-            end do
+            submat = 0.5_wp * (submat + transpose(submat))
 
             ! 3. Diagonalization (Eigen decomposition)
             ! dsyev: computes eigenvalues and eigenvectors in ascending order
@@ -549,41 +487,32 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
             locev(1:nnb) = submat(1:nnb, locind)
 
             ! 4. Patching / Phase fixing
-            ! First, find index of maximum absolute value in locev (for deterministic sign fix)
-            local_max_ind = 1
-            norm_locev_max = abs(locev(1))
-            do p = 2, nnb
-               if (abs(locev(p)) > norm_locev_max) then
-                  norm_locev_max = abs(locev(p))
-                  local_max_ind = p
-               end if
-            end do
-            
             ! Calculate norms for sign decision
-            norm1 = 0.0_wp
-            norm2 = 0.0_wp
+            norm_ev1 = 0.0_wp
+            norm_ev2 = 0.0_wp
             do p = 1, nnb
                idx = nb_idx(p)
-               norm1 = norm1 + ((coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp))**2
-               norm2 = norm2 + ((coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp))**2
+               norm_ev1 = norm_ev1 + ((coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp))**2
+               norm_ev2 = norm_ev2 + ((coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp))**2
             end do
-            norm1 = sqrt(norm1)
-            norm2 = sqrt(norm2)
+            norm_ev1 = sqrt(norm_ev1)
+            norm_ev2 = sqrt(norm_ev2)
             
             ! Apply update
-            if (norm1 > norm2 + eps) then
+            if (norm_ev1 > norm_ev2 + eps) then
                do p = 1, nnb
                      idx = nb_idx(p)
                      ev(idx) = (coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp)
                end do
-            else if (norm1 < norm2 - eps) then
+            else if (norm_ev1 < norm_ev2 - eps) then
                do p = 1, nnb
                      idx = nb_idx(p)
                      ev(idx) = (coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp)
                end do
             else
                ! Deterministic sign fix based on max element
-               if (locev(local_max_ind) > 0.0_wp) then
+               locind = maxloc(abs(locev(1:nnb)), dim=1)
+               if (locev(locind) > 0.0_wp) then
                   do p = 1, nnb
                         idx = nb_idx(p)
                         ev(idx) = (coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp)
@@ -610,16 +539,10 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
             ! ev = ev - d * displdir(:,k)
             ev = ev - d_dot * displdir_tmp(:, k)
       end do
-
       ! --- Check Norm ---
-      v_norm = sqrt(dot_product(ev, ev))
+      v_norm = norm2(ev)
       
-      if (v_norm < eps2) then
-            early_break = .true.
-            exit ! Break out of i loop
-      else
-            early_break = .false.
-      end if
+      if (v_norm < eps2) exit
 
       ! Normalize and store
       ev = ev / v_norm
@@ -630,6 +553,46 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
 
    allocate(displdir(n, ndispl_final))
    displdir(:, :) = displdir_tmp(:, 1:ndispl_final)
-
 end subroutine gen_displdir
+
+function orth(A, tol_in) result(Q)
+   real(wp), intent(in) :: A(:,:)
+   real(wp), intent(in), optional :: tol_in
+   real(wp), allocatable :: Q(:,:)
+   
+   real(wp), allocatable :: Acopy(:,:), U(:,:), S(:), VT(:,:), work(:)
+   real(wp) :: tol
+   integer :: m, n, lwork, info, i, k, rk
+   
+   m = size(A, 1)
+   n = size(A, 2)
+   k = min(m, n)
+   
+   allocate(Acopy(m, n), U(m, k), S(k), VT(k, n), work(1))
+   
+   Acopy = A
+   
+   call dgesvd('S', 'N', m, n, Acopy, m, S, U, m, VT, k, work, -1, info)
+   lwork = int(work(1))
+   deallocate(work)
+   allocate(work(lwork))
+   
+   call dgesvd('S', 'N', m, n, Acopy, m, S, U, m, VT, k, work, lwork, info)
+   
+   if (present(tol_in)) then
+      tol = tol_in
+   else
+      tol = max(m, n) * S(1) * epsilon(1.0_wp)
+   end if
+   
+   rk = 0
+   do i = 1, k
+      if (S(i) > tol) rk = rk + 1
+   end do
+   
+   allocate(Q(m, rk))
+   Q = U(:, 1:rk)
+   
+   deallocate(Acopy, U, S, VT, work)
+end function orth
 end module xtb_o1numhess

@@ -29,7 +29,7 @@ module test_hessian
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
-   use xtb_o1numhess, only : gen_displdir, get_neighbor_list, adj_list, gen_local_hessian
+   use xtb_o1numhess, only : gen_displdir, get_neighbor_list, adj_list, gen_local_hessian, lr_loop
    implicit none
    private
 
@@ -9491,16 +9491,16 @@ subroutine test_gendispldir_o1numhess(error)
       & shape(h0))
    ! Ref from o1numhess python implementation using the above h0
    real(wp), parameter :: displdir_ref(9, 3) = reshape([&
-      & 0.00000000000000000e+00_wp, -7.04610020167635992e-02_wp, 2.74755545837018986e-02_wp, &
-      & -0.00000000000000000e+00_wp, 4.21188714999966990e-02_wp, -3.97646442524918001e-02_wp, &
-      & 0.00000000000000000e+00_wp, 2.83415445965953007e-02_wp, 1.22879178284483002e-02_wp, &
-      & 2.73431198591959011e-05_wp, -1.14625575287380002e-01_wp, 2.29231313409373000e-01_wp, &
-      & -1.39396297321390999e-05_wp, 1.73531769837374006e-01_wp, -1.56954869387836010e-01_wp, &
-      & -1.39396297321390999e-05_wp, -5.89067306895997012e-02_wp, -7.22769801611401058e-02_wp, &
-      & -8.98319300752903006e-06_wp, 3.43223849636331013e-02_wp, -5.80212458765638969e-02_wp, &
-      & 4.79103627068215038e-06_wp, -4.58358440016183033e-02_wp, 4.16814166753972995e-02_wp, &
-      & 4.79103627068215038e-06_wp, 1.15128601584494998e-02_wp, 1.63386314420955990e-02_wp], &
-      & shape(displdir_ref))
+      & 0.00000000000000000e+00_wp, 5.85920171106577004e-01_wp, 1.51794937958024002e-01_wp, &
+      & 0.00000000000000000e+00_wp, 4.38891753068939995e-01_wp, -2.48878406404109010e-01_wp, &
+      & 0.00000000000000000e+00_wp, 5.10352159263066002e-01_wp, 3.44427193104884989e-01_wp, &
+      & 2.83390078813432008e-01_wp, -1.26365402678647992e-01_wp, 5.36139605082272009e-01_wp, &
+      & -2.09750793632672975e-17_wp, -2.71810289210553018e-01_wp, -4.85072467210535029e-01_wp, &
+      & 4.19501587265346009e-17_wp, -3.21710376864937989e-01_wp, 4.51223308073935011e-01_wp, &
+      & 5.04407285834402014e-01_wp, 4.29600509606577008e-02_wp, -1.42605077919505999e-01_wp, &
+      & 5.98879533835269020e-01_wp, 2.40065553767858998e-02_wp, 4.97688397830703991e-02_wp, &
+      & 5.98879533835269020e-01_wp, 2.84749410320055008e-02_wp, -4.70536852490466000e-02_wp],&
+      & shape(displdir_ref))   
    real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp
 
    type(adj_list), allocatable :: neighborlist(:)
@@ -9631,6 +9631,7 @@ subroutine test_local_hessian_o1numhess(error)
    real(wp) :: energy, sigma(3, 3), egap
    real(wp), allocatable :: distmat(:, :), displdir(:, :), tmp_grad(:, :), g0(:), g(:, :), hessian(:, :)
    integer, allocatable :: nbcounts(:)
+   real(wp) :: final_err
    integer :: i, j, N, max_nb, Ntr, ndispl_final
 
    ! calculate displdir
@@ -9656,7 +9657,6 @@ subroutine test_local_hessian_o1numhess(error)
    
    ! populate displdir
    Ntr = 0
-   print *, "gen_displdir"
    call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
    ! calculate gradient derivs
@@ -9666,20 +9666,20 @@ subroutine test_local_hessian_o1numhess(error)
    ! use GFN1
    call newXTBCalculator(env, mol, calc, method=1)
    call newWavefunction(env, mol, calc, chk)
-   print *, "g0"
    allocate(tmp_grad(3, mol%n))
    call calc%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
    g0 = reshape(tmp_grad,[N])
    allocate(g(N, ndispl_final))
    g = 0.0_wp
-   print *, "grad derivs"
    call calc%get_gradient_derivs(env, step, Ntr, ndispl_final, displdir, mol, chk, g0, g)
 
    ! calculate local hessian
-   print *, "local hessian"
    allocate(hessian(N, N))
    hessian = 0.0_wp
    call gen_local_hessian(distmat, displdir, g, dmax, hessian)
+   call lr_loop(ndispl_final, g, hessian, displdir, final_err)
+
+   print *, "residual error:", final_err
 
    ! compare
    if (any(abs(hessian - hessian_ref) > thr)) then
