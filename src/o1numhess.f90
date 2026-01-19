@@ -46,12 +46,23 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    real(wp), parameter :: lam = 1.0e-2_wp, bet = 1.5_wp, ddmax = 5.0_wp
    
    ! Local work arrays
-   real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), D(:, :), Dprime(:, :), unit_vec(:), f1(:, :), f(:, :), tmp(:, :)
+   real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), unit_vec(:), f1(:, :), f(:, :), tmp(:, :), tmp2(:), tmp3(:), tmp5(:, :)
    logical, allocatable :: mask(:, :)
+   integer, allocatable :: ipiv(:)
    integer :: i, j, k, l, ndim, ndispl, N, info
 
    ndispl = size(displdir, 1)
    N = size(distmat, 1)
+
+   print *, "displdir"
+   do i = 1, N
+      print *, displdir(i, :)
+   end do
+
+   print *, "g"
+   do i = 1, N
+      print *, g(i, :)
+   end do
 
    ! Calculate Regularization Term W2
    allocate(W2(N, N))
@@ -92,7 +103,16 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    end do
 
    ! Solve
-   call dposv('U', ndim, 1, A, ndim, rhsv, ndim, info)
+   tmp3 = rhsv
+   tmp5 = A
+   allocate(ipiv(ndim))
+   call dgesv(ndim, 1, A, ndim, ipiv, rhsv, ndim, info)
+   if (info /= 0) then
+      print *, "Error: dgesv failed with info", info
+   end if
+   print *, "Info: ", info
+   tmp2 = matmul(tmp5, rhsv) - tmp3
+   print *, "Error: ", sqrt(sum(tmp2**2))
 
    ! Recover Hessian from vector
    hess_out = unpack_sym(rhsv, mask, N)
@@ -458,7 +478,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       ! --- Inner Loop: Iterate over atoms/DoFs ---
       do j = 1, n
             nnb = nbcounts(j)
-            nb_idx(1:nnb) = nblist(j)%neighbors(1:nnb)
+            nb_idx(:) = nblist(j)%neighbors
 
             ! Skip if subspace saturated (heuristic from Python code)
             if (nnb <= n_curr) cycle
