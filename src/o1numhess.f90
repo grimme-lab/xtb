@@ -18,11 +18,12 @@
 !> O1 numerical Hessian utilities
 module xtb_o1numhess
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_convert, only : autoaa
    implicit none
    private
 
    public :: adj_list
-   public :: gen_local_hessian, lr_loop, get_neighbor_list, gen_displdir
+   public :: gen_local_hessian, lr_loop, get_neighbor_list, gen_displdir, swart
 
    type :: adj_list
       integer, allocatable :: neighbors(:)
@@ -581,4 +582,225 @@ function orth(A, tol_in) result(Q)
    
    deallocate(Acopy, U, S, VT, work)
 end function orth
+
+!> Calculates a modified Swart model Hessian
+subroutine swart(xyz, at, hess_out)
+   !> coords
+   real(wp), intent(in) :: xyz(:, :)
+   !> ordinal numbers
+   integer, intent(in) :: at(:)
+   !> the full model hessian
+   real(wp), intent(inout) :: hess_out(:, :)
+
+   ! covalent radii
+   real(wp), parameter :: cov(103) = [&
+      & 0.32_wp, 0.46_wp, 1.33_wp, 1.02_wp, 0.85_wp, 0.75_wp, 0.71_wp, 0.63_wp, 0.64_wp, 0.67_wp, &
+      & 1.55_wp, 1.39_wp, 1.26_wp, 1.16_wp, 1.11_wp, 1.03_wp, 0.99_wp, 0.96_wp, 1.96_wp, 1.71_wp, 1.48_wp, &
+      & 1.36_wp, 1.34_wp, 1.22_wp, 1.19_wp, 1.16_wp, 1.10_wp, 1.11_wp, 1.12_wp, 1.18_wp, 1.24_wp, 1.21_wp, &
+      & 1.21_wp, 1.16_wp, 1.14_wp, 1.17_wp, 2.10_wp, 1.85_wp, 1.63_wp, 1.54_wp, 1.47_wp, 1.38_wp, 1.28_wp, &
+      & 1.25_wp, 1.25_wp, 1.20_wp, 1.28_wp, 1.36_wp, 1.42_wp, 1.40_wp, 1.40_wp, 1.36_wp, 1.33_wp, 1.31_wp, &
+      & 2.32_wp, 1.96_wp, 1.80_wp, 1.63_wp, 1.76_wp, 1.74_wp, 1.73_wp, 1.72_wp, 1.68_wp, 1.69_wp, 1.68_wp, &
+      & 1.67_wp, 1.66_wp, 1.65_wp, 1.64_wp, 1.70_wp, 1.62_wp, 1.52_wp, 1.46_wp, 1.37_wp, 1.31_wp, 1.29_wp, &
+      & 1.22_wp, 1.23_wp, 1.24_wp, 1.33_wp, 1.44_wp, 1.44_wp, 1.51_wp, 1.45_wp, 1.47_wp, 1.42_wp, 2.23_wp, &
+      & 2.01_wp, 1.86_wp, 1.75_wp, 1.69_wp, 1.70_wp, 1.71_wp, 1.72_wp, 1.66_wp, 1.66_wp, 1.68_wp, 1.68_wp, &
+      & 1.65_wp, 1.67_wp, 1.73_wp, 1.76_wp, 1.61_wp] / 0.529177249_wp
+   real(wp), parameter :: wthr = 0.3_wp, f = 0.12_wp, tolth = 0.2_wp, eps1 = wthr**2, eps2 = wthr**2 / exp(1.0_wp)
+
+   real(wp) :: equildist, Hint, bmat6(6), bmat9(9), bmat29(2, 9), outer6(6, 6), outer9(9, 9), s_ijjk, costh, sinth, th1, scalelin
+   real(wp), allocatable :: screenfunc(:, :)
+   integer :: i, j, k, nat, N, i1, i2, j1, j2, k1, k2
+   
+   nat = size(xyz, 2)
+   N = 3*nat
+
+   hess_out = 0.0_wp
+
+   allocate(screenfunc(nat, nat))
+   do i = 1, nat
+      do j = i + 1, nat
+         equildist = cov(at(i)) + cov(at(j))
+         screenfunc(i, j) = exp(1.0_wp - norm2(xyz(:, i) - xyz(:, j)) / equildist)
+         screenfunc(j, i) = screenfunc(i, j)
+      end do
+   end do
+
+   do i = 1, nat
+      do j = i + 1, nat
+         Hint = 0.35_wp * screenfunc(i, j)**3
+         bmat6 = bmat_bond(xyz(:, i) - xyz(:, j))
+         outer6 = spread(bmat6, dim=2, ncopies=6) * spread(bmat6, dim=1, ncopies=6)
+         i1 = 3 * i - 2
+         i2 = 3 * i
+         j1 = 3 * j - 2
+         j2 = 3 * j
+         hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + Hint * outer6
+         hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + Hint * outer6
+         hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + Hint * outer6
+         hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + Hint * outer6
+      end do
+   end do
+
+   do i = 1, nat
+      do j = 1, nat
+         if (i == j) cycle
+         if (screenfunc(i, j) < eps2) cycle
+         do k = i + 1, nat
+            if (k == j) cycle
+            s_ijjk = screenfunc(i, j) * screenfunc(j, k)
+            if (s_ijjk < eps1) cycle
+
+            costh = cosangle(xyz(:, i) - xyz(:, j), xyz(:, k) - xyz(:, j))
+            sinth = sqrt(max(0.0_wp, 1.0_wp - costh**2))
+            Hint = 0.075_wp * s_ijjk**2 * (f + (1 - f) * sinth)**2
+            bmat9 = bmat_angle(xyz(:, i) - xyz(:, j), xyz(:, k) - xyz(:, j))
+
+            if (costh > 1.0_wp - tolth) then
+               th1 = 1.0_wp - costh
+            else
+               th1 = 1.0_wp + costh
+            end if
+
+            i1 = 3 * i - 2
+            i2 = 3 * i
+            j1 = 3 * j - 2
+            j2 = 3 * j
+            k1 = 3 * k - 2
+            k2 = 3 * k
+            if (th1 < tolth) then
+               scalelin = (1.0_wp - (th1 / tolth)**2)**2
+               if (costh > 1.0_wp - tolth) then
+                  bmat29 = bmat_linangle(xyz(:, i) - xyz(:, j), xyz(:, k) - xyz(:, j))
+                  bmat9 = scalelin * bmat29(1, :) + (1.0_wp - scalelin) * bmat9
+                  outer9 = spread(bmat29(2, :), dim=2, ncopies=9) * spread(bmat29(2, :), dim=1, ncopies=9)
+                  hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + Hint * outer9
+                  hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + Hint * outer9
+                  hess_out(i1:i2, k1:k2) = hess_out(i1:i2, k1:k2) + Hint * outer9
+                  hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + Hint * outer9
+                  hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + Hint * outer9
+                  hess_out(j1:j2, k1:k2) = hess_out(j1:j2, k1:k2) + Hint * outer9
+                  hess_out(k1:k2, i1:i2) = hess_out(k1:k2, i1:i2) + Hint * outer9
+                  hess_out(k1:k2, j1:j2) = hess_out(k1:k2, j1:j2) + Hint * outer9
+                  hess_out(k1:k2, k1:k2) = hess_out(k1:k2, k1:k2) + Hint * outer9
+               else
+                  bmat9 = (1.0_wp - scalelin) * bmat9
+               end if
+            end if
+
+            outer9 = spread(bmat9, dim=2, ncopies=9) * spread(bmat9, dim=1, ncopies=9)
+            hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + Hint * outer9
+            hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + Hint * outer9
+            hess_out(i1:i2, k1:k2) = hess_out(i1:i2, k1:k2) + Hint * outer9
+            hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + Hint * outer9
+            hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + Hint * outer9
+            hess_out(j1:j2, k1:k2) = hess_out(j1:j2, k1:k2) + Hint * outer9
+            hess_out(k1:k2, i1:i2) = hess_out(k1:k2, i1:i2) + Hint * outer9
+            hess_out(k1:k2, j1:j2) = hess_out(k1:k2, j1:j2) + Hint * outer9
+            hess_out(k1:k2, k1:k2) = hess_out(k1:k2, k1:k2) + Hint * outer9
+         end do
+      end do
+   end do
+end subroutine swart
+
+function bmat_bond(vec) result(bmat)
+   real(wp), intent(in) :: vec(3)
+
+   real(wp) :: l, bmat(6)
+   
+   bmat = 0.0_wp
+   l = norm2(vec)
+
+   bmat(1:3) = vec(:) / l
+   bmat(4:6) = -vec(:) / l
+end function bmat_bond
+
+function bmat_angle(vec1, vec2) result(bmat)
+   real(wp), intent(in) :: vec1(3), vec2(3)
+   real(wp) :: bmat(9)
+   real(wp) :: l1, l2, nvec1(3), nvec2(3)
+   real(wp) :: dl(2, 6), dnvec(2, 3, 6), dinprod(9)
+   real(wp) :: dot_n1n2
+   integer :: ii
+
+   l1 = norm2(vec1)
+   l2 = norm2(vec2)
+   nvec1 = vec1 / l1
+   nvec2 = vec2 / l2
+
+   dl = 0.0_wp
+   dl(1, 1:3) = nvec1
+   dl(1, 4:6) = -nvec1
+   dl(2, 1:3) = nvec2
+   dl(2, 4:6) = -nvec2
+
+   dnvec = 0.0_wp
+   do ii = 1, 6
+      dnvec(1, 1:3, ii) = -nvec1 * dl(1, ii) / l1
+      dnvec(2, 1:3, ii) = -nvec2 * dl(2, ii) / l2
+   end do
+   do ii = 1, 3
+      dnvec(1, ii, ii) = dnvec(1, ii, ii) + 1.0_wp/l1
+      dnvec(2, ii, ii) = dnvec(2, ii, ii) + 1.0_wp/l2
+      dnvec(1, ii, ii+3) = dnvec(1, ii, ii+3) - 1.0_wp/l1
+      dnvec(2, ii, ii+3) = dnvec(2, ii, ii+3) - 1.0_wp/l2
+   end do
+
+   dinprod = 0.0_wp
+   do ii = 1, 3
+      dinprod(ii) = dot_product(dnvec(1, :, ii), nvec2)
+      dinprod(ii+3) = dot_product(dnvec(1, :, ii+3), nvec2) + dot_product(dnvec(2, :, ii+3), nvec1)
+      dinprod(ii+6) = dot_product(dnvec(2, :, ii), nvec1)
+   end do
+
+   dot_n1n2 = dot_product(nvec1, nvec2)
+   bmat = -dinprod / sqrt(max(1.0e-15_wp, 1.0_wp - dot_n1n2**2))
+end function bmat_angle
+
+function bmat_linangle(vec1, vec2) result(bmat)
+   real(wp), intent(in) :: vec1(3), vec2(3)
+   real(wp) :: bmat(2,9)
+   real(wp) :: l1, l2, nvec1(3), nvec2(3)
+   real(wp) :: vn(3), vn2(3), nvn
+   real(wp), parameter :: xaxis(3) = [1.0_wp, 0.0_wp, 0.0_wp], yaxis(3) = [0.0_wp, 1.0_wp, 0.0_wp]
+
+   l1 = norm2(vec1)
+   l2 = norm2(vec2)
+   nvec1 = vec1 / l1
+   nvec2 = vec2 / l2
+
+   vn(1) = vec1(2) * vec2(3) - vec1(3) * vec2(2)
+   vn(2) = vec1(3) * vec2(1) - vec1(1) * vec2(3)
+   vn(3) = vec1(1) * vec2(2) - vec1(2) * vec2(1)
+   nvn = norm2(vn)
+
+   if (nvn < 1.0e-15_wp) then
+      vn = xaxis - dot_product(xaxis, vec1) / l1**2 * vec1
+      nvn = norm2(vn)
+      if (nvn < 1.0e-15_wp) then
+         vn = yaxis - dot_product(yaxis, vec1) / l1**2 * vec1
+         nvn = norm2(vn)
+      end if
+   end if
+   vn = vn / nvn
+
+   vn2(1) = (vec1(2) - vec2(2)) * vn(3) - (vec1(3) - vec2(3)) * vn(2)
+   vn2(2) = (vec1(3) - vec2(3)) * vn(1) - (vec1(1) - vec2(1)) * vn(3)
+   vn2(3) = (vec1(1) - vec2(1)) * vn(2) - (vec1(2) - vec2(2)) * vn(1)
+   vn2 = vn2 / norm2(vn2)
+
+   bmat = 0.0_wp
+   bmat(2, 1:3) = vn / l1
+   bmat(2, 7:9) = vn / l2
+   bmat(2, 4:6) = -bmat(2, 1:3) - bmat(2, 7:9)
+   bmat(1, 1:3) = vn2 / l1
+   bmat(1, 7:9) = vn2 / l2
+   bmat(1, 4:6) = -bmat(1, 1:3) - bmat(1, 7:9)
+end function bmat_linangle
+
+function cosangle(vec1, vec2) result(cos_theta)
+    implicit none
+    real(wp), intent(in) :: vec1(3), vec2(3)
+    real(wp) :: cos_theta
+    
+    cos_theta = dot_product(vec1, vec2) / (norm2(vec1) * norm2(vec2))
+end function cosangle
 end module xtb_o1numhess

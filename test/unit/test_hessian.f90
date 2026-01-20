@@ -31,7 +31,7 @@ module test_hessian
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
    use xtb_modelhessian, only : mh_swart
    use xtb_type_setvar, only : modhess_setvar
-   use xtb_o1numhess, only : gen_displdir, get_neighbor_list, adj_list, gen_local_hessian, lr_loop
+   use xtb_o1numhess, only : gen_displdir, get_neighbor_list, adj_list, gen_local_hessian, lr_loop, swart
    implicit none
    private
 
@@ -51,7 +51,8 @@ subroutine collect_hessian(testsuite)
       new_unittest("nblist_o1numhess", test_nblist_o1numhess), &
       new_unittest("o1numhess_gen_displdir", test_gendispldir_o1numhess), &
       new_unittest("gfn1_o1numhess", test_o1numhess_gfn1), &
-      new_unittest("gfn2_o1numhess", test_o1numhess_gfn2) &
+      new_unittest("gfn2_o1numhess", test_o1numhess_gfn2), &
+      new_unittest("modified_swart", test_modified_swart) &
       ]
 
 end subroutine collect_hessian
@@ -9761,47 +9762,12 @@ subroutine test_o1numhess_gfn2(error)
    type(TRestart) :: chk
    type(TEnvironment) :: env
    type(TxTBCalculator) :: calc
-   real(wp), allocatable :: displdir(:, :), hessian(:, :), hessian_local(:, :), h0v(:), h0s(:, :)
+   real(wp), allocatable :: displdir(:, :), hessian(:, :), hessian_local(:, :)
    integer :: i, N, ndispl_final, j
-   logical, allocatable :: mask(:, :)
-   integer, parameter :: p_modh_old      =  4
-   type(modhess_setvar) :: mhset = modhess_setvar (&
-      model = p_modh_old, &
-!  force constants for stretch, bend and torsion
-      kr = 0.3000_wp, &
-      kf = 0.1200_wp, &
-      kt = 0.0000_wp, &
-      ko = 0.0000_wp, &
-      kd = 0.0000_wp, &
-      kq = 0.0000_wp, &
-!  cutoff for constructing Hessian
-      rcut = 70.0_wp, &
-!  dispersion scaling in ANC generation
-      s6 = 20.0_wp)
 
    N = 3 * nat
    call init(env)
    call init(mol, sym, xyz)
-
-   allocate(h0v(int(N*(N+1)/2)))
-   ! call ddvopt(mol%xyz, mol%n, h0v, mol%at, 20.0_wp)
-   call mh_swart(mol%xyz, mol%n, h0v, mol%at, mhset)
-   allocate(mask(N, N))
-   mask = .true.
-   do i = 1, N
-      do j = 1, i - 1
-         mask(i, j) = .false.
-      end do 
-   end do
-   h0s = unpack(h0v, mask, field=0.0_wp)
-   
-   ! Symmetrize
-   do i = 1, N
-      do j = 1, i - 1
-         h0s(i, j) = h0s(j, i)
-      end do
-      print *, h0s(i, :)
-   end do
 
    call setup_o1numhess_test(3*mol%n, displdir, ndispl_final, h0, eps, eps2)
 
@@ -9840,5 +9806,69 @@ subroutine test_o1numhess_gfn2(error)
       end do
    end if
 end subroutine test_o1numhess_gfn2
+
+subroutine test_modified_swart(error)
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 3
+   real(wp),parameter :: thr = 1.0e-7_wp
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   integer, parameter :: at(nat) = [8, 1, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
+      & 0.00000000000000_wp,    1.45674735348811_wp,   -0.88650486059828_wp, &
+      &-0.00000000000000_wp,   -1.45674735383357_wp,   -0.88650486086986_wp],&
+      & shape(xyz))
+   ! swart model hessian from o1numhess utils
+   real(wp), parameter :: h0(9, 9) = reshape([&
+      & 1.1092305614e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      &-5.5461528244e-04_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      &-5.5461527896e-04_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 0.0000000000e+00_wp,  4.4184751144e-01_wp, -2.7552743027e-10_wp, &
+      & 0.0000000000e+00_wp, -2.2092375587e-01_wp,  1.6310770462e-01_wp, &
+      & 0.0000000000e+00_wp, -2.2092375557e-01_wp, -1.6310770435e-01_wp, &
+      & 0.0000000000e+00_wp, -2.7552743027e-10_wp,  2.9417034746e-01_wp, &
+      & 0.0000000000e+00_wp,  1.4319582461e-01_wp, -1.4708517387e-01_wp, &
+      & 0.0000000000e+00_wp, -1.4319582434e-01_wp, -1.4708517359e-01_wp, &
+      &-5.5461528244e-04_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 1.6724709350e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      &-1.1178556526e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 0.0000000000e+00_wp, -2.2092375587e-01_wp,  1.4319582461e-01_wp, &
+      & 0.0000000000e+00_wp,  2.3323207511e-01_wp, -1.5315176462e-01_wp, &
+      & 0.0000000000e+00_wp, -1.2308319237e-02_wp,  9.9559400089e-03_wp, &
+      & 0.0000000000e+00_wp,  1.6310770462e-01_wp, -1.4708517387e-01_wp, &
+      & 0.0000000000e+00_wp, -1.5315176462e-01_wp,  1.3375368579e-01_wp, &
+      & 0.0000000000e+00_wp, -9.9559400048e-03_wp,  1.3331488088e-02_wp, &
+      &-5.5461527896e-04_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      &-1.1178556526e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 1.6724709315e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 0.0000000000e+00_wp, -2.2092375557e-01_wp, -1.4319582434e-01_wp, &
+      & 0.0000000000e+00_wp, -1.2308319237e-02_wp, -9.9559400048e-03_wp, &
+      & 0.0000000000e+00_wp,  2.3323207480e-01_wp,  1.5315176434e-01_wp, &
+      & 0.0000000000e+00_wp, -1.6310770435e-01_wp, -1.4708517359e-01_wp, &
+      & 0.0000000000e+00_wp,  9.9559400089e-03_wp,  1.3331488088e-02_wp, &
+      & 0.0000000000e+00_wp,  1.5315176434e-01_wp,  1.3375368550e-01_wp],&
+      & shape(h0))
+
+   integer :: i, j
+   real(wp), allocatable :: hess_out(:, :)
+
+   allocate(hess_out(3*nat, 3*nat))
+   hess_out = 0.0_wp
+   call swart(xyz, at, hess_out)
+
+   if (any(abs(hess_out - h0) > thr)) then
+      call test_failed(error, "Hessians do not match")
+
+      print *, "--- hessian ---"
+      do i = 1, 3*nat
+         print '(*(F21.14))', hess_out(i, :) 
+      end do
+
+      print *, "--- Ref. hessian ---"
+      do i = 1, 3*nat
+         print '(*(F21.14))', h0(i, :) 
+      end do
+   end if
+end subroutine test_modified_swart
 
 end module test_hessian
