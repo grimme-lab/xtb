@@ -44,6 +44,7 @@ tests = [
   'gfn2',
   'gfnff',
   'hessian',
+  'relaxation-engine',
   'iff',
   'latticepoint',
   'molecule',

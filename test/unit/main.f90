@@ -31,6 +31,7 @@ program tester
    use test_gfn2, only : collect_gfn2
    use test_gfnff, only : collect_gfnff
    use test_hessian, only : collect_hessian
+   use test_relaxation_engine, only : collect_relaxation_engine
    use test_iff, only : collect_iff
    use test_latticepoint, only : collect_latticepoint
    use test_molecule, only : collect_molecule
@@ -69,6 +70,7 @@ program tester
       new_testsuite("gfn2", collect_gfn2), &
       new_testsuite("gfnff", collect_gfnff), &
       new_testsuite("hessian", collect_hessian), &
+      new_testsuite("relaxation-engine", collect_relaxation_engine), &
       new_testsuite("iff", collect_iff), &
       new_testsuite("latticepoint", collect_latticepoint), &
       new_testsuite("molecule", collect_molecule), &
@@ -252,4 +254,3 @@ subroutine clear_error(error)
 end subroutine clear_error
 
 end program tester
-
