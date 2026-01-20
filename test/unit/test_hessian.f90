@@ -29,6 +29,8 @@ module test_hessian
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
+   use xtb_modelhessian, only : mh_swart
+   use xtb_type_setvar, only : modhess_setvar
    use xtb_o1numhess, only : gen_displdir, get_neighbor_list, adj_list, gen_local_hessian, lr_loop
    implicit none
    private
@@ -9480,10 +9482,8 @@ subroutine calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_fin
 
    ! calculate gradient derivs
    allocate(tmp_grad(3, mol%n))
-   ! call chkb%copy(chk)
    call calc%singlepoint(env, mol, chk, -1, .false., energy, tmp_grad, sigma, egap, res)
    g0 = reshape(tmp_grad,[N])
-   print *, g0
    allocate(g(N, ndispl_final))
    g = 0.0_wp
 
@@ -9504,7 +9504,7 @@ subroutine calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_fin
    hessian_local = hessian
    call lr_loop(ndispl_final, g, hessian, displdir, final_err)
 
-   print *, "final err", final_err
+   ! print *, "final err", final_err
 
 end subroutine calculate_o1numhess_hessian
 
@@ -9761,11 +9761,47 @@ subroutine test_o1numhess_gfn2(error)
    type(TRestart) :: chk
    type(TEnvironment) :: env
    type(TxTBCalculator) :: calc
-   real(wp), allocatable :: displdir(:, :), hessian(:, :), hessian_local(:, :)
-   integer :: i, N, ndispl_final
+   real(wp), allocatable :: displdir(:, :), hessian(:, :), hessian_local(:, :), h0v(:), h0s(:, :)
+   integer :: i, N, ndispl_final, j
+   logical, allocatable :: mask(:, :)
+   integer, parameter :: p_modh_old      =  4
+   type(modhess_setvar) :: mhset = modhess_setvar (&
+      model = p_modh_old, &
+!  force constants for stretch, bend and torsion
+      kr = 0.3000_wp, &
+      kf = 0.1200_wp, &
+      kt = 0.0000_wp, &
+      ko = 0.0000_wp, &
+      kd = 0.0000_wp, &
+      kq = 0.0000_wp, &
+!  cutoff for constructing Hessian
+      rcut = 70.0_wp, &
+!  dispersion scaling in ANC generation
+      s6 = 20.0_wp)
 
+   N = 3 * nat
    call init(env)
    call init(mol, sym, xyz)
+
+   allocate(h0v(int(N*(N+1)/2)))
+   ! call ddvopt(mol%xyz, mol%n, h0v, mol%at, 20.0_wp)
+   call mh_swart(mol%xyz, mol%n, h0v, mol%at, mhset)
+   allocate(mask(N, N))
+   mask = .true.
+   do i = 1, N
+      do j = 1, i - 1
+         mask(i, j) = .false.
+      end do 
+   end do
+   h0s = unpack(h0v, mask, field=0.0_wp)
+   
+   ! Symmetrize
+   do i = 1, N
+      do j = 1, i - 1
+         h0s(i, j) = h0s(j, i)
+      end do
+      print *, h0s(i, :)
+   end do
 
    call setup_o1numhess_test(3*mol%n, displdir, ndispl_final, h0, eps, eps2)
 
@@ -9776,7 +9812,6 @@ subroutine test_o1numhess_gfn2(error)
    call calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_final, hessian, hessian_local, step)
 
    ! compare
-   N = 3 * nat
    if (any(abs(hessian_local - hessian_local_ref) > thr)) then
       call test_failed(error, "Local Hessians do not match")
 

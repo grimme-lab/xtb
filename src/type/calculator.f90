@@ -280,12 +280,12 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :), gtmp(:, :)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0, query(1), displmax
    real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1],[3, 3]), final_err
+   logical, allocatable :: mask(:, :)
    logical :: linear
    integer, allocatable :: nbcounts(:)
    integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ginit
    
    ! ========== INITIALIZATION ==========
-   ! NOTE: maybe this needs to go to numhess?
    N = 3 * mol0%n
    ginit = size(g, 2)
 
@@ -293,13 +293,15 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    call chk%copy(chk0)
 
    ! hessian initial guess
-   ! allocate(h0v(N*(N+1)/2))
-   ! call ddvopt(mol0%xyz, mol0%n, h0v, mol0%at, 20.0_wp)
-   ! h0 = unpack_sym(h0v, mask, N) ! TODO: mask??
-   allocate(h0(N, N))
-   h0 = 0.0_wp
-   do i = 1, N
-      h0(i, i) = 1.0_wp
+   allocate(h0v(N*(N+1)/2))
+   call ddvopt(mol0%xyz, mol0%n, h0v, mol0%at, 20.0_wp)
+   h0 = unpack(h0v, mask, field=0.0_wp)
+   
+   ! Symmetrize
+   do i = 1, n
+      do j = 1, i - 1
+         h0(i, j) = h0(j, i)
+      end do
    end do
 
    ! calculate unperturbed gradient
@@ -309,20 +311,15 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    ! gradients need to be flattened since hessian is also "flat"
    g0 = reshape(tmp_grad,[N])
 
-   ! setup distmat
+   ! setup effective distmat
    write(env%unit, '(A)') "Distmat setup"
    allocate(distmat(N, N))
-   ! do i = 1, mol0%n
-   !    do j = i, mol0%n
-   !       ! effective distmat
-   !       dist = mol0%dist(i, j) - vdw_radii(mol0%at(i)) - vdw_radii(mol0%at(j))
-   !       distmat(3 * i - 2:3 * i, 3 * j - 2:3 * j) = dist
-   !       distmat(3 * j - 2:3 * j, 3 * i - 2:3 * i) = dist
-   !    end do
-   ! end do
    do i = 1, mol0%n
-      do j = 1, mol0%n
-         distmat(i, j) = abs(i - j)
+      do j = i, mol0%n
+         ! effective distmat
+         dist = mol0%dist(i, j) - vdw_radii(mol0%at(i)) - vdw_radii(mol0%at(j))
+         distmat(3 * i - 2:3 * i, 3 * j - 2:3 * j) = dist
+         distmat(3 * j - 2:3 * j, 3 * i - 2:3 * i) = dist
       end do
    end do
 
