@@ -431,7 +431,7 @@ subroutine get_gradient_derivs(self, env, step, Ntr, ndispl_final, displdir, mol
    type(TMolecule) :: mol
    type(TRestart) :: chk
    type(scc_results) :: res
-   integer :: i, N
+   integer :: i, N, j
    real(wp) :: displmax, sigma(3, 3), energy, egap
    real(wp), allocatable :: tmp_grad(:, :)
    real(wp), allocatable :: x(:)
@@ -447,7 +447,7 @@ subroutine get_gradient_derivs(self, env, step, Ntr, ndispl_final, displdir, mol
       x = reshape(mol0%xyz,[N])
       x = x + step * displdir(:, i) / displmax
       mol%xyz = reshape(x,[3, mol0%n])
-      call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
+      call self%singlepoint(env, mol, chk, -1, .false., energy, tmp_grad, sigma, egap, res)
       g(:, i) = reshape(tmp_grad,[N])
       g(:, i) = (g(:, i) - g0(:)) / step * displmax
    end do

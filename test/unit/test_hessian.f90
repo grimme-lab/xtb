@@ -44,13 +44,12 @@ subroutine collect_hessian(testsuite)
    type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
    testsuite = [ &
-      new_unittest("gfn1", test_gfn1_hessian), &
-      new_unittest("gfn2", test_gfn2_hessian), &
-      new_unittest("gfn1_o1numhess", test_gfn1_o1numhess), &
-      new_unittest("gfn2_o1numhess", test_gfn2_o1numhess), &
-      new_unittest("o1numhess_nblist", test_nblist_o1numhess), &
+      new_unittest("gfn1_hessian", test_gfn1_hessian), &
+      new_unittest("gfn2_hessian", test_gfn2_hessian), &
+      new_unittest("nblist_o1numhess", test_nblist_o1numhess), &
       new_unittest("o1numhess_gen_displdir", test_gendispldir_o1numhess), &
-      new_unittest("o1numhess_local_hessian", test_local_hessian_o1numhess) &
+      new_unittest("gfn1_o1numhess", test_o1numhess_gfn1), &
+      new_unittest("gfn2_o1numhess", test_o1numhess_gfn2) &
       ]
 
 end subroutine collect_hessian
@@ -247,134 +246,6 @@ subroutine test_gfn2_hessian(error)
    end do
 
 end subroutine test_gfn2_hessian
-
-! TODO: linear h2o test
-! NOTE: need to get o1numhess from python implementation for reference
-! TODO: o1numhess for gfn1
-subroutine test_gfn1_o1numhess(error)
-   type(error_type), allocatable, intent(out) :: error
-   integer, parameter :: nat = 3
-   real(wp),parameter :: thr = 1.0e-7_wp
-   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
-   real(wp), parameter :: xyz(3, nat) = reshape([&
-      & 0.00000000000000_wp,   -0.00000000077760_wp,    0.18829790750029_wp, &
-      & 0.00000000000000_wp,    1.45987612440076_wp,   -0.88615189669760_wp, &
-      &-0.00000000000000_wp,   -1.45987612362316_wp,   -0.88615189608629_wp],&
-      & shape(xyz))
-   real(wp), parameter :: hessian_ref(3*nat, 3*nat) = reshape([ &
-      &  9.92358267447000E-03_wp, -1.59939748593000E-02_wp, -1.87048285136700E-02_wp, &
-      & -2.59359330698000E-03_wp,  3.64688203467000E-03_wp, -5.39801379054000E-03_wp, &
-      &  6.25238023315000E-03_wp, -3.27295611700000E-03_wp,  1.42168933961900E-02_wp, &
-      & -1.59939748593000E-02_wp,  3.42218900459050E-01_wp, -3.08980536676550E-01_wp, &
-      & -1.04138037574800E-01_wp, -1.25477379828200E-02_wp,  5.59504259788000E-03_wp, &
-      & -7.47376889756000E-03_wp, -9.06559557738000E-03_wp, -1.59622384225000E-03_wp, &
-      & -1.87048285136700E-02_wp, -3.08980536676550E-01_wp,  4.02905416993150E-01_wp, &
-      & -3.03167484390390E-01_wp,  1.74873176732200E-01_wp, -1.63205233915600E-02_wp, &
-      & -5.61303887266000E-03_wp, -1.87754058917000E-02_wp,  2.50371617394000E-03_wp, &
-      & -2.59359330698000E-03_wp, -1.04138037574800E-01_wp, -3.03167484390390E-01_wp, &
-      &  2.38883417311780E-01_wp,  3.38812242967830E-01_wp, -2.43831143274860E-01_wp, &
-      &  5.19134281304400E-02_wp, -2.37579310095000E-03_wp,  1.85778177995000E-02_wp, &
-      &  3.64688203467000E-03_wp, -1.25477379828200E-02_wp,  1.74873176732200E-01_wp, &
-      &  3.38812242967830E-01_wp,  3.17724391774870E-01_wp, -6.05448741990820E-01_wp, &
-      & -1.23828892769770E-01_wp, -7.22740379575100E-02_wp, -7.24042304863000E-03_wp, &
-      & -5.39801379054000E-03_wp,  5.59504259788000E-03_wp, -1.63205233915600E-02_wp, &
-      & -2.43831143274860E-01_wp, -6.05448741990820E-01_wp,  8.93127897294960E-01_wp, &
-      &  2.36343834116960E-01_wp, -3.47959068635070E-01_wp,  6.11533252314200E-02_wp, &
-      &  6.25238023315000E-03_wp, -7.47376889756000E-03_wp, -5.61303887266000E-03_wp, &
-      &  5.19134281304400E-02_wp, -1.23828892769770E-01_wp,  2.36343834116960E-01_wp, &
-      &  1.76329986096260E-01_wp, -2.50214065151940E-01_wp, -5.79648528100500E-02_wp, &
-      & -3.27295611700000E-03_wp, -9.06559557738000E-03_wp, -1.87754058917000E-02_wp, &
-      & -2.37579310095000E-03_wp, -7.22740379575100E-02_wp, -3.47959068635070E-01_wp, &
-      & -2.50214065151940E-01_wp,  5.82460760279690E-01_wp,  1.54646889977970E-01_wp, &
-      &  1.42168933961900E-02_wp, -1.59622384225000E-03_wp,  2.50371617394000E-03_wp, &
-      &  1.85778177995000E-02_wp, -7.24042304863000E-03_wp,  6.11533252314200E-02_wp, &
-      & -5.79648528100500E-02_wp,  1.54646889977970E-01_wp, -6.48551074732600E-02_wp],&
-      &  shape(hessian_ref))
-
-   ! real(wp), parameter :: step = 1.0e-6_wp
-   !
-   ! type(TMolecule) :: mol
-   ! type(TRestart) :: chk
-   ! type(TEnvironment) :: env
-   ! type(scc_results) :: res
-   ! type(TxTBCalculator) :: calc
-   !
-   ! integer :: i,j
-   ! real(wp) :: energy, sigma(3, 3)
-   ! real(wp) :: hl_gap
-   ! real(wp),allocatable :: gradient(:,:), hessian(:,:), g(:, :), displdir(:, :), dipgrad(:, :)
-   ! integer, allocatable :: list(:)
-   !
-   ! call init(env)
-   ! call init(mol, sym, xyz)
-   !
-   ! allocate(gradient(3,mol%n), dipgrad(3,3*mol%n), hessian(3*mol%n,3*mol%n))
-   ! energy = 0.0_wp
-   ! gradient = 0.0_wp
-   !
-   ! call newXTBCalculator(env, mol, calc, method=1)
-   ! call newWavefunction(env, mol, calc, chk)
-   !
-   ! call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
-   !    & hl_gap, res)
-   !
-   ! dipgrad = 0.0_wp
-   ! hessian = 0.0_wp
-   ! list = [(i, i = 1, mol%n)]
-   ! allocate(displdir(3*mol%n, 3*mol%n), g(3*mol%n, 3*mol%n))
-   ! call calc%odlrhessian(env, mol, chk, list, step, displdir, g, hessian)
-   !
-   ! do i = 1, size(hessian_ref, 2)
-   !    do j = 1, size(hessian_ref, 1)
-   !       call check(error, hessian(j, i), hessian_ref(j, i), thr=thr)
-   !    end do
-   ! end do
-
-
-end subroutine test_gfn1_o1numhess
-
-! TODO: o1numhess for gfn2
-subroutine test_gfn2_o1numhess(error)
-   type(error_type), allocatable, intent(out) :: error
-   integer, parameter :: nat = 3
-   real(wp),parameter :: thr = 1.0e-7_wp
-   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
-   real(wp), parameter :: xyz(3, nat) = reshape([&
-      & 0.00000000000000_wp,   -0.00000000077760_wp,    0.18829790750029_wp, &
-      & 0.00000000000000_wp,    1.45987612440076_wp,   -0.88615189669760_wp, &
-      &-0.00000000000000_wp,   -1.45987612362316_wp,   -0.88615189608629_wp],&
-      & shape(xyz))
-   real(wp), parameter :: hessian_ref(3*nat, 3*nat) = reshape([ &
-      &  1.62933952901000E-02_wp, -1.80625576050600E-02_wp, -2.47987822331700E-02_wp, &
-      & -2.17470476835000E-03_wp,  3.08355509349000E-03_wp, -5.77375836794000E-03_wp, &
-      &  6.25362285030000E-03_wp, -3.11443648298000E-03_wp,  1.35631483207000E-02_wp, &
-      & -1.80625576050600E-02_wp,  3.19925401982700E-01_wp, -2.91364996984180E-01_wp, &
-      & -9.36910289643000E-02_wp, -1.03103620156000E-02_wp,  5.09713565000000E-03_wp, &
-      & -5.81344232255000E-03_wp, -8.63433650894000E-03_wp, -1.05664939542000E-03_wp, &
-      & -2.47987822331700E-02_wp, -2.91364996984180E-01_wp,  4.14873085252300E-01_wp, &
-      & -2.90696693193510E-01_wp,  1.45179613487700E-01_wp, -2.01830124826900E-02_wp, &
-      & -5.31400396812000E-03_wp, -1.83529708442400E-02_wp,  1.38466608361000E-03_wp, &
-      & -2.17470476835000E-03_wp, -9.36910289643000E-02_wp, -2.90696693193510E-01_wp, &
-      &  2.28144675991550E-01_wp,  3.29092219214610E-01_wp, -2.44282490185450E-01_wp, &
-      &  5.08526187694800E-02_wp, -2.31969703816000E-03_wp,  1.79600150151300E-02_wp, &
-      &  3.08355509349000E-03_wp, -1.03103620156000E-02_wp,  1.45179613487700E-01_wp, &
-      &  3.29092219214610E-01_wp,  3.34219270726620E-01_wp, -5.98300437953140E-01_wp, &
-      & -1.13867596488980E-01_wp, -7.01285294822000E-02_wp, -7.14316983316000E-03_wp, &
-      & -5.77375836794000E-03_wp,  5.09713565000000E-03_wp, -2.01830124826900E-02_wp, &
-      & -2.44282490185450E-01_wp, -5.98300437953140E-01_wp,  8.82616691941500E-01_wp, &
-      &  2.42819312635370E-01_wp, -3.42472382781960E-01_wp,  6.15935432766700E-02_wp, &
-      &  6.25362285030000E-03_wp, -5.81344232255000E-03_wp, -5.31400396812000E-03_wp, &
-      &  5.08526187694800E-02_wp, -1.13867596488980E-01_wp,  2.42819312635370E-01_wp, &
-      &  1.80449827323740E-01_wp, -2.51959773923450E-01_wp, -7.12477083861000E-02_wp, &
-      & -3.11443648298000E-03_wp, -8.63433650894000E-03_wp, -1.83529708442400E-02_wp, &
-      & -2.31969703816000E-03_wp, -7.01285294822000E-02_wp, -3.42472382781960E-01_wp, &
-      & -2.51959773923450E-01_wp,  5.76128840973710E-01_wp,  1.50731990717000E-01_wp, &
-      &  1.35631483207000E-02_wp, -1.05664939542000E-03_wp,  1.38466608361000E-03_wp, &
-      &  1.79600150151300E-02_wp, -7.14316983316000E-03_wp,  6.15935432766700E-02_wp, &
-      & -7.12477083861000E-02_wp,  1.50731990717000E-01_wp, -5.42020080753600E-02_wp],&
-      &  shape(hessian_ref))
-end subroutine test_gfn2_o1numhess
-
 
 subroutine test_nblist_o1numhess(error)
    type(error_type), allocatable, intent(out) :: error
@@ -9551,7 +9422,93 @@ subroutine test_gendispldir_o1numhess(error)
 
 end subroutine test_gendispldir_o1numhess
 
-subroutine test_local_hessian_o1numhess(error)
+!> Utility subroutine to setup neighbor list and displdir for o1numhess tests
+subroutine setup_o1numhess_test(N, displdir, ndispl_final, h0, eps, eps2)
+   integer, intent(in) :: N
+   real(wp), allocatable, intent(out) :: displdir(:, :)
+   integer, intent(out) :: ndispl_final
+   real(wp), intent(in) :: h0(:, :)
+   real(wp), intent(in) :: eps, eps2
+
+   type(adj_list), allocatable :: neighborlist(:)
+   real(wp), allocatable :: distmat(:, :)
+   integer, allocatable :: nbcounts(:)
+   integer :: i, j, max_nb, Ntr
+
+   ! setup distmat
+   allocate(distmat(N, N))
+   do i = 1, N
+      do j = 1, N
+         distmat(i, j) = abs(i - j)
+      end do
+   end do
+
+   ! compute neighbor list
+   call get_neighbor_list(distmat, 1.0_wp, neighborlist)
+   allocate(nbcounts(N))
+   max_nb = 0
+   do i = 1, N
+      nbcounts(i) = size(neighborlist(i)%neighbors)
+      if (nbcounts(i) > max_nb) max_nb = nbcounts(i)
+   end do
+
+   ! populate displdir
+   Ntr = 0
+   call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
+
+end subroutine setup_o1numhess_test
+
+!> Utility subroutine to calculate local and final hessian for o1numhess tests
+subroutine calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_final, hessian, hessian_local, step)
+   type(TMolecule), intent(inout) :: mol
+   type(TEnvironment), intent(inout) :: env
+   type(TxTBCalculator), intent(inout) :: calc
+   type(TRestart), intent(inout) :: chk
+   real(wp), intent(in) :: displdir(:, :)
+   integer, intent(in) :: ndispl_final
+   real(wp), allocatable, intent(out) :: hessian(:, :), hessian_local(:, :)
+   real(wp), intent(in) :: step
+
+   real(wp), allocatable :: tmp_grad(:, :), g0(:), g(:, :), distmat(:, :)
+   real(wp) :: energy, sigma(3, 3), egap
+   type(scc_results) :: res
+   real(wp) :: final_err
+   integer :: i, j, N, Ntr
+
+   N = 3 * mol%n
+   Ntr = 0
+
+   ! calculate gradient derivs
+   allocate(tmp_grad(3, mol%n))
+   ! call chkb%copy(chk)
+   call calc%singlepoint(env, mol, chk, -1, .false., energy, tmp_grad, sigma, egap, res)
+   g0 = reshape(tmp_grad,[N])
+   print *, g0
+   allocate(g(N, ndispl_final))
+   g = 0.0_wp
+
+   call calc%get_gradient_derivs(env, step, Ntr, ndispl_final, displdir, mol, chk, g0, g)
+
+   ! setup distmat (needed for gen_local_hessian)
+   allocate(distmat(N, N))
+   do i = 1, N
+      do j = 1, N
+         distmat(i, j) = abs(i - j)
+      end do
+   end do
+
+   ! calculate local hessian
+   allocate(hessian(N, N))
+   hessian = 0.0_wp
+   call gen_local_hessian(distmat, displdir, g, 1.0_wp, hessian)
+   hessian_local = hessian
+   call lr_loop(ndispl_final, g, hessian, displdir, final_err)
+
+   print *, "final err", final_err
+
+end subroutine calculate_o1numhess_hessian
+
+subroutine test_o1numhess_gfn1(error)
    type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 3
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -9591,99 +9548,102 @@ subroutine test_local_hessian_o1numhess(error)
       & 0.0000000000e+00_wp,  9.9559400089e-03_wp,  1.3331488088e-02_wp, &
       & 0.0000000000e+00_wp,  1.5315176434e-01_wp,  1.3375368550e-01_wp],&
       & shape(h0))
+   real(wp), parameter :: hessian_local_ref(9, 9) = reshape([&
+      & 3.51981175325187e-04_wp, -3.76511734388845e-03_wp, 3.81178115691305e-04_wp,&
+      & -2.37598469686780e-04_wp, 2.52570715380943e-03_wp, -3.32541413989657e-04_wp,&
+      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp,&
+      & -3.76511734388845e-03_wp, -6.72401397966386e-02_wp, -2.11729004550184e-01_wp,&
+      & 1.32115390027701e-02_wp, 8.06252321926636e-03_wp, 7.39146674965733e-03_wp,&
+      & 1.17788921786219e-04_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp,&
+      & 3.81178115691305e-04_wp, -2.11729004550184e-01_wp, 4.63279981243663e-01_wp,&
+      & 2.00861682675189e-02_wp, 1.75152612759093e-01_wp, -5.17419081415414e-03_wp,&
+      & 9.72230292022307e-04_wp, 8.49401740708410e-04_wp, 0.00000000000000e+00_wp,&
+      & -2.37598469686780e-04_wp, 1.32115390027701e-02_wp, 2.00861682675189e-02_wp,&
+      & 2.49132380283098e-03_wp, -1.15993237268750e-02_wp, 2.38421110728877e-02_wp,&
+      & -1.70620005390799e-14_wp, 5.64969948975101e-04_wp, -1.06083536905192e-04_wp,&
+      & 2.52570715380943e-03_wp, 8.06252321926636e-03_wp, 1.75152612759093e-01_wp,&
+      & -1.15993237268750e-02_wp, -5.36618040845405e-02_wp, -1.22992832629143e-01_wp,&
+      & -1.28817650172161e-02_wp, -1.41730858229258e-04_wp, 4.94454130056628e-03_wp,&
+      & -3.32541413989657e-04_wp, 7.39146674965733e-03_wp, -5.17419081415414e-03_wp,&
+      & 2.38421110728877e-02_wp, -1.22992832629143e-01_wp, 2.84196776383033e-01_wp,&
+      & 1.79323845243361e-02_wp, 1.49966320866984e-01_wp, 3.13392912791258e-03_wp,&
+      & 0.00000000000000e+00_wp, 1.17788921786219e-04_wp, 9.72230292022307e-04_wp,&
+      & -1.70620005390799e-14_wp, -1.28817650172161e-02_wp, 1.79323845243361e-02_wp,&
+      & 4.76557582555649e-05_wp, 8.95077909660287e-03_wp, 1.54823774005412e-02_wp,&
+      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 8.49401740708410e-04_wp,&
+      & 5.64969948975101e-04_wp, -1.41730858229258e-04_wp, 1.49966320866984e-01_wp,&
+      & 8.95077909660287e-03_wp, 7.32108733232320e-02_wp, 8.32366313319442e-02_wp,&
+      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp,&
+      & -1.06083536905192e-04_wp, 4.94454130056628e-03_wp, 3.13392912791258e-03_wp,&
+      & 1.54823774005412e-02_wp, 8.32366313319442e-02_wp, -9.34713030397501e-02_wp],&
+      & shape(hessian_local_ref))
    real(wp), parameter :: hessian_ref(9, 9) = reshape([&
-      & 3.54037537236719e-04_wp, -3.76193757356815e-03_wp, 3.80810387017498e-04_wp, &
-      & -2.38810179115186e-04_wp, 2.52412269503626e-03_wp, -3.32155651178287e-04_wp, &
-      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, &
-      & -3.76193757356815e-03_wp, -6.72380801827475e-02_wp, -2.11725461915688e-01_wp, &
-      & 1.32064957476936e-02_wp, 8.06188409030603e-03_wp, 7.39525012867537e-03_wp, &
-      & 1.18985470158972e-04_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, &
-      & 3.80810387017498e-04_wp, -2.11725461915688e-01_wp, 4.63257269423912e-01_wp, &
-      & 2.00815731901803e-02_wp, 1.75142401189671e-01_wp, -5.19255419620608e-03_wp, &
-      & 9.72326863563083e-04_wp, 8.49571041678928e-04_wp, 0.00000000000000e+00_wp, &
-      & -2.38810179115186e-04_wp, 1.32064957476936e-02_wp, 2.00815731901803e-02_wp, &
-      & 2.48776731165398e-03_wp, -1.15958908227338e-02_wp, 2.38341859131130e-02_wp, &
-      & 4.74131705027411e-06_wp, 5.64850810590544e-04_wp, -1.06581501538934e-04_wp, &
-      & 2.52412269503626e-03_wp, 8.06188409030603e-03_wp, 1.75142401189671e-01_wp, &
-      & -1.15958908227338e-02_wp, -5.36658571942709e-02_wp, -1.22999149317423e-01_wp, &
-      & -1.28842235502749e-02_wp, -1.41606045377076e-04_wp, 4.94719687287402e-03_wp, &
-      & -3.32155651178287e-04_wp, 7.39525012867537e-03_wp, -5.19255419620608e-03_wp, &
-      & 2.38341859131130e-02_wp, -1.22999149317423e-01_wp, 2.84180155243373e-01_wp, &
-      & 1.79353348890386e-02_wp, 1.49961990413727e-01_wp, 3.13423347969388e-03_wp, &
-      & 0.00000000000000e+00_wp, 1.18985470158972e-04_wp, 9.72326863563083e-04_wp, &
-      & 4.74131705027411e-06_wp, -1.28842235502749e-02_wp, 1.79353348890386e-02_wp, &
-      & 4.16956123344674e-05_wp, 8.95055005857138e-03_wp, 1.54828747369050e-02_wp, &
-      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 8.49571041678928e-04_wp, &
-      & 5.64850810590544e-04_wp, -1.41606045377076e-04_wp, 1.49961990413727e-01_wp, &
-      & 8.95055005857138e-03_wp, 7.32128056156475e-02_wp, 8.32312988112141e-02_wp, &
-      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, &
-      & -1.06581501538934e-04_wp, 4.94719687287402e-03_wp, 3.13423347969388e-03_wp, &
-      & 1.54828747369050e-02_wp, 8.32312988112141e-02_wp, -9.34711066707733e-02_wp],&
+      & 3.58438579043206e-04_wp, -3.81039356197628e-03_wp, 4.03399313822165e-04_wp,&
+      & -2.82476978351356e-04_wp, 3.84811786546152e-03_wp, -7.63006730622276e-04_wp,&
+      & 2.31299048839153e-04_wp, 4.84032295451731e-04_wp, 1.32189016912669e-04_wp,&
+      & -3.81039356197628e-03_wp, -6.72927252587342e-02_wp, -2.11638325546983e-01_wp,&
+      & 1.33755408386769e-02_wp, 9.29003639664687e-03_wp, 1.13194001517243e-02_wp,&
+      & 1.68329797547482e-04_wp, 3.50224644185952e-04_wp, -1.00445342525072e-03_wp,&
+      & 4.03399313822165e-04_wp, -2.11638325546983e-01_wp, 4.63339799742256e-01_wp,&
+      & 2.00825620440430e-02_wp, 1.78712614527116e-01_wp, -6.07451375400960e-03_wp,&
+      & 1.49362842611287e-03_wp, 2.00250342612253e-03_wp, 5.14406818716446e-04_wp,&
+      & -2.82476978351356e-04_wp, 1.33755408386769e-02_wp, 2.00825620440430e-02_wp,&
+      & 2.47276791227794e-03_wp, -1.16796282245497e-02_wp, 2.43427547421269e-02_wp,&
+      & -1.85558905700834e-05_wp, 7.76482115758251e-04_wp, -2.82293395959265e-04_wp,&
+      & 3.84811786546152e-03_wp, 9.29003639664687e-03_wp, 1.78712614527116e-01_wp,&
+      & -1.16796282245497e-02_wp, -5.37238742371844e-02_wp, -1.23025151971481e-01_wp,&
+      & -1.32197048151783e-02_wp, -2.37180362396234e-04_wp, 7.63607499039816e-03_wp,&
+      & -7.63006730622276e-04_wp, 1.13194001517243e-02_wp, -6.07451375400960e-03_wp,&
+      & 2.43427547421269e-02_wp, -1.23025151971481e-01_wp, 2.84273693850240e-01_wp,&
+      & 1.79561859722289e-02_wp, 1.52928583030049e-01_wp, 3.54908290642412e-03_wp,&
+      & 2.31299048839153e-04_wp, 1.68329797547482e-04_wp, 1.49362842611287e-03_wp,&
+      & -1.85558905700834e-05_wp, -1.32197048151783e-02_wp, 1.79561859722289e-02_wp,&
+      & 2.90998677025632e-05_wp, 8.85720749101923e-03_wp, 1.57516020166363e-02_wp,&
+      & 4.84032295451731e-04_wp, 3.50224644185952e-04_wp, 2.00250342612253e-03_wp,&
+      & 7.76482115758251e-04_wp, -2.37180362396234e-04_wp, 1.52928583030049e-01_wp,&
+      & 8.85720749101923e-03_wp, 7.31255602924301e-02_wp, 8.32609561079180e-02_wp,&
+      & 1.32189016912669e-04_wp, -1.00445342525072e-03_wp, 5.14406818716446e-04_wp,&
+      & -2.82293395959265e-04_wp, 7.63607499039816e-03_wp, 3.54908290642412e-03_wp,&
+      & 1.57516020166363e-02_wp, 8.32609561079180e-02_wp, -9.33774159826147e-02_wp],&
       & shape(hessian_ref))
-   real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp, step = 1.0e-6_wp
+   real(wp), parameter :: eps = 1.0e-8_wp, eps2 = 1.0e-15_wp, step = 1.0e-6_wp
 
    type(TMolecule) :: mol
    type(TRestart) :: chk
    type(TEnvironment) :: env
-   type(scc_results) :: res
    type(TxTBCalculator) :: calc
-   type(adj_list), allocatable :: neighborlist(:)
-   real(wp) :: energy, sigma(3, 3), egap
-   real(wp), allocatable :: distmat(:, :), displdir(:, :), tmp_grad(:, :), g0(:), g(:, :), hessian(:, :)
-   integer, allocatable :: nbcounts(:)
-   real(wp) :: final_err
-   integer :: i, j, N, max_nb, Ntr, ndispl_final
+   real(wp), allocatable :: displdir(:, :), hessian(:, :), hessian_local(:, :)
+   integer :: i, N, ndispl_final
 
-   ! calculate displdir
-   N = 3 * nat
-
-   ! setup distmat
-   allocate(distmat(N, N))
-   do i = 1, N
-      do j = 1, N
-         distmat(i, j) = abs(i - j)
-      end do
-   end do
-
-   ! compute neighbor list
-   print *, "get_neighbor_list"
-   call get_neighbor_list(distmat, dmax, neighborlist)
-   allocate(nbcounts(N))
-   max_nb = 0
-   do i = 1, N
-      nbcounts(i) = size(neighborlist(i)%neighbors)
-      if (nbcounts(i) > max_nb) max_nb = nbcounts(i)
-   end do
-   
-   ! populate displdir
-   Ntr = 0
-   call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
-
-   ! calculate gradient derivs
    call init(env)
    call init(mol, sym, xyz)
 
+   call setup_o1numhess_test(3*mol%n, displdir, ndispl_final, h0, eps, eps2)
+
    ! use GFN1
-   call newXTBCalculator(env, mol, calc, method=1)
+   call newXTBCalculator(env, mol, calc, method=1, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
-   allocate(tmp_grad(3, mol%n))
-   call calc%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
-   g0 = reshape(tmp_grad,[N])
-   allocate(g(N, ndispl_final))
-   g = 0.0_wp
-   call calc%get_gradient_derivs(env, step, Ntr, ndispl_final, displdir, mol, chk, g0, g)
-
-   ! calculate local hessian
-   allocate(hessian(N, N))
-   hessian = 0.0_wp
-   call gen_local_hessian(distmat, displdir, g, dmax, hessian)
-   call lr_loop(ndispl_final, g, hessian, displdir, final_err)
-
-   print *, "residual error:", final_err
+   
+   call calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_final, hessian, hessian_local, step)
 
    ! compare
-   if (any(abs(hessian - hessian_ref) > thr)) then
+   N = 3 * nat
+   if (any(abs(hessian_local - hessian_local_ref) > thr)) then
       call test_failed(error, "Local Hessians do not match")
+
+      print *, "--- hessian ---"
+      do i = 1, N
+         print '(*(F21.14))', hessian_local(i, :) 
+      end do
+
+      print *, "--- Ref. hessian ---"
+      do i = 1, N
+         print '(*(F21.14))', hessian_local_ref(i, :) 
+      end do
+   end if
+
+   if (any(abs(hessian - hessian_ref) > thr)) then
+      call test_failed(error, "Final Hessians do not match")
 
       print *, "--- hessian ---"
       do i = 1, N
@@ -9695,7 +9655,155 @@ subroutine test_local_hessian_o1numhess(error)
          print '(*(F21.14))', hessian_ref(i, :) 
       end do
    end if
+end subroutine test_o1numhess_gfn1
 
-end subroutine test_local_hessian_o1numhess
+subroutine test_o1numhess_gfn2(error)
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 3
+   real(wp),parameter :: thr = 1.0e-7_wp
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
+      & 0.00000000000000_wp,    1.45674735348811_wp,   -0.88650486059828_wp, &
+      &-0.00000000000000_wp,   -1.45674735383357_wp,   -0.88650486086986_wp],&
+      & shape(xyz))
+   ! swart model hessian from o1numhess utils
+   real(wp), parameter :: h0(9, 9) = reshape([&
+      & 1.1092305614e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      &-5.5461528244e-04_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      &-5.5461527896e-04_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 0.0000000000e+00_wp,  4.4184751144e-01_wp, -2.7552743027e-10_wp, &
+      & 0.0000000000e+00_wp, -2.2092375587e-01_wp,  1.6310770462e-01_wp, &
+      & 0.0000000000e+00_wp, -2.2092375557e-01_wp, -1.6310770435e-01_wp, &
+      & 0.0000000000e+00_wp, -2.7552743027e-10_wp,  2.9417034746e-01_wp, &
+      & 0.0000000000e+00_wp,  1.4319582461e-01_wp, -1.4708517387e-01_wp, &
+      & 0.0000000000e+00_wp, -1.4319582434e-01_wp, -1.4708517359e-01_wp, &
+      &-5.5461528244e-04_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 1.6724709350e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      &-1.1178556526e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 0.0000000000e+00_wp, -2.2092375587e-01_wp,  1.4319582461e-01_wp, &
+      & 0.0000000000e+00_wp,  2.3323207511e-01_wp, -1.5315176462e-01_wp, &
+      & 0.0000000000e+00_wp, -1.2308319237e-02_wp,  9.9559400089e-03_wp, &
+      & 0.0000000000e+00_wp,  1.6310770462e-01_wp, -1.4708517387e-01_wp, &
+      & 0.0000000000e+00_wp, -1.5315176462e-01_wp,  1.3375368579e-01_wp, &
+      & 0.0000000000e+00_wp, -9.9559400048e-03_wp,  1.3331488088e-02_wp, &
+      &-5.5461527896e-04_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      &-1.1178556526e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 1.6724709315e-03_wp,  0.0000000000e+00_wp,  0.0000000000e+00_wp, &
+      & 0.0000000000e+00_wp, -2.2092375557e-01_wp, -1.4319582434e-01_wp, &
+      & 0.0000000000e+00_wp, -1.2308319237e-02_wp, -9.9559400048e-03_wp, &
+      & 0.0000000000e+00_wp,  2.3323207480e-01_wp,  1.5315176434e-01_wp, &
+      & 0.0000000000e+00_wp, -1.6310770435e-01_wp, -1.4708517359e-01_wp, &
+      & 0.0000000000e+00_wp,  9.9559400089e-03_wp,  1.3331488088e-02_wp, &
+      & 0.0000000000e+00_wp,  1.5315176434e-01_wp,  1.3375368550e-01_wp],&
+      & shape(h0))
+   real(wp), parameter :: hessian_local_ref(9, 9) = reshape([&
+      & 3.19677112844234e-04_wp, -3.32342131309818e-03_wp, -2.67790616248500e-05_wp,&
+      & -1.93324060431286e-04_wp, 2.34887629241175e-03_wp, -2.97382602124213e-04_wp,&
+      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp,&
+      & -3.32342131309818e-03_wp, -6.30870143425176e-02_wp, -1.99496626493542e-01_wp,&
+      & 1.20902490299375e-02_wp, 7.47363090613361e-03_wp, 6.85160128840844e-03_wp,&
+      & 8.90280217865149e-05_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp,&
+      & -2.67790616248500e-05_wp, -1.99496626493542e-01_wp, 4.63216871841495e-01_wp,&
+      & 1.92444959775377e-02_wp, 1.62320366204895e-01_wp, -4.80311579353320e-03_wp,&
+      & 9.25923730998759e-04_wp, 6.23997695176231e-04_wp, 0.00000000000000e+00_wp,&
+      & -1.93324060431286e-04_wp, 1.20902490299375e-02_wp, 1.92444959775377e-02_wp,&
+      & 2.33820095994906e-03_wp, -1.06506356763412e-02_wp, 2.25289791347748e-02_wp,&
+      & -1.55391471185750e-14_wp, 5.73518635910525e-04_wp, -6.78104372076033e-05_wp,&
+      & 2.34887629241175e-03_wp, 7.47363090613361e-03_wp, 1.62320366204895e-01_wp,&
+      & -1.06506356763412e-02_wp, -5.41413149509843e-02_wp, -1.20812305434173e-01_wp,&
+      & -1.30893376495030e-02_wp, -1.41183939391319e-04_wp, 4.92546103224633e-03_wp,&
+      & -2.97382602124213e-04_wp, 6.85160128840844e-03_wp, -4.80311579353320e-03_wp,&
+      & 2.25289791347748e-02_wp, -1.20812305434173e-01_wp, 2.79913227822072e-01_wp,&
+      & 1.87438497579491e-02_wp, 1.49387622567730e-01_wp, 3.12183574957329e-03_wp,&
+      & 0.00000000000000e+00_wp, 8.90280217865149e-05_wp, 9.25923730998759e-04_wp,&
+      & -1.55391471185750e-14_wp, -1.30893376495030e-02_wp, 1.87438497579491e-02_wp,&
+      & -4.79319030380975e-06_wp, 8.88421644367883e-03_wp, 1.65261717538513e-02_wp,&
+      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 6.23997695176231e-04_wp,&
+      & 5.73518635910525e-04_wp, -1.41183939391319e-04_wp, 1.49387622567730e-01_wp,&
+      & 8.88421644367883e-03_wp, 7.07044219384617e-02_wp, 8.37522763859865e-02_wp,&
+      & 0.00000000000000e+00_wp, 0.00000000000000e+00_wp, 0.00000000000000e+00_wp,&
+      & -6.78104372076033e-05_wp, 4.92546103224633e-03_wp, 3.12183574957329e-03_wp,&
+      & 1.65261717538513e-02_wp, 8.37522763859865e-02_wp, -1.01307468842741e-01_wp],&
+      & shape(hessian_local_ref))
+   real(wp), parameter :: hessian_ref(9, 9) = reshape([&
+      & 3.21202548348861e-04_wp, -3.36143522890183e-03_wp, -1.61434670765408e-05_wp,&
+      & -2.33476898312511e-04_wp, 3.58311191231894e-03_wp, -6.80597145923440e-04_wp,&
+      & 2.25424943548716e-04_wp, 3.90896402245910e-04_wp, 8.85821968433675e-05_wp,&
+      & -3.36143522890183e-03_wp, -6.31369977795672e-02_wp, -1.99406199899265e-01_wp,&
+      & 1.22397867307581e-02_wp, 8.60841380834760e-03_wp, 1.04867482257833e-02_wp,&
+      & 1.10716609923727e-04_wp, 2.44005464184140e-04_wp, -7.27804274818003e-04_wp,&
+      & -1.61434670765408e-05_wp, -1.99406199899265e-01_wp, 4.63276927090022e-01_wp,&
+      & 1.92372026481329e-02_wp, 1.65623784950145e-01_wp, -5.64376804607281e-03_wp,&
+      & 1.41862921621685e-03_wp, 1.48865713775440e-03_wp, 4.03179144287053e-04_wp,&
+      & -2.33476898312511e-04_wp, 1.22397867307581e-02_wp, 1.92372026481329e-02_wp,&
+      & 2.32016668873703e-03_wp, -1.07232346626970e-02_wp, 2.30053559824699e-02_wp,&
+      & -1.80342712296196e-05_wp, 7.98663420130482e-04_wp, -1.95601212615882e-04_wp,&
+      & 3.58311191231894e-03_wp, 8.60841380834760e-03_wp, 1.65623784950145e-01_wp,&
+      & -1.07232346626970e-02_wp, -5.42028871409179e-02_wp, -1.20845949315161e-01_wp,&
+      & -1.34237233887938e-02_wp, -2.35976097335490e-04_wp, 7.60816561498387e-03_wp,&
+      & -6.80597145923440e-04_wp, 1.04867482257833e-02_wp, -5.64376804607281e-03_wp,&
+      & 2.30053559824699e-02_wp, -1.20845949315161e-01_wp, 2.79989829800501e-01_wp,&
+      & 1.87696470230527e-02_wp, 1.52336761147164e-01_wp, 3.53512397590933e-03_wp,&
+      & 2.25424943548716e-04_wp, 1.10716609923727e-04_wp, 1.41862921621685e-03_wp,&
+      & -1.80342712296196e-05_wp, -1.34237233887938e-02_wp, 1.87696470230527e-02_wp,&
+      & -2.28274615199358e-05_wp, 8.79966116458134e-03_wp, 1.68157017730541e-02_wp,&
+      & 3.90896402245910e-04_wp, 2.44005464184140e-04_wp, 1.48865713775440e-03_wp,&
+      & 7.98663420130482e-04_wp, -2.35976097335490e-04_wp, 1.52336761147164e-01_wp,&
+      & 8.79966116458134e-03_wp, 7.06197606988344e-02_wp, 8.37783234293568e-02_wp,&
+      & 8.85821968433675e-05_wp, -7.27804274818003e-04_wp, 4.03179144287053e-04_wp,&
+      & -1.95601212615882e-04_wp, 7.60816561498387e-03_wp, 3.53512397590933e-03_wp,&
+      & 1.68157017730541e-02_wp, 8.37783234293568e-02_wp, -1.01213366096153e-01_wp],&
+      & shape(hessian_ref))
+   real(wp), parameter :: eps = 1.0e-8_wp, eps2 = 1.0e-15_wp, step = 1.0e-6_wp
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(TxTBCalculator) :: calc
+   real(wp), allocatable :: displdir(:, :), hessian(:, :), hessian_local(:, :)
+   integer :: i, N, ndispl_final
+
+   call init(env)
+   call init(mol, sym, xyz)
+
+   call setup_o1numhess_test(3*mol%n, displdir, ndispl_final, h0, eps, eps2)
+
+   ! use GFN2
+   call newXTBCalculator(env, mol, calc, method=2, accuracy=1.0e-8_wp)
+   call newWavefunction(env, mol, calc, chk)
+   
+   call calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_final, hessian, hessian_local, step)
+
+   ! compare
+   N = 3 * nat
+   if (any(abs(hessian_local - hessian_local_ref) > thr)) then
+      call test_failed(error, "Local Hessians do not match")
+
+      print *, "--- hessian ---"
+      do i = 1, N
+         print '(*(F21.14))', hessian_local(i, :) 
+      end do
+
+      print *, "--- Ref. hessian ---"
+      do i = 1, N
+         print '(*(F21.14))', hessian_local_ref(i, :) 
+      end do
+   end if
+
+   if (any(abs(hessian - hessian_ref) > thr)) then
+      call test_failed(error, "Final Hessians do not match")
+
+      print *, "--- hessian ---"
+      do i = 1, N
+         print '(*(F21.14))', hessian(i, :) 
+      end do
+
+      print *, "--- Ref. hessian ---"
+      do i = 1, N
+         print '(*(F21.14))', hessian_ref(i, :) 
+      end do
+   end if
+end subroutine test_o1numhess_gfn2
 
 end module test_hessian

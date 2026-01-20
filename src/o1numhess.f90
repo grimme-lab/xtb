@@ -54,13 +54,6 @@ subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
    ndispl = size(displdir, 1)
    N = size(distmat, 1)
 
-   ! print *, "====================="
-   ! print *, "g"
-   ! do i = 1, N
-   !    print *, g(i, :)
-   ! end do
-   ! print *, "====================="
-
    ! Calculate Regularization Term W2
    allocate(W2(N, N))
    W2 = lam * max(0.0_wp, distmat(:, :) - dmax)**(2.0_wp * bet)
@@ -145,21 +138,18 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
       resid = g - matmul(hess_out, displdir)
 
       err = dnrm2(N * ndispl, resid, 1)
-      print *, err
       
       if (err < thresh_LR) then
             ! Converged successfully
             exit loop_lr
             
       else if (abs(err - err0) < thresh_LR * err0) then
-            print *, 'Warning: Gradients cannot be reproduced by symmetric Hessian (Stagnation).'
+            ! print *, 'Warning: Gradients cannot be reproduced by symmetric Hessian (Stagnation).'
             exit loop_lr
             
       else if (err > err0 .and. err > norm_g) then
             ! Divergence detected
             dampfac = dampfac * 0.5_wp
-            ! (Optional: Print warning if verbose)
-            ! print *, 'Damping factor reduced to', dampfac
       end if
       
       hcorr = matmul(resid, transpose(displdir))
@@ -337,10 +327,10 @@ end subroutine dfs_label
 ! --- Helper: Prim's Algorithm for MST ---
 subroutine prim_mst(nc, dists, adj_mst)
    integer, intent(in) :: nc
-   real(8), intent(in) :: dists(nc, nc)
+   real(wp), intent(in) :: dists(nc, nc)
    integer, allocatable, intent(out) :: adj_mst(:, :)
    
-   real(8) :: min_val, key(nc)
+   real(wp) :: min_val, key(nc)
    integer :: parent(nc)
    logical :: mst_set(nc)
    integer :: i, count, u, v
@@ -348,16 +338,16 @@ subroutine prim_mst(nc, dists, adj_mst)
    allocate(adj_mst(nc, nc))
    adj_mst = 0
    
-   key = huge(1.0d0)
+   key = huge(1.0_wp)
    parent = 0
    mst_set = .false.
    
-   key(1) = 0.0d0
+   key(1) = 0.0_wp
    parent(1) = -1
 
    do count = 1, nc - 1
       ! Pick minimum key vertex not yet including in MST
-      min_val = huge(1.0d0)
+      min_val = huge(1.0_wp)
       u = -1
       do i = 1, nc
             if (.not. mst_set(i) .and. key(i) < min_val) then
@@ -371,7 +361,7 @@ subroutine prim_mst(nc, dists, adj_mst)
 
       ! Update adjacent vertices
       do v = 1, nc
-            if (dists(u, v) > 0.0d0 .and. .not. mst_set(v) .and. dists(u, v) < key(v)) then
+            if (dists(u, v) > 0.0_wp .and. .not. mst_set(v) .and. dists(u, v) < key(v)) then
                parent(v) = u
                key(v) = dists(u, v)
             end if
@@ -459,10 +449,6 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
                   vec_subset(q, p) = displdir_tmp(nb_idx(q), p)
                end do
             end do
-            ! do z = 1, nnb
-            !    print *, vec_subset(z, :n_curr)
-            ! end do
-            ! print *, "======================"
 
             if (n_curr > 0) then
                projmat(:nnb, :n_curr) = -orth(vec_subset(:nnb, :n_curr)) ! TODO: why minus?
