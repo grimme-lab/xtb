@@ -628,15 +628,15 @@ subroutine swart(xyz, at, hess_out)
       do j = i + 1, nat
          Hint = 0.35_wp * screenfunc(i, j)**3
          bmat6 = bmat_bond(xyz(:, i) - xyz(:, j))
-         outer6 = spread(bmat6, dim=2, ncopies=6) * spread(bmat6, dim=1, ncopies=6)
+         outer6 = (spread(bmat6, dim=2, ncopies=6) * spread(bmat6, dim=1, ncopies=6))
          i1 = 3 * i - 2
          i2 = 3 * i
          j1 = 3 * j - 2
          j2 = 3 * j
-         hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + Hint * outer6
-         hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + Hint * outer6
-         hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + Hint * outer6
-         hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + Hint * outer6
+         hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + Hint * outer6(1:3, 1:3)
+         hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + Hint * outer6(1:3, 4:6)
+         hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + Hint * outer6(4:6, 1:3)
+         hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + Hint * outer6(4:6, 4:6)
       end do
    end do
 
@@ -671,31 +671,31 @@ subroutine swart(xyz, at, hess_out)
                if (costh > 1.0_wp - tolth) then
                   bmat29 = bmat_linangle(xyz(:, i) - xyz(:, j), xyz(:, k) - xyz(:, j))
                   bmat9 = scalelin * bmat29(1, :) + (1.0_wp - scalelin) * bmat9
-                  outer9 = spread(bmat29(2, :), dim=2, ncopies=9) * spread(bmat29(2, :), dim=1, ncopies=9)
-                  hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + Hint * outer9
-                  hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + Hint * outer9
-                  hess_out(i1:i2, k1:k2) = hess_out(i1:i2, k1:k2) + Hint * outer9
-                  hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + Hint * outer9
-                  hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + Hint * outer9
-                  hess_out(j1:j2, k1:k2) = hess_out(j1:j2, k1:k2) + Hint * outer9
-                  hess_out(k1:k2, i1:i2) = hess_out(k1:k2, i1:i2) + Hint * outer9
-                  hess_out(k1:k2, j1:j2) = hess_out(k1:k2, j1:j2) + Hint * outer9
-                  hess_out(k1:k2, k1:k2) = hess_out(k1:k2, k1:k2) + Hint * outer9
+                  outer9 = Hint * spread(bmat29(2, :), dim=2, ncopies=9) * spread(bmat29(2, :), dim=1, ncopies=9)
+                  hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + outer9(1:3, 1:3)
+                  hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + outer9(1:3, 4:6)
+                  hess_out(i1:i2, k1:k2) = hess_out(i1:i2, k1:k2) + outer9(1:3, 7:9)
+                  hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + outer9(4:6, 1:3)
+                  hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + outer9(4:6, 4:6)
+                  hess_out(j1:j2, k1:k2) = hess_out(j1:j2, k1:k2) + outer9(4:6, 7:9)
+                  hess_out(k1:k2, i1:i2) = hess_out(k1:k2, i1:i2) + outer9(7:9, 1:3)
+                  hess_out(k1:k2, j1:j2) = hess_out(k1:k2, j1:j2) + outer9(7:9, 4:6)
+                  hess_out(k1:k2, k1:k2) = hess_out(k1:k2, k1:k2) + outer9(7:9, 7:9)
                else
                   bmat9 = (1.0_wp - scalelin) * bmat9
                end if
             end if
 
-            outer9 = spread(bmat9, dim=2, ncopies=9) * spread(bmat9, dim=1, ncopies=9)
-            hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + Hint * outer9
-            hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + Hint * outer9
-            hess_out(i1:i2, k1:k2) = hess_out(i1:i2, k1:k2) + Hint * outer9
-            hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + Hint * outer9
-            hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + Hint * outer9
-            hess_out(j1:j2, k1:k2) = hess_out(j1:j2, k1:k2) + Hint * outer9
-            hess_out(k1:k2, i1:i2) = hess_out(k1:k2, i1:i2) + Hint * outer9
-            hess_out(k1:k2, j1:j2) = hess_out(k1:k2, j1:j2) + Hint * outer9
-            hess_out(k1:k2, k1:k2) = hess_out(k1:k2, k1:k2) + Hint * outer9
+            outer9 = Hint * spread(bmat9, dim=2, ncopies=9) * spread(bmat9, dim=1, ncopies=9)
+            hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + outer9(1:3, 1:3)
+            hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + outer9(1:3, 4:6)
+            hess_out(i1:i2, k1:k2) = hess_out(i1:i2, k1:k2) + outer9(1:3, 7:9)
+            hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + outer9(4:6, 1:3)
+            hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + outer9(4:6, 4:6)
+            hess_out(j1:j2, k1:k2) = hess_out(j1:j2, k1:k2) + outer9(4:6, 7:9)
+            hess_out(k1:k2, i1:i2) = hess_out(k1:k2, i1:i2) + outer9(7:9, 1:3)
+            hess_out(k1:k2, j1:j2) = hess_out(k1:k2, j1:j2) + outer9(7:9, 4:6)
+            hess_out(k1:k2, k1:k2) = hess_out(k1:k2, k1:k2) + outer9(7:9, 7:9)
          end do
       end do
    end do

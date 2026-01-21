@@ -26,7 +26,7 @@ module xtb_type_calculator
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart, only : TRestart
    use xtb_o1numhess, only : adj_list, gen_local_hessian, &
-   & lr_loop, gen_displdir, get_neighbor_list
+   & lr_loop, gen_displdir, get_neighbor_list, swart
    implicit none
 
    public :: TCalculator
@@ -257,7 +257,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    real(wp), allocatable :: displdir(:, :)
    
    ! UFF vdw radii - could be replaced with any other vdw radii i guess
-   real(wp), parameter :: vdw_radii(1:103) = [ &
+   real(wp), parameter :: vdw_radii(103) = [ &
       2.886_wp, 2.362_wp, 2.451_wp, 2.745_wp, 4.083_wp, 3.851_wp, 3.66_wp, 3.5_wp, 3.364_wp, &
       3.243_wp, 2.983_wp, 3.021_wp, 4.499_wp, 4.295_wp, 4.147_wp, 4.035_wp, 3.947_wp, 3.868_wp, &
       3.812_wp, 3.399_wp, 3.295_wp, 3.175_wp, 3.144_wp, 3.023_wp, 2.961_wp, 2.912_wp, 2.872_wp, &
@@ -269,8 +269,7 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
       3.17_wp, 3.069_wp, 2.954_wp, 3.12_wp, 2.84_wp, 2.754_wp, 3.293_wp, 2.705_wp, 4.347_wp, &
       4.297_wp, 4.37_wp, 4.709_wp, 4.75_wp, 4.765_wp, 4.9_wp, 3.677_wp, 3.478_wp, 3.396_wp, &
       3.424_wp, 3.395_wp, 3.424_wp, 3.424_wp, 3.381_wp, 3.326_wp, 3.339_wp, 3.313_wp, 3.299_wp, &
-      3.286_wp, 3.274_wp, 3.248_wp, 3.236_wp &
-   ] / 2.0_wp / autoaa
+      3.286_wp, 3.274_wp, 3.248_wp, 3.236_wp] * 0.5_wp / autoaa
    real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp
 
    type(TMolecule) :: mol
@@ -293,16 +292,8 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    call chk%copy(chk0)
 
    ! hessian initial guess
-   allocate(h0v(N*(N+1)/2))
-   call ddvopt(mol0%xyz, mol0%n, h0v, mol0%at, 20.0_wp)
-   h0 = unpack(h0v, mask, field=0.0_wp)
-   
-   ! Symmetrize
-   do i = 1, n
-      do j = 1, i - 1
-         h0(i, j) = h0(j, i)
-      end do
-   end do
+   allocate(h0(N, N))
+   call swart(mol%xyz, mol%at, h0)
 
    ! calculate unperturbed gradient
    write(env%unit, '(A)') "Calculating unperturbed gradient"
