@@ -32,7 +32,9 @@ module xtb_o1numhess
 contains
 
 !> Main routine to recover local Hessian
-subroutine gen_local_hessian(distmat, displdir, g, dmax, hess_out)
+subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
+   !> Number of displacements
+   integer, intent(in) :: ndispl_final
    !> Distance matrix between atoms
    real(wp), intent(in) :: distmat(:, :)
    !> Displacement directions

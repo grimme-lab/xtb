@@ -233,7 +233,7 @@ subroutine hessian_point(self, env, mol0, chk0, iat, ic, step, energy, gradient,
 end subroutine hessian_point
 
 !> Implementation according to Wang et al. (https://doi.org/10.48550/arXiv.2508.07544)
-subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
+subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    character(len=*), parameter :: source = "hessian_odlr"
    !> Single point calculator
    class(TCalculator), intent(inout) :: self
@@ -243,14 +243,8 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    type(TMolecule), intent(in) :: mol0
    !> Restart data
    type(TRestart), intent(in) :: chk0
-   !> List of atoms to displace
-   integer, intent(in) :: list(:)
    !> Step size for numerical differentiation
    real(wp), intent(in) :: step
-   !> Displacement directions
-   real(wp), intent(in) :: displdir0(:, :)
-   !> Gradients
-   real(wp), allocatable, intent(inout) :: g(:, :)
    !> Array to add Hessian to
    real(wp), intent(inout) :: hess(:, :)
    !> Array for displacement directions
@@ -271,22 +265,23 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
       3.424_wp, 3.395_wp, 3.424_wp, 3.424_wp, 3.381_wp, 3.326_wp, 3.339_wp, 3.313_wp, 3.299_wp, &
       3.286_wp, 3.274_wp, 3.248_wp, 3.236_wp] * 0.5_wp / autoaa
    real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp
+   real(wp), parameter :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1], shape(identity3))
 
    type(TMolecule) :: mol
    type(TRestart) :: chk
    type(scc_results) :: res
    type(adj_list), allocatable :: neighborlist(:)
-   real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), g0(:), x(:), xyz(:, :), gr(:, :), gl(:, :), gtmp(:, :)
-   real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), ax(3, 3), cross(3), Imat0, query(1), displmax
-   real(wp) :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1],[3, 3]), final_err
+   real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), &
+      & g0(:), x(:), xyz(:, :), g(:, :), work(:)
+   real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), &
+      & ax(3, 3), cross(3), Imat0, query(1), displmax, final_err, vec(3)
    logical, allocatable :: mask(:, :)
    logical :: linear
    integer, allocatable :: nbcounts(:)
-   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ginit
+   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb
    
    ! ========== INITIALIZATION ==========
    N = 3 * mol0%n
-   ginit = size(g, 2)
 
    call mol%copy(mol0)
    call chk%copy(chk0)
@@ -296,10 +291,9 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    call swart(mol%xyz, mol%at, h0)
 
    ! calculate unperturbed gradient
+   allocate(tmp_grad(3, mol0%n))
    write(env%unit, '(A)') "Calculating unperturbed gradient"
    call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
-
-   ! gradients need to be flattened since hessian is also "flat"
    g0 = reshape(tmp_grad,[N])
 
    ! setup effective distmat
@@ -314,56 +308,60 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
       end do
    end do
 
-   ! allocate(displdir(N, N))
-   ! ! set up initial displdir with trans, rot, and totally symmetric vib mode first
-   ! ! translational displacements
-   ! do i = 1, N
-   !    displdir(3 * i - 2, 1) = 1.0_wp / sqrt(real(mol0%n, wp))
-   !    displdir(3 * i - 1, 2) = 1.0_wp / sqrt(real(mol0%n, wp))
-   !    displdir(3 * i, 3) = 1.0_wp / sqrt(real(mol0%n, wp))
-   ! end do
-   !
-   ! ! calculate inertial moment and axes
-   ! barycenter = sum(mol0%xyz, dim=2) / real(mol0%n, wp)
-   ! Imat0 = 0.0_wp
-   ! do i = 1, mol0%n
-   !    vec = mol0%xyz(:, i) - barycenter(:)
-   !    Imat0 = Imat0 + matmul(vec, transpose(vec))
-   ! end do
-   ! ax = Imat0 * identity3
-   ! do i = 1, 3
-   !    do j = 1, 3
-   !       do k = 1, mol0%n
-   !          ax(i, j) = ax(i, j) - (mol0%xyz(i, k) - barycenter(i)) * (mol0%xyz(j, k) - barycenter(j))
-   !       end do
-   !    end do
-   ! end do
-   !
-   ! lwork = -1
-   ! call dsyev('V', 'U', 3, ax, 3, inertia, query, lwork, info)
-   ! lwork = int(query(1))
-   ! allocate(aux(lwork))
-   ! call dsyev('V', 'U', 3, ax, 3, inertia, aux, lwork, info)
-   !
-   ! ! rotational displacements
-   ! Ntr = 3 ! number of translational and rotational degrees of freedom
-   ! do i = 1, 3
-   !    if (inertia(i) < 1e-4_wp) cycle
-   !    do j = 1, mol0%n
-   !       crossProd(ax(:, i), mol0%xyz(:, j) - barycenter(:), cross)
-   !       displdir(3 * j - 2:3 * j, Ntr + 1) = cross
-   !    end do
-   !    displdir(:, Ntr + 1) = displdir(:, Ntr + 1) / norm2(displdir(:, Ntr + 1))
-   !    Ntr = Ntr + 1
-   ! end do
-   !
-   ! ! totally symmetric vibrational displacement
-   ! do i = 1, mol0%n
-   !    displdir(3 * i - 2:3 * i, Ntr + 1) = mol0%xyz(:, i) - barycenter(:)
-   !    displdir(3 * i - 2:3 * i, Ntr + 1) = displdir(3 * i - 2:3 * i, Ntr + 1) / norm2(displdir(3 * i - 2:3 * i, Ntr + 1))
-   ! end do
-   !
-   ! TODO: get gradient derivs along rotational displacements - in numhess
+   allocate(displdir(N, N))
+   displdir = 0.0_wp
+   ! set up initial displdir with trans, rot, and totally symmetric vib mode first
+   ! translational displacements
+   Ntr = 3
+   do i = 1, mol0%n
+      displdir(3 * i - 2, 1) = 1.0_wp / sqrt(real(mol0%n, wp))
+      displdir(3 * i - 1, 2) = 1.0_wp / sqrt(real(mol0%n, wp))
+      displdir(3 * i, 3) = 1.0_wp / sqrt(real(mol0%n, wp))
+   end do
+
+   ! calculate inertial moment and axes
+   barycenter = sum(mol0%xyz, dim=2) / real(mol0%n, wp)
+   Imat0 = 0.0_wp
+   do i = 1, mol0%n
+      vec = mol0%xyz(:, i) - barycenter(:)
+         Imat0 = Imat0 + dot_product(vec, vec)
+   end do
+   ax = Imat0 * identity3
+   do i = 1, 3
+      do j = 1, 3
+         do k = 1, mol0%n
+            ax(i, j) = ax(i, j) - (mol0%xyz(i, k) - barycenter(i)) * (mol0%xyz(j, k) - barycenter(j))
+         end do
+      end do
+   end do
+
+   lwork = -1
+   allocate(work(1))
+   call dsyev('V', 'U', 3, ax, 3, inertia, work, lwork, info)
+   lwork = int(work(1))
+   deallocate(work)
+   allocate(work(lwork))
+   call dsyev('V', 'U', 3, ax, 3, inertia, work, lwork, info)
+
+   ! rotational displacements
+   do i = 1, 3
+      if (inertia(i) < 1e-4_wp) cycle ! skips one mode if linear
+      Ntr = Ntr + 1
+      do j = 1, mol0%n
+         cross = crossProd(ax(:, i), mol0%xyz(:, j) - barycenter(:))
+         displdir(3 * j - 2:3 * j, Ntr) = cross
+      end do
+      displdir(:, Ntr) = displdir(:, Ntr) / norm2(displdir(:, Ntr))
+   end do
+
+   ! totally symmetric vibrational displacement
+   do i = 1, mol0%n
+      displdir(3 * i - 2:3 * i, Ntr + 1) = mol0%xyz(:, i) - barycenter(:)
+   end do
+   displdir(:, Ntr + 1) = displdir(:, Ntr + 1) / norm2(displdir(:, Ntr + 1))
+
+   ! TODO: get gradient derivs along trans/rot/vib displacements
+   allocate(g(N, N))
 
    ! generate remaining displdirs based on distmat and dmax
    ! compute neighbor list
@@ -376,19 +374,10 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
       if (nbcounts(i) > max_nb) max_nb = nbcounts(i)
    end do
    
-   ! TODO: orthonormalize displdir?
    ! populate displdir
    write(env%unit, '(A)') "Generating displacements"
-   Ntr = 0
    call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
-
-   ! allocate g with correct size
-   allocate(gtmp(N, ndispl_final))
-   gtmp(:, 1:ginit) = g
-   call move_alloc(gtmp, g)
-   g(:, ginit+1:ndispl_final) = 0.0_wp
-   
    ! ========== GRADIENT DERIVATIVES ==========
    write(env%unit, '(A)') "Calculating gradient derivatives"
    call get_gradient_derivs(self, env, step, Ntr, ndispl_final, displdir, mol0, chk0, g0, g)
@@ -397,11 +386,14 @@ subroutine odlrhessian(self, env, mol0, chk0, list, step, displdir0, g, hess)
    ! construct hessian from local hessian and odlr correction
    ! compute local hessian
    write(env%unit, '(A)') "Computing local Hessian"
-   call gen_local_hessian(distmat, displdir, g, dmax, hess)
+   call gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess)
 
    ! compute low rank correction
    write(env%unit, '(A)') "Computing low rank correction"
    call lr_loop(ndispl_final, g, hess, displdir, final_err)
+
+   ! TODO: check for imaginary frequencies
+   ! TODO: rerun with imaginary displacements
 
 end subroutine odlrhessian
 

@@ -9805,6 +9805,8 @@ subroutine test_o1numhess_gfn2(error)
          print '(*(F21.14))', hessian_ref(i, :) 
       end do
    end if
+
+   call calc%odlrhessian(env, mol, chk, step, hessian)
 end subroutine test_o1numhess_gfn2
 
 subroutine test_modified_swart(error)
