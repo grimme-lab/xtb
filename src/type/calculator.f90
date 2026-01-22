@@ -278,7 +278,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    logical, allocatable :: mask(:, :)
    logical :: linear
    integer, allocatable :: nbcounts(:)
-   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb
+   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ndispl0
    
    ! ========== INITIALIZATION ==========
    N = 3 * mol0%n
@@ -376,11 +376,12 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    
    ! populate displdir
    write(env%unit, '(A)') "Generating displacements"
-   call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
+   ndispl0 = Ntr + 1
+   call gen_displdir(N, ndispl0, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
    ! ========== GRADIENT DERIVATIVES ==========
    write(env%unit, '(A)') "Calculating gradient derivatives"
-   call get_gradient_derivs(self, env, step, Ntr, ndispl_final, displdir, mol0, chk0, g0, g)
+   call get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, g)
 
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
@@ -397,11 +398,11 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
 
 end subroutine odlrhessian
 
-subroutine get_gradient_derivs(self, env, step, Ntr, ndispl_final, displdir, mol0, chk0, g0, g)
+subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, g)
    class(TCalculator), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
    real(wp), intent(in) :: step
-   integer, intent(in) :: Ntr, ndispl_final
+   integer, intent(in) :: ndispl0, ndispl_final
    real(wp), intent(in) :: displdir(:, :)
    type(TMolecule), intent(in) :: mol0
    type(TRestart), intent(in) :: chk0
@@ -419,7 +420,7 @@ subroutine get_gradient_derivs(self, env, step, Ntr, ndispl_final, displdir, mol
    allocate(tmp_grad(3, mol0%n))
    tmp_grad = 0.0_wp
    N = 3 * mol0%n
-   do i = Ntr + 1, ndispl_final
+   do i = ndispl0 + 1, ndispl_final
       displmax = maxval(abs(displdir(:, i)))
       ! TODO: what about double sided stuff?
       call mol%copy(mol0)

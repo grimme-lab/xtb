@@ -52,9 +52,8 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), unit_vec(:), f1(:, :), f(:, :), tmp(:, :), tmp2(:), tmp3(:), tmp5(:, :)
    logical, allocatable :: mask(:, :)
    integer, allocatable :: ipiv(:)
-   integer :: i, j, k, l, ndim, ndispl, N, info
+   integer :: i, j, k, l, ndim, N, info
 
-   ndispl = size(displdir, 1)
    N = size(distmat, 1)
 
    ! Calculate Regularization Term W2
@@ -64,9 +63,7 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    ! Calculate rhs
    allocate(rhs(N, N))
    rhs = 0.0_wp
-   ! call dgemm('N', 'T', N, N, ndispl, 1.0_wp, g, N, displdir, N, 0.0_wp, rhs, N)
-   rhs = matmul(g, transpose(displdir))
-   ! rhs = 0.5_wp * (rhs + transpose(rhs))
+   rhs = matmul(g(:, :ndispl_final), transpose(displdir(:, :ndispl_final)))
 
    ! Masks and Packing
    allocate(mask(N, N))
@@ -78,7 +75,6 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    end do
    
    ! RHS Vector (b in Ax=b)
-   ! rhsv = pack(transpose(rhs), mask)
    rhsv = pack_sym(rhs, mask)
    ndim = size(rhsv)
 
@@ -90,7 +86,7 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
       unit_vec = 0.0_wp
       unit_vec(i) = 1.0_wp
       tmp = unpack_sym(unit_vec, mask, N)
-      f1 = matmul(matmul(tmp, displdir), transpose(displdir))
+      f1 = matmul(matmul(tmp, displdir(:, :ndispl_final)), transpose(displdir(:, :ndispl_final)))
       f1 = (f1 + transpose(f1)) / 2.0_wp
       f = W2 * tmp
       A(:, i) = pack_sym(f1 + f, mask)
@@ -138,7 +134,7 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
    ! 2. Iterative Correction Loop
    loop_lr: do it = 1, maxiter_LR
       
-      resid = g - matmul(hess_out, displdir)
+      resid = g(:, :ndispl) - matmul(hess_out, displdir(:, :ndispl))
 
       err = dnrm2(N * ndispl, resid, 1)
       
@@ -155,7 +151,7 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
             dampfac = dampfac * 0.5_wp
       end if
       
-      hcorr = matmul(resid, transpose(displdir))
+      hcorr = matmul(resid, transpose(displdir(:, :ndispl)))
       hcorr = 0.5_wp * (hcorr + transpose(hcorr))
       hess_out = hess_out + dampfac * hcorr
       
@@ -381,19 +377,18 @@ subroutine prim_mst(nc, dists, adj_mst)
 end subroutine prim_mst
 
 subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
-                        eps, eps2, displdir, ndispl_final, displdir0)
+                        eps, eps2, displdir, ndispl_final)
    integer, intent(in) :: n, ndispl0, max_nb
    real(wp), intent(in) :: h0(n,n)
    type(adj_list), intent(in) :: nblist(:)
    integer, intent(in) :: nbcounts(n)           ! Actual number of neighbors per atom
    real(wp), intent(in) :: eps, eps2
    
-   real(wp), allocatable, intent(out) :: displdir(:, :)
+   real(wp), intent(inout) :: displdir(n, n)
    integer, intent(out) :: ndispl_final
-   real(wp), intent(in), optional :: displdir0(n, ndispl0)
 
    ! Local variables
-   integer :: i, j, k, p, q, nnb, info, n_curr, idx, local_max_ind, locind, z
+   integer :: i, j, k, p, q, nnb, info, n_curr, idx, local_max_ind, locind
    integer :: nb_idx(max_nb)
    real(wp) :: ev(n), coverage(n), locev(max_nb), submat(max_nb, max_nb)
    real(wp) :: projmat(max_nb, n), eye(max_nb, max_nb)
@@ -405,12 +400,6 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    logical :: early_break
 
    ! Initialize
-   allocate(displdir_tmp(n, n))
-   displdir_tmp = 0.0_wp
-   if (present(displdir0)) then
-      displdir_tmp(:, 1:ndispl0) = displdir0
-   end if
-
    eye = 0.0_wp
    do i = 1, max_nb
       eye(i, i) = 1.0_wp
@@ -424,9 +413,8 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    ndispl_final = ndispl0
 
    ! --- Outer Loop: Generate new directions ---
-   do i = 1, n - ndispl0
+   do n_curr = ndispl0, n - 1
       
-      n_curr = ndispl0 + i - 1 ! Number of existing vectors
       ev = 0.0_wp
       coverage = 0.0_wp
 
@@ -449,7 +437,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
             ! Form matrix A = displdir[neighbors, 0:n_curr]
             do p = 1, n_curr
                do q = 1, nnb
-                  vec_subset(q, p) = displdir_tmp(nb_idx(q), p)
+                  vec_subset(q, p) = displdir(nb_idx(q), p)
                end do
             end do
 
@@ -524,9 +512,9 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       ! Project out previous columns from global ev
       do k = 1, n_curr
             ! d = dot(ev, displdir(:,k))
-            d_dot = dot_product(ev, displdir_tmp(:, k))
+            d_dot = dot_product(ev, displdir(:, k))
             ! ev = ev - d * displdir(:,k)
-            ev = ev - d_dot * displdir_tmp(:, k)
+            ev = ev - d_dot * displdir(:, k)
       end do
       ! --- Check Norm ---
       v_norm = norm2(ev)
@@ -535,13 +523,10 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
 
       ! Normalize and store
       ev = ev / v_norm
-      displdir_tmp(:, n_curr + 1) = ev
+      displdir(:, n_curr + 1) = ev
 
       ndispl_final = n_curr + 1
    end do
-
-   allocate(displdir(n, ndispl_final))
-   displdir(:, :) = displdir_tmp(:, 1:ndispl_final)
 end subroutine gen_displdir
 
 function orth(A, tol_in) result(Q)

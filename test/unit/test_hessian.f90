@@ -9380,7 +9380,7 @@ subroutine test_gendispldir_o1numhess(error)
    type(adj_list), allocatable :: neighborlist(:)
    real(wp), allocatable :: distmat(:, :), displdir(:, :)
    integer, allocatable :: nbcounts(:)
-   integer :: i, j, N, max_nb, Ntr, ndispl_final
+   integer :: i, j, N, max_nb, ndispl0, ndispl_final
 
    N = 3 * nat
 
@@ -9402,19 +9402,20 @@ subroutine test_gendispldir_o1numhess(error)
    end do
    
    ! populate displdir
-   Ntr = 0
-   call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
+   ndispl0 = 0
+   allocate(displdir(N, N))
+   call gen_displdir(N, ndispl0, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
    if (ndispl_final /= 3) then
       call test_failed(error, "Number of displacements not matching")
       print *, "ndispl_final: ", ndispl_final
    end if
 
-   if (any(abs(displdir_ref - displdir) > thr)) then
+   if (any(abs(displdir_ref - displdir(:, :ndispl_final)) > thr)) then
       call test_failed(error, "Displacements not matching")
       print *, "--- displdir ---"
       do i = 1, N
-         print '(*(F21.14))', displdir(i, :) 
+         print '(*(F21.14))', displdir(i, :ndispl_final) 
       end do
 
       print *, "--- Ref. displdir ---"
@@ -9436,7 +9437,7 @@ subroutine setup_o1numhess_test(N, displdir, ndispl_final, h0, eps, eps2)
    type(adj_list), allocatable :: neighborlist(:)
    real(wp), allocatable :: distmat(:, :)
    integer, allocatable :: nbcounts(:)
-   integer :: i, j, max_nb, Ntr
+   integer :: i, j, max_nb, ndispl0
 
    ! setup distmat
    allocate(distmat(N, N))
@@ -9456,8 +9457,9 @@ subroutine setup_o1numhess_test(N, displdir, ndispl_final, h0, eps, eps2)
    end do
 
    ! populate displdir
-   Ntr = 0
-   call gen_displdir(N, Ntr, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
+   ndispl0 = 0
+   allocate(displdir(N, N))
+   call gen_displdir(N, ndispl0, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
 end subroutine setup_o1numhess_test
 
@@ -9476,10 +9478,10 @@ subroutine calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_fin
    real(wp) :: energy, sigma(3, 3), egap
    type(scc_results) :: res
    real(wp) :: final_err
-   integer :: i, j, N, Ntr
+   integer :: i, j, N, ndispl0
 
    N = 3 * mol%n
-   Ntr = 0
+   ndispl0 = 0
 
    ! calculate gradient derivs
    allocate(tmp_grad(3, mol%n))
@@ -9488,7 +9490,7 @@ subroutine calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_fin
    allocate(g(N, ndispl_final))
    g = 0.0_wp
 
-   call calc%get_gradient_derivs(env, step, Ntr, ndispl_final, displdir, mol, chk, g0, g)
+   call calc%get_gradient_derivs(env, step, ndispl0, ndispl_final, displdir, mol, chk, g0, g)
 
    ! setup distmat (needed for gen_local_hessian)
    allocate(distmat(N, N))
@@ -9501,7 +9503,7 @@ subroutine calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_fin
    ! calculate local hessian
    allocate(hessian(N, N))
    hessian = 0.0_wp
-   call gen_local_hessian(distmat, displdir, g, 1.0_wp, hessian)
+   call gen_local_hessian(ndispl_final, distmat, displdir, g, 1.0_wp, hessian)
    hessian_local = hessian
    call lr_loop(ndispl_final, g, hessian, displdir, final_err)
 
