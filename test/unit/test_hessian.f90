@@ -52,7 +52,9 @@ subroutine collect_hessian(testsuite)
       new_unittest("o1numhess_gen_displdir", test_gendispldir_o1numhess), &
       new_unittest("gfn1_o1numhess", test_o1numhess_gfn1), &
       new_unittest("gfn2_o1numhess", test_o1numhess_gfn2), &
-      new_unittest("modified_swart", test_modified_swart) &
+      new_unittest("modified_swart", test_modified_swart), &
+      new_unittest("linear_h2o_gfn1_o1numhess", test_o1numhess_linear_h2o_gfn1), &
+      new_unittest("linear_h2o_gfn2_o1numhess", test_o1numhess_linear_h2o_gfn2) &
       ]
 
 end subroutine collect_hessian
@@ -9490,7 +9492,7 @@ subroutine calculate_o1numhess_hessian(mol, env, calc, chk, displdir, ndispl_fin
    allocate(g(N, ndispl_final))
    g = 0.0_wp
 
-   call calc%get_gradient_derivs(env, step, ndispl0, ndispl_final, displdir, mol, chk, g0, g)
+   call calc%get_gradient_derivs(env, step, ndispl0, ndispl_final, displdir, mol, chk, g0, .false., g)
 
    ! setup distmat (needed for gen_local_hessian)
    allocate(distmat(N, N))
@@ -9874,5 +9876,13 @@ subroutine test_modified_swart(error)
       end do
    end if
 end subroutine test_modified_swart
+
+subroutine test_o1numhess_linear_h2o_gfn1(error)
+   type(error_type), allocatable, intent(out) :: error
+end subroutine test_o1numhess_linear_h2o_gfn1
+
+subroutine test_o1numhess_linear_h2o_gfn2(error)
+   type(error_type), allocatable, intent(out) :: error
+end subroutine test_o1numhess_linear_h2o_gfn2
 
 end module test_hessian
