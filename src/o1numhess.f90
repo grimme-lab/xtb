@@ -128,8 +128,7 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
    dampfac = 1.0_wp
    err0 = huge(1.0_wp)
    
-   ! Calculate Frobenius norm of entire matrix G (treated as vector of size n*ndispl)
-   norm_g = dnrm2(N * ndispl, g, 1)
+   norm_g = dnrm2(N * ndispl, g(:, :ndispl), 1)
 
    ! 2. Iterative Correction Loop
    loop_lr: do it = 1, maxiter_LR
@@ -414,6 +413,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
 
    ! --- Outer Loop: Generate new directions ---
    do n_curr = ndispl0, n - 1
+      ! n_curr: number of existing displacements at this point
       
       ev = 0.0_wp
       coverage = 0.0_wp
@@ -423,7 +423,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
             nnb = nbcounts(j)
             nb_idx(:) = nblist(j)%neighbors
 
-            ! Skip if subspace saturated (heuristic from Python code)
+            ! Skip if subspace saturated
             if (nnb <= n_curr) cycle
 
             ! 1. Extract submatrix H0 (submat)
@@ -433,7 +433,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
                end do
             end do
 
-            ! 2. Local Projection (orth replacement)
+            ! 2. Local Projection
             ! Form matrix A = displdir[neighbors, 0:n_curr]
             do p = 1, n_curr
                do q = 1, nnb
@@ -454,7 +454,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
             ! Symmetrize
             submat = 0.5_wp * (submat + transpose(submat))
 
-            ! 3. Diagonalization (Eigen decomposition)
+            ! 3. Diagonalization
             ! dsyev: computes eigenvalues and eigenvectors in ascending order
             call dsyev('V', 'U', nnb, submat, max_nb, loceigs, work, 10*max_nb, info)
             
@@ -508,7 +508,6 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
             end do
       end do ! End J loop
 
-      ! --- Gram-Schmidt Orthogonalization ---
       ! Project out previous columns from global ev
       do k = 1, n_curr
             ! d = dot(ev, displdir(:,k))

@@ -264,7 +264,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
       4.297_wp, 4.37_wp, 4.709_wp, 4.75_wp, 4.765_wp, 4.9_wp, 3.677_wp, 3.478_wp, 3.396_wp, &
       3.424_wp, 3.395_wp, 3.424_wp, 3.424_wp, 3.381_wp, 3.326_wp, 3.339_wp, 3.313_wp, 3.299_wp, &
       3.286_wp, 3.274_wp, 3.248_wp, 3.236_wp] * 0.5_wp / autoaa
-   real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp
+   real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp, imagthr = 1.0e-8_wp
    real(wp), parameter :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1], shape(identity3))
 
    type(TMolecule) :: mol
@@ -272,13 +272,13 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    type(scc_results) :: res
    type(adj_list), allocatable :: neighborlist(:)
    real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), &
-      & g0(:), x(:), xyz(:, :), g(:, :), work(:)
+      & g0(:), x(:), xyz(:, :), g(:, :), work(:), eigvec(:, :), eigval(:)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), &
       & ax(3, 3), cross(3), Imat0, query(1), displmax, final_err, vec(3)
    logical, allocatable :: mask(:, :)
    logical :: linear
    integer, allocatable :: nbcounts(:)
-   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ndispl0
+   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ndispl0, nimg
    
    ! ========== INITIALIZATION ==========
    N = 3 * mol0%n
@@ -360,8 +360,14 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    end do
    displdir(:, Ntr + 1) = displdir(:, Ntr + 1) / norm2(displdir(:, Ntr + 1))
 
-   ! TODO: get gradient derivs along trans/rot/vib displacements
+   ! TODO: get gradient derivs along rot/vib displacements
+   ! gradients along translations are zero
    allocate(g(N, N))
+   g = 0.0_wp
+   call get_gradient_derivs(self, env, step, 3, Ntr, displdir, mol0, chk0, g0, .false., g)
+   
+   ! for vib mode we need double-sided derivative
+   call get_gradient_derivs(self, env, step, Ntr, Ntr+1, displdir, mol0, chk0, g0, .true., g)
 
    ! generate remaining displdirs based on distmat and dmax
    ! compute neighbor list
@@ -381,7 +387,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
 
    ! ========== GRADIENT DERIVATIVES ==========
    write(env%unit, '(A)') "Calculating gradient derivatives"
-   call get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, g)
+   call get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, .false., g)
 
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
@@ -393,12 +399,38 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    write(env%unit, '(A)') "Computing low rank correction"
    call lr_loop(ndispl_final, g, hess, displdir, final_err)
 
-   ! TODO: check for imaginary frequencies
-   ! TODO: rerun with imaginary displacements
+   ! diagonalize
+   ! keep hess in case there are no imaginary frequencies
+   eigvec = hess
+   allocate(eigval(N))
+   lwork = -1
+   deallocate(work)
+   allocate(work(1))
+   call dsyev('V', 'U', N, eigvec, N, eigval, work, lwork, info)
+   lwork = int(work(1))
+   deallocate(work)
+   allocate(work(lwork))
+   call dsyev('V', 'U', N, eigvec, N, eigval, work, lwork, info)
+
+   ! check for imaginary frequencies
+   nimg = count(eigval < -imagthr)
+   ! only get the most negative freqs if they're too many
+   if (ndispl_final + nimg > N) nimg = N - ndispl_final
+
+   if (nimg > 0) then
+      write(env%unit, '(A)') "Displacing along imaginary modes"
+      ! rerun with imaginary displacements
+      displdir(:, ndispl_final + 1:ndispl_final + nimg) = eigvec(:, 1:nimg)
+      ndispl0 = ndispl_final
+      ndispl_final = ndispl_final + nimg
+      call get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, .false., g)
+      call gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess)
+      call lr_loop(ndispl_final, g, hess, displdir, final_err)
+   end if
 
 end subroutine odlrhessian
 
-subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, g)
+   subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, doublesided, g)
    class(TCalculator), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
    real(wp), intent(in) :: step
@@ -407,6 +439,7 @@ subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir,
    type(TMolecule), intent(in) :: mol0
    type(TRestart), intent(in) :: chk0
    real(wp), intent(in) :: g0(:)
+   logical, intent(in) :: doublesided
    real(wp), intent(inout) :: g(:, :)
 
    type(TMolecule) :: mol
@@ -414,24 +447,49 @@ subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir,
    type(scc_results) :: res
    integer :: i, N, j
    real(wp) :: displmax, sigma(3, 3), energy, egap
-   real(wp), allocatable :: tmp_grad(:, :)
+   real(wp), allocatable :: tmp_gradl(:, :), tmp_gradr(:, :)
    real(wp), allocatable :: x(:)
 
-   allocate(tmp_grad(3, mol0%n))
-   tmp_grad = 0.0_wp
    N = 3 * mol0%n
-   do i = ndispl0 + 1, ndispl_final
-      displmax = maxval(abs(displdir(:, i)))
-      ! TODO: what about double sided stuff?
-      call mol%copy(mol0)
-      call chk%copy(chk0)
-      x = reshape(mol0%xyz,[N])
-      x = x + step * displdir(:, i) / displmax
-      mol%xyz = reshape(x,[3, mol0%n])
-      call self%singlepoint(env, mol, chk, -1, .false., energy, tmp_grad, sigma, egap, res)
-      g(:, i) = reshape(tmp_grad,[N])
-      g(:, i) = (g(:, i) - g0(:)) / step * displmax
-   end do
+   if (doublesided) then
+      allocate(tmp_gradr(3, mol0%n), tmp_gradl(3, mol0%n))
+      tmp_gradl = 0.0_wp
+      tmp_gradr = 0.0_wp
+      do i = ndispl0 + 1, ndispl_final
+         displmax = maxval(abs(displdir(:, i)))
+
+         call mol%copy(mol0)
+         call chk%copy(chk0)
+         x = reshape(mol0%xyz,[N])
+         x = x + step * displdir(:, i) / displmax
+         mol%xyz = reshape(x,[3, mol0%n])
+         call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
+
+         call chk%copy(chk0)
+         x = reshape(mol0%xyz,[N])
+         x = x - step * displdir(:, i) / displmax
+         mol%xyz = reshape(x,[3, mol0%n])
+         call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradr, sigma, egap, res)
+
+         g(:, i) = reshape(tmp_gradl - tmp_gradr,[N])
+         g(:, i) = (g(:, i)) / step * displmax * 0.5_wp
+      end do
+   else
+      allocate(tmp_gradl(3, mol0%n))
+      tmp_gradl = 0.0_wp
+      do i = ndispl0 + 1, ndispl_final
+         displmax = maxval(abs(displdir(:, i)))
+         ! TODO: what about double sided stuff?
+         call mol%copy(mol0)
+         call chk%copy(chk0)
+         x = reshape(mol0%xyz,[N])
+         x = x + step * displdir(:, i) / displmax
+         mol%xyz = reshape(x,[3, mol0%n])
+         call self%singlepoint(env, mol, chk, -1, .false., energy, tmp_gradl, sigma, egap, res)
+         g(:, i) = reshape(tmp_gradl,[N])
+         g(:, i) = (g(:, i) - g0(:)) / step * displmax
+      end do
+   end if
 end subroutine get_gradient_derivs
 
 end module xtb_type_calculator
