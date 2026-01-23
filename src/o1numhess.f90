@@ -30,6 +30,26 @@ module xtb_o1numhess
       integer, allocatable :: neighbors(:)
    end type adj_list
 
+   abstract interface
+      subroutine matvec_operator(x, y, ctx)
+         import :: wp
+         real(wp), intent(in) :: x(:)
+         real(wp), intent(inout) :: y(:)
+         class(*), optional, intent(inout) :: ctx
+      end subroutine matvec_operator
+   end interface
+
+   type :: odlr_operator_data
+      integer :: N, ndispl_final
+      logical, allocatable :: mask(:, :)
+      real(wp), pointer :: displdir(:, :) => null()
+      real(wp), allocatable :: W2(:, :)
+
+      real(wp), allocatable :: tmp(:, :)
+      real(wp), allocatable :: tmp2(:, :)
+      real(wp), allocatable :: f1(:, :)
+      real(wp), allocatable :: f2(:, :)
+   end type odlr_operator_data
 contains
 
 !> Main routine to recover local Hessian
@@ -39,7 +59,7 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    !> Distance matrix between atoms
    real(wp), intent(in) :: distmat(:, :)
    !> Displacement directions
-   real(wp), intent(in) :: displdir(:, :)
+   real(wp), intent(in), target :: displdir(:, :)
    !> Gradient derivatives
    real(wp), intent(in) :: g(:, :)
    !> Maximum distance threshold
@@ -50,16 +70,20 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    real(wp), parameter :: lam = 1.0e-2_wp, bet = 1.5_wp, ddmax = 5.0_wp
    
    ! Local work arrays
-   real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), unit_vec(:), f1(:, :), f(:, :), tmp(:, :), tmp2(:, :), tmp3(:, :)
-   logical, allocatable :: mask(:, :)
-   integer, allocatable :: ipiv(:)
-   integer :: i, j, k, l, ndim, N, info
+   type(odlr_operator_data) :: ctx
+   real(wp), allocatable :: rhs(:, :), rhsv(:), sol(:)
+   integer :: i, ndim, N, info
 
    N = size(distmat, 1)
 
+   ! Prepare cache
+   ctx%N = N
+   ctx%ndispl_final = ndispl_final
+   allocate(ctx%f1(N, N), ctx%f2(N, N), ctx%tmp(N, N), ctx%tmp2(N, ndispl_final))
+   ctx%displdir => displdir
+
    ! Calculate Regularization Term W2
-   allocate(W2(N, N))
-   W2 = lam * max(0.0_wp, distmat(:, :) - dmax)**(2.0_wp * bet)
+   ctx%W2 = lam * max(0.0_wp, distmat(:, :) - dmax)**(2.0_wp * bet)
 
    ! Calculate rhs
    allocate(rhs(N, N))
@@ -67,38 +91,105 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    call mctc_gemm(g(:, :ndispl_final), displdir(:, :ndispl_final), rhs, transb="t")
 
    ! Masks and Packing
-   allocate(mask(N, N))
-   mask = (distmat < (dmax + ddmax))
+   allocate(ctx%mask(N, N))
+   ctx%mask = (distmat < (dmax + ddmax))
    do i = 2, N
-      mask(i, 1:i-1) = .false.
+      ctx%mask(i, 1:i-1) = .false.
    end do
    
    ! RHS Vector (b in Ax=b)
-   rhsv = pack_sym(rhs, mask)
+   rhsv = pack_sym(rhs, ctx%mask)
    ndim = size(rhsv)
 
-   ! Compute A
-   ! TODO: this needs to become more (RAM) efficient (use iterative solver)
-   allocate(A(ndim, ndim), unit_vec(ndim), tmp(N, N), tmp2(N, N), f1(N, N))
-   A = 0.0_wp
-   do i = 1, ndim
-      unit_vec = 0.0_wp
-      unit_vec(i) = 1.0_wp
-      tmp = unpack_sym(unit_vec, mask, N)
-      call mctc_gemm(tmp, displdir(:, :ndispl_final), tmp2)
-      call mctc_gemm(tmp2, displdir(:, :ndispl_final), f1, transb="t")
-      f1 = (f1 + transpose(f1)) / 2.0_wp
-      f = W2 * tmp
-      A(:, i) = pack_sym(f1 + f, mask)
+   ! Solve
+   allocate(sol(ndim))
+   sol = 0.0_wp
+   call cg(odlr_operator, ndim, rhsv, sol, info, ctx=ctx)
+   if (info /= 0) then
+      error stop "local hessian: CG failed to converge"
+   end if
+
+   ! Recover Hessian from solution
+   hess_out = unpack_sym(sol, ctx%mask, N)
+end subroutine gen_local_hessian
+
+subroutine odlr_operator(x, y, ctx)
+   real(wp), intent(in) :: x(:)
+   real(wp), intent(inout) :: y(:)
+   class(*), optional, intent(inout) :: ctx
+
+   type(odlr_operator_data), pointer :: op_data
+
+   if (present(ctx)) then
+      select type(ctx)
+         type is (odlr_operator_data)
+            op_data => ctx
+         class default
+            error stop "odlr_operator: invalid context"
+      end select
+   else
+      error stop "odlr_operator: missing context"
+   end if
+
+   op_data%tmp = unpack_sym(x, op_data%mask, op_data%N)
+
+   call mctc_gemm(op_data%tmp, op_data%displdir(:, :op_data%ndispl_final), op_data%tmp2)
+   call mctc_gemm(op_data%tmp2, op_data%displdir(:, :op_data%ndispl_final), op_data%f1, transb="t")
+
+   op_data%f1 = (op_data%f1 + transpose(op_data%f1)) / 2.0_wp
+   op_data%f2 = op_data%W2 * op_data%tmp
+
+   y = pack_sym(op_data%f1 + op_data%f2, op_data%mask)
+end subroutine odlr_operator
+
+!> Generic Conjugate Gradient Solver
+subroutine cg(operator, ndim, rhs, x, info, x0, ctx)
+   procedure(matvec_operator) :: operator
+   integer, intent(in) :: ndim
+   real(wp), intent(in) :: rhs(:)
+   real(wp), intent(inout) :: x(:)
+   integer, intent(out) :: info
+   real(wp), intent(in), optional :: x0(:)
+   class(*), optional, intent(inout) :: ctx
+
+   integer, parameter :: max_iter = 1000
+   real(wp), parameter :: tol = 1.0e-14_wp
+   real(wp), allocatable :: r(:), p(:), Ap(:)
+   real(wp) :: alpha, beta, rs_old, rs_new
+   integer :: k
+
+   allocate(r(ndim), p(ndim), Ap(ndim))
+
+   if (present(x0)) then
+      call operator(x, Ap, ctx)
+      r = rhs - Ap
+   else
+      r = rhs
+   end if
+   p = r
+   rs_old = mctc_dot(r, r)
+
+   do k = 1, max_iter
+      call operator(p, Ap, ctx)
+      
+      alpha = rs_old / mctc_dot(p, Ap)
+      x = x + alpha * p
+      r = r - alpha * Ap
+      rs_new = mctc_dot(r, r)
+
+      if (rs_new < tol) exit
+
+      beta = rs_new / rs_old
+      p = r + beta * p
+      rs_old = rs_new
    end do
 
-   ! Solve
-   allocate(ipiv(ndim))
-   call dgesv(ndim, 1, A, ndim, ipiv, rhsv, ndim, info)
-
-   ! Recover Hessian from vector
-   hess_out = unpack_sym(rhsv, mask, N)
-end subroutine gen_local_hessian
+   if (k == max_iter) then
+      info = 1
+   else
+      info = 0
+   end if
+end subroutine cg
 
 !> Corrects Hessian hnum using a symmetric, low-rank update
 !> so that g approx hnum * displdir
@@ -116,7 +207,7 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
    ! Local variables
    real(wp), allocatable :: resid(:, :), hcorr(:, :), tmp(:, :)
    real(wp) :: dampfac, err0, err, norm_g
-   integer :: i, j, it, N
+   integer :: it, N
    
    ! BLAS Helper
    real(wp), external :: dnrm2
@@ -169,7 +260,7 @@ function unpack_sym(v, mask, n) result(H)
    logical, intent(in) :: mask(n, n)
    integer, intent(in) :: n
    real(wp) :: H(n, n)
-   integer :: i, j
+   integer :: i
    
    H = 0.0_wp
    H = unpack(v, mask, field=0.0_wp)
@@ -184,7 +275,6 @@ function pack_sym(m, mask) result(v)
    real(wp), intent(in) :: m(:, :)
    logical, intent(in) :: mask(:, :)
    real(wp), allocatable :: v(:)
-   integer :: i, j, n
    
    ! symmetrize, then pack
    v = pack((m + transpose(m)) * 0.5_wp, mask)
@@ -386,7 +476,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    integer, intent(out) :: ndispl_final
 
    ! Local variables
-   integer :: i, j, k, p, q, nnb, info, n_curr, idx, local_max_ind, locind
+   integer :: i, j, k, p, q, nnb, info, n_curr, idx, locind
    integer :: nb_idx(max_nb)
    real(wp) :: ev(n), coverage(n), locev(max_nb), submat(max_nb, max_nb)
    real(wp) :: projmat(max_nb, n), eye(max_nb, max_nb)

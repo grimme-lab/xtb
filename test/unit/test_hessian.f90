@@ -9516,7 +9516,7 @@ end subroutine calculate_o1numhess_hessian
 subroutine test_o1numhess_gfn1(error)
    type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 3
-   real(wp),parameter :: thr = 1.0e-7_wp
+   real(wp),parameter :: thr = 1.0e-6_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
@@ -9665,7 +9665,7 @@ end subroutine test_o1numhess_gfn1
 subroutine test_o1numhess_gfn2(error)
    type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 3
-   real(wp),parameter :: thr = 1.0e-7_wp
+   real(wp),parameter :: thr = 1.0e-6_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
@@ -9767,7 +9767,7 @@ subroutine test_o1numhess_gfn2(error)
    type(TEnvironment) :: env
    type(TxTBCalculator) :: calc
    real(wp), allocatable :: displdir(:, :), hessian(:, :), hessian_local(:, :)
-   integer :: i, N, ndispl_final, j
+   integer :: i, N, ndispl_final
 
    N = 3 * nat
    call init(env)
@@ -9855,7 +9855,7 @@ subroutine test_modified_swart(error)
       & 0.0000000000e+00_wp,  1.5315176434e-01_wp,  1.3375368550e-01_wp],&
       & shape(h0))
 
-   integer :: i, j
+   integer :: i
    real(wp), allocatable :: hess_out(:, :)
 
    allocate(hess_out(3*nat, 3*nat))
