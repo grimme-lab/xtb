@@ -20,6 +20,7 @@ module xtb_type_calculator
    use xtb_mctc_convert, only : autoaa
    use xtb_mctc_math, only : crossProd
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_blas, only : mctc_gemm, mctc_nrm2, mctc_dot
    use xtb_solv_model, only : TSolvModel
    use xtb_type_data, only : scc_results
    use xtb_type_environment, only : TEnvironment
@@ -324,7 +325,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    Imat0 = 0.0_wp
    do i = 1, mol0%n
       vec = mol0%xyz(:, i) - barycenter(:)
-         Imat0 = Imat0 + dot_product(vec, vec)
+         Imat0 = Imat0 + mctc_dot(vec, vec)
    end do
    ax = Imat0 * identity3
    do i = 1, 3
@@ -430,7 +431,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
 
 end subroutine odlrhessian
 
-   subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, doublesided, g)
+subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, doublesided, g)
    class(TCalculator), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
    real(wp), intent(in) :: step

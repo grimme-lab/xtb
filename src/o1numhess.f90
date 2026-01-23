@@ -19,6 +19,7 @@
 module xtb_o1numhess
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autoaa
+   use xtb_mctc_blas, only : mctc_gemm, mctc_nrm2, mctc_dot
    implicit none
    private
 
@@ -49,7 +50,7 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    real(wp), parameter :: lam = 1.0e-2_wp, bet = 1.5_wp, ddmax = 5.0_wp
    
    ! Local work arrays
-   real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), unit_vec(:), f1(:, :), f(:, :), tmp(:, :), tmp2(:), tmp3(:), tmp5(:, :)
+   real(wp), allocatable :: W2(:, :), rhs(:, :), rhsv(:), A(:, :), unit_vec(:), f1(:, :), f(:, :), tmp(:, :), tmp2(:, :), tmp3(:, :)
    logical, allocatable :: mask(:, :)
    integer, allocatable :: ipiv(:)
    integer :: i, j, k, l, ndim, N, info
@@ -63,15 +64,13 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    ! Calculate rhs
    allocate(rhs(N, N))
    rhs = 0.0_wp
-   rhs = matmul(g(:, :ndispl_final), transpose(displdir(:, :ndispl_final)))
+   call mctc_gemm(g(:, :ndispl_final), displdir(:, :ndispl_final), rhs, transb="t")
 
    ! Masks and Packing
    allocate(mask(N, N))
    mask = (distmat < (dmax + ddmax))
-   do i = 1, N
-      do j = 1, i - 1
-         mask(i, j) = .false.
-      end do
+   do i = 2, N
+      mask(i, 1:i-1) = .false.
    end do
    
    ! RHS Vector (b in Ax=b)
@@ -80,21 +79,20 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
 
    ! Compute A
    ! TODO: this needs to become more (RAM) efficient (use iterative solver)
-   allocate(A(ndim, ndim), unit_vec(ndim), tmp(N, N))
+   allocate(A(ndim, ndim), unit_vec(ndim), tmp(N, N), tmp2(N, N), f1(N, N))
    A = 0.0_wp
    do i = 1, ndim
       unit_vec = 0.0_wp
       unit_vec(i) = 1.0_wp
       tmp = unpack_sym(unit_vec, mask, N)
-      f1 = matmul(matmul(tmp, displdir(:, :ndispl_final)), transpose(displdir(:, :ndispl_final)))
+      call mctc_gemm(tmp, displdir(:, :ndispl_final), tmp2)
+      call mctc_gemm(tmp2, displdir(:, :ndispl_final), f1, transb="t")
       f1 = (f1 + transpose(f1)) / 2.0_wp
       f = W2 * tmp
       A(:, i) = pack_sym(f1 + f, mask)
    end do
 
    ! Solve
-   tmp3 = rhsv
-   tmp5 = A
    allocate(ipiv(ndim))
    call dgesv(ndim, 1, A, ndim, ipiv, rhsv, ndim, info)
 
@@ -116,7 +114,7 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
    integer, parameter :: maxiter_LR = 100
 
    ! Local variables
-   real(wp), allocatable :: resid(:, :), hcorr(:, :)
+   real(wp), allocatable :: resid(:, :), hcorr(:, :), tmp(:, :)
    real(wp) :: dampfac, err0, err, norm_g
    integer :: i, j, it, N
    
@@ -128,14 +126,16 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
    dampfac = 1.0_wp
    err0 = huge(1.0_wp)
    
-   norm_g = dnrm2(N * ndispl, g(:, :ndispl), 1)
+   norm_g = mctc_nrm2(g(:, :ndispl))
 
+   allocate(hcorr(N, N), tmp(N, N))
    ! 2. Iterative Correction Loop
    loop_lr: do it = 1, maxiter_LR
       
-      resid = g(:, :ndispl) - matmul(hess_out, displdir(:, :ndispl))
+      call mctc_gemm(hess_out, displdir(:, :ndispl), tmp)
+      resid = g(:, :ndispl) - tmp
 
-      err = dnrm2(N * ndispl, resid, 1)
+      err = mctc_nrm2(resid)
       
       if (err < thresh_LR) then
             ! Converged successfully
@@ -150,7 +150,8 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
             dampfac = dampfac * 0.5_wp
       end if
       
-      hcorr = matmul(resid, transpose(displdir(:, :ndispl)))
+      ! hcorr = matmul(resid, transpose(displdir(:, :ndispl)))
+      call mctc_gemm(resid, displdir(:, :ndispl), hcorr, transb="t")
       hcorr = 0.5_wp * (hcorr + transpose(hcorr))
       hess_out = hess_out + dampfac * hcorr
       
@@ -174,10 +175,8 @@ function unpack_sym(v, mask, n) result(H)
    H = unpack(v, mask, field=0.0_wp)
    
    ! Symmetrize
-   do i = 1, n
-      do j = 1, i - 1
-         H(i, j) = H(j, i)
-      end do
+   do i = 2, n
+      H(i, 1:i-1) = H(1:i-1, i)
    end do
 end function unpack_sym
 
@@ -395,7 +394,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    real(wp) :: loceigs(max_nb)
    real(wp) :: norm_ev1, norm_ev2, v_norm, d_dot
    integer, allocatable :: iwork(:)
-   real(wp), allocatable :: work(:), displdir_tmp(:, :)
+   real(wp), allocatable :: work(:), tmp(:, :)
    logical :: early_break
 
    ! Initialize
@@ -411,6 +410,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    early_break = .true.
    ndispl_final = ndispl0
 
+   allocate(tmp(max_nb, max_nb))
    ! --- Outer Loop: Generate new directions ---
    do n_curr = ndispl0, n - 1
       ! n_curr: number of existing displacements at this point
@@ -443,13 +443,15 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
 
             if (n_curr > 0) then
                projmat(:nnb, :n_curr) = -orth(vec_subset(:nnb, :n_curr)) ! TODO: why minus?
-               projmat(:nnb, :nnb) = eye(:nnb, :nnb) - matmul(projmat(:nnb, :n_curr), transpose(projmat(:nnb, :n_curr)))
+               call mctc_gemm(projmat(:nnb, :n_curr), projmat(:nnb, :n_curr), tmp(:nnb, :nnb), transb="t")
+               projmat(:nnb, :nnb) = eye(:nnb, :nnb) - tmp(:nnb, :nnb)
             else
                projmat(:nnb, :nnb) = eye(:nnb, :nnb)
             end if
             
             ! submat = P * submat * P.T
-            submat(:nnb, :nnb) = matmul(projmat(:nnb, :nnb), matmul(submat(:nnb, :nnb), transpose(projmat(:nnb, :nnb))))
+            call mctc_gemm(submat(:nnb, :nnb), projmat(:nnb, :nnb), tmp(:nnb, :nnb), transb="t")
+            call mctc_gemm(projmat(:nnb, :nnb), tmp(:nnb, :nnb), submat(:nnb, :nnb))
             
             ! Symmetrize
             submat = 0.5_wp * (submat + transpose(submat))
@@ -510,9 +512,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
 
       ! Project out previous columns from global ev
       do k = 1, n_curr
-            ! d = dot(ev, displdir(:,k))
-            d_dot = dot_product(ev, displdir(:, k))
-            ! ev = ev - d * displdir(:,k)
+            d_dot = mctc_dot(ev, displdir(:, k))
             ev = ev - d_dot * displdir(:, k)
       end do
       ! --- Check Norm ---
@@ -732,12 +732,12 @@ function bmat_angle(vec1, vec2) result(bmat)
 
    dinprod = 0.0_wp
    do ii = 1, 3
-      dinprod(ii) = dot_product(dnvec(1, :, ii), nvec2)
-      dinprod(ii+3) = dot_product(dnvec(1, :, ii+3), nvec2) + dot_product(dnvec(2, :, ii+3), nvec1)
-      dinprod(ii+6) = dot_product(dnvec(2, :, ii), nvec1)
+      dinprod(ii) = mctc_dot(dnvec(1, :, ii), nvec2)
+      dinprod(ii+3) = mctc_dot(dnvec(1, :, ii+3), nvec2) + mctc_dot(dnvec(2, :, ii+3), nvec1)
+      dinprod(ii+6) = mctc_dot(dnvec(2, :, ii), nvec1)
    end do
 
-   dot_n1n2 = dot_product(nvec1, nvec2)
+   dot_n1n2 = mctc_dot(nvec1, nvec2)
    bmat = -dinprod / sqrt(max(1.0e-15_wp, 1.0_wp - dot_n1n2**2))
 end function bmat_angle
 
@@ -759,10 +759,10 @@ function bmat_linangle(vec1, vec2) result(bmat)
    nvn = norm2(vn)
 
    if (nvn < 1.0e-15_wp) then
-      vn = xaxis - dot_product(xaxis, vec1) / l1**2 * vec1
+      vn = xaxis - mctc_dot(xaxis, vec1) / l1**2 * vec1
       nvn = norm2(vn)
       if (nvn < 1.0e-15_wp) then
-         vn = yaxis - dot_product(yaxis, vec1) / l1**2 * vec1
+         vn = yaxis - mctc_dot(yaxis, vec1) / l1**2 * vec1
          nvn = norm2(vn)
       end if
    end if
@@ -787,6 +787,6 @@ function cosangle(vec1, vec2) result(cos_theta)
     real(wp), intent(in) :: vec1(3), vec2(3)
     real(wp) :: cos_theta
     
-    cos_theta = dot_product(vec1, vec2) / (norm2(vec1) * norm2(vec2))
+    cos_theta = mctc_dot(vec1, vec2) / (norm2(vec1) * norm2(vec2))
 end function cosangle
 end module xtb_o1numhess
