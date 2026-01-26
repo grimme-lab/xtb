@@ -20,6 +20,7 @@ module xtb_o1numhess
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autoaa
    use xtb_mctc_blas, only : mctc_gemm, mctc_nrm2, mctc_dot
+   use xtb_type_environment, only : TEnvironment
    implicit none
    private
 
@@ -31,16 +32,17 @@ module xtb_o1numhess
    end type adj_list
 
    abstract interface
-      subroutine matvec_operator(x, y, ctx)
-         import :: wp
+      subroutine matvec_operator(x, y, env, ctx)
+         import :: wp, TEnvironment
          real(wp), intent(in) :: x(:)
          real(wp), intent(inout) :: y(:)
+         type(TEnvironment), intent(inout) :: env
          class(*), optional, intent(inout) :: ctx
       end subroutine matvec_operator
    end interface
 
    type :: odlr_operator_data
-      integer :: N, ndispl_final
+      integer :: N, ndispl_final, info
       logical, allocatable :: mask(:, :)
       real(wp), pointer :: displdir(:, :) => null()
       real(wp), allocatable :: W2(:, :)
@@ -50,10 +52,14 @@ module xtb_o1numhess
       real(wp), allocatable :: f1(:, :)
       real(wp), allocatable :: f2(:, :)
    end type odlr_operator_data
+
+   character(len=*), parameter :: source = 'xtb_o1numhess'
 contains
 
 !> Main routine to recover local Hessian
-subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
+subroutine gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess_out)
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
    !> Number of displacements
    integer, intent(in) :: ndispl_final
    !> Distance matrix between atoms
@@ -73,6 +79,7 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    type(odlr_operator_data) :: ctx
    real(wp), allocatable :: rhs(:, :), rhsv(:), sol(:)
    integer :: i, ndim, N, info
+   logical :: terminate_run
 
    N = size(distmat, 1)
 
@@ -104,18 +111,21 @@ subroutine gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess_out)
    ! Solve
    allocate(sol(ndim))
    sol = 0.0_wp
-   call cg(odlr_operator, ndim, rhsv, sol, info, ctx=ctx)
-   if (info /= 0) then
-      error stop "local hessian: CG failed to converge"
+   call cg(env, odlr_operator, ndim, rhsv, sol, info, ctx=ctx)
+   if (info == 1) then
+      env%warning("local hessian: CG failed to converge", source)
+   else if (env%check(terminate_run)) then
+      return 
    end if
 
    ! Recover Hessian from solution
    hess_out = unpack_sym(sol, ctx%mask, N)
 end subroutine gen_local_hessian
 
-subroutine odlr_operator(x, y, ctx)
+subroutine odlr_operator(x, y, env, ctx)
    real(wp), intent(in) :: x(:)
    real(wp), intent(inout) :: y(:)
+   type(TEnvironment), intent(inout) :: env
    class(*), optional, intent(inout) :: ctx
 
    type(odlr_operator_data), pointer :: op_data
@@ -125,10 +135,12 @@ subroutine odlr_operator(x, y, ctx)
          type is (odlr_operator_data)
             op_data => ctx
          class default
-            error stop "odlr_operator: invalid context"
+            env%error("odlr_operator: invalid context", source)
+            return
       end select
    else
-      error stop "odlr_operator: missing context"
+      env%error("odlr_operator: missing context", source)
+      return
    end if
 
    op_data%tmp = unpack_sym(x, op_data%mask, op_data%N)
@@ -143,7 +155,8 @@ subroutine odlr_operator(x, y, ctx)
 end subroutine odlr_operator
 
 !> Generic Conjugate Gradient Solver
-subroutine cg(operator, ndim, rhs, x, info, x0, ctx)
+subroutine cg(env, operator, ndim, rhs, x, info, x0, ctx)
+   type(TEnvironment), intent(inout) :: env
    procedure(matvec_operator) :: operator
    integer, intent(in) :: ndim
    real(wp), intent(in) :: rhs(:)
@@ -157,11 +170,12 @@ subroutine cg(operator, ndim, rhs, x, info, x0, ctx)
    real(wp), allocatable :: r(:), p(:), Ap(:)
    real(wp) :: alpha, beta, rs_old, rs_new
    integer :: k
+   logical :: terminate_run
 
    allocate(r(ndim), p(ndim), Ap(ndim))
 
    if (present(x0)) then
-      call operator(x, Ap, ctx)
+      call operator(x, Ap, env, ctx)
       r = rhs - Ap
    else
       r = rhs
@@ -170,7 +184,9 @@ subroutine cg(operator, ndim, rhs, x, info, x0, ctx)
    rs_old = mctc_dot(r, r)
 
    do k = 1, max_iter
-      call operator(p, Ap, ctx)
+      call operator(p, Ap, env, ctx)
+      env%check(terminate_run)
+      if (terminate_run) return
       
       alpha = rs_old / mctc_dot(p, Ap)
       x = x + alpha * p
@@ -193,7 +209,8 @@ end subroutine cg
 
 !> Corrects Hessian hnum using a symmetric, low-rank update
 !> so that g approx hnum * displdir
-subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
+subroutine lr_loop(env, ndispl, g, hess_out, displdir, final_err)
+   type(TEnvironment), intent(inout) :: env
    integer, intent(in) :: ndispl
    real(wp), intent(in) :: g(:, :)    ! Input Gradients
    real(wp), intent(inout) :: hess_out(:, :) ! Hessian to correct
@@ -249,6 +266,10 @@ subroutine lr_loop(ndispl, g, hess_out, displdir, final_err)
       err0 = err
       
    end do loop_lr
+
+   if (it == maxiter_LR) then
+      env%warning("LR loop failed to converge", source)
+   end if
 
    final_err = err
 

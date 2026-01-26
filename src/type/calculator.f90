@@ -234,7 +234,7 @@ subroutine hessian_point(self, env, mol0, chk0, iat, ic, step, energy, gradient,
 end subroutine hessian_point
 
 !> Implementation according to Wang et al. (https://doi.org/10.48550/arXiv.2508.07544)
-subroutine odlrhessian(self, env, mol0, chk0, step, hess)
+subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    character(len=*), parameter :: source = "hessian_odlr"
    !> Single point calculator
    class(TCalculator), intent(inout) :: self
@@ -250,6 +250,8 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    real(wp), intent(inout) :: hess(:, :)
    !> Array for displacement directions
    real(wp), allocatable :: displdir(:, :)
+   !> Final error after all steps
+   real(wp), intent(out) :: final_err
    
    ! UFF vdw radii - could be replaced with any other vdw radii i guess
    real(wp), parameter :: vdw_radii(103) = [ &
@@ -275,9 +277,9 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), &
       & g0(:), x(:), xyz(:, :), g(:, :), work(:), eigvec(:, :), eigval(:)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), &
-      & ax(3, 3), cross(3), Imat0, query(1), displmax, final_err, vec(3)
+      & ax(3, 3), cross(3), Imat0, query(1), displmax, vec(3)
    logical, allocatable :: mask(:, :)
-   logical :: linear
+   logical :: linear, terminate_run
    integer, allocatable :: nbcounts(:)
    integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ndispl0, nimg
    
@@ -293,12 +295,12 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
 
    ! calculate unperturbed gradient
    allocate(tmp_grad(3, mol0%n))
-   write(env%unit, '(A)') "Calculating unperturbed gradient"
+   ! write(env%unit, '(A)') "Calculating unperturbed gradient"
    call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
    g0 = reshape(tmp_grad,[N])
 
    ! setup effective distmat
-   write(env%unit, '(A)') "Distmat setup"
+   ! write(env%unit, '(A)') "Distmat setup"
    allocate(distmat(N, N))
    do i = 1, mol0%n
       do j = i, mol0%n
@@ -372,7 +374,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
 
    ! generate remaining displdirs based on distmat and dmax
    ! compute neighbor list
-   write(env%unit, '(A)') "Getting neighbor list"
+   ! write(env%unit, '(A)') "Getting neighbor list"
    call get_neighbor_list(distmat, dmax, neighborlist)
    allocate(nbcounts(N))
    max_nb = 0
@@ -382,23 +384,27 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    end do
    
    ! populate displdir
-   write(env%unit, '(A)') "Generating displacements"
+   ! write(env%unit, '(A)') "Generating displacements"
    ndispl0 = Ntr + 1
    call gen_displdir(N, ndispl0, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
    ! ========== GRADIENT DERIVATIVES ==========
-   write(env%unit, '(A)') "Calculating gradient derivatives"
+   ! write(env%unit, '(A)') "Calculating gradient derivatives"
    call get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, .false., g)
 
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
    ! compute local hessian
-   write(env%unit, '(A)') "Computing local Hessian"
-   call gen_local_hessian(ndispl_final, distmat, displdir, g, dmax, hess)
+   ! write(env%unit, '(A)') "Computing local Hessian"
+   call gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess)
 
    ! compute low rank correction
-   write(env%unit, '(A)') "Computing low rank correction"
-   call lr_loop(ndispl_final, g, hess, displdir, final_err)
+   ! write(env%unit, '(A)') "Computing low rank correction"
+   call lr_loop(env, ndispl_final, g, hess, displdir, final_err)
+
+   if (env%check(terminate_run)) then
+      return
+   end if
 
    ! diagonalize
    ! keep hess in case there are no imaginary frequencies
@@ -419,7 +425,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess)
    if (ndispl_final + nimg > N) nimg = N - ndispl_final
 
    if (nimg > 0) then
-      write(env%unit, '(A)') "Displacing along imaginary modes"
+      ! write(env%unit, '(A)') "Displacing along imaginary modes"
       ! rerun with imaginary displacements
       displdir(:, ndispl_final + 1:ndispl_final + nimg) = eigvec(:, 1:nimg)
       ndispl0 = ndispl_final
