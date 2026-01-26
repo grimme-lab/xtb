@@ -482,33 +482,26 @@ subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir,
    integer :: i, N
    real(wp) :: displmax, sigma(3, 3), energy, egap
    real(wp), allocatable :: tmp_gradl(:, :), tmp_gradr(:, :)
-   real(wp), allocatable :: x(:)
 
    N = 3 * mol0%n
    if (doublesided) then
       !$omp parallel if (self%threadsafe) default(none) &
       !$omp shared(self, env, mol0, chk0, step, g, N, ndispl0, ndispl_final, displdir) &
-      !$omp private(i, tmp_gradr, tmp_gradl, chk, mol, x, sigma, egap, res, energy, displmax)
+      !$omp private(i, tmp_gradr, tmp_gradl, chk, mol, sigma, egap, res, energy, displmax)
       allocate(tmp_gradr(3, mol0%n), tmp_gradl(3, mol0%n))
       tmp_gradl = 0.0_wp
       tmp_gradr = 0.0_wp
       call mol%copy(mol0)
-      call chk%copy(chk0)
       !$omp do schedule(runtime)
       do i = ndispl0 + 1, ndispl_final
          displmax = maxval(abs(displdir(:, i)))
 
-         call mol%copy(mol0)
          call chk%copy(chk0)
-         x = reshape(mol0%xyz,[N])
-         x = x + step * displdir(:, i) / displmax
-         mol%xyz = reshape(x,[3, mol0%n])
+         mol%xyz = mol0%xyz + reshape(step * displdir(:, i) / displmax, [3, mol0%n])
          call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
 
          call chk%copy(chk0)
-         x = reshape(mol0%xyz,[N])
-         x = x - step * displdir(:, i) / displmax
-         mol%xyz = reshape(x,[3, mol0%n])
+         mol%xyz = mol0%xyz - reshape(step * displdir(:, i) / displmax, [3, mol0%n])
          call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradr, sigma, egap, res)
 
          g(:, i) = reshape(tmp_gradl - tmp_gradr,[N])
@@ -518,7 +511,7 @@ subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir,
    else
       !$omp parallel if (self%threadsafe) default(none) &
       !$omp shared(self, env, mol0, chk0, step, g, N, ndispl0, ndispl_final, displdir, g0) &
-      !$omp private(i, tmp_gradl, chk, mol, x, sigma, egap, res, energy, displmax)
+      !$omp private(i, tmp_gradl, chk, mol, sigma, egap, res, energy, displmax)
       allocate(tmp_gradl(3, mol0%n))
       tmp_gradl = 0.0_wp
       call mol%copy(mol0)
@@ -526,9 +519,7 @@ subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir,
       !$omp do schedule(runtime)
       do i = ndispl0 + 1, ndispl_final
          displmax = maxval(abs(displdir(:, i)))
-         x = reshape(mol0%xyz,[N])
-         x = x + step * displdir(:, i) / displmax
-         mol%xyz = reshape(x,[3, mol0%n])
+         mol%xyz = mol0%xyz + reshape(step * displdir(:, i) / displmax, [3, mol0%n])
          call self%singlepoint(env, mol, chk, -1, .false., energy, tmp_gradl, sigma, egap, res)
          g(:, i) = reshape(tmp_gradl,[N])
          g(:, i) = (g(:, i) - g0(:)) / step * displmax
