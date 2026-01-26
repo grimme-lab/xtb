@@ -261,6 +261,9 @@ subroutine help(iunit)
    "--bhess [LEVEL]",&
    "    perform a biased numerical hessian calculation on an ancopt(3) optimized geometry",&
    "",&
+   "--o1nh",&
+   "    perform the numerical hessian calculuation using the ODLR approximation",&
+   "",&
    "--md",&
    "    molecular dynamics simulation on start geometry",&
    "",&

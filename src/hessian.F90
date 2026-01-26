@@ -111,7 +111,7 @@ subroutine numhess( &
    real(wp),allocatable :: pold(:)
    real(wp),allocatable :: dipd(:,:), dalphadr(:,:), dalphadq(:,:)
    real(wp),allocatable :: amass_au(:), amass_amu(:)
-   real(wp) :: asq, gamsq
+   real(wp) :: asq, gamsq, final_err
 
    type(TMolecule) :: tmol
 
@@ -139,6 +139,7 @@ subroutine numhess( &
    rd=.false.
    xyzsave = mol%xyz
 
+   ! TODO: need to figure out why this is done
    step=0.0001_wp
    call rotmol(mol%n,mol%xyz,step,2.*step,3.*step)
 
@@ -185,12 +186,11 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
-   ! TODO: odlr hessian steps go here, complete replacement of default hessian
-   ! - setup of translational, rotational, symmetric vib displacements
-   ! - precalculation of trans/rot/vib gradients
-   ! - recompute if imaginary frequencies found
-
-   if(freezeset%n.gt.0) then
+   if (set%o1numhess) then
+      h = 0.0_wp
+      call calc%odlrhessian(env, mol, chk0, step, h, final_err)
+      write(env%unit, '(A)') "Error norm for predicted graident (ODLR Hessian):", final_err
+   else if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
       ! the real ones
@@ -217,7 +217,6 @@ subroutine numhess( &
       dipd = 0.0_wp
       pold = 0.0_wp
       call calc%hessian(env, mol, chk0, indx(:nonfrozh), step, h, dipd)
-
    else
 !! ------------------------------------------------------------------------
 !  normal case
@@ -466,7 +465,8 @@ subroutine numhess( &
          ! for non-linear systems unless one fixes three atoms defines plane, 1 degree of freedom will exist, otherwise there should be 0 degrees of freedom
          ! anyway, the check here will become more complex and therefore it is not impemented
          ! NOTE: it is not necessary lowest N frequencies
-         error stop "not implemented"
+         call env%error("check for <=2 frozen atoms not implemented", source)
+         return
          ! for three atom systems we assume that the plane was constructed (or linear system is used)
       endif
       j=kend
@@ -503,57 +503,60 @@ subroutine numhess( &
       res%rmass(i)= 1.0_wp / xsum
    enddo
 
-   !--- IR intensity ---! (holds in a similar fashion also for Raman)
-   !  1. res%hess corresponds to the orthonormal eigenvectors of the mass-weighted Hessian
-   !     matrix (-> normal modes of vibration). By mass-weighting the Hessian matrix,
-   !     the normal modes are transformed into the mass-weighted space ("Q basis"), and
-   !     have the units [sqrt(mass) * length]
-   !     To obtain purely cartesian coordinates (-> transforming back into the Cartesian space),
-   !     the mass-weighted normal modes have to be divided by the square root of the mass of the respective atom.
-   !
-   !  2. res%hess(j,i) is the matrix which transforms a derivative with
-   !     respect to the j-th cartesian coordinate ("dipd") into a derivative with
-   !     respect to the i-th normal coordinate.
-   !
-   !  3. amass_au(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).
-   !
-   !  4. matmul(D x H) = U
-   !
-   !  5. D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives
-   !                                              in x, y and z direction per mode
-   !
-   ! Generally nice reads for understanding the necessity of mass-weighting:
-   ! 1) https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/
-   !         Advanced_Theoretical_Chemistry_(Simons)/
-   !         03%3A_Characteristics_of_Energy_Surfaces/3.02%3A_Normal_Modes_of_Vibration
-   ! 2) https://www.cup.uni-muenchen.de/ch/compchem/G98vib.pdf
+   ! odlr hessian check, cannot calculate IR intensities
+   if (.not. set%o1numhess) then
+      !--- IR intensity ---! (holds in a similar fashion also for Raman)
+      !  1. res%hess corresponds to the orthonormal eigenvectors of the mass-weighted Hessian
+      !     matrix (-> normal modes of vibration). By mass-weighting the Hessian matrix,
+      !     the normal modes are transformed into the mass-weighted space ("Q basis"), and
+      !     have the units [sqrt(mass) * length]
+      !     To obtain purely cartesian coordinates (-> transforming back into the Cartesian space),
+      !     the mass-weighted normal modes have to be divided by the square root of the mass of the respective atom.
+      !
+      !  2. res%hess(j,i) is the matrix which transforms a derivative with
+      !     respect to the j-th cartesian coordinate ("dipd") into a derivative with
+      !     respect to the i-th normal coordinate.
+      !
+      !  3. amass_au(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).
+      !
+      !  4. matmul(D x H) = U
+      !
+      !  5. D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives
+      !                                              in x, y and z direction per mode
+      !
+      ! Generally nice reads for understanding the necessity of mass-weighting:
+      ! 1) https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/
+      !         Advanced_Theoretical_Chemistry_(Simons)/
+      !         03%3A_Characteristics_of_Energy_Surfaces/3.02%3A_Normal_Modes_of_Vibration
+      ! 2) https://www.cup.uni-muenchen.de/ch/compchem/G98vib.pdf
 
-   do i = 1, n3
-      do k = 1, 3
-         sum2 = 0.0_wp
-         do j = 1, n3
-            sum2 = sum2 + dipd(k,j)*(res%hess(j,i)*amass_au(j))
-         end do
-         trdip(k) = sum2
-      end do
-      res%dipt(i) = autokmmol*(trdip(1)**2+trdip(2)**2+trdip(3)**2)
-   end do
-   ! Raman activities (for intensities, see "write_tm_vibspectrum")
-   if (set%elprop == p_elprop_alpha) then
       do i = 1, n3
-         do k = 1,6
+         do k = 1, 3
             sum2 = 0.0_wp
             do j = 1, n3
-               sum2 = sum2 + (res%hess(j,i)*amass_au(j))*dalphadr(k,j)
+               sum2 = sum2 + dipd(k,j)*(res%hess(j,i)*amass_au(j))
+            end do
+            trdip(k) = sum2
+         end do
+         res%dipt(i) = autokmmol*(trdip(1)**2+trdip(2)**2+trdip(3)**2)
+      end do
+      ! Raman activities (for intensities, see "write_tm_vibspectrum")
+      if (set%elprop == p_elprop_alpha) then
+         do i = 1, n3
+            do k = 1,6
+               sum2 = 0.0_wp
+               do j = 1, n3
+                  sum2 = sum2 + (res%hess(j,i)*amass_au(j))*dalphadr(k,j)
+               enddo
+               dalphadq(k,i) = sum2
             enddo
-            dalphadq(k,i) = sum2
+            asq = (dalphadq(1,i)+dalphadq(3,i)+dalphadq(6,i))**2 / 9.0_wp
+            gamsq = ( (dalphadq(1,i)-dalphadq(3,i))**2 + (dalphadq(3,i)-dalphadq(6,i))**2 + (dalphadq(6,i)-dalphadq(1,i))**2 &
+               & + 6.0_wp*(dalphadq(2,i)**2 + dalphadq(5,i)**2 + dalphadq(4,i)**2) )*0.5_wp
+            res%polt(i) = (45.0_wp*asq + 7.0_wp*gamsq)
+            res%polt(i) = res%polt(i) * autoaa4byamu()
          enddo
-         asq = (dalphadq(1,i)+dalphadq(3,i)+dalphadq(6,i))**2 / 9.0_wp
-         gamsq = ( (dalphadq(1,i)-dalphadq(3,i))**2 + (dalphadq(3,i)-dalphadq(6,i))**2 + (dalphadq(6,i)-dalphadq(1,i))**2 &
-            & + 6.0_wp*(dalphadq(2,i)**2 + dalphadq(5,i)**2 + dalphadq(4,i)**2) )*0.5_wp
-         res%polt(i) = (45.0_wp*asq + 7.0_wp*gamsq)
-         res%polt(i) = res%polt(i) * autoaa4byamu()
-      enddo
+      end if
    end if
 
 end subroutine numhess

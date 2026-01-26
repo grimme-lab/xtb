@@ -652,25 +652,26 @@ module xtb_propertyoutput
 
       write (iunit, '(1x,a)') 'reduced masses (amu)'
       write (iunit, '(6(i5,'':'',f10.2))') (i, res%rmass(i), i=1, res%n3)
-      write (iunit, '(1x,a)') 'IR intensities (km·mol⁻¹)'
-      write (iunit, '(6(i5,'':'',f10.2))') (i, res%dipt(i), i=1, res%n3)
-      write (iunit, '(1x,a)') 'Raman intensities (Ä⁴*amu⁻¹)'
-      write (iunit, '(6(i5,'':'',f10.2))') (i, res%polt(i), i=1, res%n3)
-
-      call open_file(ifile, 'vibspectrum', 'w')
-      if (set%elprop == p_elprop_alpha) then
-         call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt,&
-                                           set%ptbsetup%raman_temp, set%ptbsetup%raman_lambda)
-      else
-         call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt)
-      end if
-      call close_file(ifile)
-
-      write (iunit, '(1x,a)') 'output can be read by thermo (or use thermo option).'
-      write (iunit, '(1x,a)') 'writing <g98.out> molden fake output.'
-      write (iunit, '(1x,a)') &
+      if (.not. set%o1numhess) then
+         write (iunit, '(1x,a)') 'IR intensities (km·mol⁻¹)'
+         write (iunit, '(6(i5,'':'',f10.2))') (i, res%dipt(i), i=1, res%n3)
+         write (iunit, '(1x,a)') 'Raman intensities (Ä⁴*amu⁻¹)'
+         write (iunit, '(6(i5,'':'',f10.2))') (i, res%polt(i), i=1, res%n3)
+         call open_file(ifile, 'vibspectrum', 'w')
+         if (set%elprop == p_elprop_alpha) then
+            call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt,&
+            set%ptbsetup%raman_temp, set%ptbsetup%raman_lambda)
+         else
+            call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt)
+         end if
+         call close_file(ifile)
+         write (iunit, '(1x,a)') 'output can be read by thermo (or use thermo option).'
+         write (iunit, '(1x,a)') 'writing <g98.out> molden fake output.'
+         write (iunit, '(1x,a)') &
          & 'recommended (thermochemical) frequency scaling factor: 1.0'
-      call g98fake2('g98.out', mol%n, mol%at, mol%xyz, res%freq, res%rmass, res%dipt, res%hess)
+         call g98fake2('g98.out', mol%n, mol%at, mol%xyz, res%freq, res%rmass, res%dipt, res%hess)
+      end if
+
 
       if (set%pr_nmtm) then
          call open_file(ifile, "vib_normal_modes", 'w')

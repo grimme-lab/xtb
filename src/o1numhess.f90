@@ -54,6 +54,19 @@ module xtb_o1numhess
    end type odlr_operator_data
 
    character(len=*), parameter :: source = 'xtb_o1numhess'
+
+   !> covalent radii
+   real(wp), parameter :: cov(103) = [&
+      & 0.32_wp, 0.46_wp, 1.33_wp, 1.02_wp, 0.85_wp, 0.75_wp, 0.71_wp, 0.63_wp, 0.64_wp, 0.67_wp, &
+      & 1.55_wp, 1.39_wp, 1.26_wp, 1.16_wp, 1.11_wp, 1.03_wp, 0.99_wp, 0.96_wp, 1.96_wp, 1.71_wp, 1.48_wp, &
+      & 1.36_wp, 1.34_wp, 1.22_wp, 1.19_wp, 1.16_wp, 1.10_wp, 1.11_wp, 1.12_wp, 1.18_wp, 1.24_wp, 1.21_wp, &
+      & 1.21_wp, 1.16_wp, 1.14_wp, 1.17_wp, 2.10_wp, 1.85_wp, 1.63_wp, 1.54_wp, 1.47_wp, 1.38_wp, 1.28_wp, &
+      & 1.25_wp, 1.25_wp, 1.20_wp, 1.28_wp, 1.36_wp, 1.42_wp, 1.40_wp, 1.40_wp, 1.36_wp, 1.33_wp, 1.31_wp, &
+      & 2.32_wp, 1.96_wp, 1.80_wp, 1.63_wp, 1.76_wp, 1.74_wp, 1.73_wp, 1.72_wp, 1.68_wp, 1.69_wp, 1.68_wp, &
+      & 1.67_wp, 1.66_wp, 1.65_wp, 1.64_wp, 1.70_wp, 1.62_wp, 1.52_wp, 1.46_wp, 1.37_wp, 1.31_wp, 1.29_wp, &
+      & 1.22_wp, 1.23_wp, 1.24_wp, 1.33_wp, 1.44_wp, 1.44_wp, 1.51_wp, 1.45_wp, 1.47_wp, 1.42_wp, 2.23_wp, &
+      & 2.01_wp, 1.86_wp, 1.75_wp, 1.69_wp, 1.70_wp, 1.71_wp, 1.72_wp, 1.66_wp, 1.66_wp, 1.68_wp, 1.68_wp, &
+      & 1.65_wp, 1.67_wp, 1.73_wp, 1.76_wp, 1.61_wp] / 0.529177249_wp
 contains
 
 !> Main routine to recover local Hessian
@@ -111,11 +124,13 @@ subroutine gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess
    ! Solve
    allocate(sol(ndim))
    sol = 0.0_wp
+   info = 0
    call cg(env, odlr_operator, ndim, rhsv, sol, info, ctx=ctx)
+   call env%check(terminate_run)
    if (info == 1) then
-      env%warning("local hessian: CG failed to converge", source)
-   else if (env%check(terminate_run)) then
-      return 
+      call env%warning("local hessian: CG failed to converge", source)
+   else if (terminate_run) then
+      return
    end if
 
    ! Recover Hessian from solution
@@ -135,11 +150,11 @@ subroutine odlr_operator(x, y, env, ctx)
          type is (odlr_operator_data)
             op_data => ctx
          class default
-            env%error("odlr_operator: invalid context", source)
+            call env%error("odlr_operator: invalid context", source)
             return
       end select
    else
-      env%error("odlr_operator: missing context", source)
+      call env%error("odlr_operator: missing context", source)
       return
    end if
 
@@ -185,7 +200,7 @@ subroutine cg(env, operator, ndim, rhs, x, info, x0, ctx)
 
    do k = 1, max_iter
       call operator(p, Ap, env, ctx)
-      env%check(terminate_run)
+      call env%check(terminate_run)
       if (terminate_run) return
       
       alpha = rs_old / mctc_dot(p, Ap)
@@ -225,9 +240,6 @@ subroutine lr_loop(env, ndispl, g, hess_out, displdir, final_err)
    real(wp), allocatable :: resid(:, :), hcorr(:, :), tmp(:, :)
    real(wp) :: dampfac, err0, err, norm_g
    integer :: it, N
-   
-   ! BLAS Helper
-   real(wp), external :: dnrm2
 
    N = size(g, 1)
 
@@ -268,7 +280,7 @@ subroutine lr_loop(env, ndispl, g, hess_out, displdir, final_err)
    end do loop_lr
 
    if (it == maxiter_LR) then
-      env%warning("LR loop failed to converge", source)
+      call env%warning("LR loop failed to converge", source)
    end if
 
    final_err = err
@@ -345,6 +357,9 @@ subroutine get_neighbor_list(distmat, dmax, nblist)
    allocate(comp_dist(ncomp, ncomp))
    comp_dist = huge(1.0_wp)
 
+   !$omp parallel do default(none) schedule(runtime) &
+   !$omp shared(N, distmat, labels, comp_dist, nblist) &
+   !$omp private(i, j, d)
    do i = 1, N - 1
       do j = i + 1, N
             if (labels(i) /= labels(j)) then
@@ -488,12 +503,17 @@ end subroutine prim_mst
 subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
                         eps, eps2, displdir, ndispl_final)
    integer, intent(in) :: n, ndispl0, max_nb
+   !> Initial guess Hessian
    real(wp), intent(in) :: h0(n,n)
+   !> Neighbor list
    type(adj_list), intent(in) :: nblist(:)
-   integer, intent(in) :: nbcounts(n)           ! Actual number of neighbors per atom
+   !> Number of neighbors per atom
+   integer, intent(in) :: nbcounts(n)
+   !> Thresholds for sign determination and convergence
    real(wp), intent(in) :: eps, eps2
-   
+   !> Displacement directions
    real(wp), intent(inout) :: displdir(n, n)
+   !> Final number of displacements
    integer, intent(out) :: ndispl_final
 
    ! Local variables
@@ -689,22 +709,10 @@ subroutine swart(xyz, at, hess_out)
    !> the full model hessian
    real(wp), intent(inout) :: hess_out(:, :)
 
-   ! covalent radii
-   real(wp), parameter :: cov(103) = [&
-      & 0.32_wp, 0.46_wp, 1.33_wp, 1.02_wp, 0.85_wp, 0.75_wp, 0.71_wp, 0.63_wp, 0.64_wp, 0.67_wp, &
-      & 1.55_wp, 1.39_wp, 1.26_wp, 1.16_wp, 1.11_wp, 1.03_wp, 0.99_wp, 0.96_wp, 1.96_wp, 1.71_wp, 1.48_wp, &
-      & 1.36_wp, 1.34_wp, 1.22_wp, 1.19_wp, 1.16_wp, 1.10_wp, 1.11_wp, 1.12_wp, 1.18_wp, 1.24_wp, 1.21_wp, &
-      & 1.21_wp, 1.16_wp, 1.14_wp, 1.17_wp, 2.10_wp, 1.85_wp, 1.63_wp, 1.54_wp, 1.47_wp, 1.38_wp, 1.28_wp, &
-      & 1.25_wp, 1.25_wp, 1.20_wp, 1.28_wp, 1.36_wp, 1.42_wp, 1.40_wp, 1.40_wp, 1.36_wp, 1.33_wp, 1.31_wp, &
-      & 2.32_wp, 1.96_wp, 1.80_wp, 1.63_wp, 1.76_wp, 1.74_wp, 1.73_wp, 1.72_wp, 1.68_wp, 1.69_wp, 1.68_wp, &
-      & 1.67_wp, 1.66_wp, 1.65_wp, 1.64_wp, 1.70_wp, 1.62_wp, 1.52_wp, 1.46_wp, 1.37_wp, 1.31_wp, 1.29_wp, &
-      & 1.22_wp, 1.23_wp, 1.24_wp, 1.33_wp, 1.44_wp, 1.44_wp, 1.51_wp, 1.45_wp, 1.47_wp, 1.42_wp, 2.23_wp, &
-      & 2.01_wp, 1.86_wp, 1.75_wp, 1.69_wp, 1.70_wp, 1.71_wp, 1.72_wp, 1.66_wp, 1.66_wp, 1.68_wp, 1.68_wp, &
-      & 1.65_wp, 1.67_wp, 1.73_wp, 1.76_wp, 1.61_wp] / 0.529177249_wp
    real(wp), parameter :: wthr = 0.3_wp, f = 0.12_wp, tolth = 0.2_wp, eps1 = wthr**2, eps2 = wthr**2 / exp(1.0_wp)
 
    real(wp) :: equildist, Hint, bmat6(6), bmat9(9), bmat29(2, 9), outer6(6, 6), outer9(9, 9), s_ijjk, costh, sinth, th1, scalelin
-   real(wp), allocatable :: screenfunc(:, :)
+   real(wp), allocatable :: screenfunc(:, :), hess_local(:, :)
    integer :: i, j, k, nat, N, i1, i2, j1, j2, k1, k2
    
    nat = size(xyz, 2)
@@ -721,6 +729,14 @@ subroutine swart(xyz, at, hess_out)
       end do
    end do
 
+   !$omp parallel default(none) &
+   !$omp shared(nat, N, xyz, screenfunc, hess_out) private(i, j, k) &
+   !$omp private(Hint, bmat6, bmat9, bmat29, outer6, outer9, s_ijjk, costh, sinth, th1, scalelin) &
+   !$omp private(i1, i2, j1, j2, k1, k2, hess_local)
+   allocate(hess_local(N, N))
+   hess_local = 0.0_wp
+
+   !$omp do schedule(runtime)
    do i = 1, nat
       do j = i + 1, nat
          Hint = 0.35_wp * screenfunc(i, j)**3
@@ -730,13 +746,15 @@ subroutine swart(xyz, at, hess_out)
          i2 = 3 * i
          j1 = 3 * j - 2
          j2 = 3 * j
-         hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + Hint * outer6(1:3, 1:3)
-         hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + Hint * outer6(1:3, 4:6)
-         hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + Hint * outer6(4:6, 1:3)
-         hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + Hint * outer6(4:6, 4:6)
+         hess_local(i1:i2, i1:i2) = hess_local(i1:i2, i1:i2) + Hint * outer6(1:3, 1:3)
+         hess_local(i1:i2, j1:j2) = hess_local(i1:i2, j1:j2) + Hint * outer6(1:3, 4:6)
+         hess_local(j1:j2, i1:i2) = hess_local(j1:j2, i1:i2) + Hint * outer6(4:6, 1:3)
+         hess_local(j1:j2, j1:j2) = hess_local(j1:j2, j1:j2) + Hint * outer6(4:6, 4:6)
       end do
    end do
+   !$omp end do
 
+   !$omp do schedule(runtime)
    do i = 1, nat
       do j = 1, nat
          if (i == j) cycle
@@ -769,33 +787,40 @@ subroutine swart(xyz, at, hess_out)
                   bmat29 = bmat_linangle(xyz(:, i) - xyz(:, j), xyz(:, k) - xyz(:, j))
                   bmat9 = scalelin * bmat29(1, :) + (1.0_wp - scalelin) * bmat9
                   outer9 = Hint * spread(bmat29(2, :), dim=2, ncopies=9) * spread(bmat29(2, :), dim=1, ncopies=9)
-                  hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + outer9(1:3, 1:3)
-                  hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + outer9(1:3, 4:6)
-                  hess_out(i1:i2, k1:k2) = hess_out(i1:i2, k1:k2) + outer9(1:3, 7:9)
-                  hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + outer9(4:6, 1:3)
-                  hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + outer9(4:6, 4:6)
-                  hess_out(j1:j2, k1:k2) = hess_out(j1:j2, k1:k2) + outer9(4:6, 7:9)
-                  hess_out(k1:k2, i1:i2) = hess_out(k1:k2, i1:i2) + outer9(7:9, 1:3)
-                  hess_out(k1:k2, j1:j2) = hess_out(k1:k2, j1:j2) + outer9(7:9, 4:6)
-                  hess_out(k1:k2, k1:k2) = hess_out(k1:k2, k1:k2) + outer9(7:9, 7:9)
+                  hess_local(i1:i2, i1:i2) = hess_local(i1:i2, i1:i2) + outer9(1:3, 1:3)
+                  hess_local(i1:i2, j1:j2) = hess_local(i1:i2, j1:j2) + outer9(1:3, 4:6)
+                  hess_local(i1:i2, k1:k2) = hess_local(i1:i2, k1:k2) + outer9(1:3, 7:9)
+                  hess_local(j1:j2, i1:i2) = hess_local(j1:j2, i1:i2) + outer9(4:6, 1:3)
+                  hess_local(j1:j2, j1:j2) = hess_local(j1:j2, j1:j2) + outer9(4:6, 4:6)
+                  hess_local(j1:j2, k1:k2) = hess_local(j1:j2, k1:k2) + outer9(4:6, 7:9)
+                  hess_local(k1:k2, i1:i2) = hess_local(k1:k2, i1:i2) + outer9(7:9, 1:3)
+                  hess_local(k1:k2, j1:j2) = hess_local(k1:k2, j1:j2) + outer9(7:9, 4:6)
+                  hess_local(k1:k2, k1:k2) = hess_local(k1:k2, k1:k2) + outer9(7:9, 7:9)
                else
                   bmat9 = (1.0_wp - scalelin) * bmat9
                end if
             end if
 
             outer9 = Hint * spread(bmat9, dim=2, ncopies=9) * spread(bmat9, dim=1, ncopies=9)
-            hess_out(i1:i2, i1:i2) = hess_out(i1:i2, i1:i2) + outer9(1:3, 1:3)
-            hess_out(i1:i2, j1:j2) = hess_out(i1:i2, j1:j2) + outer9(1:3, 4:6)
-            hess_out(i1:i2, k1:k2) = hess_out(i1:i2, k1:k2) + outer9(1:3, 7:9)
-            hess_out(j1:j2, i1:i2) = hess_out(j1:j2, i1:i2) + outer9(4:6, 1:3)
-            hess_out(j1:j2, j1:j2) = hess_out(j1:j2, j1:j2) + outer9(4:6, 4:6)
-            hess_out(j1:j2, k1:k2) = hess_out(j1:j2, k1:k2) + outer9(4:6, 7:9)
-            hess_out(k1:k2, i1:i2) = hess_out(k1:k2, i1:i2) + outer9(7:9, 1:3)
-            hess_out(k1:k2, j1:j2) = hess_out(k1:k2, j1:j2) + outer9(7:9, 4:6)
-            hess_out(k1:k2, k1:k2) = hess_out(k1:k2, k1:k2) + outer9(7:9, 7:9)
+            hess_local(i1:i2, i1:i2) = hess_local(i1:i2, i1:i2) + outer9(1:3, 1:3)
+            hess_local(i1:i2, j1:j2) = hess_local(i1:i2, j1:j2) + outer9(1:3, 4:6)
+            hess_local(i1:i2, k1:k2) = hess_local(i1:i2, k1:k2) + outer9(1:3, 7:9)
+            hess_local(j1:j2, i1:i2) = hess_local(j1:j2, i1:i2) + outer9(4:6, 1:3)
+            hess_local(j1:j2, j1:j2) = hess_local(j1:j2, j1:j2) + outer9(4:6, 4:6)
+            hess_local(j1:j2, k1:k2) = hess_local(j1:j2, k1:k2) + outer9(4:6, 7:9)
+            hess_local(k1:k2, i1:i2) = hess_local(k1:k2, i1:i2) + outer9(7:9, 1:3)
+            hess_local(k1:k2, j1:j2) = hess_local(k1:k2, j1:j2) + outer9(7:9, 4:6)
+            hess_local(k1:k2, k1:k2) = hess_local(k1:k2, k1:k2) + outer9(7:9, 7:9)
          end do
       end do
    end do
+   !$omp end do
+
+   !$omp critical (swart_hess_merge)
+   hess_out(:, :) = hess_out + hess_local
+   !$omp end critical (swart_hess_merge)
+   deallocate(hess_local)
+   !$omp end parallel
 end subroutine swart
 
 function bmat_bond(vec) result(bmat)
