@@ -519,29 +519,26 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    ! Local variables
    integer :: i, j, k, p, q, nnb, info, n_curr, idx, locind
    integer :: nb_idx(max_nb)
-   real(wp) :: ev(n), coverage(n), locev(max_nb), submat(max_nb, max_nb)
-   real(wp) :: projmat(max_nb, n), eye(max_nb, max_nb)
-   real(wp) :: vec_subset(max_nb, n)
+   real(wp) :: ev(n), coverage(n), locev(max_nb)
+   real(wp), allocatable :: eye(:, :)
    real(wp) :: loceigs(max_nb)
    real(wp) :: norm_ev1, norm_ev2, v_norm, d_dot
-   integer, allocatable :: iwork(:)
-   real(wp), allocatable :: work(:), tmp(:, :)
-   logical :: early_break
+   real(wp), allocatable :: locev_store(:, :)
+   ! Thread-private work arrays for parallel region
+   real(wp), allocatable :: submat_local(:,:), projmat_local(:,:), vec_subset_local(:,:), tmp_local(:,:), work_local(:)
 
-   ! Initialize
+   ! Initialize identity matrix
+   allocate(eye(max_nb, max_nb))
    eye = 0.0_wp
    do i = 1, max_nb
       eye(i, i) = 1.0_wp
    end do
 
-   ! Workspace for LAPACK (allocate generously)
-   allocate(work(10*max_nb + 10*n)) 
-   allocate(iwork(8*max_nb))
-
-   early_break = .true.
    ndispl_final = ndispl0
 
-   allocate(tmp(max_nb, max_nb))
+   ! Storage for eigenvectors computed in parallel
+   allocate(locev_store(max_nb, n))
+
    ! --- Outer Loop: Generate new directions ---
    do n_curr = ndispl0, n - 1
       ! n_curr: number of existing displacements at this point
@@ -549,102 +546,131 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       ev = 0.0_wp
       coverage = 0.0_wp
 
-      ! --- Inner Loop: Iterate over atoms/DoFs ---
+      ! --- Parallel Phase: Compute local eigenvectors ---
+      !$omp parallel default(none) &
+      !$omp shared(n, n_curr, nblist, nbcounts, h0, displdir, max_nb, eye, locev_store) &
+      !$omp private(j, p, q, nnb, nb_idx, loceigs, locind, info) &
+      !$omp private(submat_local, projmat_local, vec_subset_local, tmp_local, work_local)
+      
+      allocate(submat_local(max_nb, max_nb))
+      allocate(projmat_local(max_nb, n))
+      allocate(vec_subset_local(max_nb, n))
+      allocate(tmp_local(max_nb, max_nb))
+      allocate(work_local(10*max_nb + 10*n))
+
+      !$omp do schedule(runtime)
       do j = 1, n
-            nnb = nbcounts(j)
-            nb_idx(:) = nblist(j)%neighbors
+         nnb = nbcounts(j)
+         nb_idx(:) = nblist(j)%neighbors
 
-            ! Skip if subspace saturated
-            if (nnb <= n_curr) cycle
+         ! Skip if subspace saturated
+         if (nnb <= n_curr) cycle
 
-            ! 1. Extract submatrix H0 (submat)
-            do p = 1, nnb
-               do q = 1, nnb
-                  submat(q, p) = h0(nb_idx(q), nb_idx(p))
-               end do
+         ! 1. Extract submatrix H0 (submat_p)
+         do p = 1, nnb
+            do q = 1, nnb
+               submat_local(q, p) = h0(nb_idx(q), nb_idx(p))
             end do
+         end do
 
-            ! 2. Local Projection
-            ! Form matrix A = displdir[neighbors, 0:n_curr]
-            do p = 1, n_curr
-               do q = 1, nnb
-                  vec_subset(q, p) = displdir(nb_idx(q), p)
-               end do
+         ! 2. Local Projection
+         ! Form matrix A = displdir[neighbors, 0:n_curr]
+         do p = 1, n_curr
+            do q = 1, nnb
+               vec_subset_local(q, p) = displdir(nb_idx(q), p)
             end do
+         end do
 
-            if (n_curr > 0) then
-               projmat(:nnb, :n_curr) = -orth(vec_subset(:nnb, :n_curr)) ! TODO: why minus?
-               call mctc_gemm(projmat(:nnb, :n_curr), projmat(:nnb, :n_curr), tmp(:nnb, :nnb), transb="t")
-               projmat(:nnb, :nnb) = eye(:nnb, :nnb) - tmp(:nnb, :nnb)
-            else
-               projmat(:nnb, :nnb) = eye(:nnb, :nnb)
-            end if
-            
-            ! submat = P * submat * P.T
-            call mctc_gemm(submat(:nnb, :nnb), projmat(:nnb, :nnb), tmp(:nnb, :nnb), transb="t")
-            call mctc_gemm(projmat(:nnb, :nnb), tmp(:nnb, :nnb), submat(:nnb, :nnb))
-            
-            ! Symmetrize
-            submat = 0.5_wp * (submat + transpose(submat))
+         if (n_curr > 0) then
+            projmat_local(:nnb, :n_curr) = -orth(vec_subset_local(:nnb, :n_curr)) ! TODO: why minus?
+            call mctc_gemm(projmat_local(:nnb, :n_curr), projmat_local(:nnb, :n_curr), tmp_local(:nnb, :nnb), transb="t")
+            projmat_local(:nnb, :nnb) = eye(:nnb, :nnb) - tmp_local(:nnb, :nnb)
+         else
+            projmat_local(:nnb, :nnb) = eye(:nnb, :nnb)
+         end if
+         
+         ! submat_p = P * submat_p * P.T
+         call mctc_gemm(submat_local(:nnb, :nnb), projmat_local(:nnb, :nnb), tmp_local(:nnb, :nnb), transb="t")
+         call mctc_gemm(projmat_local(:nnb, :nnb), tmp_local(:nnb, :nnb), submat_local(:nnb, :nnb))
+         
+         ! Symmetrize
+         submat_local(:nnb, :nnb) = 0.5_wp * (submat_local(:nnb, :nnb) + transpose(submat_local(:nnb, :nnb)))
 
-            ! 3. Diagonalization
-            ! dsyev: computes eigenvalues and eigenvectors in ascending order
-            call dsyev('V', 'U', nnb, submat, max_nb, loceigs, work, 10*max_nb, info)
-            
-            ! Find the index of maximum eigenvalue (first occurrence for ties, like Python's argmax)
-            ! dsyev sorts ascending, so normally we'd take the last, but for ties we need first max
-            locind = maxloc(loceigs(1:nnb), dim=1)
-            locev(1:nnb) = submat(1:nnb, locind)
+         ! 3. Diagonalization
+         ! dsyev: computes eigenvalues and eigenvectors in ascending order
+         call dsyev('V', 'U', nnb, submat_local, max_nb, loceigs, work_local, 10*max_nb, info)
+         
+         ! Find the index of maximum eigenvalue (first occurrence for ties, like Python's argmax)
+         ! dsyev sorts ascending, so normally we'd take the last, but for ties we need first max
+         locind = maxloc(loceigs(1:nnb), dim=1)
+         
+         ! Store the eigenvector for the serial phase
+         locev_store(1:nnb, j) = submat_local(1:nnb, locind)
+      end do
+      !$omp end do
+      
+      deallocate(submat_local, projmat_local, vec_subset_local, tmp_local, work_local)
+      !$omp end parallel
 
-            ! 4. Patching / Phase fixing
-            ! Calculate norms for sign decision
-            norm_ev1 = 0.0_wp
-            norm_ev2 = 0.0_wp
+      ! --- Serial Phase: Sign fixing and accumulation ---
+      do j = 1, n
+         nnb = nbcounts(j)
+         nb_idx(:) = nblist(j)%neighbors
+
+         if (nnb <= n_curr) cycle
+
+         ! Retrieve eigenvector
+         locev(1:nnb) = locev_store(1:nnb, j)
+
+         ! 4. Patching / Phase fixing
+         ! Calculate norms for sign decision
+         norm_ev1 = 0.0_wp
+         norm_ev2 = 0.0_wp
+         do p = 1, nnb
+            idx = nb_idx(p)
+            norm_ev1 = norm_ev1 + ((coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp))**2
+            norm_ev2 = norm_ev2 + ((coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp))**2
+         end do
+         norm_ev1 = sqrt(norm_ev1)
+         norm_ev2 = sqrt(norm_ev2)
+         
+         ! Apply update
+         if (norm_ev1 > norm_ev2 + eps) then
             do p = 1, nnb
                idx = nb_idx(p)
-               norm_ev1 = norm_ev1 + ((coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp))**2
-               norm_ev2 = norm_ev2 + ((coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp))**2
+               ev(idx) = (coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp)
             end do
-            norm_ev1 = sqrt(norm_ev1)
-            norm_ev2 = sqrt(norm_ev2)
-            
-            ! Apply update
-            if (norm_ev1 > norm_ev2 + eps) then
+         else if (norm_ev1 < norm_ev2 - eps) then
+            do p = 1, nnb
+               idx = nb_idx(p)
+               ev(idx) = (coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp)
+            end do
+         else
+            ! Deterministic sign fix based on max element
+            locind = maxloc(abs(locev(1:nnb)), dim=1)
+            if (locev(locind) > 0.0_wp) then
                do p = 1, nnb
-                     idx = nb_idx(p)
-                     ev(idx) = (coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp)
-               end do
-            else if (norm_ev1 < norm_ev2 - eps) then
-               do p = 1, nnb
-                     idx = nb_idx(p)
-                     ev(idx) = (coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp)
+                  idx = nb_idx(p)
+                  ev(idx) = (coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp)
                end do
             else
-               ! Deterministic sign fix based on max element
-               locind = maxloc(abs(locev(1:nnb)), dim=1)
-               if (locev(locind) > 0.0_wp) then
-                  do p = 1, nnb
-                        idx = nb_idx(p)
-                        ev(idx) = (coverage(idx)*ev(idx) + locev(p))/(coverage(idx)+1.0_wp)
-                  end do
-               else
-                  do p = 1, nnb
-                        idx = nb_idx(p)
-                        ev(idx) = (coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp)
-                  end do
-               end if
+               do p = 1, nnb
+                  idx = nb_idx(p)
+                  ev(idx) = (coverage(idx)*ev(idx) - locev(p))/(coverage(idx)+1.0_wp)
+               end do
             end if
+         end if
 
-            ! Update coverage
-            do p = 1, nnb
-               coverage(nb_idx(p)) = coverage(nb_idx(p)) + 1.0_wp
-            end do
-      end do ! End J loop
+         ! Update coverage
+         do p = 1, nnb
+            coverage(nb_idx(p)) = coverage(nb_idx(p)) + 1.0_wp
+         end do
+      end do ! End J loop (serial phase)
 
       ! Project out previous columns from global ev
       do k = 1, n_curr
-            d_dot = mctc_dot(ev, displdir(:, k))
-            ev = ev - d_dot * displdir(:, k)
+         d_dot = mctc_dot(ev, displdir(:, k))
+         ev = ev - d_dot * displdir(:, k)
       end do
       ! --- Check Norm ---
       v_norm = norm2(ev)
@@ -657,6 +683,8 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
 
       ndispl_final = n_curr + 1
    end do
+
+   deallocate(eye, locev_store)
 end subroutine gen_displdir
 
 function orth(A, tol_in) result(Q)
