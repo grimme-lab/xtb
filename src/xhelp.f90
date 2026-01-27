@@ -83,12 +83,17 @@ write(iunit,'(3x,a)') &
    "* S. Grimme, M. Mueller, A. Hansen, J. Chem. Phys., 2023, 158, 124111.",&
    "  DOI: 10.1063/5.0137838",&
    "",&
+   "for O1NumHess refer to:",&
+   "* B. Wang, S. Luo, Z. Wang, W. Liu,",&
+   "  J. Chem. Theory Comput. 21, 10893-10909.",&
+   "  DOI: 10.1021/acs.jctc.5c01354",&
+   "",&
    "with help from (in alphabetical order)",&
    "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, I. Gerasimov, C. Hölzer", &
    "A. Katbashev, J. Kohn, J. Koopman, C. Lavigne, S. Lehtola, F. März, M. Müller,", &
    "F. Musil, H. Neugebauer, J. Pisarek, C. Plett, P. Pracht, F. Pultar,", &
-   "J. Seibert, P. Shushkov, S. Spicher, M. Stahn, M. Steiner, T. Strunk,", &
+   "J. Seibert, L. M. Seidler, P. Shushkov, S. Spicher, M. Stahn, M. Steiner, T. Strunk,", &
    "J. Stückrath, T. Rose, and J. Unsleber", &
    ""
 end subroutine citation
@@ -262,7 +267,7 @@ subroutine help(iunit)
    "    perform a biased numerical hessian calculation on an ancopt(3) optimized geometry",&
    "",&
    "--o1nh",&
-   "    perform the numerical hessian calculuation using the ODLR approximation",&
+   "    perform the numerical hessian calculuation using the ODLR approximation (O1NumHess)",&
    "",&
    "--md",&
    "    molecular dynamics simulation on start geometry",&

@@ -231,7 +231,7 @@ subroutine hessian_point(self, env, mol0, chk0, iat, ic, step, energy, gradient,
 
 end subroutine hessian_point
 
-!> Implementation according to Wang et al. (https://doi.org/10.48550/arXiv.2508.07544)
+!> Implementation according to Wang et al. (https://doi.org/10.1021/acs.jctc.5c01354)
 subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    character(len=*), parameter :: source = "hessian_odlr"
    !> Single point calculator
@@ -293,12 +293,10 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
 
    ! calculate unperturbed gradient
    allocate(tmp_grad(3, mol0%n))
-   ! write(env%unit, '(A)') "Calculating unperturbed gradient"
    call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
    g0 = reshape(tmp_grad,[N])
 
    ! setup effective distmat
-   ! write(env%unit, '(A)') "Distmat setup"
    allocate(distmat(N, N))
    do i = 1, mol0%n
       do j = i, mol0%n
@@ -372,7 +370,6 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
 
    ! generate remaining displdirs based on distmat and dmax
    ! compute neighbor list
-   ! write(env%unit, '(A)') "Getting neighbor list"
    call get_neighbor_list(distmat, dmax, neighborlist)
    allocate(nbcounts(N))
    max_nb = 0
@@ -382,7 +379,6 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    end do
    
    ! populate displdir
-   ! write(env%unit, '(A)') "Generating displacements"
    ndispl0 = Ntr + 1
    call gen_displdir(N, ndispl0, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
 
@@ -393,11 +389,9 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
    ! compute local hessian
-   ! write(env%unit, '(A)') "Computing local Hessian"
    call gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess)
 
    ! compute low rank correction
-   ! write(env%unit, '(A)') "Computing low rank correction"
    call lr_loop(env, ndispl_final, g, hess, displdir, final_err)
 
    call env%check(terminate_run)
@@ -424,7 +418,6 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    if (ndispl_final + nimg > N) nimg = N - ndispl_final
 
    if (nimg > 0) then
-      ! write(env%unit, '(A)') "Displacing along imaginary modes"
       ! rerun with imaginary displacements
       displdir(:, ndispl_final + 1:ndispl_final + nimg) = eigvec(:, 1:nimg)
       ndispl0 = ndispl_final

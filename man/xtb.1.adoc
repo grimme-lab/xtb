@@ -235,7 +235,7 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
     geometry
 
 *--o1nh*::
-    perform the numerical hessian calculuation using the ODLR approximation
+    perform the numerical hessian calculuation using the ODLR approximation (O1NumHess)
 
 *--md*::
     molecular dynamics simulation on start geometry

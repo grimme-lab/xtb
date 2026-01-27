@@ -16,6 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> O1 numerical Hessian utilities
+!> Ref: https://doi.org/10.1021/acs.jctc.5c01354
 module xtb_o1numhess
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autoaa
