@@ -441,56 +441,100 @@ subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir,
    logical, intent(in) :: doublesided
    real(wp), intent(inout) :: g(:, :)
 
-   type(TMolecule) :: mol
-   type(TRestart) :: chk
-   type(scc_results) :: res
    integer :: i, N
-   real(wp) :: displmax, sigma(3, 3), energy, egap
-   real(wp), allocatable :: tmp_gradl(:, :), tmp_gradr(:, :)
+   real(wp) :: displmax
 
    N = 3 * mol0%n
    if (doublesided) then
       !$omp parallel if (self%threadsafe) default(none) &
       !$omp shared(self, env, mol0, chk0, step, g, N, ndispl0, ndispl_final, displdir) &
-      !$omp private(i, tmp_gradr, tmp_gradl, chk, mol, sigma, egap, res, energy, displmax)
-      allocate(tmp_gradr(3, mol0%n), tmp_gradl(3, mol0%n))
-      tmp_gradl = 0.0_wp
-      tmp_gradr = 0.0_wp
-      call mol%copy(mol0)
+      !$omp private(i, displmax)
       !$omp do schedule(runtime)
       do i = ndispl0 + 1, ndispl_final
          displmax = maxval(abs(displdir(:, i)))
-
-         call chk%copy(chk0)
-         mol%xyz = mol0%xyz + reshape(step * displdir(:, i) / displmax, [3, mol0%n])
-         call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
-
-         call chk%copy(chk0)
-         mol%xyz = mol0%xyz - reshape(step * displdir(:, i) / displmax, [3, mol0%n])
-         call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradr, sigma, egap, res)
-
-         g(:, i) = reshape(tmp_gradl - tmp_gradr,[N])
-         g(:, i) = (g(:, i)) / step * displmax * 0.5_wp
+         call gradient_derivs_doublesided_point(self, env, mol0, chk0, step, displdir(:, i), &
+            & displmax, N, g(:, i))
       end do
       !$omp end parallel
    else
       !$omp parallel if (self%threadsafe) default(none) &
       !$omp shared(self, env, mol0, chk0, step, g, N, ndispl0, ndispl_final, displdir, g0) &
-      !$omp private(i, tmp_gradl, chk, mol, sigma, egap, res, energy, displmax)
-      allocate(tmp_gradl(3, mol0%n))
-      tmp_gradl = 0.0_wp
-      call mol%copy(mol0)
-      call chk%copy(chk0)
+      !$omp private(i, displmax)
       !$omp do schedule(runtime)
       do i = ndispl0 + 1, ndispl_final
          displmax = maxval(abs(displdir(:, i)))
-         mol%xyz = mol0%xyz + reshape(step * displdir(:, i) / displmax, [3, mol0%n])
-         call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
-         g(:, i) = reshape(tmp_gradl,[N])
-         g(:, i) = (g(:, i) - g0(:)) / step * displmax
+         call gradient_derivs_singlesided_point(self, env, mol0, chk0, step, displdir(:, i), &
+            & displmax, N, g0, g(:, i))
       end do
       !$omp end parallel
    end if
 end subroutine get_gradient_derivs
+
+subroutine gradient_derivs_doublesided_point(self, env, mol0, chk0, step, displdir_i, &
+      & displmax, N, g_i)
+   class(TCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol0
+   type(TRestart), intent(in) :: chk0
+   real(wp), intent(in) :: step
+   real(wp), intent(in) :: displdir_i(:)
+   real(wp), intent(in) :: displmax
+   integer, intent(in) :: N
+   real(wp), intent(out) :: g_i(:)
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(scc_results) :: res
+   real(wp) :: sigma(3, 3), energy, egap
+   real(wp), allocatable :: tmp_gradl(:, :), tmp_gradr(:, :)
+
+   allocate(tmp_gradr(3, mol0%n), tmp_gradl(3, mol0%n))
+   tmp_gradl = 0.0_wp
+   tmp_gradr = 0.0_wp
+
+   call mol%copy(mol0)
+   call chk%copy(chk0)
+   mol%xyz = mol0%xyz + reshape(step * displdir_i / displmax, [3, mol0%n])
+   call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
+
+   call mol%copy(mol0)
+   call chk%copy(chk0)
+   mol%xyz = mol0%xyz - reshape(step * displdir_i / displmax, [3, mol0%n])
+   call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradr, sigma, egap, res)
+
+   g_i = reshape(tmp_gradl - tmp_gradr, [N])
+   g_i = g_i / step * displmax * 0.5_wp
+end subroutine gradient_derivs_doublesided_point
+
+subroutine gradient_derivs_singlesided_point(self, env, mol0, chk0, step, displdir_i, &
+      & displmax, N, g0, g_i)
+   class(TCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol0
+   type(TRestart), intent(in) :: chk0
+   real(wp), intent(in) :: step
+   real(wp), intent(in) :: displdir_i(:)
+   real(wp), intent(in) :: displmax
+   integer, intent(in) :: N
+   real(wp), intent(in) :: g0(:)
+   real(wp), intent(out) :: g_i(:)
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(scc_results) :: res
+   real(wp) :: sigma(3, 3), energy, egap
+   real(wp), allocatable :: tmp_gradl(:, :)
+
+   allocate(tmp_gradl(3, mol0%n))
+   tmp_gradl = 0.0_wp
+
+   call mol%copy(mol0)
+   call chk%copy(chk0)
+   mol%xyz = mol0%xyz + reshape(step * displdir_i / displmax, [3, mol0%n])
+   call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
+
+   g_i = reshape(tmp_gradl, [N])
+   g_i = (g_i - g0) / step * displmax
+end subroutine gradient_derivs_singlesided_point
 
 end module xtb_type_calculator
