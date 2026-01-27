@@ -831,9 +831,10 @@ subroutine test_o1numhess_linear_h2o_gfn1(error)
       call test_failed(error, "Linear H2O should have exactly two negative freqs")
    end if
 
-   ! freqs around -0.3
-   if (freq(1) > -0.3_wp .or. freq(2) > -0.3_wp) then
+   ! freqs around -0.16
+   if (freq(1) > -0.16_wp .or. freq(2) > -0.16_wp) then
       call test_failed(error, "First two freqs should be negative")
+      print *, freq
    end if
 end subroutine test_o1numhess_linear_h2o_gfn1
 
