@@ -562,7 +562,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       !$omp do schedule(runtime)
       do j = 1, n
          nnb = nbcounts(j)
-         nb_idx(:nnb) = nblist(j)%neighbors
+         nb_idx(:nnb) = nblist(j)%neighbors(:nnb)
 
          ! Skip if subspace saturated
          if (nnb <= n_curr) cycle
@@ -616,7 +616,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       ! --- Serial Phase: Sign fixing and accumulation ---
       do j = 1, n
          nnb = nbcounts(j)
-         nb_idx(:) = nblist(j)%neighbors
+         nb_idx(:nnb) = nblist(j)%neighbors(:nnb)
 
          if (nnb <= n_curr) cycle
 
