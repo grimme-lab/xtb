@@ -38,7 +38,7 @@ module xtb_o1numhess
          real(wp), intent(in) :: x(:)
          real(wp), intent(inout) :: y(:)
          type(TEnvironment), intent(inout) :: env
-         class(*), optional, intent(inout) :: ctx
+         class(*), optional, target, intent(inout) :: ctx
       end subroutine matvec_operator
    end interface
 
@@ -142,7 +142,7 @@ subroutine odlr_operator(x, y, env, ctx)
    real(wp), intent(in) :: x(:)
    real(wp), intent(inout) :: y(:)
    type(TEnvironment), intent(inout) :: env
-   class(*), optional, intent(inout) :: ctx
+   class(*), optional, target, intent(inout) :: ctx
 
    type(odlr_operator_data), pointer :: op_data
 
@@ -179,7 +179,7 @@ subroutine cg(env, operator, ndim, rhs, x, info, x0, ctx)
    real(wp), intent(inout) :: x(:)
    integer, intent(out) :: info
    real(wp), intent(in), optional :: x0(:)
-   class(*), optional, intent(inout) :: ctx
+   class(*), optional, target, intent(inout) :: ctx
 
    integer, parameter :: max_iter = 1000
    real(wp), parameter :: tol = 1.0e-14_wp
