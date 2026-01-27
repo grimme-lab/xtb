@@ -52,8 +52,6 @@ module xtb_type_calculator
       !> Perform ODLR approximated numerical hessian
       procedure :: odlrhessian
 
-      procedure :: get_gradient_derivs
-
       !> Write informative printout
       procedure(writeInfo), deferred :: writeInfo
 
@@ -282,7 +280,6 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    logical :: linear, terminate_run
    integer, allocatable :: nbcounts(:)
    integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ndispl0, nimg
-   integer :: start, finish, rate, grad_time
    
    ! ========== INITIALIZATION ==========
    N = 3 * mol0%n
@@ -292,10 +289,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
 
    ! hessian initial guess
    allocate(h0(N, N))
-   call system_clock(start, rate)
    call swart(mol%xyz, mol%at, h0)
-   call system_clock(finish, rate)
-   write(env%unit, '(A,F10.2,A)') "Swart took ", real(finish - start, wp) / real(rate, wp), " s"
 
    ! calculate unperturbed gradient
    allocate(tmp_grad(3, mol0%n))
@@ -371,18 +365,14 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    ! gradients along translations are zero
    allocate(g(N, N))
    g = 0.0_wp
-   call system_clock(start, rate)
    call get_gradient_derivs(self, env, step, 3, Ntr, displdir, mol0, chk0, g0, .false., g)
    
    ! for vib mode we need double-sided derivative
    call get_gradient_derivs(self, env, step, Ntr, Ntr+1, displdir, mol0, chk0, g0, .true., g)
-   call system_clock(finish, rate)
-   grad_time = finish - start
 
    ! generate remaining displdirs based on distmat and dmax
    ! compute neighbor list
    ! write(env%unit, '(A)') "Getting neighbor list"
-   call system_clock(start, rate)
    call get_neighbor_list(distmat, dmax, neighborlist)
    allocate(nbcounts(N))
    max_nb = 0
@@ -390,40 +380,25 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
       nbcounts(i) = size(neighborlist(i)%neighbors)
       if (nbcounts(i) > max_nb) max_nb = nbcounts(i)
    end do
-   call system_clock(finish, rate)
-   write(env%unit, '(A,F10.2,A)') "Neighbor list took ", real(finish - start, wp) / real(rate, wp), " s"
    
    ! populate displdir
    ! write(env%unit, '(A)') "Generating displacements"
    ndispl0 = Ntr + 1
-   call system_clock(start, rate)
    call gen_displdir(N, ndispl0, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
-   call system_clock(finish, rate)
-   write(env%unit, '(A,F10.2,A)') "Displacement generation took ", real(finish - start, wp) / real(rate, wp), " s"
 
    ! ========== GRADIENT DERIVATIVES ==========
    ! write(env%unit, '(A)') "Calculating gradient derivatives"
-   call system_clock(start, rate)
    call get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, .false., g)
-   call system_clock(finish, rate)
-   grad_time = grad_time + finish - start
-   write(env%unit, '(A,F10.2,A)') "Gradient derivs took ", real(grad_time, wp) / real(rate, wp), " s"
 
    ! ========== FINAL HESSIAN ==========
    ! construct hessian from local hessian and odlr correction
    ! compute local hessian
    ! write(env%unit, '(A)') "Computing local Hessian"
-   call system_clock(start, rate)
    call gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess)
-   call system_clock(finish, rate)
-   write(env%unit, '(A,F10.2,A)') "Local Hessian took ", real(finish - start, wp) / real(rate, wp), " s"
 
    ! compute low rank correction
    ! write(env%unit, '(A)') "Computing low rank correction"
-   call system_clock(start, rate)
    call lr_loop(env, ndispl_final, g, hess, displdir, final_err)
-   call system_clock(finish, rate)
-   write(env%unit, '(A,F10.2,A)') "LR correction took ", real(finish - start, wp) / real(rate, wp), " s"
 
    call env%check(terminate_run)
    if (terminate_run) then
@@ -448,7 +423,6 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    ! only get the most negative freqs if they're too many
    if (ndispl_final + nimg > N) nimg = N - ndispl_final
 
-   call system_clock(start, rate)
    if (nimg > 0) then
       ! write(env%unit, '(A)') "Displacing along imaginary modes"
       ! rerun with imaginary displacements
@@ -459,8 +433,6 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
       call gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess)
       call lr_loop(env, ndispl_final, g, hess, displdir, final_err)
    end if
-   call system_clock(finish, rate)
-   write(env%unit, '(A,F10.2,A)') "Imaginary freqs took ", real(finish - start, wp) / real(rate, wp), " s"
 
 end subroutine odlrhessian
 
@@ -520,7 +492,7 @@ subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir,
       do i = ndispl0 + 1, ndispl_final
          displmax = maxval(abs(displdir(:, i)))
          mol%xyz = mol0%xyz + reshape(step * displdir(:, i) / displmax, [3, mol0%n])
-         call self%singlepoint(env, mol, chk, -1, .false., energy, tmp_gradl, sigma, egap, res)
+         call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
          g(:, i) = reshape(tmp_gradl,[N])
          g(:, i) = (g(:, i) - g0(:)) / step * displmax
       end do
