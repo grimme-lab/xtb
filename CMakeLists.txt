@@ -343,30 +343,46 @@ add_subdirectory("test")
 
 # Install git hooks for development (cross-platform)
 # Only attempt this if we're in a git repository (not a release tarball)
+# and if this is the top-level project (not used as a dependency)
 
-if(EXISTS "${PROJECT_SOURCE_DIR}/.git/hooks")
-  # Find Python interpreter
-  find_package(Python3 COMPONENTS Interpreter QUIET)
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+  # Find git to resolve hooks path (supports worktrees)
+  find_program(GIT_EXECUTABLE git)
   
-  if(Python3_FOUND)
+  if(GIT_EXECUTABLE)
     execute_process(
-      COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/install-hooks.py"
-      RESULT_VARIABLE HOOK_INSTALL_RESULT
-      OUTPUT_VARIABLE HOOK_INSTALL_OUTPUT
-      ERROR_VARIABLE HOOK_INSTALL_ERROR
+      COMMAND "${GIT_EXECUTABLE}" rev-parse --git-path hooks
+      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+      RESULT_VARIABLE GIT_HOOKS_RESULT
+      ERROR_QUIET
+      OUTPUT_QUIET
     )
     
-    if(HOOK_INSTALL_RESULT EQUAL 0)
-      message(STATUS "✅ Git commit-msg hook installed - commits must be signed off")
-    else()
-      message(WARNING "Failed to install git hooks. Stderr: ${HOOK_INSTALL_ERROR}")
-      if(HOOK_INSTALL_OUTPUT)
-        message(WARNING "Git hook installer stdout: ${HOOK_INSTALL_OUTPUT}")
+    if(GIT_HOOKS_RESULT EQUAL 0)
+      # Find Python interpreter
+      find_package(Python3 COMPONENTS Interpreter QUIET)
+      
+      if(Python3_FOUND)
+        execute_process(
+          COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/install-hooks.py"
+          RESULT_VARIABLE HOOK_INSTALL_RESULT
+          OUTPUT_VARIABLE HOOK_INSTALL_OUTPUT
+          ERROR_VARIABLE HOOK_INSTALL_ERROR
+        )
+        
+        if(HOOK_INSTALL_RESULT EQUAL 0)
+          message(STATUS "✅ Git commit-msg hook installed - commits must be signed off")
+        else()
+          message(WARNING "Failed to install git hooks. Stderr: ${HOOK_INSTALL_ERROR}")
+          if(HOOK_INSTALL_OUTPUT)
+            message(WARNING "Git hook installer stdout: ${HOOK_INSTALL_OUTPUT}")
+          endif()
+          message(WARNING "You can install manually with: python scripts/install-hooks.py")
+        endif()
+      else()
+        message(WARNING "Python not found. Git hooks not installed.")
+        message(WARNING "Install manually with: python scripts/install-hooks.py")
       endif()
-      message(WARNING "You can install manually with: python scripts/install-hooks.py")
     endif()
-  else()
-    message(WARNING "Python not found. Git hooks not installed.")
-    message(WARNING "Install manually with: python scripts/install-hooks.py")
   endif()
 endif()
