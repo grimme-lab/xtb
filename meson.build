@@ -215,3 +215,24 @@ xtbenv.set('XTBPATH', meson.current_source_dir())
 
 # all tests are defined in a separate meson.build
 subdir('test')
+
+# Install git hooks for development (cross-platform)
+# Only attempt this if we're in a git repository (not a release tarball)
+
+fs = import('fs')
+git_hooks_dir = meson.project_source_root() / '.git' / 'hooks'
+
+if fs.is_dir(git_hooks_dir) and not meson.is_subproject()
+  # Use Python for cross-platform compatibility
+  install_result = run_command(
+    python,
+    meson.project_source_root() / 'scripts' / 'install-hooks.py',
+    check: false
+  )
+  
+  if install_result.returncode() == 0
+    message('✅ Git commit-msg hook installed - commits must be signed off')
+  else
+    warning('Failed to install git hooks. You can install manually with: python scripts/install-hooks.py')
+  endif
+endif

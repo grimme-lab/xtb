@@ -340,3 +340,30 @@ install(
    
 # Tests
 add_subdirectory("test")
+
+# Install git hooks for development (cross-platform)
+# Only attempt this if we're in a git repository (not a release tarball)
+
+if(EXISTS "${PROJECT_SOURCE_DIR}/.git/hooks")
+  # Find Python interpreter
+  find_package(Python3 COMPONENTS Interpreter QUIET)
+  
+  if(Python3_FOUND)
+    execute_process(
+      COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/install-hooks.py"
+      RESULT_VARIABLE HOOK_INSTALL_RESULT
+      OUTPUT_VARIABLE HOOK_INSTALL_OUTPUT
+      ERROR_VARIABLE HOOK_INSTALL_ERROR
+    )
+    
+    if(HOOK_INSTALL_RESULT EQUAL 0)
+      message(STATUS "✅ Git commit-msg hook installed - commits must be signed off")
+    else()
+      message(WARNING "Failed to install git hooks: ${HOOK_INSTALL_ERROR}")
+      message(WARNING "You can install manually with: python scripts/install-hooks.py")
+    endif()
+  else()
+    message(WARNING "Python not found. Git hooks not installed.")
+    message(WARNING "Install manually with: python scripts/install-hooks.py")
+  endif()
+endif()
