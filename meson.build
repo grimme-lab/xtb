@@ -219,10 +219,9 @@ subdir('test')
 # Install git hooks for development (cross-platform)
 # Only attempt this if we're in a git repository (not a release tarball)
 
-fs = import('fs')
-git_hooks_dir = meson.project_source_root() / '.git' / 'hooks'
+git_hooks_cmd = run_command('git', 'rev-parse', '--git-path', 'hooks', check: false)
 
-if fs.is_dir(git_hooks_dir) and not meson.is_subproject()
+if git_hooks_cmd.returncode() == 0 and not meson.is_subproject()
   # Use Python for cross-platform compatibility
   install_result = run_command(
     python,
