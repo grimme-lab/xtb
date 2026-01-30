@@ -20,7 +20,7 @@ def check_signoff(commit_msg_file):
         return False
     
     # Check for Signed-off-by line
-    if re.search(r'^Signed-off-by: .+ <.+@.+>$', content, re.MULTILINE):
+    if re.search(r'^Signed-off-by:\s+.+\s+<[^>]+>\s*$', content, re.MULTILINE):
         return True
     
     return False
