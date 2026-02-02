@@ -11,6 +11,12 @@ This is the official repository of the `xtb` program package developed by the Gr
 <img src="./assets/logo/xtb.svg" alt="Extended Tight Binding" width="220">
 </div>
 
+## Table of Contents
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Contributing](#contributing) <-- please read this before contributing!
+- [Citations](#citations)
+- [Licence](#license)
 
 ## Installation
 
