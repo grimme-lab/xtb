@@ -1,5 +1,7 @@
 # Contributing to xTB
 
+> **Important**: please sign off *all* your commits. To avoid commiting unsigned changes you can use the Python script `scripts/install-hooks.py` to install a commit hook to check whether you signed off.
+
 First off, thank you for considering contributing to `xtb`.
 Please take a moment to review this guidelines to make the contribution process
 simple and effective for all involved.
