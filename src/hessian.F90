@@ -111,7 +111,10 @@ subroutine numhess( &
    real(wp),allocatable :: pold(:)
    real(wp),allocatable :: dipd(:,:), dalphadr(:,:), dalphadq(:,:)
    real(wp),allocatable :: amass_au(:), amass_amu(:)
-   real(wp) :: asq, gamsq, final_err
+   real(wp) :: asq, gamsq
+
+   ! final residual error in approximating gradients using odlr hessian
+   real(wp) :: final_err
 
    type(TMolecule) :: tmol
 
@@ -189,6 +192,8 @@ subroutine numhess( &
    if (set%o1numhess) then
       h = 0.0_wp
       call calc%odlrhessian(env, mol, chk0, step, h, final_err)
+      call env%check(exitRun)
+      if (exitRun) return
       write(env%unit, '(A)') "Error norm for predicted graident (ODLR Hessian):", final_err
    else if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes

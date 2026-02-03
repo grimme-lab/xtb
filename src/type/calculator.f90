@@ -28,6 +28,8 @@ module xtb_type_calculator
    use xtb_type_restart, only : TRestart
    use xtb_o1numhess, only : adj_list, gen_local_hessian, &
    & lr_loop, gen_displdir, get_neighbor_list, swart
+   use xtb_param_uffvdwrad, only : get_rad
+   use xtb_param_covalentrad, only : get_cov_rad
    implicit none
 
    public :: TCalculator
@@ -251,20 +253,6 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    !> Final error after all steps
    real(wp), intent(out) :: final_err
    
-   ! UFF vdw radii - could be replaced with any other vdw radii i guess
-   real(wp), parameter :: vdw_radii(103) = [ &
-      2.886_wp, 2.362_wp, 2.451_wp, 2.745_wp, 4.083_wp, 3.851_wp, 3.66_wp, 3.5_wp, 3.364_wp, &
-      3.243_wp, 2.983_wp, 3.021_wp, 4.499_wp, 4.295_wp, 4.147_wp, 4.035_wp, 3.947_wp, 3.868_wp, &
-      3.812_wp, 3.399_wp, 3.295_wp, 3.175_wp, 3.144_wp, 3.023_wp, 2.961_wp, 2.912_wp, 2.872_wp, &
-      2.834_wp, 3.495_wp, 2.763_wp, 4.383_wp, 4.28_wp, 4.23_wp, 4.205_wp, 4.189_wp, 4.141_wp, &
-      4.114_wp, 3.641_wp, 3.345_wp, 3.124_wp, 3.165_wp, 3.052_wp, 2.998_wp, 2.963_wp, 2.929_wp, &
-      2.899_wp, 3.148_wp, 2.848_wp, 4.463_wp, 4.392_wp, 4.42_wp, 4.47_wp, 4.5_wp, 4.404_wp, &
-      4.517_wp, 3.703_wp, 3.522_wp, 3.556_wp, 3.606_wp, 3.575_wp, 3.547_wp, 3.52_wp, 3.493_wp, &
-      3.368_wp, 3.451_wp, 3.428_wp, 3.409_wp, 3.391_wp, 3.374_wp, 3.355_wp, 3.64_wp, 3.141_wp, &
-      3.17_wp, 3.069_wp, 2.954_wp, 3.12_wp, 2.84_wp, 2.754_wp, 3.293_wp, 2.705_wp, 4.347_wp, &
-      4.297_wp, 4.37_wp, 4.709_wp, 4.75_wp, 4.765_wp, 4.9_wp, 3.677_wp, 3.478_wp, 3.396_wp, &
-      3.424_wp, 3.395_wp, 3.424_wp, 3.424_wp, 3.381_wp, 3.326_wp, 3.339_wp, 3.313_wp, 3.299_wp, &
-      3.286_wp, 3.274_wp, 3.248_wp, 3.236_wp] * 0.5_wp / autoaa
    real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp, imagthr = 1.0e-8_wp
    real(wp), parameter :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1], shape(identity3))
 
@@ -275,7 +263,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), &
       & g0(:), x(:), xyz(:, :), g(:, :), work(:), eigvec(:, :), eigval(:)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), &
-      & ax(3, 3), cross(3), Imat0, query(1), displmax, vec(3)
+      & ax(3, 3), cross(3), Imat0, query(1), displmax, vec(3), ri, rj
    logical, allocatable :: mask(:, :)
    logical :: linear, terminate_run
    integer, allocatable :: nbcounts(:)
@@ -289,7 +277,11 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
 
    ! hessian initial guess
    allocate(h0(N, N))
-   call swart(mol%xyz, mol%at, h0)
+   call swart(env, mol%xyz, mol%at, h0)
+   call env%check(terminate_run)
+   if (terminate_run) then
+      return
+   end if
 
    ! calculate unperturbed gradient
    allocate(tmp_grad(3, mol0%n))
@@ -301,7 +293,13 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    do i = 1, mol0%n
       do j = i, mol0%n
          ! effective distmat
-         dist = mol0%dist(i, j) - vdw_radii(mol0%at(i)) - vdw_radii(mol0%at(j))
+         ri = get_cov_rad(mol0%at(i))
+         rj = get_cov_rad(mol0%at(j))
+         if (ri < 0.0_wp .or. rj < 0.0_wp) then
+            call env%error("odlrhessian: covalent radii only defined for 1-103", source)
+            return
+         end if
+         dist = mol0%dist(i, j) - get_rad(mol0%at(i)) - get_rad(mol0%at(j))
          distmat(3 * i - 2:3 * i, 3 * j - 2:3 * j) = dist
          distmat(3 * j - 2:3 * j, 3 * i - 2:3 * i) = dist
       end do

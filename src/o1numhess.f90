@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2017-2020 Stefan Grimme
+! Copyright (C) 2026-2027 Leopold M. Seidler
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -22,6 +22,7 @@ module xtb_o1numhess
    use xtb_mctc_convert, only : autoaa
    use xtb_mctc_blas, only : mctc_gemm, mctc_nrm2, mctc_dot
    use xtb_type_environment, only : TEnvironment
+   use xtb_param_covalentrad, only : get_cov_rad
    implicit none
    private
 
@@ -56,18 +57,6 @@ module xtb_o1numhess
 
    character(len=*), parameter :: source = 'xtb_o1numhess'
 
-   !> covalent radii
-   real(wp), parameter :: cov(103) = [&
-      & 0.32_wp, 0.46_wp, 1.33_wp, 1.02_wp, 0.85_wp, 0.75_wp, 0.71_wp, 0.63_wp, 0.64_wp, 0.67_wp, &
-      & 1.55_wp, 1.39_wp, 1.26_wp, 1.16_wp, 1.11_wp, 1.03_wp, 0.99_wp, 0.96_wp, 1.96_wp, 1.71_wp, 1.48_wp, &
-      & 1.36_wp, 1.34_wp, 1.22_wp, 1.19_wp, 1.16_wp, 1.10_wp, 1.11_wp, 1.12_wp, 1.18_wp, 1.24_wp, 1.21_wp, &
-      & 1.21_wp, 1.16_wp, 1.14_wp, 1.17_wp, 2.10_wp, 1.85_wp, 1.63_wp, 1.54_wp, 1.47_wp, 1.38_wp, 1.28_wp, &
-      & 1.25_wp, 1.25_wp, 1.20_wp, 1.28_wp, 1.36_wp, 1.42_wp, 1.40_wp, 1.40_wp, 1.36_wp, 1.33_wp, 1.31_wp, &
-      & 2.32_wp, 1.96_wp, 1.80_wp, 1.63_wp, 1.76_wp, 1.74_wp, 1.73_wp, 1.72_wp, 1.68_wp, 1.69_wp, 1.68_wp, &
-      & 1.67_wp, 1.66_wp, 1.65_wp, 1.64_wp, 1.70_wp, 1.62_wp, 1.52_wp, 1.46_wp, 1.37_wp, 1.31_wp, 1.29_wp, &
-      & 1.22_wp, 1.23_wp, 1.24_wp, 1.33_wp, 1.44_wp, 1.44_wp, 1.51_wp, 1.45_wp, 1.47_wp, 1.42_wp, 2.23_wp, &
-      & 2.01_wp, 1.86_wp, 1.75_wp, 1.69_wp, 1.70_wp, 1.71_wp, 1.72_wp, 1.66_wp, 1.66_wp, 1.68_wp, 1.68_wp, &
-      & 1.65_wp, 1.67_wp, 1.73_wp, 1.76_wp, 1.61_wp] / 0.529177249_wp
 contains
 
 !> Main routine to recover local Hessian
@@ -138,6 +127,8 @@ subroutine gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess
    hess_out = unpack_sym(sol, ctx%mask, N)
 end subroutine gen_local_hessian
 
+!> Defines the linear operator for defining the optimizational
+!> problem in local Hessian calculation
 subroutine odlr_operator(x, y, env, ctx)
    real(wp), intent(in) :: x(:)
    real(wp), intent(inout) :: y(:)
@@ -305,6 +296,7 @@ function unpack_sym(v, mask, n) result(H)
    end do
 end function unpack_sym
 
+!> Helper to pack symmetric matrix
 function pack_sym(m, mask) result(v)
    real(wp), intent(in) :: m(:, :)
    logical, intent(in) :: mask(:, :)
@@ -314,6 +306,7 @@ function pack_sym(m, mask) result(v)
    v = pack((m + transpose(m)) * 0.5_wp, mask)
 end function pack_sym
 
+!> Setup a neighbor list based on a given distante matrix
 subroutine get_neighbor_list(distmat, dmax, nblist)
    real(wp), intent(in) :: distmat(:, :)
    real(wp), intent(in) :: dmax
@@ -397,7 +390,7 @@ subroutine get_neighbor_list(distmat, dmax, nblist)
    end do
 end subroutine get_neighbor_list
 
-! --- Helper: Add to dynamic array ---
+!> Helper to add neighbors to dynamic array
 subroutine add_neighbor(list, val)
    type(adj_list), intent(inout) :: list
    integer, intent(in) :: val
@@ -416,7 +409,7 @@ subroutine add_neighbor(list, val)
    end if
 end subroutine add_neighbor
 
-! --- Helper: Add only if not present ---
+!> Helper to add neighbors to dynamic array if not present
 subroutine add_neighbor_unique(list, val)
    type(adj_list), intent(inout) :: list
    integer, intent(in) :: val
@@ -430,7 +423,7 @@ subroutine add_neighbor_unique(list, val)
    call add_neighbor(list, val)
 end subroutine add_neighbor_unique
 
-! --- Helper: Recursive DFS for labeling ---
+!> Helper to recursive DFS for labeling
 recursive subroutine dfs_label(u, n, nblist, labels, comp_id)
    integer, intent(in) :: u, n, comp_id
    type(adj_list), intent(in) :: nblist(:)
@@ -448,7 +441,8 @@ recursive subroutine dfs_label(u, n, nblist, labels, comp_id)
    end do
 end subroutine dfs_label
 
-! --- Helper: Prim's Algorithm for MST ---
+!> Setup an adjacency matrix based on a given distance matrix
+!> using Prim's algorithm for a minimum spanning tree
 subroutine prim_mst(nc, dists, adj_mst)
    integer, intent(in) :: nc
    real(wp), intent(in) :: dists(nc, nc)
@@ -501,6 +495,7 @@ subroutine prim_mst(nc, dists, adj_mst)
    end do
 end subroutine prim_mst
 
+!> Calculate displacement vectors for the gradient derivatives
 subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
                         eps, eps2, displdir, ndispl_final)
    integer, intent(in) :: n, ndispl0, max_nb
@@ -688,6 +683,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    deallocate(eye, locev_store)
 end subroutine gen_displdir
 
+!> Setup an orthonormal basis using SVD
 function orth(A, tol_in) result(Q)
    real(wp), intent(in) :: A(:,:)
    real(wp), intent(in), optional :: tol_in
@@ -730,7 +726,9 @@ function orth(A, tol_in) result(Q)
 end function orth
 
 !> Calculates a modified Swart model Hessian
-subroutine swart(xyz, at, hess_out)
+subroutine swart(env, xyz, at, hess_out)
+   !> Computation environment
+   type(TEnvironment), intent(inout) :: env
    !> coords
    real(wp), intent(in) :: xyz(:, :)
    !> ordinal numbers
@@ -742,6 +740,7 @@ subroutine swart(xyz, at, hess_out)
 
    real(wp) :: equildist, Hint, bmat6(6), bmat9(9), bmat29(2, 9), outer6(6, 6), outer9(9, 9), s_ijjk, costh, sinth, th1, scalelin
    real(wp), allocatable :: screenfunc(:, :), hess_local(:, :)
+   real(wp) :: ri, rj
    integer :: i, j, k, nat, N, i1, i2, j1, j2, k1, k2
    
    nat = size(xyz, 2)
@@ -752,7 +751,14 @@ subroutine swart(xyz, at, hess_out)
    allocate(screenfunc(nat, nat))
    do i = 1, nat
       do j = i + 1, nat
-         equildist = cov(at(i)) + cov(at(j))
+         ri = get_cov_rad(at(i))
+         rj = get_cov_rad(at(j))
+         if (ri < 0.0_wp .or. rj < 0.0_wp) then
+            call env%error("swart: covalent radii only defined for 1-103", source)
+            return
+         end if
+
+         equildist = ri + rj
          screenfunc(i, j) = exp(1.0_wp - norm2(xyz(:, i) - xyz(:, j)) / equildist)
          screenfunc(j, i) = screenfunc(i, j)
       end do
@@ -852,6 +858,7 @@ subroutine swart(xyz, at, hess_out)
    !$omp end parallel
 end subroutine swart
 
+!> Wilson B matrix for bonds
 function bmat_bond(vec) result(bmat)
    real(wp), intent(in) :: vec(3)
 
@@ -864,6 +871,7 @@ function bmat_bond(vec) result(bmat)
    bmat(4:6) = -vec(:) / l
 end function bmat_bond
 
+!> Wilson B matrix for non-linear angles
 function bmat_angle(vec1, vec2) result(bmat)
    real(wp), intent(in) :: vec1(3), vec2(3)
    real(wp) :: bmat(9)
@@ -906,6 +914,7 @@ function bmat_angle(vec1, vec2) result(bmat)
    bmat = -dinprod / sqrt(max(1.0e-15_wp, 1.0_wp - dot_n1n2**2))
 end function bmat_angle
 
+!> Wirson B matrix for linear angles
 function bmat_linangle(vec1, vec2) result(bmat)
    real(wp), intent(in) :: vec1(3), vec2(3)
    real(wp) :: bmat(2,9)
@@ -947,6 +956,7 @@ function bmat_linangle(vec1, vec2) result(bmat)
    bmat(1, 4:6) = -bmat(1, 1:3) - bmat(1, 7:9)
 end function bmat_linangle
 
+!> cos(Angle) between two vectors
 function cosangle(vec1, vec2) result(cos_theta)
     implicit none
     real(wp), intent(in) :: vec1(3), vec2(3)

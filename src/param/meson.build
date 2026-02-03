@@ -21,4 +21,6 @@ srcs += files(
   'sqrtzr4r2.f90',
   'vdwradd3.f90',
   'vdwradcosmo.f90',
+  'covalentrad.f90',
+  'uffvdwrad.f90',
 )

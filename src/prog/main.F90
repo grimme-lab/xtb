@@ -172,6 +172,8 @@ contains
 !! ------------------------------------------------------------------------
       logical :: struc_conversion_done = .false.
       logical :: anyopt, anyhess
+      ! logical for checking whether ODLR approximation can be used
+      logical :: odlr_valid
 
 !! ========================================================================
 !  debugging variables for numerical gradient
@@ -209,7 +211,6 @@ contains
       logical :: strict
       logical :: exitRun
       logical :: cold_fusion
-      logical :: odlr_valid
 
 !  OMP stuff
       integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM

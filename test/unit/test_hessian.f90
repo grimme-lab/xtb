@@ -499,12 +499,15 @@ subroutine test_modified_swart(error)
       & 0.0000000000e+00_wp,  1.5315176434e-01_wp,  1.3375368550e-01_wp],&
       & shape(h0))
 
+   type(TEnvironment) :: env
    integer :: i
    real(wp), allocatable :: hess_out(:, :)
 
+   call init(env)
+
    allocate(hess_out(3*nat, 3*nat))
    hess_out = 0.0_wp
-   call swart(xyz, at, hess_out)
+   call swart(env, xyz, at, hess_out)
 
    if (any(abs(hess_out - h0) > thr)) then
       call test_failed(error, "Hessians do not match")
