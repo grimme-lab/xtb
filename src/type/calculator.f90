@@ -398,6 +398,7 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
 
    ! diagonalize
    ! keep hess in case there are no imaginary frequencies
+   allocate(eigvec(N, N))
    eigvec = hess
    allocate(eigval(N))
    lwork = -1

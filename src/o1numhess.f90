@@ -317,7 +317,7 @@ subroutine get_neighbor_list(distmat, dmax, nblist)
    integer, allocatable :: mst_matrix(:, :)
    real(wp) :: d, min_d
    real(wp), parameter :: eps = 1.0e-8_wp
-   integer :: i, j, ncomp, N
+   integer :: i, j, ncomp, N, li, lj
 
    N = size(distmat, 1)
    allocate(nblist(N))
@@ -352,16 +352,18 @@ subroutine get_neighbor_list(distmat, dmax, nblist)
    comp_dist = huge(1.0_wp)
 
    !$omp parallel do default(none) schedule(runtime) &
-   !$omp shared(N, distmat, labels, comp_dist, nblist) &
-   !$omp private(i, j, d)
+   !$omp shared(N, distmat, labels, comp_dist) &
+   !$omp private(i, j, d, li, lj)
    do i = 1, N - 1
+         li = labels(i)
       do j = i + 1, N
-            if (labels(i) /= labels(j)) then
+            lj = labels(j)
+            if (li /= lj) then
                d = distmat(i, j)
-               if (d < comp_dist(labels(i), labels(j))) then
-                  comp_dist(labels(i), labels(j)) = d
-                  comp_dist(labels(j), labels(i)) = d
-               end if
+               !$omp atomic update
+               comp_dist(li, lj) = min(comp_dist(li, lj), d)
+               !$omp atomic update
+               comp_dist(lj, li) = min(comp_dist(lj, li), d)
             end if
       end do
    end do
