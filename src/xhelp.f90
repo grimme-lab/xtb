@@ -267,7 +267,7 @@ subroutine help(iunit)
    "    perform a biased numerical hessian calculation on an ancopt(3) optimized geometry",&
    "",&
    "--o1nh",&
-   "    perform the numerical hessian calculuation using the ODLR approximation (O1NumHess)",&
+   "    perform the numerical hessian calculation using the ODLR approximation (O1NumHess)",&
    "",&
    "--md",&
    "    molecular dynamics simulation on start geometry",&
