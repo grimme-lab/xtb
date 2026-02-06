@@ -260,12 +260,11 @@ subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
    type(TRestart) :: chk
    type(scc_results) :: res
    type(adj_list), allocatable :: neighborlist(:)
-   real(wp), allocatable :: distmat(:, :), h0(:, :), h0v(:), tmp_grad(:, :), &
-      & g0(:), x(:), xyz(:, :), g(:, :), work(:), eigvec(:, :), eigval(:)
+   real(wp), allocatable :: distmat(:, :), h0(:, :), tmp_grad(:, :), &
+      & g0(:), g(:, :), work(:), eigvec(:, :), eigval(:)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), &
-      & ax(3, 3), cross(3), Imat0, query(1), displmax, vec(3), ri, rj
-   logical, allocatable :: mask(:, :)
-   logical :: linear, terminate_run
+      & ax(3, 3), cross(3), Imat0, displmax, vec(3), ri, rj
+   logical :: terminate_run
    integer, allocatable :: nbcounts(:)
    integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ndispl0, nimg
    
