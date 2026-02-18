@@ -420,6 +420,11 @@ contains
          call env%checkpoint("reading geometry input '"//fname//"' failed")
       end if
 
+      if (mol%n == 1 .and. set%o1numhess) then
+         call env%warning("O1NumHess not supported for single atoms. Using default semi-numerical Hessian.", source)
+         set%o1numhess = .false.
+      end if
+
       ! ------------------------------------------------------------------------
       !> initialize the global storage
       call init_fix(mol%n)
