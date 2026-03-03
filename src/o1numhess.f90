@@ -522,6 +522,7 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    real(wp) :: loceigs(max_nb)
    real(wp) :: norm_ev1, norm_ev2, v_norm, d_dot
    real(wp), allocatable :: locev_store(:, :)
+   logical :: done
    ! Thread-private work arrays for parallel region
    real(wp), allocatable :: submat_local(:,:), projmat_local(:,:), vec_subset_local(:,:), tmp_local(:,:), work_local(:)
 
@@ -537,24 +538,32 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    ! Storage for eigenvectors computed in parallel
    allocate(locev_store(max_nb, n))
 
+   done = .false.
+
+   ! --- Open parallel region once ---
+   !$omp parallel default(none) &
+   !$omp shared(n, ndispl0, nblist, nbcounts, h0, displdir, max_nb, eye, locev_store, &
+   !$omp        ev, coverage, done, ndispl_final, eps, eps2) &
+   !$omp private(j, p, q, k, nnb, nb_idx, loceigs, locind, info, idx, n_curr, &
+   !$omp         norm_ev1, norm_ev2, v_norm, d_dot, locev, &
+   !$omp         submat_local, projmat_local, vec_subset_local, tmp_local, work_local)
+
+   allocate(submat_local(max_nb, max_nb))
+   allocate(projmat_local(max_nb, n))
+   allocate(vec_subset_local(max_nb, n))
+   allocate(tmp_local(max_nb, max_nb))
+   allocate(work_local(10*max_nb + 10*n))
+
    ! --- Outer Loop: Generate new directions ---
    do n_curr = ndispl0, n - 1
-      ! n_curr: number of existing displacements at this point
-      
+      if (done) exit
+
+      !$omp single
       ev = 0.0_wp
       coverage = 0.0_wp
+      !$omp end single
 
       ! --- Parallel Phase: Compute local eigenvectors ---
-      !$omp parallel default(none) &
-      !$omp shared(n, n_curr, nblist, nbcounts, h0, displdir, max_nb, eye, locev_store) &
-      !$omp private(j, p, q, nnb, nb_idx, loceigs, locind, info) &
-      !$omp private(submat_local, projmat_local, vec_subset_local, tmp_local, work_local)
-      
-      allocate(submat_local(max_nb, max_nb))
-      allocate(projmat_local(max_nb, n))
-      allocate(vec_subset_local(max_nb, n))
-      allocate(tmp_local(max_nb, max_nb))
-      allocate(work_local(10*max_nb + 10*n))
 
       !$omp do schedule(runtime)
       do j = 1, n
@@ -606,11 +615,9 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
          locev_store(1:nnb, j) = submat_local(1:nnb, locind)
       end do
       !$omp end do
-      
-      deallocate(submat_local, projmat_local, vec_subset_local, tmp_local, work_local)
-      !$omp end parallel
 
       ! --- Serial Phase: Sign fixing and accumulation ---
+      !$omp single
       do j = 1, n
          nnb = nbcounts(j)
          nb_idx(:nnb) = nblist(j)%neighbors(:nnb)
@@ -673,14 +680,19 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       ! --- Check Norm ---
       v_norm = norm2(ev)
       
-      if (v_norm < eps2) exit
-
-      ! Normalize and store
-      ev = ev / v_norm
-      displdir(:, n_curr + 1) = ev
-
-      ndispl_final = n_curr + 1
+      if (v_norm < eps2) then
+         done = .true.
+      else
+         ! Normalize and store
+         ev = ev / v_norm
+         displdir(:, n_curr + 1) = ev
+         ndispl_final = n_curr + 1
+      end if
+      !$omp end single
    end do
+
+   deallocate(submat_local, projmat_local, vec_subset_local, tmp_local, work_local)
+   !$omp end parallel
 
    deallocate(eye, locev_store)
 end subroutine gen_displdir
