@@ -909,7 +909,7 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
       & "$coord_rad", &
       & "#atom   x                  y                  z             element  radius [A]"
    do iat = 1, size(xyz, 2)
-      write(unit, '(i4, 3(1x, f18.14), 2x, a4, 1x, f9.5)') &
+      write(unit, '(i4, 3(1x, f19.14), 2x, a4, 1x, f9.5)') &
          & iat, xyz(:, iat), sym(iat), self%rvdw(iat)*autoaa
    end do
 
