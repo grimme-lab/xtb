@@ -17,17 +17,23 @@
 
 !> abstract calculator that hides implementation details from calling codes
 module xtb_type_calculator
+   use xtb_mctc_convert, only : autoaa
+   use xtb_mctc_math, only : crossProd
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_blas, only : mctc_gemm, mctc_nrm2, mctc_dot
    use xtb_solv_model, only : TSolvModel
    use xtb_type_data, only : scc_results
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart, only : TRestart
+   use xtb_o1numhess, only : adj_list, gen_local_hessian, &
+   & lr_loop, gen_displdir, get_neighbor_list, swart
+   use xtb_param_uffvdwrad, only : get_rad
+   use xtb_param_covalentrad, only : get_cov_rad
    implicit none
 
    public :: TCalculator
    private
-
 
    !> Base calculator
    type, abstract :: TCalculator
@@ -44,6 +50,9 @@ module xtb_type_calculator
 
       !> Perform hessian calculation
       procedure :: hessian
+
+      !> Perform ODLR approximated numerical hessian
+      procedure :: odlrhessian
 
       !> Write informative printout
       procedure(writeInfo), deferred :: writeInfo
@@ -92,7 +101,6 @@ module xtb_type_calculator
 
       end subroutine singlepoint
 
-
       subroutine writeInfo(self, unit, mol)
          import :: TCalculator, TMolecule
 
@@ -108,9 +116,7 @@ module xtb_type_calculator
       end subroutine writeInfo
    end interface
 
-
 contains
-
 
 !> Evaluate hessian by finite difference for all atoms
 subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
@@ -143,7 +149,7 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
    call timing(t0, w0)
    step2 = 0.5_wp / step
 
-   !$omp parallel if(self%threadsafe) default(none) &
+   !$omp parallel if (self%threadsafe) default(none) &
    !$omp shared(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, step2, t0, w0) &
    !$omp private(kat, iat, jat, jc, jj, ii, er, el, egap, gr, gl, sr, sl, dr, dl, alphar, alphal, &
    !$omp& t1, w1)
@@ -155,7 +161,7 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
       do ic = 1, 3
 
          iat = list(kat)
-         ii = 3*(iat - 1) + ic
+         ii = 3 * (iat - 1) + ic
          er = 0.0_wp
          el = 0.0_wp
          gr = 0.0_wp
@@ -171,13 +177,13 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
             polgrad(4, ii) = (alphar(1, 3) - alphal(1, 3)) * step2
             polgrad(5, ii) = (alphar(2, 3) - alphal(2, 3)) * step2
             polgrad(6, ii) = (alphar(3, 3) - alphal(3, 3)) * step2
-         endif
+         end if
 
          dipgrad(:, ii) = (dr - dl) * step2
 
          do jat = 1, mol0%n
             do jc = 1, 3
-               jj = 3*(jat - 1) + jc
+               jj = 3 * (jat - 1) + jc
                hess(jj, ii) = hess(jj, ii) &
                   & + (gr(jc, jat) - gl(jc, jat)) * step2
             end do
@@ -186,12 +192,12 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
          if (kat == 3 .and. ic == 3) then
             !$omp critical(xtb_numdiff2)
             call timing(t1, w1)
-            write(*,'("estimated CPU  time",F10.2," min")') &
-               & 0.3333333_wp*size(list)*(t1-t0)/60.0_wp
-            write(*,'("estimated wall time",F10.2," min")') &
-               & 0.3333333_wp*size(list)*(w1-w0)/60.0_wp
+            write(*, '("estimated CPU  time",F10.2," min")') &
+               & 0.3333333_wp * size(list) * (t1 - t0) / 60.0_wp
+            write(*, '("estimated wall time",F10.2," min")') &
+               & 0.3333333_wp * size(list) * (w1 - w0) / 60.0_wp
             !$omp end critical(xtb_numdiff2)
-         endif
+         end if
 
       end do
    end do
@@ -226,5 +232,307 @@ subroutine hessian_point(self, env, mol0, chk0, iat, ic, step, energy, gradient,
    alpha(:, :) = res%alpha
 
 end subroutine hessian_point
+
+!> Implementation according to Wang et al. (https://doi.org/10.1021/acs.jctc.5c01354)
+subroutine odlrhessian(self, env, mol0, chk0, step, hess, final_err)
+   character(len=*), parameter :: source = "hessian_odlr"
+   !> Single point calculator
+   class(TCalculator), intent(inout) :: self
+   !> Computation environment
+   type(TEnvironment), intent(inout) :: env
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol0
+   !> Restart data
+   type(TRestart), intent(in) :: chk0
+   !> Step size for numerical differentiation
+   real(wp), intent(in) :: step
+   !> Array to add Hessian to
+   real(wp), intent(inout) :: hess(:, :)
+   !> Array for displacement directions
+   real(wp), allocatable :: displdir(:, :)
+   !> Final error after all steps
+   real(wp), intent(out) :: final_err
+   
+   real(wp), parameter :: dmax = 1.0_wp, eps = 1.0e-8_wp, eps2 = 1.0e-15_wp, imagthr = 1.0e-8_wp
+   real(wp), parameter :: identity3(3, 3) = reshape([1, 0, 0, 0, 1, 0, 0, 0, 1], shape(identity3))
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(scc_results) :: res
+   type(adj_list), allocatable :: neighborlist(:)
+   real(wp), allocatable :: distmat(:, :), h0(:, :), tmp_grad(:, :), &
+      & g0(:), g(:, :), work(:), eigvec(:, :), eigval(:)
+   real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), &
+      & ax(3, 3), cross(3), Imat0, displmax, vec(3), ri, rj
+   logical :: terminate_run
+   integer, allocatable :: nbcounts(:)
+   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ndispl0, nimg
+   
+   ! ========== INITIALIZATION ==========
+   N = 3 * mol0%n
+
+   call mol%copy(mol0)
+   call chk%copy(chk0)
+
+   ! hessian initial guess
+   allocate(h0(N, N))
+   call swart(env, mol%xyz, mol%at, h0)
+   call env%check(terminate_run)
+   if (terminate_run) then
+      return
+   end if
+
+   ! calculate unperturbed gradient
+   allocate(tmp_grad(3, mol0%n))
+   call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_grad, sigma, egap, res)
+   g0 = reshape(tmp_grad,[N])
+
+   ! setup effective distmat
+   allocate(distmat(N, N))
+   do i = 1, mol0%n
+      do j = i, mol0%n
+         ! effective distmat
+         ri = get_cov_rad(mol0%at(i))
+         rj = get_cov_rad(mol0%at(j))
+         if (ri < 0.0_wp .or. rj < 0.0_wp) then
+            call env%error("odlrhessian: covalent radii only defined for 1-103", source)
+            return
+         end if
+         dist = mol0%dist(i, j) - get_rad(mol0%at(i)) - get_rad(mol0%at(j))
+         distmat(3 * i - 2:3 * i, 3 * j - 2:3 * j) = dist
+         distmat(3 * j - 2:3 * j, 3 * i - 2:3 * i) = dist
+      end do
+   end do
+
+   allocate(displdir(N, N))
+   displdir = 0.0_wp
+   ! set up initial displdir with trans, rot, and totally symmetric vib mode first
+   ! translational displacements
+   Ntr = 3
+   do i = 1, mol0%n
+      displdir(3 * i - 2, 1) = 1.0_wp / sqrt(real(mol0%n, wp))
+      displdir(3 * i - 1, 2) = 1.0_wp / sqrt(real(mol0%n, wp))
+      displdir(3 * i, 3) = 1.0_wp / sqrt(real(mol0%n, wp))
+   end do
+
+   ! calculate inertial moment and axes
+   barycenter = sum(mol0%xyz, dim=2) / real(mol0%n, wp)
+   Imat0 = 0.0_wp
+   do i = 1, mol0%n
+      vec = mol0%xyz(:, i) - barycenter(:)
+         Imat0 = Imat0 + mctc_dot(vec, vec)
+   end do
+   ax = Imat0 * identity3
+   do i = 1, 3
+      do j = 1, 3
+         do k = 1, mol0%n
+            ax(i, j) = ax(i, j) - (mol0%xyz(i, k) - barycenter(i)) * (mol0%xyz(j, k) - barycenter(j))
+         end do
+      end do
+   end do
+
+   lwork = -1
+   allocate(work(1))
+   call dsyev('V', 'U', 3, ax, 3, inertia, work, lwork, info)
+   lwork = int(work(1))
+   deallocate(work)
+   allocate(work(lwork))
+   call dsyev('V', 'U', 3, ax, 3, inertia, work, lwork, info)
+
+   ! rotational displacements
+   do i = 1, 3
+      if (inertia(i) < 1e-4_wp) cycle ! skips one mode if linear
+      Ntr = Ntr + 1
+      do j = 1, mol0%n
+         cross = crossProd(ax(:, i), mol0%xyz(:, j) - barycenter(:))
+         displdir(3 * j - 2:3 * j, Ntr) = cross
+      end do
+      displdir(:, Ntr) = displdir(:, Ntr) / norm2(displdir(:, Ntr))
+   end do
+
+   ! totally symmetric vibrational displacement
+   do i = 1, mol0%n
+      displdir(3 * i - 2:3 * i, Ntr + 1) = mol0%xyz(:, i) - barycenter(:)
+   end do
+   displdir(:, Ntr + 1) = displdir(:, Ntr + 1) / norm2(displdir(:, Ntr + 1))
+
+   ! get gradient derivs along rot/vib displacements
+   ! gradients along translations are zero
+   allocate(g(N, N))
+   g = 0.0_wp
+   call get_gradient_derivs(self, env, step, 3, Ntr, displdir, mol0, chk0, g0, .false., g)
+   
+   ! for vib mode we need double-sided derivative
+   call get_gradient_derivs(self, env, step, Ntr, Ntr+1, displdir, mol0, chk0, g0, .true., g)
+
+   ! generate remaining displdirs based on distmat and dmax
+   ! compute neighbor list
+   call get_neighbor_list(distmat, dmax, neighborlist)
+   allocate(nbcounts(N))
+   max_nb = 0
+   do i = 1, N
+      nbcounts(i) = size(neighborlist(i)%neighbors)
+      if (nbcounts(i) > max_nb) max_nb = nbcounts(i)
+   end do
+   
+   ! populate displdir
+   ndispl0 = Ntr + 1
+   call gen_displdir(N, ndispl0, h0, max_nb, neighborlist, nbcounts, eps, eps2, displdir, ndispl_final)
+
+   ! ========== GRADIENT DERIVATIVES ==========
+   ! write(env%unit, '(A)') "Calculating gradient derivatives"
+   call get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, .false., g)
+
+   ! ========== FINAL HESSIAN ==========
+   ! construct hessian from local hessian and odlr correction
+   ! compute local hessian
+   call gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess)
+
+   ! compute low rank correction
+   call lr_loop(env, ndispl_final, g, hess, displdir, final_err)
+
+   call env%check(terminate_run)
+   if (terminate_run) then
+      return
+   end if
+
+   ! diagonalize
+   ! keep hess in case there are no imaginary frequencies
+   allocate(eigvec(N, N))
+   eigvec = hess
+   allocate(eigval(N))
+   lwork = -1
+   deallocate(work)
+   allocate(work(1))
+   call dsyev('V', 'U', N, eigvec, N, eigval, work, lwork, info)
+   lwork = int(work(1))
+   deallocate(work)
+   allocate(work(lwork))
+   call dsyev('V', 'U', N, eigvec, N, eigval, work, lwork, info)
+
+   ! check for imaginary frequencies
+   nimg = count(eigval < -imagthr)
+   ! only get the most negative freqs if they're too many
+   if (ndispl_final + nimg > N) nimg = N - ndispl_final
+
+   if (nimg > 0) then
+      ! rerun with imaginary displacements
+      displdir(:, ndispl_final + 1:ndispl_final + nimg) = eigvec(:, 1:nimg)
+      ndispl0 = ndispl_final
+      ndispl_final = ndispl_final + nimg
+      call get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, .false., g)
+      call gen_local_hessian(env, ndispl_final, distmat, displdir, g, dmax, hess)
+      call lr_loop(env, ndispl_final, g, hess, displdir, final_err)
+   end if
+
+end subroutine odlrhessian
+
+subroutine get_gradient_derivs(self, env, step, ndispl0, ndispl_final, displdir, mol0, chk0, g0, doublesided, g)
+   class(TCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   real(wp), intent(in) :: step
+   integer, intent(in) :: ndispl0, ndispl_final
+   real(wp), intent(in) :: displdir(:, :)
+   type(TMolecule), intent(in) :: mol0
+   type(TRestart), intent(in) :: chk0
+   real(wp), intent(in) :: g0(:)
+   logical, intent(in) :: doublesided
+   real(wp), intent(inout) :: g(:, :)
+
+   integer :: i, N
+   real(wp) :: displmax
+
+   N = 3 * mol0%n
+   if (doublesided) then
+      !$omp parallel if (self%threadsafe) default(none) &
+      !$omp shared(self, env, mol0, chk0, step, g, N, ndispl0, ndispl_final, displdir) &
+      !$omp private(i, displmax)
+      !$omp do schedule(runtime)
+      do i = ndispl0 + 1, ndispl_final
+         displmax = maxval(abs(displdir(:, i)))
+         call gradient_derivs_doublesided_point(self, env, mol0, chk0, step, displdir(:, i), &
+            & displmax, N, g(:, i))
+      end do
+      !$omp end parallel
+   else
+      !$omp parallel if (self%threadsafe) default(none) &
+      !$omp shared(self, env, mol0, chk0, step, g, N, ndispl0, ndispl_final, displdir, g0) &
+      !$omp private(i, displmax)
+      !$omp do schedule(runtime)
+      do i = ndispl0 + 1, ndispl_final
+         displmax = maxval(abs(displdir(:, i)))
+         call gradient_derivs_singlesided_point(self, env, mol0, chk0, step, displdir(:, i), &
+            & displmax, N, g0, g(:, i))
+      end do
+      !$omp end parallel
+   end if
+end subroutine get_gradient_derivs
+
+subroutine gradient_derivs_doublesided_point(self, env, mol0, chk0, step, displdir_i, &
+      & displmax, N, g_i)
+   class(TCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol0
+   type(TRestart), intent(in) :: chk0
+   real(wp), intent(in) :: step
+   real(wp), intent(in) :: displdir_i(:)
+   real(wp), intent(in) :: displmax
+   integer, intent(in) :: N
+   real(wp), intent(out) :: g_i(:)
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(scc_results) :: res
+   real(wp) :: sigma(3, 3), energy, egap
+   real(wp), allocatable :: tmp_gradl(:, :), tmp_gradr(:, :)
+
+   allocate(tmp_gradr(3, mol0%n), tmp_gradl(3, mol0%n))
+   tmp_gradl = 0.0_wp
+   tmp_gradr = 0.0_wp
+
+   call mol%copy(mol0)
+   call chk%copy(chk0)
+   mol%xyz = mol0%xyz + reshape(step * displdir_i / displmax, [3, mol0%n])
+   call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
+
+   call mol%copy(mol0)
+   call chk%copy(chk0)
+   mol%xyz = mol0%xyz - reshape(step * displdir_i / displmax, [3, mol0%n])
+   call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradr, sigma, egap, res)
+
+   g_i = reshape(tmp_gradl - tmp_gradr, [N])
+   g_i = g_i / step * displmax * 0.5_wp
+end subroutine gradient_derivs_doublesided_point
+
+subroutine gradient_derivs_singlesided_point(self, env, mol0, chk0, step, displdir_i, &
+      & displmax, N, g0, g_i)
+   class(TCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol0
+   type(TRestart), intent(in) :: chk0
+   real(wp), intent(in) :: step
+   real(wp), intent(in) :: displdir_i(:)
+   real(wp), intent(in) :: displmax
+   integer, intent(in) :: N
+   real(wp), intent(in) :: g0(:)
+   real(wp), intent(out) :: g_i(:)
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(scc_results) :: res
+   real(wp) :: sigma(3, 3), energy, egap
+   real(wp), allocatable :: tmp_gradl(:, :)
+
+   allocate(tmp_gradl(3, mol0%n))
+   tmp_gradl = 0.0_wp
+
+   call mol%copy(mol0)
+   call chk%copy(chk0)
+   mol%xyz = mol0%xyz + reshape(step * displdir_i / displmax, [3, mol0%n])
+   call self%singlepoint(env, mol, chk, -1, .true., energy, tmp_gradl, sigma, egap, res)
+
+   g_i = reshape(tmp_gradl, [N])
+   g_i = (g_i - g0) / step * displmax
+end subroutine gradient_derivs_singlesided_point
 
 end module xtb_type_calculator

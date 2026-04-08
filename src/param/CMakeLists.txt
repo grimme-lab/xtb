@@ -23,6 +23,8 @@ list(APPEND srcs
   "${dir}/sqrtzr4r2.f90"
   "${dir}/vdwradd3.f90"
   "${dir}/vdwradcosmo.f90"
+  "${dir}/covalentrad.f90"
+  "${dir}/uffvdwrad.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

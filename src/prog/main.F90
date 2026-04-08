@@ -172,6 +172,8 @@ contains
 !! ------------------------------------------------------------------------
       logical :: struc_conversion_done = .false.
       logical :: anyopt, anyhess
+      ! logical for checking whether ODLR approximation can be used
+      logical :: odlr_valid
 
 !! ========================================================================
 !  debugging variables for numerical gradient
@@ -241,7 +243,17 @@ contains
       !> If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
       anyhess = (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)
       if (anyhess) then
-         if(set%mode_extrun == p_ext_ptb) then
+         ! O1NumHess only supports Hessian calculation, nothing else
+         odlr_valid = freezeset%n == 0 .and. set%mode_extrun /= p_ext_ptb
+         if (set%o1numhess) then
+            if (.not. odlr_valid) then
+               call env%error("O1NumHess does not support frozen atoms/PTB", source)
+            end if
+            call env%warning("O1NumHess does not support calculation of IR or Raman activities", source)
+            if (set%step_hess >= 0.0005_wp) then
+               call env%warning("Step size for O1NumHess can be chosen to be much smaller (recommended: 1.0e-6)", source)
+            end if
+         else if(set%mode_extrun == p_ext_ptb) then
             set%mode_extrun = p_ext_xtb
             set%ptbsetup%ptb_in_hessian = .true.
             call set_gfn(env, 'method', '2')
@@ -408,6 +420,11 @@ contains
          call env%checkpoint("reading geometry input '"//fname//"' failed")
       end if
 
+      if (mol%n == 1 .and. set%o1numhess) then
+         call env%warning("O1NumHess not supported for single atoms. Using default semi-numerical Hessian.", source)
+         set%o1numhess = .false.
+      end if
+
       ! ------------------------------------------------------------------------
       !> initialize the global storage
       call init_fix(mol%n)
@@ -535,6 +552,7 @@ contains
       end if
 
       !> check if someone is still using GFN3...
+      ! TODO: this is probably a bit outdated now
       if (set%gfn_method == 3) then
          call env%terminate('Wait for some months - for now, please use gfn_method=2!')
       end if
@@ -1855,6 +1873,9 @@ contains
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
             end if
+
+         case ('--o1nh')
+            set%o1numhess = .true.
 
          case ('--omd')
             call set_runtyp('omd')

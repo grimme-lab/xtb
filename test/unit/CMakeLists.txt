@@ -92,7 +92,7 @@ foreach(t IN LISTS tests)
   set_tests_properties(
     "${PROJECT_NAME}/${t}"
     PROPERTIES
-    ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
+    ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR};TEST_FIXTURES_DIR=${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
   )
 endforeach()
 # add PTB explicitly since it is not part of the tests list
@@ -100,7 +100,7 @@ add_test("${PROJECT_NAME}/ptb" "${PROJECT_NAME}-tester" "ptb")
 set_tests_properties(
   "${PROJECT_NAME}/ptb"
   PROPERTIES
-  ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
+  ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR};TEST_FIXTURES_DIR=${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
 )
 
 # xtb 

@@ -166,6 +166,7 @@ features reality:
 - P. Pracht ([@pprcht](https://github.com/pprcht))
 - F. Pultar ([@pultar](https://github.com/pultar))
 - J. Seibert ([@liljay42](https://github.com/liljay42))
+- L. M. Seidler ([@lmseidler](https://github.com/lmseidler))
 - P. Shushkov
 - S. Spicher ([@sespic](https://github.com/sespic))
 - M. Stahn ([@MtoLStoN](https://github.com/mtolston))
@@ -244,6 +245,10 @@ for SPH calculations refer to:
 for ONIOM refer to:
 - C. Plett, A. Katbashev, S. Ehlert, S. Grimme, M. Bursch, *Phys. Chem. Chem. Phys.*, **2023**, 25, 17860-17868.
   DOI: [10.1039/D3CP02178E](https://doi.org/10.1039/D3CP02178E)
+
+for O1NumHess refer to:
+- B. Wang, S. Luo, Z. Wang, W. Liu, *J. Chem. Theory Comput.* **2025**, 21, 10893-10909.
+  DOI: 10.1021/acs.jctc.5c01354
 
 All references are available in [bibtex format](./assets/references.bib).
 

@@ -108,6 +108,7 @@ srcs += files(
   'modef.f90',
   'model_hessian.f90',
   'neighbor.f90',
+  'o1numhess.f90',
   'onetri.f90',
   'oniom.f90',
   'optimizer.f90',

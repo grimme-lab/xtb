@@ -81,6 +81,9 @@ tester = executable(
   link_language: 'fortran',
 )
 
+# Define fixtures directory environment variable
+xtbenv.set('TEST_FIXTURES_DIR', meson.current_source_dir() / 'fixtures')
+
 foreach t : tests
   test(t, tester, args: t, suite: 'unit', env: xtbenv)
 endforeach

@@ -343,6 +343,8 @@ module xtb_setparam
    real(wp) :: step_hess = 0.005_wp
    ! Scaling factor for the hessian elements
    real(wp) :: scale_hess = 1.0_wp
+   ! Use O1NumHess for Hessian
+   logical :: o1numhess = .false.
 
 !  switch on gbsa for solvent if second argument is a valid solvent name
    type(TSolvInput) :: solvInput
