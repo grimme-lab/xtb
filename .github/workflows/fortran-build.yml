@@ -30,45 +30,19 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
-         - name: Link pre-installed GCC and FC (MacOS - ARM)
-           if: ${{ contains(matrix.os, 'macos') && ! contains(matrix.os, '15-intel') && matrix.compiler == 'gnu' }}
+         - name: Install OpenBLAS (macOS)
+           if: ${{ contains(matrix.os, 'macos') }}
            run: |
-             brew install openblas
-             gfortran_path=$( which gfortran-${GCC_V} )
-             gcc_path=$( which gcc-${GCC_V} )
-             gplusplus_path=$( which g++-${GCC_V} )
-             export FC=$gfortran_path
-             export CC=$gcc_path
-             export CXX=$gplusplus_path
-             ln -s $gfortran_path /usr/local/bin/gfortran
-             ln -s $gcc_path /usr/local/bin/gcc
-             ln -s $gplusplus_path /usr/local/bin/g++
-             echo "PKG_CONFIG_PATH=/opt/homebrew/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
-             echo "LDFLAGS=-L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
-             echo "CPPFLAGS=-I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
-           env:
-             GCC_V: ${{ env.GCC_V }}
- 
-         - name: Install GCC (MacOS - x86_64)
-           if: ${{ contains(matrix.os, 'macos-15-intel') && matrix.compiler == 'gnu' }}
-           run: |
-             brew install gcc@$GCC_V openblas
- 
-             ln -sf "$(brew --prefix gcc@${GCC_V})/bin/gfortran-${GCC_V}" /usr/local/bin/gfortran
-             ln -sf "$(brew --prefix gcc@${GCC_V})/bin/gcc-${GCC_V}" /usr/local/bin/gcc
-             ln -sf "$(brew --prefix gcc@${GCC_V})/bin/g++-${GCC_V}" /usr/local/bin/g++
- 
-             echo "PKG_CONFIG_PATH=$(brew --prefix openblas)/lib/pkgconfig" >> $GITHUB_ENV
-             echo "LDFLAGS=-L$(brew --prefix openblas)/lib"                 >> $GITHUB_ENV
-             echo "CPPFLAGS=-I$(brew --prefix openblas)/include"            >> $GITHUB_ENV
-           env:
-             GCC_V: ${{ env.GCC_V }}
+            brew install openblas
+            echo "PKG_CONFIG_PATH=$(brew --prefix openblas)/lib/pkgconfig" >> $GITHUB_ENV
+            echo "LDFLAGS=-L$(brew --prefix openblas)/lib"                 >> $GITHUB_ENV
+            echo "CPPFLAGS=-I$(brew --prefix openblas)/include"            >> $GITHUB_ENV
          - name: Install OpenBLAS (ubuntu-latest)
            if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
            run: |
             sudo apt-get install libopenblas-dev
          - name: Install meson
-           run: pip install meson==1.7.0 ninja
+           run: pip install meson==1.7.0 ninja pkgconfig
          - name: Configure build
            run: >
             meson setup ${{ env.BUILD_DIR }} --buildtype=debug --warnlevel=0 -Db_coverage=true ${{ env.MESON_ARGS }}
