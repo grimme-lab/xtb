@@ -34,7 +34,16 @@ jobs:
            if: ${{ contains(matrix.os, 'macos') }}
            run: |
             brew install openblas
-            echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
+            gfortran_path=$( which gfortran-${GCC_V} )
+            gcc_path=$( which gcc-${GCC_V} )
+            gplusplus_path=$( which g++-${GCC_V} )
+            export FC=$gfortran_path
+            export CC=$gcc_path
+            export CXX=$gplusplus_path
+            ln -s $gfortran_path /usr/local/bin/gfortran
+            ln -s $gcc_path /usr/local/bin/gcc
+            ln -s $gplusplus_path /usr/local/bin/g++
+            echo "PKG_CONFIG_PATH=/opt/homebrew/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
             echo "LDFLAGS=-L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
             echo "CPPFLAGS=-I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
          - name: Install OpenBLAS (ubuntu-latest)
