@@ -14,7 +14,7 @@ This is the official repository of the `xtb` program package developed by the Gr
 ## Table of Contents
 - [Installation](#installation)
 - [Documentation](#documentation)
-- [Contributing](#contributing) <-- please read this before contributing!
+- [Contributing](#contributing)
 - [Citations](#citations)
 - [Licence](#license)
 
