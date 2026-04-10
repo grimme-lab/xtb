@@ -290,6 +290,7 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
 end subroutine newTBLiteCalculator
 
 
+#if WITH_TBLITE
 subroutine construct_solv_input(input, solv_input, error)
    !> Source of the solvation input from the xtb input
    type(TTBLiteSolvationInput), intent(in) :: input
@@ -381,9 +382,6 @@ subroutine construct_solv_input(input, solv_input, error)
 
          ! Construct purely electrostatic solvation model input for tblite
          solv_input%alpb = alpb_input(solvent%eps, kernel=kernel, alpb=alpb)
-         ! if (parametrized_solvation) then
-         !    solv_input%shift = shift_input(alpb=alpb, solvent=solvent%solvent, state=sol_state)
-         ! end if
       case("cosmo")
          ! CPCM solvation model
          if (sol_state /= solution_state%gsolv) then 
@@ -397,6 +395,7 @@ subroutine construct_solv_input(input, solv_input, error)
    end if
 
 end subroutine construct_solv_input
+# endif
 
 
 !> Create new wavefunction restart data for tblite library
@@ -441,11 +440,6 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
             type(context_type) :: ctx
 
             ctx%solver = lapack_solver(lapack_algorithm%gvd)
-
-            ! temporary turn off colorful output
-            ! ctx%terminal = context_terminal(calc%color)
-            ! write (env%unit, '(0x,a)') escape(ctx%terminal%cyan) // "Calculation of CEH charges" // &
-            !    & escape(ctx%terminal%reset)
 
             call ceh_singlepoint(ctx, calc%tblite, struc, wfn, calc%accuracy, 1)
          end block
@@ -530,7 +524,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! ------------------------------------------------------------------------
    !  fixing of certain atoms
-   !energy = energy + efix
    results%e_total = energy + efix
    results%gnorm = norm2(gradient)
    if (fixset%n.gt.0) then
