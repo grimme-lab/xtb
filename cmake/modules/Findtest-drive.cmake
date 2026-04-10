@@ -68,7 +68,7 @@ The following cache variables may be set to influence the library detection:
 set(_lib "test-drive")
 set(_pkg "TEST_DRIVE")
 set(_url "https://github.com/fortran-lang/test-drive")
-set(_rev "v0.5.0")
+set(_rev "v0.6.0")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
    set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
