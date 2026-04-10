@@ -45,9 +45,6 @@ module xtb_solv_input
       !> Use TM convention for COSMO solvation model
       logical :: tmcosmo = .false.
 
-      !> Additional CPCM-X mode
-      character(len=:),allocatable :: cpxsolvent
-
       !> Reference state
       integer :: state = solutionState%gsolv
 

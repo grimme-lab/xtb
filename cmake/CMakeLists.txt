@@ -17,7 +17,6 @@
 # Some user-configurable features
 option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" TRUE)
 option(WITH_TBLITE "Use tblite library as backend for xTB" TRUE)
-option(WITH_CPCMX "Use CPCM-X solvation library for xTB" TRUE)
 
 
 # Set build type as CMake does not provide defaults

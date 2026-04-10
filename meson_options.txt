@@ -41,14 +41,6 @@ option(
 )
 
 option(
-  'cpcmx',
-  type: 'feature',
-  value: 'auto',
-  yield: true,
-  description: 'include CPCM-X library for solvation evaluation',
-)
-
-option(
   'dftd4',
   type: 'feature',
   value: 'auto',

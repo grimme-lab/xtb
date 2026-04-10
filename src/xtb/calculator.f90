@@ -20,7 +20,6 @@ module xtb_xtb_calculator
    use xtb_mctc_accuracy, only : wp
    use xtb_solv_gbsa, only : TBorn
    use xtb_solv_model, only : info, newSolvationModel, newBornModel
-   use xtb_solv_cpx, only: TCpcmx
    use xtb_type_basisset, only : TBasisset
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data
