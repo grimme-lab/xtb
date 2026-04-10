@@ -142,6 +142,10 @@ subroutine help(iunit)
    "    The inner region is given as a comma separated indices directly in the commandline", &
    "    or in a file with each index on a separate line.", &
    "",&
+   "--efield REAL,REAL,REAL",&
+   "    static electric field in cartesian coordinates, overrides .EFIELD file.",&
+   "    works only via tblite or with GFN-FF and PTB.",&
+   "",&
    "--etemp REAL",&
    "    electronic temperature (default = 300K)",&
    "",&
@@ -176,6 +180,14 @@ subroutine help(iunit)
    "    n-hexane (only GFN2-xTB), THF and toluene.",&
    "    The solvent input is not case-sensitive.", &
    "    The Gsolv reference state can be chosen as reference, bar1M, or gsolv (default).",&
+   "",&
+   "--gbe SOLVENT/EPSILON",&
+   "    Use generalized Born for finite epsilion (GBE) solvation model (tblite required).", &
+   "    Solvent is specified by dielectric constant or the solvent name.",&
+   "",&
+   "--gb SOLVENT/EPSILON",&
+   "    Use generalized Born solvation model (GB) (tblite required).", &
+   "    Solvent is specified by dielectric constant or the solvent name.",&
    "",&
    "--cosmo SOLVENT/EPSILON",&
    "    domain decomposition conductor-like screening model (ddCOSMO),",&

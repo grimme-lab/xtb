@@ -226,19 +226,19 @@ contains
          & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
       
-      ! TEMPORARY: no solvation available for PTB and tblite !
-      if (set%mode_extrun == p_ext_tblite .or. set%mode_extrun == p_ext_ptb) then
+      ! No solvation available for PTB!
+      if (set%mode_extrun == p_ext_ptb) then
          if (allocated(set%solvInput%solvent)) then
-            call env%error("Solvation is not implemented for PTB/tblite", source)
+            call env%error("Solvation is not implemented for PTB", source)
          endif
       end if
 
-      !> Spin-polarization is only available in the tblite library
+      ! Spin-polarization is only available in the tblite library
       if (set%mode_extrun /= p_ext_tblite .and. tblite%spin_polarized) then
          call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
       end if
 
-      !> If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
+      ! If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
       anyhess = (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)
       if (anyhess) then
          if(set%mode_extrun == p_ext_ptb) then
@@ -330,8 +330,9 @@ contains
 
       call env%checkpoint("Reading multiplicity from file failed")
 
-      !> efield read: gfnff and PTB only
-      if (set%mode_extrun == p_ext_gfnff .or. set%mode_extrun == p_ext_ptb) then
+      !> efield read: tblite or gfnff and PTB only
+      if (set%mode_extrun == p_ext_gfnff .or. set%mode_extrun == p_ext_ptb &
+         & .or. set%mode_extrun == p_ext_tblite) then
          call open_file(ich, '.EFIELD', 'r')
          if (ich /= -1) then
             call getline(ich, cdum, iostat=err)
@@ -339,16 +340,22 @@ contains
                call env%error('.EFIELD is empty!', source)
             else
                call set_efield(env, cdum)
+               ! Read electric field from file for tblite if not already present
+               if (set%mode_extrun == p_ext_tblite .and. .not.allocated(tblite%efield)) then
+                  allocate(tblite%efield(3))
+                  tblite%efield = set%efield
+               end if
                call close_file(ich)
             end if
          end if
       end if
 
       !> If EFIELD is not zero when using xtb, print a warning
-      if (((set%mode_extrun /= p_ext_ptb) .and. (set%mode_extrun /= p_ext_gfnff)) &
+      if (((set%mode_extrun /= p_ext_ptb) .and. (set%mode_extrun /= p_ext_gfnff) &
+         & .and. (set%mode_extrun /= p_ext_tblite)) &
          & .and. (sum(abs(set%efield)) /= 0.0_wp)) then
          call env%terminate("External electric field is not zero ('--efield' or file '.EFIELD'), &
-            & but only supported for GFN-FF and PTB")
+            & but only supported via tblite or for GFN-FF and PTB")
       end if
 
       ! ------------------------------------------------------------------------
@@ -1491,6 +1498,9 @@ contains
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_efield(env, sec)
+               ! Set electric field for tblite
+               allocate(tblite%efield(3))
+               tblite%efield = set%efield
             else
                call env%error("Electric field is not provided", source)
             end if
@@ -1719,15 +1729,31 @@ contains
          case ('-g', '--gbsa')
             call args%nextArg(sec)
             if (allocated(sec)) then
+               ! Read GBSA solvent name
                call set_gbsa(env, 'solvent', sec)
                call set_gbsa(env, 'alpb', 'false')
                call set_gbsa(env, 'kernel', 'still')
+               ! Add solvation model also to tblite input
+               if (.not. allocated(tblite%solvation)) then
+                  allocate(tblite%solvation)
+               end if
+               if (allocated(tblite%solvation%solvation_model)) then
+                  call env%error("Cannot specify multiple solvation models", source)
+               end if
+               tblite%solvation%solvation_model = "gbsa"
+               tblite%solvation%solvent = sec
+               ! Read possible reference state
                call args%nextArg(sec)
                if (allocated(sec)) then
-                  if (sec == 'reference') then
+                  if (sec == 'gsolv') then
+                     gsolvstate = solutionState%gsolv
+                     tblite%solvation%reference_state = "gsolv"
+                  else if (sec == 'reference') then
                      gsolvstate = solutionState%reference
+                     tblite%solvation%reference_state = "reference"
                   else if (sec == 'bar1M') then
                      gsolvstate = solutionState%mol1bar
+                     tblite%solvation%reference_state = "bar1M"
                   else
                      call env%warning("Unknown reference state '"//sec//"'", source)
                   end if
@@ -1740,13 +1766,29 @@ contains
             call args%nextArg(sec)
             call set_gbsa(env, 'alpb', 'true')
             if (allocated(sec)) then
+               ! Read ALPB solvent name
                call set_gbsa(env, 'solvent', sec)
+               ! Add solvation model also to tblite input
+               if (.not. allocated(tblite%solvation)) then
+                  allocate(tblite%solvation)
+               end if
+               if (allocated(tblite%solvation%solvation_model)) then
+                  call env%error("Cannot specify multiple solvation models", source)
+               end if
+               tblite%solvation%solvation_model = "alpb"
+               tblite%solvation%solvent = sec
+               ! Read possible reference state
                call args%nextArg(sec)
                if (allocated(sec)) then
-                  if (sec == 'reference') then
+                  if (sec == 'gsolv') then
+                     gsolvstate = solutionState%gsolv
+                     tblite%solvation%reference_state = "gsolv"
+                  else if (sec == 'reference') then
                      gsolvstate = solutionState%reference
+                     tblite%solvation%reference_state = "reference"
                   else if (sec == 'bar1M') then
                      gsolvstate = solutionState%mol1bar
+                     tblite%solvation%reference_state = "bar1M"
                   else
                      call env%warning("Unknown reference state '"//sec//"'", source)
                   end if
@@ -1755,17 +1797,62 @@ contains
                call env%error("No solvent name provided for ALPB", source)
             end if
 
+         case ('--gbe')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               if (.not. allocated(tblite%solvation)) then
+                  allocate(tblite%solvation)
+               end if
+               if (allocated(tblite%solvation%solvation_model)) then
+                  call env%error("Cannot specify multiple solvation models", source)
+               end if
+               tblite%solvation%solvation_model = "gbe"
+               tblite%solvation%solvent = sec
+            else
+               call env%error("No solvent name or dielectric constant provided for GBE.", source)
+            end if
+
+         case ('--gb')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               if (.not. allocated(tblite%solvation)) then
+                  allocate(tblite%solvation)
+               end if
+               if (allocated(tblite%solvation%solvation_model)) then
+                  call env%error("Cannot specify multiple solvation models", source)
+               end if
+               tblite%solvation%solvation_model = "gb"
+               tblite%solvation%solvent = sec
+            else
+               call env%error("No solvent name or dielectric constant provided for GB.", source)
+            end if
+
          case ('--cosmo', '--tmcosmo')
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_gbsa(env, 'solvent', sec)
                call set_gbsa(env, flag(3:), 'true')
+               ! Add solvation model also to tblite input
+               if (.not. allocated(tblite%solvation)) then
+                  allocate(tblite%solvation)
+               end if
+               if (allocated(tblite%solvation%solvation_model)) then
+                  call env%error("Cannot specify multiple solvation models", source)
+               end if
+               tblite%solvation%solvation_model = "cosmo"
+               tblite%solvation%solvent = sec
+               ! Read possible reference state
                call args%nextArg(sec)
                if (allocated(sec)) then
-                  if (sec == 'reference') then
-                     gsolvstate = 1
+                  if (sec == 'gsolv') then
+                     gsolvstate = solutionState%gsolv
+                     tblite%solvation%reference_state = "gsolv"
+                  else if (sec == 'reference') then
+                     gsolvstate = solutionState%reference
+                     tblite%solvation%reference_state = "reference"
                   else if (sec == 'bar1M') then
-                     gsolvstate = 2
+                     gsolvstate = solutionState%mol1bar
+                     tblite%solvation%reference_state = "bar1M"
                   else
                      call env%warning("Unknown reference state '"//sec//"'", source)
                   end if
