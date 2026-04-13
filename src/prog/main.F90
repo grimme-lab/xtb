@@ -1500,7 +1500,9 @@ contains
             if (allocated(sec)) then
                call set_efield(env, sec)
                ! Set electric field for tblite
-               allocate(tblite%efield(3))
+               if (.not. allocated(tblite%efield)) then
+                  allocate(tblite%efield(3))
+               end if
                tblite%efield = set%efield
             else
                call env%error("Electric field is not provided", source)

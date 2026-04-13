@@ -84,12 +84,12 @@ write(iunit,'(3x,a)') &
    "  DOI: 10.1063/5.0137838",&
    "",&
    "with help from (in alphabetical order)",&
-   "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
-   "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, I. Gerasimov, C. Hölzer", &
-   "A. Katbashev, J. Kohn, J. Koopman, C. Lavigne, S. Lehtola, F. März, M. Müller,", &
-   "F. Musil, H. Neugebauer, J. Pisarek, C. Plett, P. Pracht, F. Pultar,", &
-   "J. Seibert, P. Shushkov, S. Spicher, M. Stahn, M. Steiner, T. Strunk,", &
-   "J. Stückrath, T. Rose, and J. Unsleber", &
+   "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher,", &
+   "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, M. Friede, T. Froitzheim,", &
+   "I. Gerasimov, C. Hölzer, A. Katbashev, J. Kohn, J. Koopman, C. Lavigne,", &
+   "S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer, J. Pisarek,", &
+   "C. Plett, P. Pracht, F. Pultar, J. Seibert, P. Shushkov, S. Spicher,", &
+   "M. Stahn, M. Steiner, T. Strunk, J. Stückrath, T. Rose, and J. Unsleber", &
    ""
 end subroutine citation
 
@@ -182,7 +182,7 @@ subroutine help(iunit)
    "    The Gsolv reference state can be chosen as reference, bar1M, or gsolv (default).",&
    "",&
    "--gbe SOLVENT/EPSILON",&
-   "    Use generalized Born for finite epsilion (GBE) solvation model (tblite required).", &
+   "    Use generalized Born for finite epsilon (GBE) solvation model (tblite required).", &
    "    Solvent is specified by dielectric constant or the solvent name.",&
    "",&
    "--gb SOLVENT/EPSILON",&

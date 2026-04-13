@@ -173,8 +173,6 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
    type(structure_type) :: struc
    type(param_record) :: param
 
-   write(*,*) "Creating new TBLite calculator"
-   
    struc = mol
 
    calc%nspin = merge(2, 1, input%spin_polarized)
@@ -189,6 +187,7 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
       if (.not. allocated(error)) then
          call new_xtb_calculator(calc%tblite, struc, param, error)
       end if
+      method = calc%tblite%method
    else
       method = "gfn2"
       if (allocated(input%method)) method = input%method
@@ -245,7 +244,6 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
          allocate(solv_input)
          call construct_solv_input(input%solvation, solv_input, error)
          if (allocated(error)) then
-            write(*,*) "Error constructing solvation input: ", error%message
             call env%error(error%message, source)
             return
          end if
@@ -328,6 +326,7 @@ subroutine construct_solv_input(input, solv_input, error)
       end if
    else
       call fatal_error(error, "No solvent/dielectric constant specified")
+      return
    end if
 
    ! Check if a solvation state is provided
@@ -512,12 +511,18 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! Wiberg-Mayer bond orders
    wbo_label = "bond-orders"
    call add_post_processing(post_proc, wbo_label, error)
-   if (allocated(error)) return
+   if (allocated(error)) then
+      call env%error(error%message, source)
+      return
+   end if
 
    ! Molecular multipole moments
    molmom_label = "molmom"
    call add_post_processing(post_proc, molmom_label, error)
-   if (allocated(error)) return
+   if (allocated(error)) then
+      call env%error(error%message, source)
+      return
+   end if
 
    ! Needed to update atomic charges after reading restart file
    call get_qat_from_qsh(self%tblite%bas, chk%tblite%qsh, chk%tblite%qat)

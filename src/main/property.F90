@@ -347,6 +347,9 @@ module xtb_propertyoutput
 
       ! Fragment-resolved Wiberg-Mayer bond orders
       if (set%pr_wbofrag) then
+         if (.not. allocated(wbo)) then
+            call res%tblite_results%dict%get_entry("bond-orders", wbo)
+         end if
          call print_wbo_fragment(iunit, struc%nat, struc%num, wbo, 0.1_wp)
       end if
       write (iunit, '(a)')
