@@ -280,6 +280,125 @@ module xtb_propertyoutput
 
    end subroutine main_property
 
+
+   subroutine tblite_property(iunit, env, wfx, calc, mol, res)
+      use mctc_io, only : structure_type
+      use xtb_setparam
+      use xtb_type_molecule, only: TMolecule, assignment(=)
+      use xtb_type_restart, only: TRestart
+      use xtb_type_environment,  only: TEnvironment
+      use xtb_type_data, only: scc_results
+      use xtb_type_calculator, only: TCalculator
+      use xtb_tblite_calculator, only: TTBLiteCalculator
+#if WITH_TBLITE
+      use tblite_output_ascii, only : ascii_levels, ascii_atomic_charges, &
+         & ascii_dipole_moments, ascii_quadrupole_moments
+#endif
+
+      implicit none
+      
+      !> Output unit identifier
+      integer, intent(in) :: iunit
+      !> Molecular structure data
+      type(TMolecule), intent(in) :: mol
+      !> Environment data
+      type(TEnvironment), intent(inout) :: env
+      !> xTB wavefunction data
+      type(TRestart),  intent(inout) :: wfx
+      !> TBLite calculator instance
+      type(TTbliteCalculator), intent(in) :: calc
+      !> SCC results container
+      type(scc_results), intent(in) :: res
+
+#if WITH_TBLITE
+      type(structure_type) :: struc
+      integer :: ifile
+      real(wp) :: dip
+      real(wp), allocatable :: wbo(:, :), dpmom(:), qpmom(:)
+
+      struc = mol
+
+      ! Orbital energies and occupation
+      if (set%pr_eig) then
+         write (iunit, '(/,4x,"*",1x,a)') "Orbital Energies and Occupations"
+         call ascii_levels(iunit, 0, wfx%tblite%emo, wfx%tblite%focc, 11)
+      end if
+
+      ! Mulliken charges
+      if (set%pr_mulliken) then
+         call ascii_atomic_charges(iunit, 0, struc, wfx%tblite%qat(:, 1))
+      end if
+      if (set%pr_charges) then
+         call open_file(ifile, 'charges', 'w')
+         call print_charges(ifile, struc%nat, wfx%tblite%qat(:, 1))
+         call close_file(ifile)
+      end if
+
+      ! Wiberg-Mayer bond orders
+      if (set%pr_wiberg) then
+         call res%tblite_results%dict%get_entry("bond-orders", wbo)
+         call open_file(ifile, 'wbo', 'w')
+         call print_wbofile(ifile, struc%nat, wbo, 0.1_wp)
+         call close_file(ifile)
+         call print_wiberg(iunit, struc%nat, struc%num, mol%sym, wbo, 0.1_wp)
+
+         call checkTopology(iunit, mol, wbo, 1)
+      end if
+
+      ! Fragment-resolved Wiberg-Mayer bond orders
+      if (set%pr_wbofrag) then
+         call print_wbo_fragment(iunit, struc%nat, struc%num, wbo, 0.1_wp)
+      end if
+
+      write (iunit, '(a)')
+
+      ! ! Molden file
+      ! if (set%pr_molden_input) then
+      !    allocate (C(basis%nbf, basis%nao), focc(basis%nao), emo(basis%nao), source=0.0_wp)
+      !    if (basis%nbf == basis%nao) then
+      !       C = wfx%C
+      !    else
+      !       call sao2cao(basis%nao, wfx%C, basis%nbf, C, basis)
+      !    end if
+      !    emo = wfx%emo * evtoau
+      !    focc = wfx%focca + wfx%foccb
+      !    call printmold(mol%n, basis%nao, basis%nbf, mol%xyz, mol%at, C, emo, focc, 2.0_wp, basis)
+      !    write (iunit, '(/,"MOs/occ written to file <molden.input>",/)')
+      !    deallocate (C, focc, emo)
+      ! end if
+
+      ! Multipole moments
+      if (set%pr_dipole) then
+         call res%tblite_results%dict%get_entry("molecular-dipole", dpmom)
+         call ascii_dipole_moments(iunit, 1, struc, wfx%tblite%dpat(:, :, 1), dpmom)
+         dip = norm2(dpmom)
+         write (iunit, '(4x,"Total dipole moment (a.u. / Debye):",2f9.4)') &
+               & dip, dip * autod
+         write (iunit, '(a)')
+
+         if (calc%tblite%method == "gfn2") then
+            call res%tblite_results%dict%get_entry("molecular-quadrupole", qpmom)
+            call ascii_quadrupole_moments(iunit, 1, struc, wfx%tblite%qpat(:, :, 1), qpmom)
+         end if
+      end if
+
+#else 
+      call feature_not_implemented(env)
+#endif
+
+   end subroutine tblite_property
+
+#if ! WITH_TBLITE
+   subroutine feature_not_implemented(env)
+      use xtb_type_environment,  only: TEnvironment
+      implicit none
+      !> Computational environment
+      type(TEnvironment), intent(inout) :: env
+
+      call env%error("Compiled without support for tblite library")
+   end subroutine feature_not_implemented
+#endif
+
    !> wrapper for tblite-PTB property output
    subroutine ptb_property&
                      (iunit, env, chk, calc, mol, res)

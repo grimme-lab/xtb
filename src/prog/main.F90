@@ -677,6 +677,7 @@ contains
             call loadRestart(env, chk, 'xtbrestart', exist)
             if (exist) write (env%unit, "(a)") "Wavefunction read from restart file"
          end if
+         ipeashift = calc%ipeashift
       type is (TOniomCalculator)
          select type (xtb => calc%real_low)
          type is (TxTBCalculator)
@@ -1052,6 +1053,8 @@ contains
             call main_property(iprop, env, mol, chk%wfn, calc%basis, calc%xtbData, res, &
                & calc%solvation, set%acc)
             call main_cube(set%verbose, mol, chk%wfn, calc%basis, res)
+         type is (TTBLiteCalculator)
+            call tblite_property(iprop, env, chk, calc, mol, res)
          type is (TGFFCalculator)
             call gfnff_property(iprop, mol%n, mol%xyz, calc%topo, chk%nlist)
          type is (TPTBCalculator)

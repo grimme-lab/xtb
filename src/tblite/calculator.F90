@@ -25,7 +25,7 @@ module xtb_tblite_calculator
    use mctc_env, only : error_type, fatal_error
    use mctc_io, only : structure_type, read_structure, filetype
    use mctc_io_constants, only : codata
-   use mctc_io_convert, only : aatoau, ctoau
+   use mctc_io_convert, only : aatoau, ctoau, autoev
 #if WITH_TBLITE
    use tblite_basis_type, only : basis_type
    use tblite_ceh_ceh, only : new_ceh_calculator
@@ -33,6 +33,7 @@ module xtb_tblite_calculator
    use tblite_context, only : context_type, context_terminal, escape
    use tblite_external_field, only : electric_field
    use tblite_param, only : param_record
+   use tblite_post_processing_list, only : add_post_processing, post_processing_list
    use tblite_results, only : results_type
    use tblite_spin, only : spin_polarization, new_spin_polarization
    use tblite_solvation, only : solvation_type, solvation_input, new_solvation, &
@@ -120,6 +121,8 @@ module xtb_tblite_calculator
       character(len=:), allocatable :: guess
       !> Colorful output
       logical :: color
+      !> Shift for IP/EA calculations
+      real(wp) :: ipeashift
 #if WITH_TBLITE
       !> Instance of tblite calculator
       type(xtb_calculator) :: tblite
@@ -141,6 +144,9 @@ module xtb_tblite_calculator
    real(wp), parameter :: jtoau = 1.0_wp / (codata%me*codata%c**2*codata%alpha**2)
    !> Convert V/Å = J/(C·Å) to atomic units
    real(wp), parameter :: vatoau = jtoau / (ctoau * aatoau)
+
+   !> Global IP/EA shift for all models in Hartree
+   real(wp), parameter :: global_ipeashift = 0.17806900_wp
 
    character(len=*),private,parameter :: outfmt = &
       '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
@@ -283,6 +289,9 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
          end if
       end block
    end if
+
+   ! Set the IP/EA shift globally for all models
+   calc%ipeashift = global_ipeashift
 
 #else
     call feature_not_implemented(env)
@@ -489,17 +498,32 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical :: exist
    type(error_type), allocatable :: error
    type(context_type) :: ctx
+   type(post_processing_list), allocatable :: post_proc
    real(wp) :: efix
+   real(wp), allocatable :: dpmom(:), qpmom(:)
+   character(len=:), allocatable :: wbo_label, molmom_label
 
    struc = mol
    ctx%unit = env%unit
    ctx%terminal = context_terminal(self%color)
 
+   ! Setup the required post-processing
+   allocate(post_proc)
+   ! Wiberg-Mayer bond orders
+   wbo_label = "bond-orders"
+   call add_post_processing(post_proc, wbo_label, error)
+   if (allocated(error)) return
+
+   ! Molecular multipole moments
+   molmom_label = "molmom"
+   call add_post_processing(post_proc, molmom_label, error)
+   if (allocated(error)) return
+
    ! Needed to update atomic charges after reading restart file
    call get_qat_from_qsh(self%tblite%bas, chk%tblite%qsh, chk%tblite%qat)
 
    call xtb_singlepoint(ctx, struc, self%tblite, chk%tblite, self%accuracy, &
-      & energy, gradient, sigma, printlevel)
+      & energy, gradient, sigma, printlevel, results%tblite_results, post_proc)
    if (ctx%failed()) then
       do while(ctx%failed())
          call ctx%get_error(error)
@@ -629,8 +653,6 @@ end subroutine get_spin_constants
 !> get CEH charges via tblite
 subroutine get_ceh(env,mol,tblite, ceh_chrg)
 
-   use xtb_propertyoutput, only : print_charges
-
    !> computational environment
    type(TEnvironment), intent(inout) :: env
 
@@ -680,6 +702,19 @@ subroutine get_ceh(env,mol,tblite, ceh_chrg)
 #endif
 
 end subroutine get_ceh
+
+subroutine print_charges(ifile, n, q)
+   implicit none
+   integer, intent(in) :: ifile
+   integer, intent(in) :: n
+   real(wp), intent(in) :: q(n)
+   integer :: i
+   if (ifile /= -1) then
+      do i = 1, n
+         write (ifile, '(f14.8)') q(i)
+      end do
+   end if
+end subroutine print_charges
 
 !> get numerical gradients for charges
 subroutine num_grad_chrg(env, mol, tblite)
