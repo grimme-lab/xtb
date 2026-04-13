@@ -119,49 +119,47 @@ contains
       real(wp), allocatable, intent(out) :: v_es_sh(:)
       !> (optional) Electric field
       real(wp), intent(in), optional :: efield(:)
-      !> PTB electronic solver
-      class(ptb_solver_type), allocatable :: ptbsolver
-      !> Error type
+
+      ! PTB electronic solver
+      type(ptb_solver_type) :: ptbsolver
+      ! Error type
       type(error_type), allocatable :: error
-      !> Coulomb potential
+      ! Coulomb potential
       type(coulomb_potential) :: coulomb
-      !> +U potential
+      ! +U potential
       type(plusu_potential_type) :: plusu
-      !> Potential type
+      ! Potential type
       type(potential_type) :: pot
-      !> H0 basis in second iteration
+      ! H0 basis in second iteration
       type(basis_type), allocatable :: bas_h0
-      !> Restart data for interaction containers
+      ! Restart data for interaction containers
       type(container_cache) :: icache
-      !> Electric field object
+      ! Electric field object
       type(electric_field) :: efield_object
       real(wp), allocatable :: expscal_h0_2nditer(:, :)
-      !> Loop variables
+      ! Loop variables
       integer :: i, j, isp, izp, iat, ish, iid, is
-      !> Coordination numbers
+      ! Coordination numbers
       real(wp), intent(out) :: cn_star(mol%nat)
       real(wp) :: cn(mol%nat), cn_eeq(mol%nat), qloc_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
-      !> Lattice points
+      ! Lattice points
       real(wp), allocatable :: lattr(:, :)
-      !> Cutoff for lattice points
+      ! Cutoff for lattice points
       real(wp) :: cutoff
-      !> Number of electrons
+      ! Number of electrons
       real(wp) :: nel
-      !> Shell populations required for Pauli XC potential
+      ! Shell populations required for Pauli XC potential
       real(wp), allocatable :: psh(:, :)
-      !> Tmp variable for dipole moment
+      ! Tmp variable for dipole moment
       real(wp) :: tmpdip(3)
       real(wp), allocatable :: mulliken_qsh(:, :), mulliken_qat(:, :)
 
-      !> debug mode
+      ! debug mode
       logical, parameter :: alternative_dipole = .false.
       logical, parameter :: debug(15) = [ .false., .false., .false., .false., .false., &
                               .false., .false., .false., .false., .false., .false., &
                               .false., .false., .false., .false.] 
-
-      !> Solver for the effective Hamiltonian (specified for each diagonalization)
-      allocate(ptbsolver)
 
       if (present(efield)) then
          efield_object = electric_field(efield)

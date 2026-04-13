@@ -98,29 +98,27 @@ contains
       real(wp), intent(out) :: alpha(3, 3)
       !> (optional) Electric field
       real(wp), intent(in), optional :: efield(:)
-      !> Error type
+
+      ! Error type
       type(error_type), allocatable :: error
-      !> Potential type
+      ! Potential type
       type(potential_type) :: pot
-      !> Restart data for interaction containers
+      ! Restart data for interaction containers
       type(container_cache) :: icache
-      !> Electric field object
+      ! Electric field object
       type(electric_field) :: efield_object
-      !> PTB electronic solver
-      class(ptb_solver_type), allocatable :: ptbsolver
-      !> Molecular dipole moment
+      ! PTB electronic solver
+      type(ptb_solver_type) :: ptbsolver
+      ! Molecular dipole moment
       real(wp) :: dip_plus(3), dip_minus(3)
       real(wp) :: eff_ef(3), tmp_ef(3)
-      !> Loop variables
+      ! Loop variables
       integer :: k, i, j
 
 
       !> debug mode
       logical, parameter :: debug(4) = &
                [ .false., .false., .false., .false. ]
-
-      !> Solver for the effective Hamiltonian (specified for each diagonalization)
-      allocate(ptbsolver)
 
       alpha = 0.0_wp
       if (present(efield)) then
@@ -279,31 +277,29 @@ contains
       type(electric_field), intent(in) :: efield
       !> Dipole moment
       real(wp), intent(out) :: dipole(3)
-      !> PTB electronic solver
-      class(ptb_solver_type), allocatable :: ptbsolver
-      !> Error type
+
+      ! PTB electronic solver
+      type(ptb_solver_type) :: ptbsolver
+      ! Error type
       type(error_type), allocatable :: error
-      !> Restart data for interaction containers
+      ! Restart data for interaction containers
       type(container_cache) :: icache
-      !> Potential type
+      ! Potential type
       type(potential_type) :: pot
-      !> Coulomb potential
+      ! Coulomb potential
       type(coulomb_potential) :: coulomb
-      !> +U potential
+      ! +U potential
       type(plusu_potential_type) :: plusu
-      !> Shell popoulations
+      ! Shell popoulations
       real(wp), allocatable :: psh(:, :)
-      !> Temporary Mulliken populations
+      ! Temporary Mulliken populations
       real(wp), allocatable :: mulliken_qsh(:, :), mulliken_qat(:, :)
-      !> Tmp variable for dipole moment
+      ! Tmp variable for dipole moment
       real(wp) :: tmpdip(3)
       integer :: i, j, iat, izp, ii, ish
 
       !> debug mode
       logical, parameter :: debug = .false.
-
-      !> Solver for the effective Hamiltonian (specified for each diagonalization)
-      allocate(ptbsolver)
 
       !> Reset H0 matrix
       ints%hamiltonian = 0.0_wp
