@@ -20,7 +20,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND srcs
   "${dir}/calculator.F90"
   "${dir}/param.F90"
-  "${dir}/data.f90"
+  "${dir}/data.F90"
   "${dir}/vdzp.F90"
   "${dir}/twostepscf.F90"
   "${dir}/mmlpopanalysis.F90"
