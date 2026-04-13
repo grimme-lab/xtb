@@ -581,7 +581,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          write(env%unit,'(9x,"::",49("."),"::")')
          select case(self%tblite%method)
          case default
-            call fatal_error(error, "Unknown method '"//self%tblite%method)//"'"
+            call fatal_error(error, "Unknown method '"//self%tblite%method//"'")
          case("gfn2")
             write(env%unit,outfmt) "GFN2-xTB energy   ", energy - efix,       "Eh   "
          case("gfn1")
