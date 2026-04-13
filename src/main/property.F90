@@ -349,23 +349,7 @@ module xtb_propertyoutput
       if (set%pr_wbofrag) then
          call print_wbo_fragment(iunit, struc%nat, struc%num, wbo, 0.1_wp)
       end if
-
       write (iunit, '(a)')
-
-      ! ! Molden file
-      ! if (set%pr_molden_input) then
-      !    allocate (C(basis%nbf, basis%nao), focc(basis%nao), emo(basis%nao), source=0.0_wp)
-      !    if (basis%nbf == basis%nao) then
-      !       C = wfx%C
-      !    else
-      !       call sao2cao(basis%nao, wfx%C, basis%nbf, C, basis)
-      !    end if
-      !    emo = wfx%emo * evtoau
-      !    focc = wfx%focca + wfx%foccb
-      !    call printmold(mol%n, basis%nao, basis%nbf, mol%xyz, mol%at, C, emo, focc, 2.0_wp, basis)
-      !    write (iunit, '(/,"MOs/occ written to file <molden.input>",/)')
-      !    deallocate (C, focc, emo)
-      ! end if
 
       ! Multipole moments
       if (set%pr_dipole) then
@@ -381,23 +365,12 @@ module xtb_propertyoutput
             call ascii_quadrupole_moments(iunit, 1, struc, wfx%tblite%qpat(:, :, 1), qpmom)
          end if
       end if
-
 #else 
-      call feature_not_implemented(env)
+      call env%error("Compiled without support for tblite library")
 #endif
 
    end subroutine tblite_property
 
-#if ! WITH_TBLITE
-   subroutine feature_not_implemented(env)
-      use xtb_type_environment,  only: TEnvironment
-      implicit none
-      !> Computational environment
-      type(TEnvironment), intent(inout) :: env
-
-      call env%error("Compiled without support for tblite library")
-   end subroutine feature_not_implemented
-#endif
 
    !> wrapper for tblite-PTB property output
    subroutine ptb_property&

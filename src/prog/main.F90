@@ -220,12 +220,11 @@ contains
       xenv%path = env%xtbpath
 
       ! ------------------------------------------------------------------------
-      !> read the command line arguments
-
+      ! read the command line arguments
       call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
          & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
-      
+
       ! No solvation available for PTB!
       if (set%mode_extrun == p_ext_ptb) then
          if (allocated(set%solvInput%solvent)) then
@@ -295,14 +294,14 @@ contains
       call env%checkpoint("Command line argument parsing failed")
 
       ! ------------------------------------------------------------------------
-      !> read the detailed input file
+      ! read the detailed input file
       call rdcontrol(xcontrol, env, copy_file=copycontrol)
 
       call env%checkpoint("Reading '"//xcontrol//"' failed")
 
       ! ------------------------------------------------------------------------
-      !> read dot-Files before reading the rc and after reading the xcontrol
-      !> Total molecular charge
+      ! read dot-Files before reading the rc and after reading the xcontrol
+      ! Total molecular charge
       call open_file(ich, '.CHRG', 'r')
       if (ich /= -1) then
          call getline(ich, cdum, iostat=err)
@@ -316,7 +315,7 @@ contains
 
       call env%checkpoint("Reading charge from file failed")
 
-      !> Number of unpaired electrons
+      ! Number of unpaired electrons
       call open_file(ich, '.UHF', 'r')
       if (ich /= -1) then
          call getline(ich, cdum, iostat=err)
@@ -330,7 +329,7 @@ contains
 
       call env%checkpoint("Reading multiplicity from file failed")
 
-      !> efield read: tblite or gfnff and PTB only
+      ! efield read: tblite or gfnff and PTB only
       if (set%mode_extrun == p_ext_gfnff .or. set%mode_extrun == p_ext_ptb &
          & .or. set%mode_extrun == p_ext_tblite) then
          call open_file(ich, '.EFIELD', 'r')
@@ -340,7 +339,7 @@ contains
                call env%error('.EFIELD is empty!', source)
             else
                call set_efield(env, cdum)
-               ! Read electric field from file for tblite if not already present
+               ! Take electric field from file also for tblite if not already present
                if (set%mode_extrun == p_ext_tblite .and. .not.allocated(tblite%efield)) then
                   allocate(tblite%efield(3))
                   tblite%efield = set%efield
@@ -350,7 +349,7 @@ contains
          end if
       end if
 
-      !> If EFIELD is not zero when using xtb, print a warning
+      ! If EFIELD is not zero when using xtb, print a warning
       if (((set%mode_extrun /= p_ext_ptb) .and. (set%mode_extrun /= p_ext_gfnff) &
          & .and. (set%mode_extrun /= p_ext_tblite)) &
          & .and. (sum(abs(set%efield)) /= 0.0_wp)) then
@@ -359,7 +358,7 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> read the xtbrc if you can find it (use rdpath directly instead of xfind)
+      ! read the xtbrc if you can find it (use rdpath directly instead of xfind)
       call rdpath(env%xtbpath, p_fname_rc, xrc, exist)
       if (exist) then
          call rdcontrol(xrc, env, copy_file=.false.)
@@ -368,27 +367,27 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> FIXME: some settings that are still not automatic
-      !> Make sure GFN0-xTB uses the correct exttyp
+      ! FIXME: some settings that are still not automatic
+      ! Make sure GFN0-xTB uses the correct exttyp
       if (set%gfn_method == 0) call set_exttyp('eht')
       rohf = 1 ! HS default
       egap = 0.0_wp
       ipeashift = 0.0_wp
 
       ! ========================================================================
-      !> no user interaction up to now, time to show off!
-      !> print the xtb banner with version number and compilation date
-      !> making a fancy version of this is hard, x is difficult in ASCII art
+      ! no user interaction up to now, time to show off!
+      ! print the xtb banner with version number and compilation date
+      ! making a fancy version of this is hard, x is difficult in ASCII art
       call xtb_header(env%unit)
-      !> make sure you cannot blame us for destroying your computer
+      ! make sure you cannot blame us for destroying your computer
       call disclamer(env%unit)
-      !> how to cite this program
+      ! how to cite this program
       call citation(env%unit)
-      !> print current time
+      ! print current time
       call prdate('S')
 
       ! ------------------------------------------------------------------------
-      !> get molecular structure
+      ! get molecular structure
       if (coffee) then ! it's coffee time
          fname = 'caffeine'
          call get_coffee(mol)
@@ -416,7 +415,7 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> initialize the global storage
+      ! initialize the global storage
       call init_fix(mol%n)
       call init_split(mol%n)
       call init_constr(mol%n, mol%at)
@@ -428,15 +427,15 @@ contains
       else
          call init_metadyn(mol%n, metaset%maxsave)
       end if
-      !> Initialize the atomic masses with the physical constants
+      ! Initialize the atomic masses with the physical constants
       atmass = atomic_mass(mol%at) * autoamu ! from splitparam.f90
       call load_rmsdbias(rmsdset, mol%n, mol%at, mol%xyz)
       ! ------------------------------------------------------------------------
-      !> CONSTRAINTS & SCANS
-      !> now we are at a point that we can check for requested constraints
+      ! CONSTRAINTS & SCANS
+      ! now we are at a point that we can check for requested constraints
       call read_userdata(xcontrol, env, mol)
       ! ------------------------------------------------------------------------
-      !> get some memory
+      ! get some memory
       allocate (cn(mol%n), sat(mol%n), g(3, mol%n), source=0.0_wp)
       set%periodic = mol%npbc > 0
       if (mol%npbc == 0) then
@@ -454,7 +453,7 @@ contains
          if (mol%at(i) > 57 .and. mol%at(i) < 72) mol%z(i) = 3
       end do
 
-      !> initialize time step for MD if requested autocomplete
+      ! initialize time step for MD if requested autocomplete
       if (set%tstep_md < 0.0_wp) then
          set%tstep_md = (minval(atmass) / (atomic_mass(1) * autoamu))**(1.0_wp / 3.0_wp)
       end if
@@ -467,7 +466,7 @@ contains
       call setup_summary(env%unit, mol%n, fname, xcontrol, chk%wfn, xrc)
 
       ! ------------------------------------------------------------------------
-      !> 2D => 3D STRUCTURE CONVERTER
+      ! 2D => 3D STRUCTURE CONVERTER
       ! ------------------------------------------------------------------------
       if (mol%info%two_dimensional) then
          call struc_convert(env, restart, mol, chk, egap, set%etemp, set%maxscciter, &
@@ -484,10 +483,10 @@ contains
          write (env%unit, '(3x,a)') "--------------------------------------"
       end if
 
-      !> initialize metadynamics
+      ! initialize metadynamics
       call load_metadynamic(metaset, mol%n, mol%at, mol%xyz)
 
-      !> restraining potential
+      ! restraining potential
       if (allocated(potset%xyz)) then
          if (lconstr_all_bonds) call constrain_all_bonds(mol%n, mol%at, potset%xyz)
          if (lconstr_all_angles) call constrain_all_angles(mol%n, mol%at, potset%xyz)
@@ -512,7 +511,7 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> write copy of detailed input
+      ! write copy of detailed input
       if (copycontrol) then
          call open_set(ictrl, xcontrol)
          call write_set(ictrl)
@@ -520,7 +519,7 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> if you have requested a define we stop here...
+      ! if you have requested a define we stop here...
       if (set%define) then
          if (set%verbose) call main_geometry(env%unit, mol)
          call eval_define(set%veryverbose)
@@ -529,26 +528,25 @@ contains
       call raise('F', 'Please study the warnings concerning your input carefully')
 
       ! ========================================================================
-      !> From here we switch to the method setup
-      !> enable error on warnings
+      ! From here we switch to the method setup
+      ! enable error on warnings
       if (strict) call mctc_strict
       env%strict = strict
 
-      !> one last check on the input geometry
+      ! one last check on the input geometry
       call check_cold_fusion(env, mol, cold_fusion)
       if (cold_fusion) then
          call env%error("XTB REFUSES TO CONTINUE WITH THIS CALCULATION!")
          call env%terminate("Some atoms in the start geometry are *very* close")
       end if
 
-      !> check if someone is still using GFN3...
+      ! check if someone is still using GFN3...
       if (set%gfn_method == 3) then
          call env%terminate('Wait for some months - for now, please use gfn_method=2!')
       end if
 
       ! ------------------------------------------------------------------------
-      !> Print the method header and select the parameter file
-
+      ! Print the method header and select the parameter file
       if (.not. allocated(fnv)) then
          select case (set%runtyp)
          case default
@@ -589,7 +587,7 @@ contains
       end if
 
       !-------------------------------------------------------------------------
-      !> Perform a precomputation of electronic properties for xTB-IFF
+      ! Perform a precomputation of electronic properties for xTB-IFF
       if (set%mode_extrun == p_ext_iff) then
          allocate (iff_data)
          call prepare_IFF(env, mol, iff_data)
@@ -597,7 +595,7 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> Obtain the parameter data
+      ! Obtain the parameter data
       call newCalculator(env, mol, calc, fnv, restart, set%acc, oniom, iff_data, tblite)
       call env%checkpoint("Could not setup single-point calculator")
 
@@ -605,7 +603,7 @@ contains
       call env%checkpoint("Could not setup defaults")
 
       ! ------------------------------------------------------------------------
-      !> initial guess, setup wavefunction
+      ! initial guess, setup wavefunction
       select type (calc)
       type is (TxTBCalculator)
          call chk%wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
@@ -618,7 +616,7 @@ contains
             chk%wfn%nopen = mol%uhf
          end if
 
-         !> EN charges and CN
+         ! EN charges and CN
          if (set%gfn_method < 2) then
             call ncoord_d3(mol%n, mol%at, mol%xyz, cn)
          else
@@ -638,7 +636,7 @@ contains
                chk%wfn%q = real(set%ichrg, wp) / real(mol%n, wp)
             end if
          end if
-         !> initialize shell charges from gasteiger charges
+         ! initialize shell charges from gasteiger charges
          call iniqshell(calc%xtbData, mol%n, mol%at, mol%z, calc%basis%nshell, chk%wfn%q, chk%wfn%qsh, set%gfn_method)
       type is (TTBLiteCalculator)
          call newTBLiteWavefunction(env, mol, calc, chk)
@@ -696,7 +694,7 @@ contains
          end if
       end select
       !-------------------------------------------------------------------------
-      !> DIPRO calculation of coupling integrals for dimers
+      ! DIPRO calculation of coupling integrals for dimers
       if (dipro%diprocalc) then
          call start_timing(11)
          call get_jab(env, tblite, mol, splitlist, dipro)
@@ -711,7 +709,7 @@ contains
       end if
 
       ! ========================================================================
-      !> the SP energy which is always done
+      ! the SP energy which is always done
       call start_timing(2)
       call calc%singlepoint(env, mol, chk, 2, exist, etot, g, sigma, egap, res)
       call stop_timing(2)
@@ -721,7 +719,7 @@ contains
       end select
       call env%checkpoint("Single point calculation terminated")
 
-      !> write 2d => 3d converted structure
+      ! write 2d => 3d converted structure
       if (struc_conversion_done) then
          call generateFileName(tmpname, 'gfnff_convert', extension, mol%ftype)
          write (env%unit, '(10x,a,1x,a,/)') &
@@ -732,7 +730,7 @@ contains
       end if
 
       ! ========================================================================
-      !> determine kopt for bhess including final biased geometry optimization
+      ! determine kopt for bhess including final biased geometry optimization
       if (set%runtyp == p_run_bhess) then
          call set_metadynamic(metaset, mol%n, mol%at, mol%xyz)
          call get_kopt(metaset, env, restart, mol, chk, calc, egap, set%etemp, set%maxscciter, &
@@ -740,7 +738,7 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> numerical gradient for debugging purposes
+      ! numerical gradient for debugging purposes
       if (debug) then
          !  generate a warning to keep release versions from calculating numerical gradients
          call env%warning('XTB IS CALCULATING NUMERICAL GRADIENTS, RESET DEBUG FOR RELEASE!')
@@ -768,7 +766,7 @@ contains
          deallocate (coord)
       end if
 
-      !> numerical sigma (=volume*stressTensor) for debugging purposes
+      ! numerical sigma (=volume*stressTensor) for debugging purposes
       if (debug .and. mol%npbc == 3) then
          !  generate a warning to keep release versions from calculating numerical gradients
          call env%warning('XTB IS CALCULATING NUMERICAL STRESS, RESET DEBUG FOR RELEASE!')
@@ -885,7 +883,7 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> automatic VIP and VEA single point (maybe after optimization)
+      ! automatic VIP and VEA single point (maybe after optimization)
       if (set%runtyp == p_run_vip .or. set%runtyp == p_run_vipea &
          & .or. set%runtyp == p_run_vomega) then
          call start_timing(2)
@@ -926,7 +924,7 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> vomega (electrophilicity) index
+      ! vomega (electrophilicity) index
       if (set%runtyp == p_run_vomega) then
          write (env%unit, '(a)')
          write (env%unit, '(72("-"))')
@@ -940,14 +938,14 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
-      !> Fukui Index from Mulliken population analysis
+      ! Fukui Index from Mulliken population analysis
       if (set%runtyp == p_run_vfukui) then
          allocate (fukui(3, mol%n))
          call vfukui(env, mol, chk, calc, fukui)
       end if
 
       ! ------------------------------------------------------------------------
-      !> numerical hessian calculation
+      ! numerical hessian calculation
       if ((set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)) then
          if (set%runtyp == p_run_bhess .and. set%mode_extrun /= p_ext_turbomole) then
             call generic_header(env%unit, "Biased Numerical Hessian", 49, 10)
@@ -975,7 +973,7 @@ contains
          res%hl_gap = chk%wfn%emo(chk%wfn%ihomo + 1) - chk%wfn%emo(chk%wfn%ihomo)
       end if
 
-      !> CPCM-X post-SCF solvation
+      ! CPCM-X post-SCF solvation
       if (allocated(calc%solvation)) then
          if (allocated(calc%solvation%cpxsolvent)) then
             select type (calc)
@@ -1000,7 +998,7 @@ contains
       call env%checkpoint("Calculation terminated")
 
       ! ========================================================================
-      !> PRINTOUT SECTION
+      ! PRINTOUT SECTION
       if (allocated(set%property_file)) then
          call open_file(iprop, set%property_file, 'w')
          if (iprop == -1) then
