@@ -151,7 +151,7 @@ srcs += files(
   'thermo.f90',
   'timing.f90',
   'topology.f90',
-  'vertical.f90',
+  'vertical.F90',
   'wrbas.f90',
   'wrgbw.f90',
   'wrmodef.f90',

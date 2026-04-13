@@ -18,7 +18,7 @@
 srcs += files(
   'calculator.F90',
   'param.F90',
-  'data.F90',
+  'data.f90',
   'vdzp.F90',
   'twostepscf.F90',
   'integrals.F90',

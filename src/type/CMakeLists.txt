@@ -24,7 +24,7 @@ list(APPEND srcs
   "${dir}/buffer.f90"
   "${dir}/calculator.f90"
   "${dir}/coulomb.f90"
-  "${dir}/data.f90"
+  "${dir}/data.F90"
   "${dir}/dispersion_model.f90"
   "${dir}/environment.f90"
   "${dir}/fragments.f90"

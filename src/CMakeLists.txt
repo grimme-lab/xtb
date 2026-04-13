@@ -153,7 +153,7 @@ list(APPEND srcs
   "${dir}/thermo.f90"
   "${dir}/timing.f90"
   "${dir}/topology.f90"
-  "${dir}/vertical.f90"
+  "${dir}/vertical.F90"
   "${dir}/wrbas.f90"
   "${dir}/wrgbw.f90"
   "${dir}/wrmodef.f90"

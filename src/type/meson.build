@@ -22,7 +22,7 @@ srcs += files(
   'buffer.f90',
   'calculator.f90',
   'coulomb.f90',
-  'data.f90',
+  'data.F90',
   'dispersion_model.f90',
   'environment.f90',
   'fragments.f90',
