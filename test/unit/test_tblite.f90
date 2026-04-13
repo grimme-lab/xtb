@@ -38,7 +38,7 @@ subroutine collect_tblite(testsuite)
    testsuite = [ &
       new_unittest("gfn1", test_gfn1), &
       new_unittest("gfn2", test_gfn2), &
-      new_unittest("gfn1-mindless", test_gfn2_mindless_basic), &
+      new_unittest("gfn1-mindless", test_gfn1_mindless_basic), &
       new_unittest("gfn2-mindless", test_gfn2_mindless_basic), &
       new_unittest("gfn1-mindless-gbsa", test_gfn1_mindless_gbsa), &
       new_unittest("gfn2-mindless-alpb", test_gfn2_mindless_alpb), &

@@ -332,9 +332,9 @@ subroutine construct_solv_input(input, solv_input, error)
    ! Check if a solvation state is provided
    if (allocated(input%reference_state)) then
       select case(input%reference_state)
-      case default
-         call fatal_error(error, "Unknown solution state '"//input%reference_state//"' requested")
-         return
+         case default
+            call fatal_error(error, "Unknown solution state '"//input%reference_state//"' requested")
+            return
          case("gsolv")
             sol_state = solution_state%gsolv
          case("bar1mol", "bar1M")
@@ -553,7 +553,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! ------------------------------------------------------------------------
    !  fixing of certain atoms
-   results%e_total = energy + efix
+   energy = energy + efix
+   results%e_total = energy
    results%gnorm = norm2(gradient)
    if (fixset%n.gt.0) then
       do i=1, fixset%n
@@ -580,13 +581,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          write(env%unit,'(9x,"::",49("."),"::")')
          select case(self%tblite%method)
          case default
-            call fatal_error(error, "Unknown method '"//self%tblite%method)
+            call fatal_error(error, "Unknown method '"//self%tblite%method)//"'"
          case("gfn2")
-            write(env%unit,outfmt) "GFN2-xTB energy   ", energy,       "Eh   "
+            write(env%unit,outfmt) "GFN2-xTB energy   ", energy - efix,       "Eh   "
          case("gfn1")
-            write(env%unit,outfmt) "GFN1-xTB energy   ", energy,       "Eh   "
+            write(env%unit,outfmt) "GFN1-xTB energy   ", energy - efix,       "Eh   "
          case("ipea1")
-            write(env%unit,outfmt) "IPEA1-xTB energy  ", energy,       "Eh   "
+            write(env%unit,outfmt) "IPEA1-xTB energy  ", energy - efix,       "Eh   "
          end select
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          write(env%unit,outfmt) "total charge      ", sum(chk%wfn%q), "e    "
