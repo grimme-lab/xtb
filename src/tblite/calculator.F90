@@ -299,6 +299,8 @@ end subroutine newTBLiteCalculator
 
 #if WITH_TBLITE
 subroutine construct_solv_input(input, solv_input, error)
+   !> Source of the generated errors
+   character(len=*), parameter :: source = 'tblite_calculator_constructsolvinput'
    !> Source of the solvation input from the xtb input
    type(TTBLiteSolvationInput), intent(in) :: input
    !> Constructed solvation input for tblite
@@ -308,7 +310,7 @@ subroutine construct_solv_input(input, solv_input, error)
 
    logical :: parametrized_solvation, alpb
    type(solvent_data), allocatable :: solvent
-   integer :: sol_state, kernel
+   integer :: sol_state, kernel, iostat
    real(wp) :: val
 
    ! Collect solvent data if a solvent name is provided
@@ -316,10 +318,11 @@ subroutine construct_solv_input(input, solv_input, error)
       parametrized_solvation = .true.
       allocate(solvent)
       solvent = get_solvent_data(input%solvent)
+      ! If the solvent name is not recognized, we try interpreting it as a dielectric constant
       if (solvent%eps <= 0.0_wp) then
          parametrized_solvation = .false.
-         call get_argument_as_real(input%solvent, solvent%eps, error)
-         if (allocated(error)) then
+         read(input%solvent,*,iostat=iostat) solvent%eps
+         if (iostat .ne. 0) then
             call fatal_error(error, "Invalid solvent/dielectric constant '"//input%solvent//"'")
             return
          end if
@@ -391,9 +394,9 @@ subroutine construct_solv_input(input, solv_input, error)
          ! Construct purely electrostatic solvation model input for tblite
          solv_input%alpb = alpb_input(solvent%eps, kernel=kernel, alpb=alpb)
       case("cosmo")
-         ! CPCM solvation model
+         ! ddCOSMO solvation model (currently called CPCM in tblite)
          if (sol_state /= solution_state%gsolv) then 
-            call fatal_error(error, "Solution state shift not supported for CPCM")
+            call fatal_error(error, "Solution state shift not supported for ddCOSMO")
             return
          end if
          solv_input%cpcm = cpcm_input(solvent%eps)
@@ -776,31 +779,6 @@ subroutine num_grad_chrg(env, mol, tblite)
    write(env%unit, '(1x, a)') "CEH gradients written to ceh.charges.numgrad"
 
 end subroutine num_grad_chrg
- 
-
-subroutine get_argument_as_real(arg, val, error)
-   !> Index of command line argument, range [0:command_argument_count()]
-   character(len=:), intent(in), allocatable :: arg
-   !> Real value
-   real(wp), intent(out) :: val
-   !> Error handling
-   type(error_type), allocatable :: error
-
-   integer :: stat
-
-   if (.not.allocated(arg)) then
-      call fatal_error(error, "Cannot read real value, argument missing")
-      return
-   end if
-   read(arg, *, iostat=stat) val
-   if (stat /= 0) then
-      call fatal_error(error, "Cannot read real value from '"//arg//"'")
-      return
-   end if
-
-end subroutine get_argument_as_real
-
-
 
 #if ! WITH_TBLITE
 subroutine feature_not_implemented(env)
