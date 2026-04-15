@@ -198,8 +198,10 @@ subroutine copyMolecule(self,mol0)
    class(TMolecule), intent(out) :: self
    type(TMolecule), intent(in) :: mol0
 
-      Call init(self, mol0%at, mol0%sym, mol0%xyz, mol0%chrg, mol0%uhf, &
+   call self%deallocate()
+   Call init(self, mol0%at, mol0%sym, mol0%xyz, mol0%chrg, mol0%uhf, &
            & mol0%lattice, mol0%pbc)
+   self%ftype = mol0%ftype
 end subroutine copyMolecule
 
 !> Constructor for the molecular structure type

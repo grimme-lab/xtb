@@ -115,10 +115,10 @@ subroutine struc_convert( &
 ! force field geometry optimization
   ! loop runs 3 geoopt with different shifts in the new 3rd coordinate
   ! and then keeps the mol%xyz with lowest etot for md
-  mol_shifted = mol
+  call mol_shifted%copy(mol)
   do i=1, num_shift_runs
     if (i.ne.42) then  ! if in case you want an opt with the 2D init -> e.g. use if (i.ne.1)
-      mol_shifted = mol
+      call mol_shifted%copy(mol)
       ! create array with random shifts: 0<= shift <1
       call RANDOM_NUMBER(shift)
       ! change signs of shifts randomly

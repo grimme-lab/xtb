@@ -309,7 +309,7 @@ subroutine fire &
 
    estart = energy
    thisstep = opt%micro_cycle
-   molopt = mol
+   call molopt%copy(mol)
 
    if (.not.pr.and.minpr) write(env%unit,'(a6,a14,a16,a16,a15,a6)') &
       &          "cycle", "energy", "change", "gnorm", "step", "conv?"
@@ -377,7 +377,7 @@ subroutine fire &
    endif
 
    ! save optimized geometry
-   mol = molopt
+   call mol%copy(molopt)
 
    if (present(iter_needed)) then
       iter_needed = iter
