@@ -143,8 +143,8 @@ subroutine help(iunit)
    "    or in a file with each index on a separate line.", &
    "",&
    "--efield REAL,REAL,REAL",&
-   "    static electric field in cartesian coordinates, overrides .EFIELD file.",&
-   "    works only via tblite or with GFN-FF and PTB.",&
+   "    static electric field in Cartesian coordinates, overrides '.EFIELD' file,",&
+   "    works only via tblite for the xTB Hamiltonians, or with GFN-FF and PTB.",&
    "",&
    "--etemp REAL",&
    "    electronic temperature (default = 300K)",&
@@ -182,12 +182,16 @@ subroutine help(iunit)
    "    The Gsolv reference state can be chosen as reference, bar1M, or gsolv (default).",&
    "",&
    "--gbe SOLVENT/EPSILON",&
-   "    Use generalized Born for finite epsilon (GBE) solvation model (tblite required).", &
-   "    Solvent is specified by dielectric constant or the solvent name.",&
+   "    generalized Born for finite epsilon (GBe) solvation model (tblite required),", &
+   "    includes only the electrostatic solvation contribution (no SASA model),", &
+   "    available solvents are all solvents that are available for alpb.", &
+   "    Additionally, the dielectric constant can be set manually.", &
    "",&
    "--gb SOLVENT/EPSILON",&
-   "    Use generalized Born solvation model (GB) (tblite required).", &
-   "    Solvent is specified by dielectric constant or the solvent name.",&
+   "    generalized Born (GB) solvation model (tblite required),", &
+   "    includes only the electrostatic solvation contribution (no SASA model),", &
+   "    available solvents are all solvents that are available for alpb.", &
+   "    Additionally, the dielectric constant can be set manually.", &
    "",&
    "--cosmo SOLVENT/EPSILON",&
    "    domain decomposition conductor-like screening model (ddCOSMO),",&

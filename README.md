@@ -157,7 +157,7 @@ features reality:
 - S. Ehlert ([@awvwgk](https://github.com/awvwgk))
 - S. Ehrlich
 - M. Friede ([@marvinfriede](https://github.com/marvinfriede))
-- T. Froitzheim([@thfroitzheim](https://github.com/thfroitzheim))
+- T. Froitzheim ([@thfroitzheim](https://github.com/thfroitzheim))
 - I. Gerasimov ([@foxtran](https://github.com/foxtran))
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - C. Hölzer ([@hoelzerC](https://github.com/hoelzerc))
