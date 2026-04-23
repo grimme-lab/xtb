@@ -147,7 +147,9 @@ subroutine md(env,mol,chk,calc, &
    use xtb_type_calculator
    use xtb_type_restart
    use xtb_type_data
+   use xtb_gfnff_calculator
    use xtb_shake, only: do_shake,ncons
+   use xtb_gfnff_shake, only: gff_do_shake => do_shake, gff_ncons => ncons
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -310,11 +312,20 @@ subroutine md(env,mol,chk,calc, &
       call rdmdrestart(mol%n,mol%xyz,velo)
    endif
 
-   if(set%shake_md) then
-      write(*,*) 'SHAKE on. # bonds  :',ncons,' all:',.not.set%xhonly
-   else
-      write(*,*) 'SHAKE off'
-   endif
+   select type(calc)
+      class default
+         if(set%shake_md) then
+            write(*,*) 'GFN-x SHAKE on. # bonds  :',ncons,' all:',.not.set%xhonly
+         else
+            write(*,*) 'GFN-x SHAKE off'
+         endif
+      type is(TGFFCalculator)
+         if (set%shake_md) then
+            write(*,*) 'GFNFF SHAKE on. # bonds  :',gff_ncons,' all:',.not.set%xhonly
+         else
+            write(*,*) 'GFNFF SHAKE off'
+         endif
+      end select
    if(thermostat)   write(*,*) 'Berendsen THERMOSTAT on'
    if(equi)       write(*,*) 'EQUILIBRATION mode'
    if( gmd)       write(*,*) 'GMD mode'
@@ -615,7 +626,14 @@ subroutine md(env,mol,chk,calc, &
       ! SHAKE (apply constraint at t+dt)
       !ccccccccccccccccccc
 
-      if(set%shake_md) call do_shake(mol%n,xyzo,mol%xyz,vel,acc,mass,tstep)
+      select type(calc)
+      class default
+         if(set%shake_md) call do_shake(mol%n,xyzo,mol%xyz,vel,acc,mass,tstep)
+      type is(TGFFCalculator)
+         if (set%shake_md) then
+            call gff_do_shake(mol%n,xyzo,mol%xyz,vel,acc,mass,tstep)
+         endif
+      end select
 
       ! update velocities
       velo = vel
