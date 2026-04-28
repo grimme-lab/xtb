@@ -33,7 +33,7 @@ jobs:
          - name: Install OpenBLAS (macOS)
            if: ${{ contains(matrix.os, 'macos') }}
            run: |
-            brew install openblas@0.3.31
+            brew install openblas
             echo "PKG_CONFIG_PATH=$(brew --prefix openblas)/lib/pkgconfig" >> $GITHUB_ENV
             echo "LDFLAGS=-L$(brew --prefix openblas)/lib"                 >> $GITHUB_ENV
             echo "CPPFLAGS=-I$(brew --prefix openblas)/include"            >> $GITHUB_ENV
