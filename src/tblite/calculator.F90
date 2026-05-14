@@ -513,7 +513,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    allocate(post_proc)
    ! Wiberg-Mayer bond orders
    wbo_label = "bond-orders"
-   call add_post_processing(post_proc, wbo_label, error)
+   call add_post_processing(post_proc, struc, wbo_label, error)
    if (allocated(error)) then
       call env%error(error%message, source)
       return
@@ -521,7 +521,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! Molecular multipole moments
    molmom_label = "molmom"
-   call add_post_processing(post_proc, molmom_label, error)
+   call add_post_processing(post_proc, struc, molmom_label, error)
    if (allocated(error)) then
       call env%error(error%message, source)
       return

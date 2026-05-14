@@ -629,7 +629,7 @@ contains
 
       !> Get the WBOs
       allocate (wbo(mol%nat, mol%nat, wfn%nspin))
-      call get_mayer_bond_orders(bas, ints%overlap, wfn%density, wbo)
+      call get_mayer_bond_orders(mol, bas, ints%overlap, wfn%density, wbo)
 
       !> Save some memory by deallocating the second-iteration-specific HO overlap integrals
       deallocate (auxints%overlap_h0_2)
