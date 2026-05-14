@@ -138,6 +138,7 @@ contains
       character(len=:), allocatable :: tmpname  ! temporary string
       character(len=:), allocatable :: cdum     ! temporary string
       character(len=:), allocatable :: extension, basename, directory
+      character(len=:), allocatable :: charge_file, spin_file
       integer :: ftype
 
 !! ========================================================================
@@ -299,10 +300,19 @@ contains
 
       call env%checkpoint("Reading '"//xcontrol//"' failed")
 
+      call generateFileMetaInfo(fname, directory, basename, extension)
+      if (len(directory) > 0) then
+         charge_file = directory//'.CHRG'
+         spin_file = directory//'.UHF'
+      else
+         charge_file = '.CHRG'
+         spin_file = '.UHF'
+      end if
+
       ! ------------------------------------------------------------------------
       ! read dot-Files before reading the rc and after reading the xcontrol
       ! Total molecular charge
-      call open_file(ich, '.CHRG', 'r')
+      call open_file(ich, charge_file, 'r')
       if (ich /= -1) then
          call getline(ich, cdum, iostat=err)
          if (err /= 0) then
@@ -316,7 +326,7 @@ contains
       call env%checkpoint("Reading charge from file failed")
 
       ! Number of unpaired electrons
-      call open_file(ich, '.UHF', 'r')
+      call open_file(ich, spin_file, 'r')
       if (ich /= -1) then
          call getline(ich, cdum, iostat=err)
          if (err /= 0) then
