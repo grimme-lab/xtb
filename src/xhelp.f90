@@ -117,6 +117,7 @@ subroutine help(iunit)
    "",&
    "-u, --uhf INT",&
    "    specify number of unpaired electrons as INT, overrides .UHF file and xcontrol option",&
+   "    (default: 0 (singlet) for even electron number, 1 (doublet) for odd electron number)",&
    "",&
    "--gfn INT",&
    "    specify parametrisation of GFN-xTB (default = 2)",&

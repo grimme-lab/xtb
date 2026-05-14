@@ -609,12 +609,19 @@ contains
          call chk%wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
 
          ! Make sure number of electrons is initialized and multiplicity is consistent
+         ! Default is restricted closed-shell singlet for even number of electrons
+         ! and restricted open-shell doublet for odd number of electrons
          chk%wfn%nel = nint(sum(mol%z) - mol%chrg)
-         if (mod(mol%uhf, 2) /= mod(chk%wfn%nel, 2)) then
-            call env%terminate("Assigned number of unpaired electrons (flag '--uhf <int>' or <int> in file '.UHF') is not consistent with the total number of electrons")
-         else
+         if (mod(mol%uhf, 2) == mod(chk%wfn%nel, 2)) then
+            ! Restricted closed-shell case
             chk%wfn%nopen = mol%uhf
-         end if
+         else
+            ! Restricted open-shell case
+            if (mol%uhf /= 0) then
+               call env%terminate("Assigned number of unpaired electrons (flag '--uhf <int>' or <int> in file '.UHF') is not consistent with the total number of electrons")
+            end if
+            chk%wfn%nopen = mod(int(chk%wfn%nel), 2)
+         end if 
 
          ! EN charges and CN
          if (set%gfn_method < 2) then
