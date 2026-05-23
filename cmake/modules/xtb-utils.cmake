@@ -25,6 +25,15 @@ macro(
 string(TOLOWER "${package}" _pkg_lc)
 string(TOUPPER "${package}" _pkg_uc)
 
+# If the dependency was already added by another subproject (e.g., via
+# FetchContent) it might only provide the plain target `${package}` without the
+# namespaced alias `${package}::${package}` expected by xTB. Create the alias
+# early to avoid re-adding the project and triggering duplicate-target errors.
+if(TARGET "${package}" AND NOT TARGET "${package}::${package}")
+   add_library("${package}::${package}" INTERFACE IMPORTED)
+   target_link_libraries("${package}::${package}" INTERFACE "${package}")
+endif()
+
 # iterate through all methods
 foreach(method ${methods})
 

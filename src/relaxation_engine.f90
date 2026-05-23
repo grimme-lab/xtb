@@ -572,18 +572,17 @@ subroutine l_ancopt &
          & gnorm=norm2(gradient), number=iter)
    endif
 
-   ! different DOF in case of frag hess
+   ! determine degrees of freedom
    nat3 = 3 * mol%n
    if (fragmented_hessian) then
       nvar = nat3
    else
       nvar = nat3 - 6
-      if(linear) nvar = nat3 - 5
-
-      if(fixset%n.gt.0) then ! exact fixing
-         nvar=nat3-3*fixset%n-3
-         if(nvar.le.0) nvar=1
-      endif
+      if (linear) nvar = nat3 - 5
+   end if
+   if (fixset%n.gt.0) then ! exact fixing
+      nvar = nat3 - 3*fixset%n - 3
+      if (nvar.le.0) nvar = 1
    end if
 
    allocate( hdiag(nvar), source = 0.0_wp )
@@ -714,6 +713,20 @@ subroutine l_ancopt &
 
       if (k.ne.nvar) thr=thr*0.1_wp
    enddo
+
+   ! If we could not collect enough modes (e.g., disconnected fragments can
+   ! yield many exactly-zero eigenvalues in the model Hessian), complete the
+   ! basis with the remaining near-zero modes and assign a safe minimum
+   ! curvature (opt%hlow) for preconditioning.
+   if (k.lt.nvar) then
+      do i=nat3,1,-1
+         if (abs(eig(i)).le.thr .and. k.lt.nvar) then
+            k = k + 1
+            trafo(1:nat3,k) = hess(1:nat3,i)
+            hessp(k+k*(k-1)/2) = opt%hlow
+         end if
+      end do
+   end if
    if(k.ne.nvar) then
       write(env%unit,*)'k=',k,'  nvar=',nvar
       write(env%unit,*) 'ANC generation failed'
