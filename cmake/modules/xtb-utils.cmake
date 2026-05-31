@@ -15,6 +15,14 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 # Handling of subproject dependencies
+# Reuse targets already created by nested FetchContent/subprojects.
+macro("xtb_promote_target" package)
+   if(NOT TARGET "${package}::${package}" AND TARGET "${package}")
+      add_library("${package}::${package}" INTERFACE IMPORTED GLOBAL)
+      target_link_libraries("${package}::${package}" INTERFACE "${package}")
+   endif()
+endmacro()
+
 macro(
    "xtb_find_package"
    package
@@ -24,6 +32,8 @@ macro(
 )
 string(TOLOWER "${package}" _pkg_lc)
 string(TOUPPER "${package}" _pkg_uc)
+
+xtb_promote_target("${package}")
 
 # iterate through all methods
 foreach(method ${methods})
@@ -50,7 +60,7 @@ foreach(method ${methods})
       pkg_check_modules("${_pkg_uc}" QUIET "${package}") # check if it is a pkg-config module
       if("${_pkg_uc}_FOUND")
          message(STATUS "Found ${package} via pkg-config")
-         add_library("${package}::${package}" INTERFACE IMPORTED) # interface library
+         add_library("${package}::${package}" INTERFACE IMPORTED GLOBAL) # interface library
          target_link_libraries(
             "${package}::${package}"
             INTERFACE
@@ -82,8 +92,10 @@ foreach(method ${methods})
          )
 
          # create interface directory and manage it's dependencies
-         add_library("${package}::${package}" INTERFACE IMPORTED)
-         target_link_libraries("${package}::${package}" INTERFACE "${package}")
+         if(NOT TARGET "${package}::${package}")
+            add_library("${package}::${package}" INTERFACE IMPORTED GLOBAL)
+            target_link_libraries("${package}::${package}" INTERFACE "${package}")
+         endif()
 
          # We need the module directory in the subproject before we finish the configure stage
          if(NOT EXISTS "${${_pkg_uc}_BINARY_DIR}/include")
@@ -107,8 +119,10 @@ foreach(method ${methods})
       )
       FetchContent_MakeAvailable("${_pkg_lc}")
 
-      add_library("${package}::${package}" INTERFACE IMPORTED)
-      target_link_libraries("${package}::${package}" INTERFACE "${package}")
+      if(NOT TARGET "${package}::${package}")
+         add_library("${package}::${package}" INTERFACE IMPORTED GLOBAL)
+         target_link_libraries("${package}::${package}" INTERFACE "${package}")
+      endif()
 
       if(NOT EXISTS "${${_pkg_lc}_BINARY_DIR}/include")
          file(MAKE_DIRECTORY "${${_pkg_lc}_BINARY_DIR}/include")
