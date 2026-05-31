@@ -38,6 +38,8 @@ project(
 install = not meson.is_subproject()
 install_modules = install and get_option('install_modules')
 
+meson.add_dist_script('meson/dist_symlinks.sh')
+
 commit = get_option('build_name')
 git = find_program('git', required: false)
 if git.found()
