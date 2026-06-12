@@ -1,4 +1,5 @@
-module zmat_bmatrix
+module xtb_zmat_bmatrix
+   use xtb_mctc_accuracy, only : wp
    !-------------------------------------------------------------------------
    ! Z-matrix internal coordinates and numerical Wilson B-matrix.
    !
@@ -52,7 +53,7 @@ module zmat_bmatrix
    ! differences are wrapped to (-pi, pi] to handle the 0/2pi discontinuity.
    !
    ! Units throughout: bond lengths in Angstrom, angles in radians.
-   ! Compliance constants from the companion compliance_matrix module are
+   ! Compliance constants from the companion xtb_compliance module are
    ! in Bohr^2/Hartree (= a0^2/Eh).  The relaxed force constant 1/C_ii
    ! is in Eh/a0^2; conversion to N/cm: 1 Eh/a0^2 = 15.5693 N/cm.
    !
@@ -66,12 +67,12 @@ module zmat_bmatrix
    implicit none
    private
 
-   real(8), parameter :: pi       = 4.0d0*atan(1.0d0)
-   real(8), parameter :: two_pi   = 2.0d0*pi
-   real(8), parameter :: DEGREE   = 1.0d0     ! keep radians
+   real(wp), parameter :: pi       = 4.0d0*atan(1.0d0)
+   real(wp), parameter :: two_pi   = 2.0d0*pi
+   real(wp), parameter :: DEGREE   = 1.0d0     ! keep radians
    ! Threshold for detecting a linear centre: cos(theta) > cos(lin_tol)
    ! i.e. theta > 180 - lin_tol_deg.  Use ~5 degrees margin.
-   real(8), parameter :: lin_tol  = 0.08726646d0  ! 5 degrees in radians
+   real(wp), parameter :: lin_tol  = 0.08726646d0  ! 5 degrees in radians
 
    integer, parameter, public :: COORD_BOND     = 1
    integer, parameter, public :: COORD_ANGLE    = 2
@@ -90,10 +91,10 @@ contains
    !==========================================================================
    function is_linear(xyz, n) result(lin)
       integer, intent(in) :: n
-      real(8), intent(in) :: xyz(3,n)
+      real(wp), intent(in) :: xyz(3,n)
       logical :: lin
-      real(8) :: cx,cy,cz,dx,dy,dz
-      real(8) :: Ixx,Iyy,Izz,Ixy,Ixz,Iyz,Itens(3,3),evals(3),work(20)
+      real(wp) :: cx,cy,cz,dx,dy,dz
+      real(wp) :: Ixx,Iyy,Izz,Ixy,Ixz,Iyz,Itens(3,3),evals(3),work(20)
       integer :: i, info
       if (n <= 2) then; lin = .true.; return; end if
       cx=sum(xyz(1,1:n))/n; cy=sum(xyz(2,1:n))/n; cz=sum(xyz(3,1:n))/n
@@ -127,19 +128,19 @@ contains
    !==========================================================================
    subroutine setup_zmat(xyz, n, at, na, nb, nc, ctype, e1f, e2f, qoff, nint)
       integer, intent(in)  :: n
-      real(8), intent(in)  :: xyz(3,n)
+      real(wp), intent(in)  :: xyz(3,n)
       integer, intent(in)  :: at(n)
       integer, intent(out) :: na(n), nb(n), nc(n)
       integer, intent(out) :: ctype(n)
-      real(8), intent(out) :: e1f(3,n), e2f(3,n)
+      real(wp), intent(out) :: e1f(3,n), e2f(3,n)
       integer, intent(out) :: qoff(n)
       integer, intent(out) :: nint
 
       logical :: bonded(n,n), inqueue(n), is_linbend
       integer :: i, j, k, q, order(n), parent_arr(n), head, tail, placed
-      real(8) :: r, rmin, angl, u(3), thr
-      real(8), parameter :: bond_f    = 1.3d0
-      real(8), parameter :: min_angle = 0.34906585d0  ! 20 deg
+      real(wp) :: r, rmin, angl, u(3), thr
+      real(wp), parameter :: bond_f    = 1.3d0
+      real(wp), parameter :: min_angle = 0.34906585d0  ! 20 deg
 
       ! ------------------------------------------------------------------
       ! Step 1a: bond table from covalent radii
@@ -319,10 +320,10 @@ contains
    !==========================================================================
    pure function rcov(iz) result(r)
       integer, intent(in) :: iz
-      real(8) :: r
-      real(8), parameter :: ang2bohr = 1.0d0/0.529177210903d0
+      real(wp) :: r
+      real(wp), parameter :: ang2bohr = 1.0d0/0.529177210903d0
       ! Covalent radii in Angstrom, Z=1..86
-      real(8), parameter :: rc(86) = [ &
+      real(wp), parameter :: rc(86) = [ &
          0.31d0,0.28d0,1.28d0,0.96d0,0.84d0,0.73d0,0.71d0,0.66d0, &  !  1  H-O
          0.57d0,0.58d0,1.66d0,1.41d0,1.21d0,1.11d0,1.07d0,1.05d0, &  !  9  F-S
          1.02d0,1.06d0,2.03d0,1.76d0,1.70d0,1.60d0,1.53d0,1.39d0, &  ! 17  Cl-Cr
@@ -350,13 +351,13 @@ contains
    !==========================================================================
    subroutine cartesian_to_int(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, q)
       integer, intent(in)  :: n, nint
-      real(8), intent(in)  :: xyz(3,n)
+      real(wp), intent(in)  :: xyz(3,n)
       integer, intent(in)  :: na(n), nb(n), nc(n), ctype(n), qoff(n)
-      real(8), intent(in)  :: e1f(3,n), e2f(3,n)
-      real(8), intent(out) :: q(nint)
+      real(wp), intent(in)  :: e1f(3,n), e2f(3,n)
+      real(wp), intent(out) :: q(nint)
 
       integer :: i, j, k, l, l_used, o
-      real(8) :: angl, tol, vi(3), vk(3), ri, rk
+      real(wp) :: angl, tol, vi(3), vk(3), ri, rk
 
       q = 0d0
 
@@ -409,15 +410,15 @@ contains
    !==========================================================================
    subroutine compute_bmatrix(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, B, step_in)
       integer, intent(in)           :: n, nint
-      real(8), intent(in)           :: xyz(3,n)
+      real(wp), intent(in)           :: xyz(3,n)
       integer, intent(in)           :: na(n), nb(n), nc(n), ctype(n), qoff(n)
-      real(8), intent(in)           :: e1f(3,n), e2f(3,n)
-      real(8), intent(out)          :: B(:,:)
-      real(8), intent(in), optional :: step_in
+      real(wp), intent(in)           :: e1f(3,n), e2f(3,n)
+      real(wp), intent(out)          :: B(:,:)
+      real(wp), intent(in), optional :: step_in
 
       integer :: i, ii, iii
-      real(8) :: step
-      real(8) :: xyz_w(3,n), qp(nint), qm(nint)
+      real(wp) :: step
+      real(wp) :: xyz_w(3,n), qp(nint), qm(nint)
 
       step  = 1d-3
       if (present(step_in)) step = step_in
@@ -466,11 +467,11 @@ contains
    !--------------------------------------------------------------------------
    subroutine wrap_dihedral_rows(B, n, nint, ctype, qoff, step)
       integer, intent(in)    :: n, nint
-      real(8), intent(inout) :: B(nint,3*n)
+      real(wp), intent(inout) :: B(nint,3*n)
       integer, intent(in)    :: ctype(n), qoff(n)
-      real(8), intent(in)    :: step
+      real(wp), intent(in)    :: step
       integer :: i, col, row
-      real(8) :: dq
+      real(wp) :: dq
 
       do i = 2, n
          if (ctype(i) /= COORD_DIHEDRAL) cycle
@@ -487,16 +488,16 @@ contains
 
 
    pure function dist(xyz, i, j) result(r)
-      real(8), intent(in) :: xyz(:,:)
+      real(wp), intent(in) :: xyz(:,:)
       integer, intent(in) :: i, j
-      real(8) :: r
+      real(wp) :: r
       r = sqrt((xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2)
    end function dist
 
    pure function bangle(xyz, i, j, k) result(angle)
-      real(8), intent(in) :: xyz(:,:)
+      real(wp), intent(in) :: xyz(:,:)
       integer, intent(in) :: i, j, k
-      real(8) :: angle, d2ij, d2jk, d2ik, xy, temp
+      real(wp) :: angle, d2ij, d2jk, d2ik, xy, temp
       d2ij=(xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2
       d2jk=(xyz(1,j)-xyz(1,k))**2+(xyz(2,j)-xyz(2,k))**2+(xyz(3,j)-xyz(3,k))**2
       d2ik=(xyz(1,i)-xyz(1,k))**2+(xyz(2,i)-xyz(2,k))**2+(xyz(3,i)-xyz(3,k))**2
@@ -506,19 +507,19 @@ contains
    end function bangle
 
    pure subroutine bangle_val(xyz, i, j, k, angle)
-      real(8), intent(in)  :: xyz(:,:)
+      real(wp), intent(in)  :: xyz(:,:)
       integer, intent(in)  :: i, j, k
-      real(8), intent(out) :: angle
+      real(wp), intent(out) :: angle
       angle = bangle(xyz,i,j,k)
    end subroutine bangle_val
 
    pure function dihed(xyz, i, j, k, l) result(angle)
-      real(8), intent(in) :: xyz(:,:)
+      real(wp), intent(in) :: xyz(:,:)
       integer, intent(in) :: i, j, k, l
-      real(8) :: angle
-      real(8) :: xi1,xj1,xl1,yi1,yj1,yl1,zi1,zj1,zl1
-      real(8) :: djk,cosa,ddd,yxd,cph,sph,cth,sth
-      real(8) :: xi2,xl2,yi2,yj2,yl2,yi3,yl3
+      real(wp) :: angle
+      real(wp) :: xi1,xj1,xl1,yi1,yj1,yl1,zi1,zj1,zl1
+      real(wp) :: djk,cosa,ddd,yxd,cph,sph,cth,sth
+      real(wp) :: xi2,xl2,yi2,yj2,yl2,yi3,yl3
       xi1=xyz(1,i)-xyz(1,k); yi1=xyz(2,i)-xyz(2,k); zi1=xyz(3,i)-xyz(3,k)
       xj1=xyz(1,j)-xyz(1,k); yj1=xyz(2,j)-xyz(2,k); zj1=xyz(3,j)-xyz(3,k)
       xl1=xyz(1,l)-xyz(1,k); yl1=xyz(2,l)-xyz(2,k); zl1=xyz(3,l)-xyz(3,k)
@@ -544,9 +545,9 @@ contains
    end function dihed
 
    pure function dang_pure(a1,a2,b1,b2) result(r)
-      real(8), intent(in) :: a1,a2,b1,b2
-      real(8) :: r,ra1,ra2,rb1,rb2,an,bn,sn,cn
-      real(8), parameter :: z=1d-6
+      real(wp), intent(in) :: a1,a2,b1,b2
+      real(wp) :: r,ra1,ra2,rb1,rb2,an,bn,sn,cn
+      real(wp), parameter :: z=1d-6
       r=0d0
       if (abs(a1)<z.and.abs(a2)<z) return
       if (abs(b1)<z.and.abs(b2)<z) return
@@ -560,12 +561,12 @@ contains
    end function dang_pure
 
    pure function find_dihedral_atom(xyz, ii, j, k, l_def, tol_in) result(lb)
-      real(8), intent(in) :: xyz(:,:)
+      real(wp), intent(in) :: xyz(:,:)
       integer, intent(in) :: ii, j, k, l_def
-      real(8), intent(in) :: tol_in
+      real(wp), intent(in) :: tol_in
       integer :: lb
       integer :: i1
-      real(8) :: r, rmin, angl, tol
+      real(wp) :: r, rmin, angl, tol
       tol=tol_in; rmin=100d0; lb=l_def
       do i1=1,ii-1
          if (i1==j.or.i1==k) cycle
@@ -594,11 +595,11 @@ contains
    ! Returns 0 if no valid atom found (caller should handle).
    !--------------------------------------------------------------------------
    pure function best_nb(xyz, i, na_i, n, min_angle) result(k)
-      real(8), intent(in) :: xyz(:,:)
+      real(wp), intent(in) :: xyz(:,:)
       integer, intent(in) :: i, na_i, n
-      real(8), intent(in) :: min_angle
+      real(wp), intent(in) :: min_angle
       integer :: k, j
-      real(8) :: angl, best, rmin, r
+      real(wp) :: angl, best, rmin, r
       k = 0; best = 0d0
       ! First pass: largest angle in (min_angle, pi-lin_tol/2)
       do j = 1, i-1
@@ -619,9 +620,9 @@ contains
    end function best_nb
 
    pure subroutine perp_frame(u, e1, e2)
-      real(8), intent(in)  :: u(3)
-      real(8), intent(out) :: e1(3), e2(3)
-      real(8) :: ref(3), norm
+      real(wp), intent(in)  :: u(3)
+      real(wp), intent(out) :: e1(3), e2(3)
+      real(wp) :: ref(3), norm
       if (abs(u(1)) < 0.9d0) then
          ref = [1d0,0d0,0d0]
       else
@@ -634,4 +635,4 @@ contains
       e2(3)=u(1)*e1(2)-u(2)*e1(1)
    end subroutine perp_frame
 
-end module zmat_bmatrix
+end module xtb_zmat_bmatrix
