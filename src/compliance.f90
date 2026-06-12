@@ -1,4 +1,5 @@
-module compliance_matrix
+module xtb_compliance
+   use xtb_mctc_accuracy, only : wp
    !---------------------------------------------------------------------------
    ! C = F^{-1} in internal coordinates.
    ! Works for any nint (diatomic, linear, mixed, general).
@@ -24,16 +25,16 @@ contains
       ! set to zero (they describe redundant, unphysical coordinates).
       !----------------------------------------------------------------------
       integer,  intent(in)  :: natoms, nint
-      real(8),  intent(in)  :: H(3*natoms, 3*natoms)
-      real(8),  intent(in)  :: B(nint, 3*natoms)
-      real(8),  intent(out) :: C(nint, nint)
+      real(wp),  intent(in)  :: H(3*natoms, 3*natoms)
+      real(wp),  intent(in)  :: B(nint, 3*natoms)
+      real(wp),  intent(out) :: C(nint, nint)
       integer,  intent(out) :: stat
 
       integer  :: ndim, lwork, info, i, rank_g, rank_f
-      real(8)  :: tol_g, tol_f
-      real(8), parameter :: eps_svd = 1.0d-10
-      real(8), allocatable :: G(:,:), Ginv(:,:), BH(:,:), BHBt(:,:), F(:,:)
-      real(8), allocatable :: work(:), U(:,:), VT(:,:), S(:), Utmp(:,:)
+      real(wp)  :: tol_g, tol_f
+      real(wp), parameter :: eps_svd = 1.0d-10
+      real(wp), allocatable :: G(:,:), Ginv(:,:), BH(:,:), BHBt(:,:), F(:,:)
+      real(wp), allocatable :: work(:), U(:,:), VT(:,:), S(:), Utmp(:,:)
 
       stat=0; ndim=3*natoms
       allocate(G(nint,nint), Ginv(nint,nint), BH(nint,ndim), &
@@ -60,7 +61,7 @@ contains
             '  Note: G matrix rank=', rank_g, ' < nint=', nint
       ! Ginv = V * S^{-1} * U^T  (only for singular values > tol_g)
       Ginv = 0d0
-      allocate(Utmp(nint,nint))
+      allocate(Utmp(nint,nint), source=0.0_wp)
       do i = 1, nint
          if (S(i) <= tol_g) cycle
          Utmp(:,i) = U(:,i) / S(i)
@@ -79,11 +80,7 @@ contains
       call symmetrise(F,nint)
 
       !--- C = F^+ via SVD ---
-      C = F
       S = 0d0
-      call dgesvd('A','A',nint,nint,C,nint,S,U,nint,VT,nint,work,lwork,info)
-      ! lwork still valid from above; reuse
-      deallocate(work); allocate(work(lwork))
       C = F
       call dgesvd('A','A',nint,nint,C,nint,S,U,nint,VT,nint,work,lwork,info)
       if (info/=0) then
@@ -96,7 +93,7 @@ contains
          write(*,'(A,I0,A,I0)') &
             '  Note: F matrix rank=', rank_f, ' < nint=', nint
       C = 0d0
-      allocate(Utmp(nint,nint))
+      allocate(Utmp(nint,nint), source=0.0_wp)
       do i = 1, nint
          if (S(i) <= tol_f) cycle
          Utmp(:,i) = U(:,i) / S(i)
@@ -111,9 +108,9 @@ contains
 
    subroutine symmetrise(A,n)
       integer, intent(in)    :: n
-      real(8), intent(inout) :: A(n,n)
+      real(wp), intent(inout) :: A(n,n)
       integer :: i,j
       do i=1,n; do j=i+1,n; A(j,i)=A(i,j); end do; end do
    end subroutine symmetrise
 
-end module compliance_matrix
+end module xtb_compliance
