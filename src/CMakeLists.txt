@@ -52,6 +52,8 @@ list(APPEND srcs
   "${dir}/broyden.f90"
   "${dir}/charge_model.f90"
   "${dir}/coffee.f90"
+  "${dir}/compliance.f90"
+  "${dir}/compliance_driver.f90"
   "${dir}/constrain_param.f90"
   "${dir}/constrain_pot.f90"
   "${dir}/constr.f90"
@@ -166,6 +168,7 @@ list(APPEND srcs
   "${dir}/wrmodef.f90"
   "${dir}/wrmo.f90"
   "${dir}/xhelp.f90"
+  "${dir}/zmat_bmatrix.f90"
   "${dir}/zmatpr.f90"
 )
 
