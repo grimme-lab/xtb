@@ -37,7 +37,8 @@ module xtb_compliance_driver
 
 contains
 
-   subroutine compliance_driver(n, at, xyz, hess, mass)
+   subroutine compliance_driver(unit, n, at, xyz, hess, mass)
+      integer, intent(in) :: unit
       integer,  intent(in) :: n
       integer,  intent(in) :: at(n)
       real(wp), intent(in) :: xyz(3,n)
@@ -47,22 +48,22 @@ contains
       integer, allocatable :: na(:), nb(:), nc(:), ctype(:), qoff(:)
       real(wp), allocatable :: e1f(:,:), e2f(:,:), bmat(:,:), compl(:,:)
 
-      write(*,*)
-      write(*,*) '             ======================================='
-      write(*,*) '             |                                     |'
-      write(*,*) '             |       compliance constants          |'
-      write(*,*) '             |                                     |'
-      write(*,*) '             ======================================='
-      write(*,*)
-      write(*,*) 'Ref.: K. Brandhorst, J. Grunenberg, Chem. Soc. Rev. 37 (2008), 1558.'
+      write(unit, *)
+      write(unit, *) '             ======================================='
+      write(unit, *) '             |                                     |'
+      write(unit, *) '             |       compliance constants          |'
+      write(unit, *) '             |                                     |'
+      write(unit, *) '             ======================================='
+      write(unit, *)
+      write(unit, *) 'Ref.: K. Brandhorst, J. Grunenberg, Chem. Soc. Rev. 37 (2008), 1558.'
 
       allocate(na(n), nb(n), nc(n), ctype(n), qoff(n), e1f(3,n), e2f(3,n))
       call setup_zmat(xyz, n, at, na, nb, nc, ctype, e1f, e2f, qoff, nint)
       allocate(bmat(nint, 3*n), compl(nint, nint))
       call compute_bmatrix(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, bmat, 5d-3) ! numerical deriv. step
-      call compute_compliance(hess, bmat, n, nint, compl, istat)
+      call compute_compliance(unit, hess, bmat, n, nint, compl, istat)
       if (istat /= 0) return
-      call print_compl(n, at, xyz, mass, na, nb, nc, ctype, e1f, e2f, qoff, nint, compl)
+      call print_compl(unit, n, at, xyz, mass, na, nb, nc, ctype, e1f, e2f, qoff, nint, compl)
 
    end subroutine compliance_driver
 
@@ -72,7 +73,8 @@ contains
 !                file:   full matrix via write_compliance_dat
 !-----------------------------------------------------------------------------
 
-   subroutine print_compl(n, at, xyz, mass, na, nb, nc, ctype, e1f, e2f, qoff, nint, C)
+   subroutine print_compl(unit, n, at, xyz, mass, na, nb, nc, ctype, e1f, e2f, qoff, nint, C)
+      integer, intent(in) :: unit
       integer,  intent(in) :: n, nint
       integer,  intent(in) :: at(n), na(n), nb(n), nc(n), ctype(n), qoff(n)
       real(wp), intent(in) :: xyz(3,n), mass(n), e1f(3,n), e2f(3,n), C(nint,nint)
@@ -96,11 +98,11 @@ contains
 
       call cartesian_to_int(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, q)
 
-      write(*,*)
-      write(*,*) 'units: Hartree, Bohr, radian'
-      write(*,*) '1 Eh/a0^2 (1/C = relaxed force constant) = 15.570 N/cm'
-      write(*,*) 'local mode frequency nu_loc = 5140.487*sqrt(1/(mu[amu]*C[a.u.])) cm^-1'
-      write(*,*) 'Ref.: Cremer, Kraka, Zou, J. Chem. Theory Comput. 8 (2012) 2864.'
+      write(unit, *)
+      write(unit, *) 'units: Hartree, Bohr, radian'
+      write(unit, *) '1 Eh/a0^2 (1/C = relaxed force constant) = 15.570 N/cm'
+      write(unit, *) 'local mode frequency nu_loc = 5140.487*sqrt(1/(mu[amu]*C[a.u.])) cm^-1'
+      write(unit, *) 'Ref.: Cremer, Kraka, Zou, J. Chem. Theory Comput. 8 (2012) 2864.'
 
       k = 0
 
@@ -108,7 +110,7 @@ contains
       ! local mode frequency (Kraka/Cremer = 1/C_ii route):
       ! nu_a = fac * sqrt(1/(mu_AB * C_ii))   [cm^-1]
       ! mu_AB = m_A*m_B/(m_A+m_B)  in atomic mass units -> convert to me
-      write(*,'(a)') &
+      write(unit, '(a)') &
          '     type                atoms                   coord value' // &
          '       C       1/C    nu_loc/cm-1'
       do i = 2, n
@@ -116,7 +118,7 @@ contains
          cc = C(o+1,o+1);  s = 'bond stretch'
          mu = mass(i) * mass(na(i)) / (mass(i) + mass(na(i))) * autoamu
          freq = fac * sqrt(1d0 / (mu * cc))
-         write(*,'(i4,1x,a14,2(a2,i3,3x),16x,4f10.2)') &
+         write(unit, '(i4,1x,a14,2(a2,i3,3x),16x,4f10.2)') &
             k, s, toSymbol(at(i)),i, toSymbol(at(na(i))),na(i), &
             q(o+1), cc, 1d0/cc, freq
       end do
@@ -126,7 +128,7 @@ contains
          if (ctype(i)/=COORD_ANGLE .and. ctype(i)/=COORD_DIHEDRAL) cycle
          k = k + 1;  o = qoff(i);  idx_ord(k) = o+2
          cc = C(o+2,o+2);  s = 'angle'
-         write(*,'(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)') &
+         write(unit, '(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)') &
             k, s, toSymbol(at(i)),i, toSymbol(at(na(i))),na(i), toSymbol(at(nb(i))),nb(i), &
             q(o+2), cc, 1d0/cc
       end do
@@ -136,7 +138,7 @@ contains
          if (ctype(i)/=COORD_DIHEDRAL) cycle
          k = k + 1;  o = qoff(i);  idx_ord(k) = o+3
          cc = C(o+3,o+3);  s = 'dihedral'
-         write(*,'(i4,1x,a14,4(a2,i3,3x),3f10.4)') &
+         write(unit, '(i4,1x,a14,4(a2,i3,3x),3f10.4)') &
             k, s, toSymbol(at(i)),i, toSymbol(at(na(i))),na(i), &
             toSymbol(at(nb(i))),nb(i), toSymbol(at(nc(i))),nc(i), &
             q(o+3), cc, 1d0/cc
@@ -148,17 +150,17 @@ contains
          o = qoff(i)
          k = k + 1;  idx_ord(k) = o+2
          cc = C(o+2,o+2);  s = 'lin.bend(e1)'
-         write(*,'(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)') &
+         write(unit, '(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)') &
             k, s, toSymbol(at(nb(i))),nb(i), toSymbol(at(na(i))),na(i), toSymbol(at(i)),i, &
             q(o+2), cc, 1d0/cc
          k = k + 1;  idx_ord(k) = o+3
          cc = C(o+3,o+3);  s = 'lin.bend(e2)'
-         write(*,'(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)') &
+         write(unit, '(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)') &
             k, s, toSymbol(at(nb(i))),nb(i), toSymbol(at(na(i))),na(i), toSymbol(at(i)),i, &
             q(o+3), cc, 1d0/cc
       end do
 
-      call write_compliance_dat(n, at, na, nb, nc, ctype, nint, C, idx_ord, k)
+      call write_compliance_dat(unit,n, at, na, nb, nc, ctype, nint, C, idx_ord, k)
 
    end subroutine print_compl
 
@@ -170,7 +172,8 @@ contains
 !     - top NCOUP off-diagonal |C_ij| couplings, sorted descending
 !-----------------------------------------------------------------------------
 
-   subroutine write_compliance_dat(n, at, na, nb, nc, ctype, nint, C, idx_ord, ncoord)
+   subroutine write_compliance_dat(unit, n, at, na, nb, nc, ctype, nint, C, idx_ord, ncoord)
+      integer, intent(in) :: unit
       integer,  intent(in) :: n, nint, ncoord
       integer,  intent(in) :: at(n), na(n), nb(n), nc(n), ctype(n)
       real(wp),  intent(in) :: C(nint,nint)
@@ -188,32 +191,32 @@ contains
 
       open(newunit=iunit, file='compliance.dat', status='replace')
 
-      write(iunit,'(a)') '#'
-      write(iunit,'(a)') '# compliance.dat'
-      write(iunit,'(a)') '#'
-      write(iunit,'(a)') '# units: C   in Bohr^2/Hartree (a0^2/Eh)'
-      write(iunit,'(a)') '#        1/C in Eh/a0^2  (relaxed force constant)'
-      write(iunit,'(a)') '#        conversion: 1 Eh/a0^2 = 15.570 N/cm'
-      write(iunit,'(a)') '#'
-      write(iunit,'(a)') '# Ref.: K. Brandhorst, J. Grunenberg,'
-      write(iunit,'(a)') '#       Chem. Soc. Rev. 37 (2008) 1558.'
-      write(iunit,'(a)') '#'
-      write(iunit,'(a,i6)') '# number of internal coordinates :', ncoord
-      write(iunit,'(a,i4)')  '# top couplings shown per coord  :', NCOUP
-      write(iunit,'(a)') '#'
-      write(iunit,'(a)') '# columns: coord_j  label_j  C_ij  [<-> coord_i label_i]'
-      write(iunit,'(a)') '#'
+      write(iunit, '(a)') '#'
+      write(iunit, '(a)') '# compliance.dat'
+      write(iunit, '(a)') '#'
+      write(iunit, '(a)') '# units: C   in Bohr^2/Hartree (a0^2/Eh)'
+      write(iunit, '(a)') '#        1/C in Eh/a0^2  (relaxed force constant)'
+      write(iunit, '(a)') '#        conversion: 1 Eh/a0^2 = 15.570 N/cm'
+      write(iunit, '(a)') '#'
+      write(iunit, '(a)') '# Ref.: K. Brandhorst, J. Grunenberg,'
+      write(iunit, '(a)') '#       Chem. Soc. Rev. 37 (2008) 1558.'
+      write(iunit, '(a)') '#'
+      write(iunit, '(a,i6)') '# number of internal coordinates :', ncoord
+      write(iunit, '(a,i4)')  '# top couplings shown per coord  :', NCOUP
+      write(iunit, '(a)') '#'
+      write(iunit, '(a)') '# columns: coord_j  label_j  C_ij  [<-> coord_i label_i]'
+      write(iunit, '(a)') '#'
 
       do i = 1, ncoord
          ii = idx_ord(i)
 
-         write(iunit,'(a)')  ''
-         write(iunit,'(a,i4,2x,a20,a,f12.6,a,f12.6)') &
+         write(iunit, '(a)')  ''
+         write(iunit, '(a,i4,2x,a20,a,f12.6,a,f12.6)') &
             '# coord ', i, lbl(i), &
             '   C_ii=', C(ii,ii), '   1/C_ii=', 1d0/C(ii,ii)
 
          ! diagonal entry
-         write(iunit,'(2x,i4,2x,a20,2f14.6,a)') &
+         write(iunit, '(2x,i4,2x,a20,2f14.6,a)') &
             i, lbl(i), C(ii,ii), 1d0/C(ii,ii), '  (diagonal)'
 
          ! collect off-diagonal |C_ij|
@@ -238,18 +241,18 @@ contains
          do p = 1, min(NCOUP, nc_act)
             j  = jsort(p);  jj = idx_ord(j)
             if (aval(p) < 1d-12) exit
-            write(iunit,'(2x,i4,2x,a20,f14.6,a,i4,2x,a20)') &
+            write(iunit, '(2x,i4,2x,a20,f14.6,a,i4,2x,a20)') &
                j, lbl(j), C(ii,jj), '  <-> ', i, lbl(i)
          end do
 
       end do
 
-      write(iunit,'(a)') ''
-      write(iunit,'(a)') '# end of compliance.dat'
+      write(iunit, '(a)') ''
+      write(iunit, '(a)') '# end of compliance.dat'
       close(iunit)
 
-      write(*,*)
-      write(*,'(a,i4,a)') &
+      write(unit, *)
+      write(unit, '(a,i4,a)') &
          ' compliance matrix written to compliance.dat  (', ncoord, ' coordinates)'
 
    end subroutine write_compliance_dat
@@ -270,21 +273,21 @@ contains
 
       do i = 2, n                                      ! bonds
          k = k + 1
-         write(buf,'(a,a2,i0,a,a2,i0)') &
+         write(buf, '(a,a2,i0,a,a2,i0)') &
             'bond ', toSymbol(at(i)),i, '-', toSymbol(at(na(i))),na(i)
          lbl(k) = buf(1:20)
       end do
       do i = 2, n                                      ! angles
          if (ctype(i)/=COORD_ANGLE .and. ctype(i)/=COORD_DIHEDRAL) cycle
          k = k + 1
-         write(buf,'(a,a2,i0,a,a2,i0,a,a2,i0)') &
+         write(buf, '(a,a2,i0,a,a2,i0,a,a2,i0)') &
             'ang ', toSymbol(at(i)),i,'-',toSymbol(at(na(i))),na(i),'-',toSymbol(at(nb(i))),nb(i)
          lbl(k) = buf(1:20)
       end do
       do i = 2, n                                      ! dihedrals
          if (ctype(i)/=COORD_DIHEDRAL) cycle
          k = k + 1
-         write(buf,'(a,a2,i0,a,a2,i0,a,a2,i0,a,a2,i0)') &
+         write(buf, '(a,a2,i0,a,a2,i0,a,a2,i0,a,a2,i0)') &
             'dih ', toSymbol(at(i)),i,'-',toSymbol(at(na(i))),na(i),'-', &
             toSymbol(at(nb(i))),nb(i),'-',toSymbol(at(nc(i))),nc(i)
          lbl(k) = buf(1:20)
@@ -292,11 +295,11 @@ contains
       do i = 2, n                                      ! linear bends
          if (ctype(i)/=COORD_LINBEND) cycle
          k = k + 1
-         write(buf,'(a,a2,i0,a,a2,i0,a,a2,i0)') &
+         write(buf, '(a,a2,i0,a,a2,i0,a,a2,i0)') &
             'lb1 ',toSymbol(at(nb(i))),nb(i),'-',toSymbol(at(na(i))),na(i),'-',toSymbol(at(i)),i
          lbl(k) = buf(1:20)
          k = k + 1
-         write(buf,'(a,a2,i0,a,a2,i0,a,a2,i0)') &
+         write(buf, '(a,a2,i0,a,a2,i0,a,a2,i0)') &
             'lb2 ',toSymbol(at(nb(i))),nb(i),'-',toSymbol(at(na(i))),na(i),'-',toSymbol(at(i)),i
          lbl(k) = buf(1:20)
       end do

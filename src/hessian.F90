@@ -329,7 +329,7 @@ subroutine numhess( &
    endif
 
    if (mol%n > 1 .and. freezeset%n == 0 .and. .not. set%periodic) then
-      call compliance_driver(mol%n, mol%at, mol%xyz, res%hess, mol%atmass)
+      call compliance_driver(env%unit, mol%n, mol%at, mol%xyz, res%hess, mol%atmass)
    end if
 
    if (set%pr_dftbp_hessian_out) then
