@@ -11,7 +11,7 @@ module xtb_compliance
 
 contains
 
-   subroutine compute_compliance(H, B, natoms, nint, C, stat)
+   subroutine compute_compliance(unit, H, B, natoms, nint, C, stat)
       !----------------------------------------------------------------------
       ! F = G^{-1} B H B^T G^{-1},   C = F^{-1}
       !
@@ -24,6 +24,7 @@ contains
       ! Rows/columns of C corresponding to zero singular values of F are
       ! set to zero (they describe redundant, unphysical coordinates).
       !----------------------------------------------------------------------
+      integer, intent(in)  :: unit
       integer,  intent(in)  :: natoms, nint
       real(wp),  intent(in)  :: H(3*natoms, 3*natoms)
       real(wp),  intent(in)  :: B(nint, 3*natoms)
@@ -51,13 +52,13 @@ contains
       lwork = int(work(1)); deallocate(work); allocate(work(lwork))
       call dgesvd('A','A',nint,nint,Ginv,nint,S,U,nint,VT,nint,work,lwork,info)
       if (info/=0) then
-         write(*,'(A,I0)') 'compute_compliance: DGESVD(G) info=',info
+         write(unit, '(A,I0)') 'compute_compliance: DGESVD(G) info=',info
          stat=info; return
       end if
       tol_g = eps_svd * S(1)
       rank_g = count(S > tol_g)
       if (rank_g < nint) &
-         write(*,'(A,I0,A,I0)') &
+         write(unit, '(A,I0,A,I0)') &
             '  Note: G matrix rank=', rank_g, ' < nint=', nint
       ! Ginv = V * S^{-1} * U^T  (only for singular values > tol_g)
       Ginv = 0d0
@@ -84,13 +85,13 @@ contains
       C = F
       call dgesvd('A','A',nint,nint,C,nint,S,U,nint,VT,nint,work,lwork,info)
       if (info/=0) then
-         write(*,'(A,I0)') 'compute_compliance: DGESVD(F) info=',info
+         write(unit, '(A,I0)') 'compute_compliance: DGESVD(F) info=',info
          stat=info; return
       end if
       tol_f = eps_svd * S(1)
       rank_f = count(S > tol_f)
       if (rank_f < nint) &
-         write(*,'(A,I0,A,I0)') &
+         write(unit, '(A,I0,A,I0)') &
             '  Note: F matrix rank=', rank_f, ' < nint=', nint
       C = 0d0
       allocate(Utmp(nint,nint), source=0.0_wp)

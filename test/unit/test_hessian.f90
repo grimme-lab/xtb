@@ -541,7 +541,7 @@ subroutine test_compliance(error)
       end do
    end do
 
-   call compute_compliance(hessian, bmat, nat, nint, compliance, stat)
+   call compute_compliance(0, hessian, bmat, nat, nint, compliance, stat)
 
    call check(error, stat, 0)
    call check(error, bmat(1, 1), -1.0_wp, thr=thr)
@@ -550,7 +550,7 @@ subroutine test_compliance(error)
 
    redundant_bmat(1, :) = bmat(1, :)
    redundant_bmat(2, :) = bmat(1, :)
-   call compute_compliance(hessian, redundant_bmat, nat, 2, redundant_compliance, stat)
+   call compute_compliance(0, hessian, redundant_bmat, nat, 2, redundant_compliance, stat)
 
    call check(error, stat, 0)
    call check(error, redundant_compliance(1, 1), 1.0_wp/force_constant, thr=thr)
