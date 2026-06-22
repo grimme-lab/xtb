@@ -31,6 +31,7 @@ module xtb_peeq
    use xtb_xtb_eeq
    use xtb_xtb_hamiltonian, only : getSelfEnergy
    use xtb_type_wsc, only : tb_wsc
+   use xtb_gpu_batch_capture, only : gpu_capture_store
    implicit none
    private
 
@@ -476,6 +477,12 @@ subroutine peeq &
          H(i,j) = H(j,i)
       enddo
    enddo
+
+   ! --gpu-batch INTEGRATION SEAM: hand the (full-rank) generalized eigenproblem
+   ! H C = S C eps to the batched-eigensolver validator on real GFN0 matrices.
+   ! Inert (one branch) unless gpu_capture_enable was called by the batch driver;
+   ! must precede `solve`, which overwrites H with eigenvectors and S's copy.
+   if(.not.orthog) call gpu_capture_store(nao, H, S)
 
    if(.not.orthog)then
       call solve(.true.,nao,wfn%ihomo,scfconv,H,S,X,wfn%P,wfn%emo,fail)
