@@ -56,6 +56,9 @@ module xtb_gpu_batch
    use xtb_gpu_batch_capture, only : gpu_capture_enable, gpu_capture_disable, &
       & gpu_capture_count, gpu_capture_seen, gpu_capture_get, gpu_capture_clear, &
       & TCapturedSystem
+   use xtb_type_wavefunction, only : TWavefunction
+   use xtb_solv_gbsa, only : TBorn
+   use xtb_peeq, only : peeq_build_energy, peeq_finish_energy, TPeeqEnergyCtx
    implicit none
    private
 
@@ -84,6 +87,20 @@ module xtb_gpu_batch
    !> Eigenvalue parity tolerance (eV): block-diagonal padding decouples exactly,
    !> so deviation is rounding-level; this is the gate for "padding is correct".
    real(wp), parameter :: eigTol = 1.0e-6_wp
+
+   !> Per-molecule batched-energy state (kept alive across build -> solve -> finish).
+   type :: TEnergySys
+      type(TMolecule) :: mol
+      type(TRestart) :: chk
+      class(TCalculator), allocatable :: calc
+      type(TPeeqEnergyCtx) :: ctx
+      character(len=:), allocatable :: fname
+      logical  :: built = .false.
+      logical  :: done = .false.
+      integer  :: nao = 0
+      real(wp) :: etot = 0.0_wp
+      real(wp) :: egap = 0.0_wp
+   end type TEnergySys
 
    !> Per-molecule outcome record.
    type :: TBatchResult
@@ -172,17 +189,180 @@ subroutine run_gpu_batch(env, files)
    call validateBatchedEig(env)
    call gpu_capture_clear()
 
-   ! ---------------------------------------------------------------------
-   ! REMAINING SEAM (production routing, next increment):
-   !   The step above proves the batched solve is correct on real matrices.
-   !   To route the *production* energy through it, the monolithic single point
-   !   (xtb_peeq for GFN0) must be split into build -> [batched solve] -> finish
-   !   phases so many molecules can sit at the solve point and be diagonalized
-   !   in one launch; then scatter eigenpairs back and finish energy/density per
-   !   molecule. Do GFN0 first (one build + one diag, no SCF).
-   ! ---------------------------------------------------------------------
+   ! Production routing (GFN0, energy + properties): rebuild each molecule's H/S
+   ! via peeq_build_energy, diagonalize the whole bucket through the batched
+   ! solver, then finish energies/properties via peeq_finish_energy -- and check
+   ! the resulting total energies against the per-molecule reference above.
+   if (set%gfn_method == 0) call run_batched_energy(env, files, results)
 
 end subroutine run_gpu_batch
+
+
+!> GFN0 energy + properties through the batched diagonalization (Phase 1
+!> production routing). For each input it runs peeq_build_energy (H/S, no
+!> gradient), groups by size bucket, pads and diagonalizes each bucket in one
+!> TBatchedEigensolver call, scatters eigenpairs into each wavefunction, and runs
+!> peeq_finish_energy. The total energies are compared bit-for-bit against the
+!> per-molecule reference (full peeq) carried in `ref`.
+subroutine run_batched_energy(env, files, ref)
+   type(TEnvironment), intent(inout) :: env
+   character(len=*), intent(in) :: files(:)
+   type(TBatchResult), intent(in) :: ref(:)
+
+   type(TEnergySys), allocatable :: sys(:)
+   type(TBorn), allocatable :: gbsa            ! intentionally unallocated (no solvation)
+   type(TBatchedEigensolver) :: solver
+   type(scc_results) :: spres
+   real(wp), allocatable :: hmats(:,:,:), smats(:,:,:), evals(:,:)
+   character(len=:), allocatable :: paramFile
+   integer :: nFiles, i, ib, n, cnt, p, m, kk, ich, ftype, stat
+   integer :: nbuilt, nbatched, northog, nfail, nmismatch
+   real(wp) :: et, acc, dev, worst
+   logical, parameter :: ccm = .true.
+
+   nFiles = size(files)
+   write(env%unit, '(/,a)') " batched GFN0 energy path (production routing)"
+   write(env%unit, '(a)') " "//repeat('-', 64)
+
+   select case (set%gfn_method)
+   case (0); paramFile = xfind(fname_gfn0)
+   case default
+      write(env%unit, '(2x,a)') "only GFN0 is wired for the batched energy path; skipped"
+      write(env%unit, '(a)') " "//repeat('-', 64)
+      return
+   end select
+
+   allocate(sys(nFiles))
+   nbuilt = 0; nbatched = 0; northog = 0; nfail = 0; nmismatch = 0
+   worst = 0.0_wp
+
+   ! ---- build phase: H/S per molecule (no gradient) ----
+   do i = 1, nFiles
+      if (len_trim(files(i)) == 0) cycle
+      sys(i)%fname = trim(files(i))
+      ftype = getFileType(sys(i)%fname)
+      open(newunit=ich, file=sys(i)%fname, status='old', action='read', iostat=stat)
+      if (stat /= 0) cycle
+      call readMolecule(env, sys(i)%mol, ich, ftype)
+      close(ich)
+      if (sys(i)%mol%n <= 0) cycle
+
+      call newCalculator(env, sys(i)%mol, sys(i)%calc, paramFile, .false., set%acc)
+      if (.not. allocated(sys(i)%calc)) cycle
+      select type (calc => sys(i)%calc)
+      type is (TxTBCalculator)
+         et = calc%etemp
+         acc = calc%accuracy
+         call sys(i)%chk%wfn%allocate(sys(i)%mol%n, calc%basis%nshell, calc%basis%nao)
+         call newWavefunction(env, sys(i)%mol, calc, sys(i)%chk)
+         call peeq_build_energy(env, sys(i)%mol, sys(i)%chk%wfn, calc%basis, &
+            & calc%xtbData, gbsa, et, acc, ccm, sys(i)%ctx)
+      class default
+         cycle
+      end select
+
+      ! a logged error during build must not poison the next molecule
+      call drainEnv(env)
+      if (sys(i)%ctx%fail) then
+         nfail = nfail + 1; cycle
+      end if
+      if (sys(i)%ctx%orthog) then
+         northog = northog + 1   ! linearly dependent: leave to per-molecule peeq
+         cycle
+      end if
+      sys(i)%nao = sys(i)%ctx%nao
+      sys(i)%built = .true.
+      nbuilt = nbuilt + 1
+   end do
+
+   ! ---- batched solve per size bucket, then finish each system ----
+   do ib = 1, nbins
+      cnt = 0; n = 0
+      do i = 1, nFiles
+         if (sys(i)%built .and. binIndex(sys(i)%nao) == ib) then
+            cnt = cnt + 1
+            n = max(n, sys(i)%nao)
+         end if
+      end do
+      if (cnt < 1) cycle
+
+      allocate(hmats(n,n,cnt), smats(n,n,cnt), evals(n,cnt))
+      hmats = 0.0_wp; smats = 0.0_wp; evals = 0.0_wp
+
+      ! pack + pad
+      p = 0
+      do i = 1, nFiles
+         if (.not. (sys(i)%built .and. binIndex(sys(i)%nao) == ib)) cycle
+         p = p + 1
+         m = sys(i)%nao
+         hmats(1:m,1:m,p) = sys(i)%ctx%H
+         smats(1:m,1:m,p) = sys(i)%ctx%S
+         do kk = m+1, n
+            hmats(kk,kk,p) = padDiag
+            smats(kk,kk,p) = 1.0_wp
+         end do
+      end do
+
+      call init(solver, env, n, cnt)
+      call solver%solve(env, hmats, smats, evals)
+      call solver%free()
+
+      ! scatter eigenpairs into each wavefunction and finish
+      p = 0
+      do i = 1, nFiles
+         if (.not. (sys(i)%built .and. binIndex(sys(i)%nao) == ib)) cycle
+         p = p + 1
+         m = sys(i)%nao
+         sys(i)%chk%wfn%emo(1:m) = evals(1:m,p)
+         sys(i)%chk%wfn%C(1:m,1:m) = hmats(1:m,1:m,p)
+         select type (calc => sys(i)%calc)
+         type is (TxTBCalculator)
+            et = calc%etemp
+            call peeq_finish_energy(env, sys(i)%mol, sys(i)%chk%wfn, calc%basis, &
+               & calc%xtbData, sys(i)%ctx, et, sys(i)%etot, sys(i)%egap, spres)
+         end select
+         call drainEnv(env)
+         sys(i)%done = .true.
+         nbatched = nbatched + 1
+
+         ! parity vs the per-molecule reference (full peeq) for this file
+         if (i <= size(ref)) then
+            if (ref(i)%ok) then
+               dev = abs(sys(i)%etot - ref(i)%energy)
+               worst = max(worst, dev)
+               if (dev > 1.0e-8_wp) nmismatch = nmismatch + 1
+            end if
+         end if
+      end do
+
+      deallocate(hmats, smats, evals)
+   end do
+
+   write(env%unit, '(2x,a,i0,a,i0,a)') "built       : ", nbuilt, " systems (", northog, &
+      & " linearly dependent -> per-molecule peeq)"
+   write(env%unit, '(2x,a,i0,a)')      "batched     : ", nbatched, " diagonalized in buckets"
+   if (nfail > 0) write(env%unit, '(2x,a,i0)') "build fails : ", nfail
+   write(env%unit, '(2x,a,es10.3,a)')  "worst dE    : ", worst, " Eh vs per-molecule peeq"
+   if (nbatched > 0 .and. nmismatch == 0) then
+      write(env%unit, '(2x,a)') "RESULT      : PASS -- batched energies match per-molecule peeq"
+   else if (nbatched > 0) then
+      write(env%unit, '(2x,a,i0,a)') "RESULT      : FAIL -- ", nmismatch, &
+         & " energies differ by > 1e-8 Eh"
+   end if
+   write(env%unit, '(a)') " "//repeat('-', 64)
+
+end subroutine run_batched_energy
+
+
+!> Drain and discard any pending log/error on the environment so one molecule's
+!> failure cannot abort the batch (mirrors the isolation in run_gpu_batch).
+subroutine drainEnv(env)
+   type(TEnvironment), intent(inout) :: env
+   character(len=:), allocatable :: logmsg
+   logical :: failed
+   call env%check(failed)
+   call env%getLog(logmsg)
+end subroutine drainEnv
 
 
 !> Replay captured per-molecule eigenproblems through the batched eigensolver and

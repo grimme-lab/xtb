@@ -36,12 +36,43 @@ module xtb_peeq
    private
 
    public :: peeq
+   public :: peeq_build_energy, peeq_finish_energy, TPeeqEnergyCtx
 
    !> print the different gradient contributions (for debugging)
    logical,parameter,private :: gpr =.false.
 
    !> profiling
    logical,parameter,private :: profile = .true.
+
+   !> State carried across the GFN0 build -> (batched) diagonalization -> finish
+   !> split used by the --gpu-batch energy path. Holds exactly what the energy +
+   !> property epilogue needs; gradient-only intermediates are deliberately
+   !> omitted (this path returns energies/gap/charges/WBO, not forces).
+   type :: TPeeqEnergyCtx
+      !> Number of atomic orbitals (order of the eigenproblem).
+      integer :: nao = 0
+      !> Linear-dependency flag from the Cholesky check. If true the standard
+      !> generalized solve does not apply and the driver must fall back to the
+      !> per-molecule peeq path for this system.
+      logical :: orthog = .false.
+      !> Set if the build failed; the driver skips this system.
+      logical :: fail = .false.
+      !> Symmetric Hamiltonian: in = unpacked H0, out = eigenvectors (the driver
+      !> writes the batched eigenvectors into wfn%C, not here).
+      real(wp), allocatable :: H(:,:)
+      !> AO overlap (needed in finish for mpopsh + Wiberg bond orders).
+      real(wp), allocatable :: S(:,:)
+      !> Erf coordination number (needed for the SRB energy in finish).
+      real(wp), allocatable :: cn(:)
+      !> D4 dispersion energy (Eh).
+      real(wp) :: ed = 0.0_wp
+      !> EEQ electrostatic (+ implicit-solvent SASA/shift) energy (Eh).
+      real(wp) :: ees = 0.0_wp
+      !> Atomic reference energy from setzshell (eV; *evtoau in finish).
+      real(wp) :: eatoms = 0.0_wp
+      !> Implicit-solvent SASA energy carried for reporting.
+      real(wp) :: gsolv = 0.0_wp
+   end type TPeeqEnergyCtx
 
 contains
 
@@ -648,6 +679,331 @@ end associate
    if (profile) call timer%deallocate
 
 end subroutine peeq
+
+
+!> GFN0 build phase for the --gpu-batch energy path: everything up to (but not
+!> including) the diagonalization -- CN, D4 dispersion energy, EEQ charges,
+!> self energies, the AO overlap S and the unpacked Hamiltonian H -- with the
+!> gradient deliberately discarded (a local scratch gradient absorbs the
+!> "*_grad" routines' force output; their energies are exact regardless).
+!>
+!> The caller diagonalizes H C = S C eps (batched, across many molecules),
+!> writes the eigenvalues into wfn%emo and eigenvectors into wfn%C, then calls
+!> peeq_finish_energy. This is the production routing of the validated batched
+!> solve for the GFN0 single point; gradients remain on the per-molecule `peeq`.
+subroutine peeq_build_energy(env, mol, wfn, basis, xtbData, gbsa, et, acc, ccm, ctx)
+   use xtb_solv_gbsa, only : TBorn
+   use xtb_type_environment
+   use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_basisset
+   use xtb_type_param
+   use xtb_scc_core
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_lineardep
+   use xtb_pbc
+
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol
+   type(TWavefunction), intent(inout) :: wfn
+   type(TBasisset), intent(in) :: basis
+   type(TxTBData), intent(in) :: xtbData
+   type(TBorn), allocatable, intent(inout) :: gbsa
+   real(wp), intent(in) :: et
+   real(wp), intent(in) :: acc
+   logical, intent(in) :: ccm
+   type(TPeeqEnergyCtx), intent(out) :: ctx
+
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(in) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
+
+   character(len=*), parameter :: source = 'peeq_build_energy'
+   type(tb_wsc) :: wsc
+   type(TLatticePoint) :: latp
+   type(chrg_parameter) :: chrgeq
+   type(TGaussianSmeared) :: coulomb
+   type(TENEquilibration) :: eeq
+   real(wp), allocatable :: trans(:,:)
+   real(wp), allocatable :: cn(:), dcndr(:,:,:), dcndL(:,:,:)
+   real(wp), allocatable :: ccn(:), dccndr(:,:,:), dccndL(:,:,:)
+   real(wp), allocatable :: qeeq(:), dqdr(:,:,:), dqdL(:,:,:)
+   real(wp), allocatable :: selfEnergy(:,:), dSEdcn(:,:), dSEdq(:,:)
+   real(wp), allocatable :: H0(:), zsh(:), chargeWidth(:,:)
+   real(wp), allocatable :: gscr(:,:)
+   integer,  allocatable :: idnum(:)
+   real(wp) :: sscr(3,3), intcut, eatoms, ed, ees, gsolv
+   integer  :: nao, naop, nbf, nshell, nid
+   integer  :: i, j, k, ii, iat, jat, ati
+   logical  :: exitRun
+
+   ctx%fail = .false.
+   ctx%orthog = .false.
+   nao = basis%nao
+   nbf = basis%nbf
+   nshell = basis%nshell
+   naop = nao*(nao+1)/2
+   ctx%nao = nao
+
+   ! --- memory ---
+   allocate(cn(mol%n), source=0.0_wp)
+   allocate(dcndr(3,mol%n,mol%n), source=0.0_wp)
+   allocate(dcndL(3,3,mol%n), source=0.0_wp)
+   allocate(ccn(mol%n), source=0.0_wp)
+   allocate(dccndr(3,mol%n,mol%n), source=0.0_wp)
+   allocate(dccndL(3,3,mol%n), source=0.0_wp)
+   allocate(qeeq(mol%n), source=0.0_wp)
+   allocate(dqdr(3,mol%n,mol%n), source=0.0_wp)
+   allocate(dqdL(3,3,mol%n), source=0.0_wp)
+   allocate(selfEnergy(maxval(xtbData%nshell), mol%n), source=0.0_wp)
+   allocate(dSEdcn(maxval(xtbData%nshell), mol%n), source=0.0_wp)
+   allocate(dSEdq(maxval(xtbData%nshell), mol%n), source=0.0_wp)
+   allocate(zsh(nshell), source=0.0_wp)
+   allocate(H0(naop), source=0.0_wp)
+   allocate(ctx%H(nao,nao), source=0.0_wp)
+   allocate(ctx%S(nao,nao), source=0.0_wp)
+   allocate(ctx%cn(mol%n), source=0.0_wp)
+   allocate(gscr(3,mol%n), source=0.0_wp)   ! discarded gradient scratch
+   sscr = 0.0_wp
+   ed = 0.0_wp; ees = 0.0_wp; gsolv = 0.0_wp
+
+   intcut = 25.0_wp - 10.0_wp*log10(acc)
+   intcut = max(20.0_wp, intcut)
+
+   call init_l(latp, env, mol, 60.0_wp)
+   if (ccm) call generate_wsc(mol, wsc)
+
+   ! --- electron count + occupations (independent of the diagonalization) ---
+   call setzshell(xtbData, mol%n, mol%at, nshell, mol%z, zsh, eatoms, 0)
+   wfn%nel = nint(sum(mol%z) - mol%chrg)
+   wfn%nopen = mol%uhf
+   if (wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen = 1
+   if (wfn%nel /= 0) then
+      call occu(nao, wfn%nel, wfn%nopen, wfn%ihomoa, wfn%ihomob, wfn%focca, wfn%foccb)
+      wfn%focc = wfn%focca + wfn%foccb
+      wfn%ihomo = wfn%ihomoa
+   else
+      wfn%focc = 0.0_wp; wfn%ihomo = 0; wfn%ihomoa = 0; wfn%nopen = 0
+   end if
+
+   ! --- coordination number ---
+   call latp%getLatticePoints(trans, 40.0_wp)
+   call getCoordinationNumber(mol, trans, 40.0_wp, cnType%erf, cn, dcndr, dcndL)
+   call cutCoordinationNumber(mol%n, cn, dcndr, dcndL, maxCN=8.0_wp)
+   ctx%cn = cn
+
+   ! --- D4 dispersion energy (gradient discarded) ---
+   call getENCharges(env, mol, cn, dcndr, dcndL, qeeq, dqdr, dqdL)
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Could not get EN charges for D4 dispersion", source)
+      ctx%fail = .true.; return
+   end if
+   call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, ccn, dccndr, dccndL)
+   call latp%getLatticePoints(trans, 60.0_wp)
+   call d4_gradient(mol, xtbData%dispersion%dispm, trans, xtbData%dispersion%dpar, &
+      & xtbData%dispersion%g_a, xtbData%dispersion%g_c, xtbData%dispersion%wf, &
+      & 60.0_wp, ccn, dccndr, dccndL, qeeq, dqdr, dqdL, ed, gscr, sscr)
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Evaluation of dispersion energy failed", source)
+      ctx%fail = .true.; return
+   end if
+   ctx%ed = ed
+
+   ! delete the D4-EEQ charges before the real EEQ
+   qeeq = 0.0_wp; dqdr = 0.0_wp; dqdL = 0.0_wp
+
+   ! --- EEQ electrostatics (gradient discarded) ---
+   if (allocated(gbsa)) then
+      call gbsa%update(env, mol%at, mol%xyz)
+      ees = gbsa%gsasa + gbsa%gshift
+      gsolv = gbsa%gsasa
+      gscr = gscr + gbsa%dsdr
+      call gfn0_charge_model(chrgeq, mol%n, mol%at, xtbData%coulomb)
+      call eeq_chrgeq(mol, env, chrgeq, gbsa, cn, dcndr, qeeq, dqdr, &
+         & ees, gsolv, gscr, .false., .true., .true.)
+   else
+      call gfn0_charge_model(chrgeq, mol%n, mol%at, xtbData%coulomb)
+      nid = maxval(mol%id)
+      allocate(idnum(nid))
+      do ii = 1, nid
+         jat = 0
+         do iat = 1, mol%n
+            if (mol%id(iat) == ii) then
+               jat = iat; exit
+            end if
+         end do
+         idnum(ii) = mol%at(jat)
+      end do
+      allocate(chargeWidth(1, nid))
+      do ii = 1, nid
+         ati = idnum(ii)
+         chargeWidth(1, ii) = xtbData%coulomb%chargeWidth(ati)
+      end do
+      call init(coulomb, env, mol, chargeWidth)
+      call init(eeq, env, xtbData%coulomb%electronegativity, &
+         & xtbData%coulomb%kcn, xtbData%coulomb%chemicalHardness, num=idnum)
+      call eeq%chargeEquilibration(env, mol, coulomb, cn, dcndr, dcndL, &
+         & ees, gscr, sscr, qat=qeeq, dqdr=dqdr, dqdL=dqdL)
+   end if
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Electronegativity equilibration failed", source)
+      ctx%fail = .true.; return
+   end if
+   wfn%q = qeeq
+   ctx%ees = ees
+   ctx%gsolv = gsolv
+   ctx%eatoms = eatoms
+
+   ! --- self energies + AO overlap S and core Hamiltonian H0 ---
+   call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn, wfn%q, &
+      & selfEnergy, dSEdcn, dSEdq)
+   if (ccm) then
+      call ccm_build_SH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
+         & mol%n, mol%at, basis, nbf, nao, mol%xyz, mol%lattice, intcut, &
+         & ctx%S, H0, wsc)
+   else
+      call latp%getLatticePoints(trans, sqrt(800.0_wp))
+      call pbc_build_SH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
+         & mol%n, mol%at, basis, nbf, nao, mol%xyz, trans, intcut, ctx%S, H0)
+   end if
+
+   ! --- near linear dependency check (S is not modified) ---
+   call cholesky(env%unit, .false., nao, ctx%S, ctx%orthog)
+   ! Linearly dependent systems need canonical orthogonalization (orthgsolve2),
+   ! which the plain batched solve does not provide -> the driver falls back to
+   ! per-molecule peeq for these. Leave ctx%H/S built; just flag it.
+
+   ! --- unpack packed H0 into the full symmetric H ---
+   do i = 1, nao
+      do j = 1, i
+         k = j + i*(i-1)/2
+         ctx%H(j,i) = H0(k)
+         ctx%H(i,j) = ctx%H(j,i)
+      end do
+   end do
+
+end subroutine peeq_build_energy
+
+
+!> GFN0 finish phase for the --gpu-batch energy path: given the diagonalization
+!> results already written into wfn (emo eigenvalues, C eigenvectors), assemble
+!> the density, Mulliken/shell charges, band energy and the remaining energy
+!> terms (repulsion + SRB), then the total energy, HOMO-LUMO gap and Wiberg bond
+!> orders. No gradient is computed (forces stay on the per-molecule `peeq`).
+subroutine peeq_finish_energy(env, mol, wfn, basis, xtbData, ctx, et, &
+      & etot, egap, res)
+   use xtb_mctc_convert, only : evtoau
+   use xtb_type_environment
+   use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_basisset
+   use xtb_type_param
+   use xtb_type_data
+   use xtb_scc_core
+   use xtb_disp_ncoord
+   use xtb_pbc
+
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol
+   type(TWavefunction), intent(inout) :: wfn
+   type(TBasisset), intent(in) :: basis
+   type(TxTBData), intent(in) :: xtbData
+   type(TPeeqEnergyCtx), intent(in) :: ctx
+   real(wp), intent(in) :: et
+   real(wp), intent(out) :: etot
+   real(wp), intent(out) :: egap
+   type(scc_results), intent(out) :: res
+
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: trans(:,:)
+   real(wp), allocatable :: gscr(:,:), dcndr0(:,:,:), dcndL0(:,:,:)
+   real(wp), allocatable :: Pa(:,:), Pb(:,:)
+   real(wp) :: sscr(3,3)
+   real(wp) :: eel, ep, esrb, exb, ed, ees, eat
+   real(wp) :: ga, gb, efa, efb, nfoda, nfodb
+   integer  :: nao, nshell
+
+   nao = ctx%nao
+   nshell = basis%nshell
+   egap = 0.0_wp
+   ga = 0.0_wp; gb = 0.0_wp
+   exb = 0.0_wp
+   ed = ctx%ed
+   ees = ctx%ees
+
+   ! --- optional Fermi smearing re-derives occupations from the eigenvalues ---
+   if (et > 0.1_wp) then
+      call fermismear(.false., nao, wfn%ihomoa, et, wfn%emo, wfn%focca, nfoda, efa, ga)
+      call fermismear(.false., nao, wfn%ihomob, et, wfn%emo, wfn%foccb, nfodb, efb, gb)
+      wfn%focc = wfn%focca + wfn%foccb
+   end if
+
+   ! --- density matrix, shell populations, band (electronic) energy ---
+   call dmat(nao, wfn%focc, wfn%C, wfn%P)
+   call mpopsh(mol%n, nao, nshell, basis%ao2sh, ctx%S, wfn%P, wfn%qsh)
+   eel = sum(wfn%focc*wfn%emo)*evtoau + ga + gb
+
+   ! --- repulsion + short-range-bond energies (gradient discarded) ---
+   allocate(gscr(3,mol%n), source=0.0_wp)
+   sscr = 0.0_wp
+   call init_l(latp, env, mol, 60.0_wp)
+   call latp%getLatticePoints(trans, 40.0_wp)
+   call drep_grad(xtbData%repulsion, mol, trans, ep, gscr, sscr)
+   esrb = 0.0_wp
+   if (allocated(xtbData%srb)) then
+      call latp%getLatticePoints(trans, sqrt(200.0_wp))
+      ! esrb depends on cn only; zero CN derivatives feed only the (discarded)
+      ! gradient (see dsrb_grad / pbc_approx_rab).
+      allocate(dcndr0(3,mol%n,mol%n), source=0.0_wp)
+      allocate(dcndL0(3,3,mol%n), source=0.0_wp)
+      call dsrb_grad(mol, xtbData%srb, ctx%cn, dcndr0, dcndL0, trans, esrb, gscr, sscr)
+   end if
+
+   ! --- HOMO-LUMO gap ---
+   if ((wfn%ihomo+1 <= nao) .and. (wfn%ihomo >= 1)) &
+      & egap = wfn%emo(wfn%ihomo+1) - wfn%emo(wfn%ihomo)
+
+   ! --- Wiberg-Mayer bond orders ---
+   if (wfn%nopen == 0) then
+      call get_wiberg(mol%n, basis%nao, mol%at, mol%xyz, wfn%P, ctx%S, wfn%wbo, basis%fila2)
+   else if (wfn%nopen > 0) then
+      allocate(Pa(basis%nao,basis%nao), Pb(basis%nao,basis%nao))
+      call dmat(basis%nao, wfn%focca, wfn%C, Pa)
+      call dmat(basis%nao, wfn%foccb, wfn%C, Pb)
+      call get_unrestricted_wiberg(mol%n, basis%nao, mol%at, mol%xyz, Pa, Pb, ctx%S, &
+         & wfn%wbo, basis%fila2)
+   end if
+
+   ! --- total energy + results bundle (mirrors peeq) ---
+   etot = eel + ees + ep + exb + esrb
+   eat = ctx%eatoms*evtoau - etot
+   etot = etot + ed
+
+   res%e_elec  = eel
+   res%e_atom  = eat
+   res%e_rep   = ep
+   res%e_es    = ees
+   res%e_aes   = 0.0_wp
+   res%e_axc   = 0.0_wp
+   res%e_xb    = esrb
+   res%e_disp  = ed
+   res%g_hb    = 0.0_wp
+   res%e_total = etot
+   res%hl_gap  = egap
+   res%g_solv  = 0.0_wp
+   res%dipole  = matmul(mol%xyz, wfn%q)
+   res%gnorm   = 0.0_wp
+
+end subroutine peeq_finish_energy
+
 
 ! repulsion
 pure subroutine drep_grad(repData,mol,trans,erep,gradient,sigma)
