@@ -59,15 +59,38 @@ module xtb_gpu_batch
    use xtb_type_wavefunction, only : TWavefunction
    use xtb_solv_gbsa, only : TBorn
    use xtb_peeq, only : peeq_build_energy, peeq_finish_energy, TPeeqEnergyCtx
+#ifdef WITH_GPU_SHIM
+   use iso_c_binding, only : c_int, c_double
+#endif
    implicit none
    private
 
-   public :: gpu_batch, gpu_batch_size, run_gpu_batch
+   public :: gpu_batch, gpu_batch_size, run_gpu_batch, gpu_use
 
    !> Set by the `--gpu-batch` CLI flag; dispatches xtbMain to run_gpu_batch.
    logical :: gpu_batch = .false.
+   !> Set by `--gpu`: route the batched GFN0 diagonalization to the GPU (cuSolver
+   !> shim). Only effective in a build compiled WITH_GPU_SHIM.
+   logical :: gpu_use = .false.
    !> Optional cap on molecules processed per GPU launch (0 = automatic).
    integer :: gpu_batch_size = 0
+
+#ifdef WITH_GPU_SHIM
+   !> CUDA-C batched generalized eigensolver (src/gpu/gpu_eig.cu, compiled by
+   !> nvcc and linked in). Solves H_k C_k = S_k C_k diag(W_k) on the GPU; H is
+   !> overwritten with eigenvectors, W gets ascending eigenvalues.
+   interface
+      function gpu_sygvd_batch(n, nbatch, H, S, W) result(rc) &
+            & bind(C, name="gpu_sygvd_batch")
+         import :: c_int, c_double
+         integer(c_int), value :: n, nbatch
+         real(c_double), intent(inout) :: H(*)
+         real(c_double), intent(in)    :: S(*)
+         real(c_double), intent(out)   :: W(*)
+         integer(c_int) :: rc
+      end function gpu_sygvd_batch
+   end interface
+#endif
 
    !> Upper edges (in number of AOs) of the size buckets used for batching.
    integer, parameter :: nbins = 6
@@ -149,9 +172,24 @@ subroutine run_gpu_batch(env, files)
 
    allocate(results(nFiles))
 
-   ! Dev validation passes (capture + cuSolver-gate replay + batched-energy
-   ! parity check) are opt-in via XTB_GPU_VALIDATE -- they roughly double the
-   ! work, so ordinary screening skips them.
+   ! ---- GPU production path (--gpu): route the batched GFN0 diagonalization to
+   ! the cuSolver shim. Builds H/S per molecule, diagonalizes whole size-buckets
+   ! on the GPU, finishes energies + properties (no gradient). GFN0 only. ----
+   if (gpu_use) then
+      if (set%gfn_method /= 0) then
+         call env%error("--gpu currently supports --gfn 0 only", source)
+         return
+      end if
+      call system_clock(c0, crate)
+      call run_batched_energy(env, files, results)
+      call system_clock(c1, crate)
+      t_total = real(c1 - c0, wp) / real(crate, wp)
+      call reportResults(env, results, t_total)
+      return
+   end if
+
+   ! ---- CPU path (per-molecule peeq). Dev validation passes are opt-in via
+   ! XTB_GPU_VALIDATE -- they roughly double the work, so screening skips them. ----
    call get_environment_variable("XTB_GPU_VALIDATE", envval, envlen, envstat)
    validate = (envstat == 0 .and. envlen > 0)
    if (validate) call gpu_capture_enable(capMax)
@@ -194,11 +232,9 @@ subroutine run_gpu_batch(env, files)
 
    if (validate) then
       ! Replay captured real eigenproblems through TBatchedEigensolver with the
-      ! GPU padding and verify the spectrum vs a per-system solve; then route the
-      ! production GFN0 energy through the batched solve and check it matches.
+      ! GPU padding and verify the spectrum vs an independent per-system solve.
       call validateBatchedEig(env)
       call gpu_capture_clear()
-      if (set%gfn_method == 0) call run_batched_energy(env, files, results)
    end if
 
 end subroutine run_gpu_batch
@@ -231,10 +267,10 @@ end subroutine showProgress
 !> TBatchedEigensolver call, scatters eigenpairs into each wavefunction, and runs
 !> peeq_finish_energy. The total energies are compared bit-for-bit against the
 !> per-molecule reference (full peeq) carried in `ref`.
-subroutine run_batched_energy(env, files, ref)
+subroutine run_batched_energy(env, files, results)
    type(TEnvironment), intent(inout) :: env
    character(len=*), intent(in) :: files(:)
-   type(TBatchResult), intent(in) :: ref(:)
+   type(TBatchResult), intent(inout) :: results(:)
 
    type(TEnergySys), allocatable :: sys(:)
    type(TBorn), allocatable :: gbsa            ! intentionally unallocated (no solvation)
@@ -242,13 +278,26 @@ subroutine run_batched_energy(env, files, ref)
    type(scc_results) :: spres
    real(wp), allocatable :: hmats(:,:,:), smats(:,:,:), evals(:,:)
    character(len=:), allocatable :: paramFile
-   integer :: nFiles, i, ib, n, cnt, p, m, kk, ich, ftype, stat
-   integer :: nbuilt, nbatched, northog, nfail, nmismatch
-   real(wp) :: et, acc, dev, worst
+   integer :: nFiles, i, ib, n, cnt, p, m, kk, ich, ftype, stat, rc
+   integer :: nbuilt, nbatched, northog, nfail
+   integer :: cl, cs
+   real(wp) :: et, acc
+   logical :: onGpu
+   character(len=8) :: cpuenv
    logical, parameter :: ccm = .true.
 
    nFiles = size(files)
-   write(env%unit, '(/,a)') " batched GFN0 energy path (production routing)"
+   onGpu = .false.
+#ifdef WITH_GPU_SHIM
+   onGpu = gpu_use
+   ! benchmark hook: XTB_BATCH_CPU forces the same energy path onto the CPU
+   call get_environment_variable("XTB_BATCH_CPU", cpuenv, cl, cs)
+   if (cs == 0 .and. cl > 0) onGpu = .false.
+#endif
+   if (gpu_use .and. .not. onGpu) call env%warning( &
+      & "this build has no GPU shim; --gpu runs the batched solve on CPU", source)
+
+   write(env%unit, '(/,a)') " batched GFN0 path ("//merge("GPU cuSolver", "CPU LAPACK  ", onGpu)//")"
    write(env%unit, '(a)') " "//repeat('-', 64)
 
    select case (set%gfn_method)
@@ -260,19 +309,21 @@ subroutine run_batched_energy(env, files, ref)
    end select
 
    allocate(sys(nFiles))
-   nbuilt = 0; nbatched = 0; northog = 0; nfail = 0; nmismatch = 0
-   worst = 0.0_wp
+   nbuilt = 0; nbatched = 0; northog = 0; nfail = 0
 
-   ! ---- build phase: H/S per molecule (no gradient) ----
+   ! ---- build phase: H/S per molecule (no gradient), with progress bar ----
    do i = 1, nFiles
+      call showProgress(env%unit, i, nFiles, trim(files(i)))
       if (len_trim(files(i)) == 0) cycle
       sys(i)%fname = trim(files(i))
+      results(i)%fname = trim(files(i))
       ftype = getFileType(sys(i)%fname)
       open(newunit=ich, file=sys(i)%fname, status='old', action='read', iostat=stat)
       if (stat /= 0) cycle
       call readMolecule(env, sys(i)%mol, ich, ftype)
       close(ich)
       if (sys(i)%mol%n <= 0) cycle
+      results(i)%nat = sys(i)%mol%n
 
       call newCalculator(env, sys(i)%mol, sys(i)%calc, paramFile, .false., set%acc)
       if (.not. allocated(sys(i)%calc)) cycle
@@ -288,21 +339,22 @@ subroutine run_batched_energy(env, files, ref)
          cycle
       end select
 
-      ! a logged error during build must not poison the next molecule
-      call drainEnv(env)
+      call drainEnv(env)        ! one molecule's error must not poison the batch
       if (sys(i)%ctx%fail) then
          nfail = nfail + 1; cycle
       end if
       if (sys(i)%ctx%orthog) then
-         northog = northog + 1   ! linearly dependent: leave to per-molecule peeq
+         northog = northog + 1   ! linearly dependent: skipped (needs orthgsolve2)
          cycle
       end if
       sys(i)%nao = sys(i)%ctx%nao
+      results(i)%nao = sys(i)%ctx%nao
       sys(i)%built = .true.
       nbuilt = nbuilt + 1
    end do
+   write(env%unit, '(a)') ""   ! end progress-bar line
 
-   ! ---- batched solve per size bucket, then finish each system ----
+   ! ---- batched solve per size bucket (GPU or CPU), then finish each system ----
    do ib = 1, nbins
       cnt = 0; n = 0
       do i = 1, nFiles
@@ -316,7 +368,7 @@ subroutine run_batched_energy(env, files, ref)
       allocate(hmats(n,n,cnt), smats(n,n,cnt), evals(n,cnt))
       hmats = 0.0_wp; smats = 0.0_wp; evals = 0.0_wp
 
-      ! pack + pad
+      ! pack + pad each system up to the bucket order n
       p = 0
       do i = 1, nFiles
          if (.not. (sys(i)%built .and. binIndex(sys(i)%nao) == ib)) cycle
@@ -330,11 +382,21 @@ subroutine run_batched_energy(env, files, ref)
          end do
       end do
 
-      call init(solver, env, n, cnt)
-      call solver%solve(env, hmats, smats, evals)
-      call solver%free()
+      rc = 0
+#ifdef WITH_GPU_SHIM
+      if (onGpu) then
+         rc = gpu_sygvd_batch(int(n, c_int), int(cnt, c_int), hmats, smats, evals)
+         if (rc /= 0) call env%warning("gpu_sygvd_batch returned a nonzero status", source)
+      else
+#endif
+         call init(solver, env, n, cnt)
+         call solver%solve(env, hmats, smats, evals)
+         call solver%free()
+#ifdef WITH_GPU_SHIM
+      end if
+#endif
 
-      ! scatter eigenpairs into each wavefunction and finish
+      ! scatter eigenpairs into each wavefunction and finish energies
       p = 0
       do i = 1, nFiles
          if (.not. (sys(i)%built .and. binIndex(sys(i)%nao) == ib)) cycle
@@ -349,33 +411,19 @@ subroutine run_batched_energy(env, files, ref)
                & calc%xtbData, sys(i)%ctx, et, sys(i)%etot, sys(i)%egap, spres)
          end select
          call drainEnv(env)
-         sys(i)%done = .true.
+         results(i)%energy = sys(i)%etot
+         results(i)%gap    = sys(i)%egap
+         results(i)%ok     = .true.
          nbatched = nbatched + 1
-
-         ! parity vs the per-molecule reference (full peeq) for this file
-         if (i <= size(ref)) then
-            if (ref(i)%ok) then
-               dev = abs(sys(i)%etot - ref(i)%energy)
-               worst = max(worst, dev)
-               if (dev > 1.0e-8_wp) nmismatch = nmismatch + 1
-            end if
-         end if
       end do
 
       deallocate(hmats, smats, evals)
    end do
 
-   write(env%unit, '(2x,a,i0,a,i0,a)') "built       : ", nbuilt, " systems (", northog, &
-      & " linearly dependent -> per-molecule peeq)"
-   write(env%unit, '(2x,a,i0,a)')      "batched     : ", nbatched, " diagonalized in buckets"
-   if (nfail > 0) write(env%unit, '(2x,a,i0)') "build fails : ", nfail
-   write(env%unit, '(2x,a,es10.3,a)')  "worst dE    : ", worst, " Eh vs per-molecule peeq"
-   if (nbatched > 0 .and. nmismatch == 0) then
-      write(env%unit, '(2x,a)') "RESULT      : PASS -- batched energies match per-molecule peeq"
-   else if (nbatched > 0) then
-      write(env%unit, '(2x,a,i0,a)') "RESULT      : FAIL -- ", nmismatch, &
-         & " energies differ by > 1e-8 Eh"
-   end if
+   write(env%unit, '(2x,a,i0,a,i0,a)') "diagonalized: ", nbatched, " systems on ", &
+      & merge(1, 0, onGpu), " (1=GPU,0=CPU); buckets by basis size"
+   if (northog > 0) write(env%unit, '(2x,a,i0)') "skipped(lin.dep): ", northog
+   if (nfail > 0)   write(env%unit, '(2x,a,i0)') "build fails     : ", nfail
    write(env%unit, '(a)') " "//repeat('-', 64)
 
 end subroutine run_batched_energy

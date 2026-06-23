@@ -31,7 +31,7 @@ module xtb_prog_main
    use xtb_type_data
    use xtb_type_environment, only: TEnvironment, init
    use xtb_prog_argparser
-   use xtb_gpu_batch, only: gpu_batch, run_gpu_batch
+   use xtb_gpu_batch, only: gpu_batch, run_gpu_batch, gpu_use
    use xtb_solv_state
    use xtb_setparam
    use xtb_sphereparam
@@ -1437,6 +1437,12 @@ contains
             ! one process by the GPU batch driver (see xtb_gpu_batch). Method is
             ! taken from --gfn; e.g. `xtb --gfn 0 --gpu-batch a.xyz b.xyz ...`.
             gpu_batch = .true.
+
+         case ('--gpu')
+            ! Route the batched GFN0 diagonalization to the GPU (cuSolver shim).
+            ! Implies --gpu-batch; only effective in a build compiled WITH_GPU_SHIM.
+            gpu_batch = .true.
+            gpu_use = .true.
 
          case ('--copy')
             copycontrol = .true.

@@ -102,6 +102,29 @@ if get_option('nvtx')
   srcs += 'src/nvtx.f90'
 endif
 
+## GPU eigensolver shim: nvcc-compiled CUDA-C object + cuSolver/cudart, linked
+## into the gfortran build. Sidesteps nvfortran. Build with:
+##   -Dgpu_shim=true -Ddefault_library=static  (FC=gfortran)
+gpu_shim_objs = []
+gpu_shim_link = []
+gpu_shim_def  = []
+if get_option('gpu_shim')
+  nvhpc = get_option('nvhpc_root')
+  cuda_ver = get_option('gpu_cuda_ver')
+  nvcc = find_program(nvhpc / 'cuda' / 'bin' / 'nvcc', 'nvcc', required: true)
+  cuda_inc   = nvhpc / 'math_libs' / cuda_ver / 'targets/x86_64-linux/include'
+  math_lib   = nvhpc / 'math_libs' / cuda_ver / 'targets/x86_64-linux/lib'
+  cudart_lib = nvhpc / 'REDIST/cuda' / cuda_ver / 'targets/x86_64-linux/lib'
+  gpu_eig_obj = custom_target('gpu_eig',
+    input: 'src/gpu/gpu_eig.cu',
+    output: 'gpu_eig.o',
+    command: [nvcc, '-O2', '-Xcompiler', '-fPIC', '-c', '@INPUT@',
+              '-I' + cuda_inc, '-o', '@OUTPUT@'])
+  gpu_shim_objs = [gpu_eig_obj]
+  gpu_shim_link = ['-L' + math_lib, '-lcusolver', '-L' + cudart_lib, '-lcudart', '-lstdc++']
+  gpu_shim_def  = ['-DWITH_GPU_SHIM']
+endif
+
 xtb_inc = meson.current_source_dir() / 'include'
 incdir = include_directories('include')
 
@@ -116,7 +139,7 @@ xtb_lib = library(
   fortran_args: [
     '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
     '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
-  ],
+  ] + gpu_shim_def,
   link_language: 'fortran',
 )
 
@@ -139,13 +162,15 @@ xtb_dep_static = declare_dependency(
 xtb_exe = executable(
   meson.project_name(),
   sources: prog,
+  objects: gpu_shim_objs,
   dependencies: xtb_dep_static,
   link_language: 'fortran',
+  link_args: gpu_shim_link,
   install: install,
   fortran_args: [
     '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
     '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
-  ],
+  ] + gpu_shim_def,
 )
 
 xtb_header = files('include/xtb.h')

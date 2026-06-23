@@ -77,3 +77,13 @@ option('cusolver', type: 'boolean', value: false,
        description: 'Use cuSOLVER for eigensolver routines')
 option('nvtx', type: 'boolean', value: false,
        description: 'use NVTX markers')
+
+# GPU eigensolver shim: compile src/gpu/gpu_eig.cu with nvcc and link cuSolver
+# into the normal (gfortran) build, giving GPU diagonalization without nvfortran.
+option('gpu_shim', type: 'boolean', value: false,
+       description: 'link the CUDA-C cuSolver eigensolver shim (nvcc) into xtb')
+option('nvhpc_root', type: 'string',
+       value: '/opt/nvidia/hpc_sdk/Linux_x86_64/26.3',
+       description: 'NVIDIA HPC SDK root (for nvcc + cuSolver/cudart)')
+option('gpu_cuda_ver', type: 'string', value: '13.1',
+       description: 'CUDA version subdir under the HPC SDK math_libs/REDIST')
