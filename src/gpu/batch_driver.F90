@@ -133,7 +133,9 @@ subroutine run_gpu_batch(env, files)
    integer :: nFiles, iFile
    integer(i8) :: c0, c1, crate
    real(wp) :: t_total
-   logical :: failed
+   logical :: failed, validate
+   character(len=16) :: envval
+   integer :: envlen, envstat
 
    nFiles = size(files)
    if (nFiles < 1) then
@@ -147,12 +149,12 @@ subroutine run_gpu_batch(env, files)
 
    allocate(results(nFiles))
 
-   ! Arm the capture hook in the core single-point path so that, as each molecule
-   ! is diagonalized, its real (H, S) eigenproblem is recorded (bounded to capMax
-   ! systems). After the run we replay those through the batched eigensolver with
-   ! GPU-style padding and check the spectrum against an independent per-system
-   ! solve -- the validatable half of the INTEGRATION SEAM (see validateBatchedEig).
-   call gpu_capture_enable(capMax)
+   ! Dev validation passes (capture + cuSolver-gate replay + batched-energy
+   ! parity check) are opt-in via XTB_GPU_VALIDATE -- they roughly double the
+   ! work, so ordinary screening skips them.
+   call get_environment_variable("XTB_GPU_VALIDATE", envval, envlen, envstat)
+   validate = (envstat == 0 .and. envlen > 0)
+   if (validate) call gpu_capture_enable(capMax)
 
    call system_clock(c0, crate)
 
@@ -168,39 +170,59 @@ subroutine run_gpu_batch(env, files)
       if (failed) results(iFile)%ok = .false.
       call env%getLog(logmsg)
       if (failed) then
-         write(env%unit, '(2x,a)') "[skipped on error] "//trim(results(iFile)%fname)
+         write(env%unit, '(/,2x,a)') "[skipped on error] "//trim(results(iFile)%fname)
          if (allocated(logmsg)) then
             if (len_trim(logmsg) > 0) write(env%unit, '(4x,a)') trim(logmsg)
          end if
       end if
+      ! live progress bar
+      call showProgress(env%unit, iFile, nFiles, results(iFile)%fname)
    end do
+   write(env%unit, '(a)') ""   ! end the progress-bar line
 
-   call gpu_capture_disable()
-
-   ! Optional: dump the captured real GFN0 (H, S) eigenproblems to a text file
-   ! (set XTB_DUMP_HS=path) so the standalone nvfortran cuSolver gate can replay
-   ! them on the GPU and compare against LAPACK.
-   call dumpCapturedHS()
+   ! Optional dev passes (only when XTB_GPU_VALIDATE is set).
+   if (validate) then
+      call gpu_capture_disable()
+      ! XTB_DUMP_HS=path also dumps the captured (H,S) for the cuSolver gate.
+      call dumpCapturedHS()
+   end if
 
    call system_clock(c1, crate)
    t_total = real(c1 - c0, wp) / real(crate, wp)
 
    call reportResults(env, results, t_total)
 
-   ! Replay the captured real eigenproblems through TBatchedEigensolver with the
-   ! GPU padding scheme and verify the spectrum bit-for-bit against a per-system
-   ! solve. This is the closed half of the INTEGRATION SEAM: the exact batched
-   ! kernel + padding the cuSolver backend uses, validated on real GFN0 matrices.
-   call validateBatchedEig(env)
-   call gpu_capture_clear()
-
-   ! Production routing (GFN0, energy + properties): rebuild each molecule's H/S
-   ! via peeq_build_energy, diagonalize the whole bucket through the batched
-   ! solver, then finish energies/properties via peeq_finish_energy -- and check
-   ! the resulting total energies against the per-molecule reference above.
-   if (set%gfn_method == 0) call run_batched_energy(env, files, results)
+   if (validate) then
+      ! Replay captured real eigenproblems through TBatchedEigensolver with the
+      ! GPU padding and verify the spectrum vs a per-system solve; then route the
+      ! production GFN0 energy through the batched solve and check it matches.
+      call validateBatchedEig(env)
+      call gpu_capture_clear()
+      if (set%gfn_method == 0) call run_batched_energy(env, files, results)
+   end if
 
 end subroutine run_gpu_batch
+
+
+!> Draw an in-place live progress bar (carriage-return, no newline) for the batch
+!> loop: [####------]  40%  55/136  current_structure.xyz
+subroutine showProgress(unit, done, total, path)
+   integer, intent(in) :: unit, done, total
+   character(len=*), intent(in) :: path
+   integer :: pct, filled, p
+   character(len=20) :: bar
+   character(len=28) :: lab
+   if (total <= 0) return
+   ! basename of the current structure (strip any directory)
+   p = max(index(path, '/', back=.true.), index(path, '\', back=.true.))
+   lab = path(p+1:)
+   pct = int(100.0_wp * real(done, wp) / real(total, wp))
+   filled = max(0, min(20, pct/5))
+   bar = repeat('#', filled)//repeat('-', 20-filled)
+   write(unit, '(a1,"[",a,"] ",i3,"% ",i0,"/",i0,2x,a)', advance='no') &
+      & char(13), bar, pct, done, total, lab
+   flush(unit)
+end subroutine showProgress
 
 
 !> GFN0 energy + properties through the batched diagonalization (Phase 1
