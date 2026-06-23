@@ -177,6 +177,11 @@ subroutine run_gpu_batch(env, files)
 
    call gpu_capture_disable()
 
+   ! Optional: dump the captured real GFN0 (H, S) eigenproblems to a text file
+   ! (set XTB_DUMP_HS=path) so the standalone nvfortran cuSolver gate can replay
+   ! them on the GPU and compare against LAPACK.
+   call dumpCapturedHS()
+
    call system_clock(c1, crate)
    t_total = real(c1 - c0, wp) / real(crate, wp)
 
@@ -352,6 +357,34 @@ subroutine run_batched_energy(env, files, ref)
    write(env%unit, '(a)') " "//repeat('-', 64)
 
 end subroutine run_batched_energy
+
+
+!> Dump captured real GFN0 (H, S) eigenproblems to the file named by the
+!> environment variable XTB_DUMP_HS (no-op if unset). Format: first line = count;
+!> then per system a line "nao", then nao*nao H values, then nao*nao S values
+!> (list-directed). Consumed by the standalone nvfortran cuSolver gate.
+subroutine dumpCapturedHS()
+   character(len=512) :: path
+   integer :: stat, length, u, k, ncap
+   type(TCapturedSystem) :: sys
+
+   call get_environment_variable("XTB_DUMP_HS", path, length, stat)
+   if (stat /= 0 .or. length == 0) return
+
+   ncap = gpu_capture_count()
+   if (ncap < 1) return
+
+   open(newunit=u, file=trim(path), action='write', status='replace', iostat=stat)
+   if (stat /= 0) return
+   write(u, '(i0)') ncap
+   do k = 1, ncap
+      call gpu_capture_get(k, sys)
+      write(u, '(i0)') sys%nao
+      write(u, *) sys%H
+      write(u, *) sys%S
+   end do
+   close(u)
+end subroutine dumpCapturedHS
 
 
 !> Drain and discard any pending log/error on the environment so one molecule's

@@ -154,9 +154,30 @@ dev box the meson run also shows timeouts from a 30 s cap on the slow `-O1`
 +sanitizer build, and one unrelated failure in the vendored `jonquil` JSON
 subproject under `MALLOC_PERTURB_` — neither is related to these changes.)
 
-**4. cuSolver vs LAPACK (still TODO).** Must be run once the GPU build compiles
-on an NVIDIA box; the validation harness above is backend-agnostic and becomes
-the GPU gate verbatim.
+**4. cuSolver vs LAPACK on real GPU hardware — DONE (RTX 3050, cc 8.6).**
+`test/gpu/cusolver_gate.f90` (run via `test/gpu/run_gpu_gate.sh`) replays the
+real GFN0 H/S matrices through `cusolverDnDsygvd` (the exact GPU backend in
+`batched_eig.F90`) and compares eigenvalues against LAPACK `dsygvd`:
+
+| test | systems | worst \|Δε\| | gate (≤1e-6 eV) |
+|---|---|---|---|
+| cuSolver vs LAPACK, per system (bare) | 5 (nao 8–36) | `1.6e-14` eV | PASS |
+| cuSolver on padded bucket vs LAPACK   | 5 → padded to 36 | `1.8e-14` eV | PASS |
+
+cuSolver reproduces LAPACK to ~machine epsilon on real GFN0 matrices, including
+the bucket-padding `--gpu-batch` uses. Together with §3/§3b (batched LAPACK +
+padding == real GFN0 spectra and energies on CPU), this closes the full chain:
+**the batched GPU diagonalization is numerically correct on real hardware.**
+
+> Toolchain note (the blocker for a *full* GPU xtb): nvfortran 26.3 (NVIDIA HPC
+> SDK, LLVM-only — `-Mnollvm` is gone) hits an internal compiler error sizing
+> derived types with deferred-length `character(:), allocatable` components in
+> xtb's modern-Fortran dependency tree (first seen in `toml-f/src/tomlf/ser.f90`).
+> So the entire xtb cannot yet be compiled with nvfortran, which is why the GPU
+> path is validated via the standalone gate above rather than `xtb --gpu-batch`
+> end-to-end on GPU. OpenACC GPU offload itself works fine on the RTX 3050
+> (verified). Getting full xtb onto nvfortran is a separate dependency-tree
+> compatibility effort (patch/upgrade toml-f, jonquil, mctc-lib, tblite, …).
 
 ---
 
