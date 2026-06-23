@@ -118,6 +118,7 @@ module xtb_gpu_batch
       class(TCalculator), allocatable :: calc
       type(TPeeqEnergyCtx) :: ctx
       character(len=:), allocatable :: fname
+      character(len=:), allocatable :: errmsg
       logical  :: built = .false.
       logical  :: done = .false.
       integer  :: nao = 0
@@ -268,21 +269,24 @@ end subroutine showProgress
 !> peeq_finish_energy. The total energies are compared bit-for-bit against the
 !> per-molecule reference (full peeq) carried in `ref`.
 subroutine run_batched_energy(env, files, results)
+   use xtb_type_environment, only : env_init => init
    type(TEnvironment), intent(inout) :: env
    character(len=*), intent(in) :: files(:)
    type(TBatchResult), intent(inout) :: results(:)
 
    type(TEnergySys), allocatable :: sys(:)
-   type(TBorn), allocatable :: gbsa            ! intentionally unallocated (no solvation)
+   type(TBorn), allocatable :: lgbsa           ! thread-private; intentionally unallocated (no solvation)
    type(TBatchedEigensolver) :: solver
    type(scc_results) :: spres
+   type(TEnvironment) :: lenv                  ! per-molecule (thread-private) env
    real(wp), allocatable :: hmats(:,:,:), smats(:,:,:), evals(:,:)
-   character(len=:), allocatable :: paramFile
+   character(len=512) :: paramFile
+   character(len=:), allocatable :: logmsg
    integer :: nFiles, i, ib, n, cnt, p, m, kk, ich, ftype, stat, rc
-   integer :: nbuilt, nbatched, northog, nfail
+   integer :: nbuilt, nbatched, northog, nfail, nDone
    integer :: cl, cs
    real(wp) :: et, acc
-   logical :: onGpu
+   logical :: onGpu, okmol
    character(len=8) :: cpuenv
    logical, parameter :: ccm = .true.
 
@@ -300,6 +304,7 @@ subroutine run_batched_energy(env, files, results)
    write(env%unit, '(/,a)') " batched GFN0 path ("//merge("GPU cuSolver", "CPU LAPACK  ", onGpu)//")"
    write(env%unit, '(a)') " "//repeat('-', 64)
 
+   paramFile = ''
    select case (set%gfn_method)
    case (0); paramFile = xfind(fname_gfn0)
    case default
@@ -311,48 +316,87 @@ subroutine run_batched_energy(env, files, results)
    allocate(sys(nFiles))
    nbuilt = 0; nbatched = 0; northog = 0; nfail = 0
 
-   ! ---- build phase: H/S per molecule (no gradient), with progress bar ----
+   ! ---- build phase: H/S per molecule (no gradient), PARALLEL across molecules.
+   ! Each molecule uses a thread-private environment (lenv) so the shared error
+   ! log is never raced. Nested OpenMP is left
+   ! disabled (default), so the per-molecule integral OMP regions run serially
+   ! inside each parallel iteration -- no oversubscription. Control number of
+   ! parallel molecules with OMP_NUM_THREADS. ----
+   nDone = 0
+   !$omp parallel do schedule(dynamic) default(shared) &
+   !$omp&  private(i, lenv, ich, ftype, stat, et, acc, okmol, lgbsa, logmsg) &
+   !$omp&  reduction(+:nbuilt, nfail, northog)
    do i = 1, nFiles
-      call showProgress(env%unit, i, nFiles, trim(files(i)))
-      if (len_trim(files(i)) == 0) cycle
-      sys(i)%fname = trim(files(i))
-      results(i)%fname = trim(files(i))
-      ftype = getFileType(sys(i)%fname)
-      open(newunit=ich, file=sys(i)%fname, status='old', action='read', iostat=stat)
-      if (stat /= 0) cycle
-      call readMolecule(env, sys(i)%mol, ich, ftype)
-      close(ich)
-      if (sys(i)%mol%n <= 0) cycle
-      results(i)%nat = sys(i)%mol%n
-
-      call newCalculator(env, sys(i)%mol, sys(i)%calc, paramFile, .false., set%acc)
-      if (.not. allocated(sys(i)%calc)) cycle
-      select type (calc => sys(i)%calc)
-      type is (TxTBCalculator)
-         et = calc%etemp
-         acc = calc%accuracy
-         call sys(i)%chk%wfn%allocate(sys(i)%mol%n, calc%basis%nshell, calc%basis%nao)
-         call newWavefunction(env, sys(i)%mol, calc, sys(i)%chk)
-         call peeq_build_energy(env, sys(i)%mol, sys(i)%chk%wfn, calc%basis, &
-            & calc%xtbData, gbsa, et, acc, ccm, sys(i)%ctx)
-      class default
-         cycle
-      end select
-
-      call drainEnv(env)        ! one molecule's error must not poison the batch
-      if (sys(i)%ctx%fail) then
-         nfail = nfail + 1; cycle
+      okmol = .false.
+      if (len_trim(files(i)) > 0) then
+         call env_init(lenv)
+         sys(i)%fname = trim(files(i))
+         results(i)%fname = trim(files(i))
+         ftype = getFileType(sys(i)%fname)
+         open(newunit=ich, file=sys(i)%fname, status='old', action='read', iostat=stat)
+         if (stat == 0) then
+            call readMolecule(lenv, sys(i)%mol, ich, ftype)
+            close(ich)
+            if (sys(i)%mol%n > 0) then
+               results(i)%nat = sys(i)%mol%n
+               call newCalculator(lenv, sys(i)%mol, sys(i)%calc, paramFile, .false., set%acc)
+               if (allocated(sys(i)%calc)) then
+                  select type (calc => sys(i)%calc)
+                  type is (TxTBCalculator)
+                     et = calc%etemp
+                     acc = calc%accuracy
+                     call sys(i)%chk%wfn%allocate(sys(i)%mol%n, calc%basis%nshell, calc%basis%nao)
+                     call newWavefunction(lenv, sys(i)%mol, calc, sys(i)%chk)
+                     call peeq_build_energy(lenv, sys(i)%mol, sys(i)%chk%wfn, calc%basis, &
+                        & calc%xtbData, lgbsa, et, acc, ccm, sys(i)%ctx)
+                     okmol = .true.
+                  end select
+               end if
+            end if
+         else
+            sys(i)%errmsg = "could not open input structure"
+         end if
       end if
-      if (sys(i)%ctx%orthog) then
+
+      if (len_trim(files(i)) > 0) then
+         call lenv%getLog(logmsg)
+         if (allocated(logmsg)) then
+            if (len_trim(logmsg) > 0) sys(i)%errmsg = trim(logmsg)
+         end if
+      end if
+
+      if (okmol .and. .not.sys(i)%ctx%fail .and. .not.sys(i)%ctx%orthog) then
+         sys(i)%nao = sys(i)%ctx%nao
+         results(i)%nao = sys(i)%ctx%nao
+         sys(i)%built = .true.
+         nbuilt = nbuilt + 1
+      else if (okmol .and. sys(i)%ctx%orthog) then
          northog = northog + 1   ! linearly dependent: skipped (needs orthgsolve2)
-         cycle
+      else if (len_trim(files(i)) > 0) then
+         nfail = nfail + 1
       end if
-      sys(i)%nao = sys(i)%ctx%nao
-      results(i)%nao = sys(i)%ctx%nao
-      sys(i)%built = .true.
-      nbuilt = nbuilt + 1
+
+      !$omp critical (xtbgpu_prog)
+      nDone = nDone + 1
+      call showProgress(env%unit, nDone, nFiles, "building (parallel)")
+      !$omp end critical (xtbgpu_prog)
    end do
+   !$omp end parallel do
    write(env%unit, '(a)') ""   ! end progress-bar line
+
+   if (nfail > 0) then
+      cnt = 0
+      do i = 1, nFiles
+         if (sys(i)%built) cycle
+         if (len_trim(files(i)) == 0) cycle
+         if (cnt >= 5) exit
+         cnt = cnt + 1
+         write(env%unit, '(2x,a,1x,a)') "build failure:", trim(sys(i)%fname)
+         if (allocated(sys(i)%errmsg)) then
+            if (len_trim(sys(i)%errmsg) > 0) write(env%unit, '(4x,a)') trim(sys(i)%errmsg)
+         end if
+      end do
+   end if
 
    ! ---- batched solve per size bucket (GPU or CPU), then finish each system ----
    do ib = 1, nbins
