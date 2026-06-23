@@ -92,7 +92,7 @@ subroutine initDEigenSolver(self, env, bmat)
    integer :: istat, lwork
    ! dummy is only a dummy argument used to query the workspace size needed
    ! for cuSolverDnDsygvd -- it is okay to pass an empty array to cuSolverDnDsygvd_bufferSize
-   real(dp) :: dummy(:) 
+   real(dp) :: dummy(1)
 #endif
 
    self%n = size(bmat, 1)

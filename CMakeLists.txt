@@ -35,6 +35,45 @@ enable_testing()
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 
+# ---------------------------------------------------------------------------
+# GPU acceleration (NVIDIA HPC SDK / nvfortran only).
+# Mirrors the meson options `gpu`, `gpu_arch`, `cusolver`. Disabled by default;
+# the CPU build is unaffected. Requires the compiler to be NVHPC (nvfortran).
+# Enable with: cmake -DWITH_GPU=ON -DGPU_ARCH=80 -DWITH_CUSOLVER=ON ...
+# ---------------------------------------------------------------------------
+option(WITH_GPU "Enable GPU acceleration (requires NVIDIA HPC SDK / nvfortran)" FALSE)
+set(GPU_ARCH "70" CACHE STRING "Target NVIDIA GPU compute capability (e.g. 70, 80, 90)")
+option(WITH_CUSOLVER "Use cuSOLVER/cuBLAS for (batched) eigensolver routines" FALSE)
+
+if(WITH_GPU)
+   if(NOT CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
+      message(FATAL_ERROR
+         "WITH_GPU requires the NVIDIA HPC SDK Fortran compiler (nvfortran). "
+         "Detected Fortran compiler: ${CMAKE_Fortran_COMPILER_ID}. "
+         "Configure with: FC=nvfortran cmake -DWITH_GPU=ON ...")
+   endif()
+   message(STATUS "xtb: GPU acceleration ENABLED (cc${GPU_ARCH}); cuSOLVER=${WITH_CUSOLVER}")
+
+   # OpenACC offload + target architecture. Scope flags to Fortran so the C
+   # sources (symmetry/) are not affected.
+   add_compile_options(
+      "$<$<COMPILE_LANGUAGE:Fortran>:-acc>"
+      "$<$<COMPILE_LANGUAGE:Fortran>:-gpu=cc${GPU_ARCH}>"
+      "$<$<COMPILE_LANGUAGE:Fortran>:-Minfo=accel>"
+   )
+   add_link_options(-acc "-gpu=cc${GPU_ARCH}")
+   add_compile_definitions("$<$<COMPILE_LANGUAGE:Fortran>:XTB_GPU>")
+
+   if(WITH_CUSOLVER)
+      add_compile_options("$<$<COMPILE_LANGUAGE:Fortran>:-cudalib=cusolver,cublas>")
+      add_link_options(-cudalib=cusolver,cublas)
+      add_compile_definitions(
+         "$<$<COMPILE_LANGUAGE:Fortran>:USE_CUSOLVER>"
+         "$<$<COMPILE_LANGUAGE:Fortran>:USE_CUBLAS>"
+      )
+   endif()
+endif()
+
 
 # Include CMake specific configurations
 add_subdirectory("cmake")
