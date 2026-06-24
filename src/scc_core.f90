@@ -22,6 +22,8 @@ module xtb_scc_core
    use xtb_mctc_lapack, only : lapack_sygvd
    use xtb_mctc_blas, only : blas_gemm, mctc_symv, mctc_gemm
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
+   use xtb_gpu_runtime, only : gpu_use, gpu_solve, gpu_density
+   use xtb_gpu_runtime, only : gpu_build_h1, gpu_mpopsh
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    use xtb_xtb_data
@@ -33,6 +35,7 @@ module xtb_scc_core
    private
 
    public :: build_h0, scc, electro, solve, solve4
+   public :: TScfBatchState
    public :: fermismear, occ, occu, dmat, get_unrestricted_wiberg
    public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
    public :: iniqshell, setzshell
@@ -40,6 +43,45 @@ module xtb_scc_core
 
 
    integer, private, parameter :: mmm(20)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
+
+   !> Persistent state for one self-consistent GFN1/GFN2 calculation.
+   !>
+   !> Keeping this data in an explicit object is the prerequisite for advancing
+   !> several molecules one iteration at a time in a lockstep batch.  The
+   !> traditional `scc` entry point owns one instance and remains behaviorally
+   !> unchanged; the Phase-2 batch driver will own an array of these states.
+   type :: TScfBatchState
+      integer :: nbr = 0
+      integer :: iter = 0
+      integer :: thisiter = 0
+      real(wp) :: damp = 0.0_wp
+      real(wp) :: omegap = 0.0_wp
+      real(wp) :: eold = 0.0_wp
+      real(wp) :: ga = 0.0_wp
+      real(wp) :: gb = 0.0_wp
+      real(wp) :: rmsq = 0.0_wp
+      real(wp) :: nfoda = 0.0_wp
+      real(wp) :: nfodb = 0.0_wp
+      logical :: fulldiag = .false.
+      logical :: lastdiag = .false.
+      logical :: converged = .false.
+      logical :: econverged = .false.
+      logical :: qconverged = .false.
+      logical :: active = .false.
+      real(wp), allocatable :: vs(:)
+      real(wp), allocatable :: vd(:, :)
+      real(wp), allocatable :: vq(:, :)
+      real(wp), allocatable :: atomicShift(:)
+      real(wp), allocatable :: df(:, :)
+      real(wp), allocatable :: u(:, :)
+      real(wp), allocatable :: a(:, :)
+      real(wp), allocatable :: q_in(:)
+      real(wp), allocatable :: dq(:)
+      real(wp), allocatable :: qlast_in(:)
+      real(wp), allocatable :: dqlast(:)
+      real(wp), allocatable :: omega(:)
+      real(wp), allocatable :: S_factorized(:, :)
+   end type TScfBatchState
 
 
 contains
@@ -320,9 +362,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !  anisotropic electrostatic
    type(TxTBMultipole), intent(in), optional :: aes
    real(wp),intent(in)    :: xyz(3,n)
-   real(wp), allocatable :: vs(:)
-   real(wp), allocatable :: vd(:, :)
-   real(wp), allocatable :: vq(:, :)
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
    class(TSolvation), allocatable, intent(inout) :: solvation
@@ -337,7 +376,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical, intent(in)    :: pcem
    real(wp),intent(inout) :: shellShift(nshell)
    real(wp),intent(inout) :: externShift(nshell)
-   real(wp), allocatable :: atomicShift(:)
 !! ------------------------------------------------------------------------
 !  Fermi-smearing
    real(wp),intent(in)    :: et
@@ -348,23 +386,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !  Convergence accelerators, a simple damping as well as a Broyden mixing
 !  are available. The Broyden mixing is used by default seems reliable.
    real(wp),intent(in)    :: damp0
-   real(wp)               :: damp
 !  Broyden
-   integer                :: nbr
    logical, intent(in)    :: broy
    real(wp),intent(inout) :: broydamp
-   real(wp)               :: omegap
-   real(wp),allocatable   :: df(:,:)
-   real(wp),allocatable   :: u(:,:)
-   real(wp),allocatable   :: a(:,:)
-   real(wp),allocatable   :: q_in(:)
-   real(wp),allocatable   :: dq(:)
-   real(wp),allocatable   :: qlast_in(:)
-   real(wp),allocatable   :: dqlast(:)
-   real(wp),allocatable   :: omega(:)
-!! ------------------------------------------------------------------------
-!  Factorized overlap to avoid multiple factorizations
-   real(wp), allocatable :: S_factorized(:,:)
 !! ------------------------------------------------------------------------
 !  results of the SCC iterator
    real(wp),intent(out)   :: eel
@@ -396,42 +420,72 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer  :: ishell,jshell
    real(wp) :: t8,t9
    real(wp) :: eh1,dum,tgb
-   real(wp) :: eold
-   real(wp) :: ga,gb
-   real(wp) :: rmsq
-   real(wp) :: nfoda,nfodb
-   logical  :: fulldiag
-   logical  :: lastdiag
-   integer  :: iter
-   integer  :: thisiter
-   logical  :: converged
-   logical  :: econverged
-   logical  :: qconverged
+   logical  :: step_done
+   logical  :: gpu_ok
+   integer :: iter_driver
+   type(TScfBatchState) :: state
 
-   allocate(S_factorized(ndim, ndim), source = 0.0_wp )
-   S_factorized = S
-   call mctc_potrf(env, S_factorized)
-
-   converged = .false.
-   lastdiag = .false.
-   ! number of iterations for this iterator
-   thisiter = maxiter - jter
-
-   damp = damp0
-   if (present(aes)) then
-      nbr = nshell + 9*n
-      allocate(vs(n), vd(3, n), vq(6, n))
-   else
-      nbr = nshell
-   end if
-!  broyden data storage and init
-   allocate( df(thisiter,nbr),u(thisiter,nbr),a(thisiter,thisiter), &
-   &         dq(nbr),dqlast(nbr),qlast_in(nbr),omega(thisiter), &
-   &         q_in(nbr),atomicShift(n), source = 0.0_wp )
+   call scc_init()
 
 !! ------------------------------------------------------------------------
 !  Iteration entry point
-   scc_iterator: do iter = 1, thisiter
+   scc_iterator: do iter_driver = 1, state%thisiter
+      state%iter = iter_driver
+      call scc_step(step_done)
+      if (fail) return
+      if (step_done) exit scc_iterator
+   enddo scc_iterator
+
+   call scc_final()
+
+contains
+
+subroutine scc_init()
+   allocate(state%S_factorized(ndim, ndim), source = 0.0_wp )
+   state%S_factorized = S
+   call mctc_potrf(env, state%S_factorized)
+
+   state%converged = .false.
+   state%lastdiag = .false.
+   state%active = .true.
+   ! number of iterations for this iterator
+   state%thisiter = maxiter - jter
+
+   state%damp = damp0
+   if (present(aes)) then
+      state%nbr = nshell + 9*n
+      allocate(state%vs(n), state%vd(3, n), state%vq(6, n))
+   else
+      state%nbr = nshell
+      allocate(state%vs(0), state%vd(0, 0), state%vq(0, 0))
+   end if
+!  broyden data storage and init
+   allocate(state%df(state%thisiter,state%nbr), &
+   &        state%u(state%thisiter,state%nbr), &
+   &        state%a(state%thisiter,state%thisiter), &
+   &        state%dq(state%nbr),state%dqlast(state%nbr), &
+   &        state%qlast_in(state%nbr),state%omega(state%thisiter), &
+   &        state%q_in(state%nbr),state%atomicShift(n), source = 0.0_wp )
+end subroutine scc_init
+
+subroutine scc_step(done)
+   logical, intent(out) :: done
+
+   done = .false.
+   associate( &
+   & vs => state%vs, vd => state%vd, vq => state%vq, &
+   & atomicShift => state%atomicShift, nbr => state%nbr, &
+   & damp => state%damp, omegap => state%omegap, &
+   & df => state%df, u => state%u, a => state%a, &
+   & q_in => state%q_in, dq => state%dq, &
+   & qlast_in => state%qlast_in, dqlast => state%dqlast, &
+   & omega => state%omega, S_factorized => state%S_factorized, &
+   & eold => state%eold, ga => state%ga, gb => state%gb, &
+   & rmsq => state%rmsq, nfoda => state%nfoda, nfodb => state%nfodb, &
+   & fulldiag => state%fulldiag, lastdiag => state%lastdiag, &
+   & iter => state%iter, thisiter => state%thisiter, &
+   & converged => state%converged, &
+   & econverged => state%econverged, qconverged => state%qconverged)
 
    ! set up ES potential
    atomicShift(:) = 0.0_wp
@@ -458,7 +512,10 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          & H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
    else
-      call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
+      gpu_ok = .false.
+      if (gpu_use) call gpu_build_h1(ndim, nmat, nshell, matlist, H0, S, &
+         & shellShift, ao2sh, autoev, H, gpu_ok)
+      if (.not.gpu_ok) call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
          & shellShift,aoat2,ao2sh)
    end if
 
@@ -472,7 +529,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
-   call solver%fact_solve(env, H, S_factorized, emo)
+   gpu_ok = .false.
+   if (gpu_use) call gpu_solve(ndim, H, S, emo, gpu_ok)
+   if (.not.gpu_ok) call solver%fact_solve(env, H, S_factorized, emo)
    call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
@@ -510,10 +569,14 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    end if
 
    ! density matrix
-   call dmat(ndim,focc,H,P)
+   gpu_ok = .false.
+   if (gpu_use) call gpu_density(ndim, H, focc, P, gpu_ok)
+   if (.not.gpu_ok) call dmat(ndim,focc,H,P)
 
    ! new q
-   call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
+   gpu_ok = .false.
+   if (gpu_use) call gpu_mpopsh(ndim, nshell, ao2sh, S, P, qsh, gpu_ok)
+   if (.not.gpu_ok) call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
    qsh = zsh - qsh
 
    ! qat from qsh
@@ -627,15 +690,22 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !! ------------------------------------------------------------------------
    if (econverged.and.qconverged) then
       converged = .true.
-      if (lastdiag) exit scc_iterator
+      if (lastdiag) then
+         done = .true.
+         return
+      end if
       lastdiag = .true.
    endif
 !! ------------------------------------------------------------------------
 
-   enddo scc_iterator
+   end associate
+end subroutine scc_step
 
-   jter = jter + min(iter,thisiter)
-   fail = .not.converged
+subroutine scc_final()
+   jter = jter + min(state%iter,state%thisiter)
+   fail = .not.state%converged
+   state%active = .false.
+end subroutine scc_final
 
 end subroutine scc
 

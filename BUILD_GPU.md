@@ -181,6 +181,59 @@ padding == real GFN0 spectra and energies on CPU), this closes the full chain:
 
 ---
 
+The nvfortran limitation above applies to the monolithic OpenACC build. It does
+not apply to the gfortran + CUDA C++ shim described below, which is exercised
+end-to-end by the normal xTB executable.
+
+## GFN1/GFN2 CUDA shim: single-points, gradients and optimization
+
+The supported self-consistent path keeps xTB and its dependencies on gfortran
+and links `src/gpu/gpu_eig.cu` as a CUDA C++ shim. With `--gpu`, each GFN1/GFN2
+SCF iteration uses cuSolver for `H C = S C eps` and cuBLAS for
+`P = C diag(f) C^T`. CUDA handles, buffers, and workspace persist across SCF
+and optimization cycles.
+
+`--gpu` is independent of `--gpu-batch`, so all of these are supported:
+
+```bash
+xtb molecule.xyz --gfn 1 --gpu --sp
+xtb molecule.xyz --gfn 2 --gpu --grad
+xtb molecule.xyz --gfn 2 --gpu --opt
+xtb --gfn 1 --gpu --gpu-batch inputs/*.xyz
+```
+
+Meson:
+
+```bash
+FC=gfortran meson setup build-gpushim --buildtype release \
+  -Ddefault_library=static -Dgpu_shim=true \
+  -Dnvhpc_root=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3 \
+  -Dgpu_cuda_ver=13.1
+ninja -C build-gpushim
+meson test -C build-gpushim --suite gpu --print-errorlogs
+```
+
+CMake provides the equivalent `-DWITH_GPU_SHIM=ON` path through
+`find_package(CUDAToolkit)`.
+
+The end-to-end gate in `test/gpu/gfn12_gpu_gate.py` compares CPU and GPU
+single-points, analytical gradients, optimized energies/geometries, and the
+multi-file GPU path:
+
+| gate | GFN1 | GFN2 |
+|---|---:|---:|
+| single-point `|dE|` | `0.0 Eh` | `0.0 Eh` |
+| gradient max `|dG|` | `9.992e-16 Eh/a0` | `1.313e-16 Eh/a0` |
+| loose optimization cycles | `5 / 5` | `5 / 5` |
+| optimized `|dE|` | `0.0 Eh` | `0.0 Eh` |
+| optimized max `|dx|` | `0.0 A` | `8e-14 A` |
+
+The analytical force assembly is still CPU-side; it consumes the GPU-generated
+converged wavefunction. Full force-kernel offload and true lockstep
+cross-molecule SCF compaction remain performance work.
+
+---
+
 ## Throughput benchmark
 
 `benchmark/gpu_batch_bench.sh` times the traditional one-process-per-molecule
@@ -219,8 +272,10 @@ solve replaces the per-molecule diagonalization (see "Known limitations").
   high-throughput version (potrfBatched → trsmBatched → syevjBatched) is
   documented in `batched_eig.F90`; implement after the seam is closed and the
   per-system path validates on hardware.
-- **GFN1/GFN2** capture is not instrumented yet (the hook is in the GFN0 `peeq`
-  path only); the SCF state machine is Phase 2.
+- **GFN1/GFN2** production SCF diagonalization and density are routed through
+  CUDA, including `--grad` and `--opt`. The multi-file driver uses this path per
+  molecule; true lockstep H1/AES/Mulliken batching and active-set compaction
+  remain to be implemented.
 - **`--param` files** are not threaded into the batch path yet (defaults only).
 - **Capture cap**: the validation retains at most 64 systems (reported, not
   silently truncated) to bound host memory.

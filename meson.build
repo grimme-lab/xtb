@@ -118,10 +118,12 @@ if get_option('gpu_shim')
   gpu_eig_obj = custom_target('gpu_eig',
     input: 'src/gpu/gpu_eig.cu',
     output: 'gpu_eig.o',
-    command: [nvcc, '-O2', '-Xcompiler', '-fPIC', '-c', '@INPUT@',
+    command: [nvcc, '-O2', '-arch=sm_' + get_option('gpu_arch'),
+              '-Xcompiler', '-fPIC', '-c', '@INPUT@',
               '-I' + cuda_inc, '-o', '@OUTPUT@'])
   gpu_shim_objs = [gpu_eig_obj]
-  gpu_shim_link = ['-L' + math_lib, '-lcusolver', '-L' + cudart_lib, '-lcudart', '-lstdc++']
+  gpu_shim_link = ['-L' + math_lib, '-lcusolver', '-lcublas',
+                   '-L' + cudart_lib, '-lcudart', '-lstdc++']
   gpu_shim_def  = ['-DWITH_GPU_SHIM']
 endif
 
@@ -235,6 +237,10 @@ endif
 # make sure the correct library is loaded
 xtbenv = environment()
 xtbenv.prepend('LD_LIBRARY_PATH', meson.current_build_dir())
+if get_option('gpu_shim')
+  xtbenv.prepend('LD_LIBRARY_PATH', math_lib)
+  xtbenv.prepend('LD_LIBRARY_PATH', cudart_lib)
+endif
 xtbenv.prepend('PYTHONPATH', meson.current_source_dir() / 'python')
 xtbenv.set('XTBPATH', meson.current_source_dir())
 

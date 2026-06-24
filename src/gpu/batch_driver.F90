@@ -53,6 +53,10 @@ module xtb_gpu_batch
    use xtb_readin, only : xfind
    use xtb_mctc_lapack_geneigval, only : lapack_sygvd
    use xtb_gpu_batched_eig, only : TBatchedEigensolver, init
+   use xtb_gpu_runtime, only : gpu_use
+#ifdef WITH_GPU_SHIM
+   use xtb_gpu_runtime, only : gpu_sygvd_batch
+#endif
    use xtb_gpu_batch_capture, only : gpu_capture_enable, gpu_capture_disable, &
       & gpu_capture_count, gpu_capture_seen, gpu_capture_get, gpu_capture_clear, &
       & TCapturedSystem
@@ -60,7 +64,7 @@ module xtb_gpu_batch
    use xtb_solv_gbsa, only : TBorn
    use xtb_peeq, only : peeq_build_energy, peeq_finish_energy, TPeeqEnergyCtx
 #ifdef WITH_GPU_SHIM
-   use iso_c_binding, only : c_int, c_double
+   use iso_c_binding, only : c_int
 #endif
    implicit none
    private
@@ -69,28 +73,8 @@ module xtb_gpu_batch
 
    !> Set by the `--gpu-batch` CLI flag; dispatches xtbMain to run_gpu_batch.
    logical :: gpu_batch = .false.
-   !> Set by `--gpu`: route the batched GFN0 diagonalization to the GPU (cuSolver
-   !> shim). Only effective in a build compiled WITH_GPU_SHIM.
-   logical :: gpu_use = .false.
    !> Optional cap on molecules processed per GPU launch (0 = automatic).
    integer :: gpu_batch_size = 0
-
-#ifdef WITH_GPU_SHIM
-   !> CUDA-C batched generalized eigensolver (src/gpu/gpu_eig.cu, compiled by
-   !> nvcc and linked in). Solves H_k C_k = S_k C_k diag(W_k) on the GPU; H is
-   !> overwritten with eigenvectors, W gets ascending eigenvalues.
-   interface
-      function gpu_sygvd_batch(n, nbatch, H, S, W) result(rc) &
-            & bind(C, name="gpu_sygvd_batch")
-         import :: c_int, c_double
-         integer(c_int), value :: n, nbatch
-         real(c_double), intent(inout) :: H(*)
-         real(c_double), intent(in)    :: S(*)
-         real(c_double), intent(out)   :: W(*)
-         integer(c_int) :: rc
-      end function gpu_sygvd_batch
-   end interface
-#endif
 
    !> Upper edges (in number of AOs) of the size buckets used for batching.
    integer, parameter :: nbins = 6
@@ -176,11 +160,7 @@ subroutine run_gpu_batch(env, files)
    ! ---- GPU production path (--gpu): route the batched GFN0 diagonalization to
    ! the cuSolver shim. Builds H/S per molecule, diagonalizes whole size-buckets
    ! on the GPU, finishes energies + properties (no gradient). GFN0 only. ----
-   if (gpu_use) then
-      if (set%gfn_method /= 0) then
-         call env%error("--gpu currently supports --gfn 0 only", source)
-         return
-      end if
+   if (gpu_use .and. set%gfn_method == 0) then
       call system_clock(c0, crate)
       call run_batched_energy(env, files, results)
       call system_clock(c1, crate)
@@ -189,7 +169,10 @@ subroutine run_gpu_batch(env, files)
       return
    end if
 
-   ! ---- CPU path (per-molecule peeq). Dev validation passes are opt-in via
+   if (gpu_use) write(env%unit, '(a)') &
+      & " GFN1/GFN2 batch: SCF diagonalization + density routed through CUDA"
+
+   ! ---- General path (per-molecule calculator). Dev validation passes are opt-in via
    ! XTB_GPU_VALIDATE -- they roughly double the work, so screening skips them. ----
    call get_environment_variable("XTB_GPU_VALIDATE", envval, envlen, envstat)
    validate = (envstat == 0 .and. envlen > 0)

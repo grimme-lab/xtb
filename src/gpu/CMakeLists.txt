@@ -23,6 +23,7 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
+  "${dir}/gpu_runtime.F90"
   "${dir}/batch_capture.F90"
   "${dir}/batched_eig.F90"
   "${dir}/batch_driver.F90"

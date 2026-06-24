@@ -16,3 +16,20 @@
 
 subdir('api')
 subdir('unit')
+
+if get_option('gpu_shim')
+  python3 = find_program('python3', required: true)
+  test(
+    'gfn1-gfn2-gpu-sp-grad-opt',
+    python3,
+    args: [
+      files('gpu/gfn12_gpu_gate.py'),
+      '--cpu', xtb_exe,
+      '--gpu', xtb_exe,
+      '--fixture', files('gpu/water.xyz'),
+    ],
+    env: xtbenv,
+    suite: 'gpu',
+    timeout: 300,
+  )
+endif

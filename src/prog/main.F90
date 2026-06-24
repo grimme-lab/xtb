@@ -1439,9 +1439,9 @@ contains
             gpu_batch = .true.
 
          case ('--gpu')
-            ! Route the batched GFN0 diagonalization to the GPU (cuSolver shim).
-            ! Implies --gpu-batch; only effective in a build compiled WITH_GPU_SHIM.
-            gpu_batch = .true.
+            ! Route supported electronic-structure kernels to the CUDA shim.
+            ! This is independent of --gpu-batch so regular single-points,
+            ! gradients and geometry optimizations can use the GPU too.
             gpu_use = .true.
 
          case ('--copy')

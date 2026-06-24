@@ -16,6 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
+  'gpu_runtime.F90',
   'batch_capture.F90',
   'batched_eig.F90',
   'batch_driver.F90',
