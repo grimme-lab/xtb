@@ -816,6 +816,7 @@ subroutine reportResults(env, results, t_total)
    write(env%unit, '(2x,a,f6.1,a)')    "pad waste   : ", pad_waste, &
       & " % of batched matrix elements (lower = better bucketing)"
    write(env%unit, '(a)') " "//repeat('-', 50)
+   call writeBatchCsv(env, results)
 
 contains
    !> Left-truncate/pad a string to width w for tabular output.
@@ -832,5 +833,42 @@ contains
       end if
    end function trunc
 end subroutine reportResults
+
+
+!> Optional machine-readable result stream for external batch schedulers.
+!> Set XTB_BATCH_CSV to a path. Structure names are quoted because names can
+!> contain commas; energy is in Eh and the gap is in eV.
+subroutine writeBatchCsv(env, results)
+   type(TEnvironment), intent(inout) :: env
+   type(TBatchResult), intent(in) :: results(:)
+
+   character(len=4096) :: path
+   character(len=128) :: values
+   integer :: length, stat, unit, i
+
+   call get_environment_variable("XTB_BATCH_CSV", path, length, stat)
+   if (stat /= 0 .or. length <= 0) return
+
+   open(newunit=unit, file=trim(path(:length)), status='replace', &
+      & action='write', iostat=stat)
+   if (stat /= 0) then
+      call env%warning("could not write XTB_BATCH_CSV='"// &
+         & trim(path(:length))//"'", source)
+      return
+   end if
+
+   write(unit, '(a)') "structure,energy_Eh,gap_eV,status"
+   do i = 1, size(results)
+      if (.not. allocated(results(i)%fname)) cycle
+      if (results(i)%ok) then
+         write(values, '(es24.16,a,es24.16,a)') results(i)%energy, ",", &
+            & results(i)%gap, ",ok"
+      else
+         values = ",,FAILED"
+      end if
+      write(unit, '(a)') '"'//trim(results(i)%fname)//'",'//trim(adjustl(values))
+   end do
+   close(unit)
+end subroutine writeBatchCsv
 
 end module xtb_gpu_batch

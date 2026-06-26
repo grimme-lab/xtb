@@ -30,6 +30,8 @@
 *.exe
 *.out
 *.app
+/test/gpu/cusolver_gate
+/tools/gpu-dev/prototype-shim/gpu_bench
 
 # Editor specific metadata
 .vscode
