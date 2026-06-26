@@ -301,3 +301,159 @@ extern "C" int gpu_mulliken_shell(
                   cudaMemcpyDeviceToHost) != cudaSuccess) return -38;
    return 0;
 }
+
+// ============================================================================
+//  Resident SCF session: keep S, H0, matlist, ao2sh resident on the device for
+//  the whole SCF, and the Hamiltonian/eigenvectors (dH) + density (dP) resident
+//  between solve and finish, so per iteration ONLY small vectors cross PCIe
+//  (shift/focc in; emo/P/qsh out). Eliminates the ~8 n^2 host<->device copies
+//  per iteration of the per-call path. P is returned because the host electro()
+//  energy needs it.
+// ============================================================================
+namespace {
+struct ScfSession {
+   int n = 0, nshell = 0, nmat = 0, lwork = 0;
+   bool active = false, gfn1 = false;
+   cusolverDnHandle_t handle = nullptr;
+   cublasHandle_t blas = nullptr;
+   double *dS = nullptr, *dH0 = nullptr, *dH = nullptr, *dB = nullptr;
+   double *dW = nullptr, *dP = nullptr, *dScaled = nullptr;
+   double *dShift = nullptr, *dFocc = nullptr, *dQsh = nullptr, *dWork = nullptr;
+   int *dMatlist = nullptr, *dAo2sh = nullptr, *dInfo = nullptr;
+
+   void free() {
+      cudaFree(dS); cudaFree(dH0); cudaFree(dH); cudaFree(dB); cudaFree(dW);
+      cudaFree(dP); cudaFree(dScaled); cudaFree(dShift); cudaFree(dFocc);
+      cudaFree(dQsh); cudaFree(dWork); cudaFree(dMatlist); cudaFree(dAo2sh);
+      cudaFree(dInfo);
+      dS=dH0=dH=dB=dW=dP=dScaled=dShift=dFocc=dQsh=dWork=nullptr;
+      dMatlist=dAo2sh=nullptr; dInfo=nullptr;
+      if (blas) { cublasDestroy(blas); blas=nullptr; }
+      if (handle) { cusolverDnDestroy(handle); handle=nullptr; }
+      n=nshell=nmat=lwork=0; active=false; gfn1=false;
+   }
+};
+ScfSession sess;
+} // namespace
+
+// Open a session. H0/matlist/ao2sh are only needed for GFN1 (on-device H1 build);
+// pass gfn1=0 and they may be null (GFN2 builds H on the host and passes it in).
+extern "C" int gpu_scf_open(int n, int nshell, int nmat, int gfn1,
+                            const double *H0, const double *S,
+                            const int *matlist, const int *ao2sh)
+{
+   if (n <= 0) return -50;
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   sess.free();
+   sess.n = n; sess.nshell = nshell; sess.nmat = nmat; sess.gfn1 = (gfn1 != 0);
+   const size_t nn = (size_t)n * n;
+   if (cusolverDnCreate(&sess.handle) != CUSOLVER_STATUS_SUCCESS) return -51;
+   if (cublasCreate(&sess.blas) != CUBLAS_STATUS_SUCCESS) return -52;
+   if (cudaMalloc((void**)&sess.dS, sizeof(double)*nn) != cudaSuccess) return -53;
+   if (cudaMalloc((void**)&sess.dH, sizeof(double)*nn) != cudaSuccess) return -54;
+   if (cudaMalloc((void**)&sess.dB, sizeof(double)*nn) != cudaSuccess) return -55;
+   if (cudaMalloc((void**)&sess.dP, sizeof(double)*nn) != cudaSuccess) return -56;
+   if (cudaMalloc((void**)&sess.dScaled, sizeof(double)*nn) != cudaSuccess) return -57;
+   if (cudaMalloc((void**)&sess.dW, sizeof(double)*n) != cudaSuccess) return -58;
+   if (cudaMalloc((void**)&sess.dFocc, sizeof(double)*n) != cudaSuccess) return -59;
+   if (cudaMalloc((void**)&sess.dAo2sh, sizeof(int)*n) != cudaSuccess) return -60;
+   if (cudaMalloc((void**)&sess.dInfo, sizeof(int)) != cudaSuccess) return -61;
+   if (nshell > 0) {
+      if (cudaMalloc((void**)&sess.dShift, sizeof(double)*nshell) != cudaSuccess) return -62;
+      if (cudaMalloc((void**)&sess.dQsh, sizeof(double)*nshell) != cudaSuccess) return -63;
+   }
+   if (sess.gfn1 && nmat > 0) {
+      if (cudaMalloc((void**)&sess.dH0, sizeof(double)*nmat) != cudaSuccess) return -64;
+      if (cudaMalloc((void**)&sess.dMatlist, sizeof(int)*2*nmat) != cudaSuccess) return -65;
+      if (cudaMemcpy(sess.dH0, H0, sizeof(double)*nmat, cudaMemcpyHostToDevice) != cudaSuccess) return -66;
+      if (cudaMemcpy(sess.dMatlist, matlist, sizeof(int)*2*nmat, cudaMemcpyHostToDevice) != cudaSuccess) return -67;
+   }
+   // resident constants
+   if (cudaMemcpy(sess.dS, S, sizeof(double)*nn, cudaMemcpyHostToDevice) != cudaSuccess) return -68;
+   if (ao2sh && cudaMemcpy(sess.dAo2sh, ao2sh, sizeof(int)*n, cudaMemcpyHostToDevice) != cudaSuccess) return -69;
+   if (cusolverDnDsygvd_bufferSize(sess.handle, CUSOLVER_EIG_TYPE_1,
+         CUSOLVER_EIG_MODE_VECTOR, CUBLAS_FILL_MODE_UPPER, n, sess.dH, n,
+         sess.dB, n, sess.dW, &sess.lwork) != CUSOLVER_STATUS_SUCCESS) return -70;
+   if (cudaMalloc((void**)&sess.dWork, sizeof(double)*sess.lwork) != cudaSuccess) return -71;
+   sess.active = true;
+   return 0;
+}
+
+// One SCF diagonalization. GFN1: build H on-device from resident H0/S/shift.
+// GFN2: H_in is the host-built Hamiltonian (copied in once). Eigenvectors stay
+// resident in dH; only eigenvalues (emo) come back.
+extern "C" int gpu_scf_solve(int n, int nshell, const double *H_in,
+                             const double *shift, double autoev, double *emo)
+{
+   if (!sess.active || n != sess.n) return -72;
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   const size_t nn = (size_t)n * n;
+   const int threads = 256;
+   if (sess.gfn1 && shift) {
+      if (cudaMemcpy(sess.dShift, shift, sizeof(double)*nshell, cudaMemcpyHostToDevice) != cudaSuccess) return -73;
+      build_isotropic_h1_kernel<<<(sess.nmat + threads - 1)/threads, threads>>>(
+         n, sess.nmat, sess.dMatlist, sess.dH0, sess.dS, sess.dShift, sess.dAo2sh,
+         autoev, sess.dH);
+      if (cudaGetLastError() != cudaSuccess) return -74;
+   } else if (H_in) {
+      if (cudaMemcpy(sess.dH, H_in, sizeof(double)*nn, cudaMemcpyHostToDevice) != cudaSuccess) return -75;
+   } else {
+      return -76;
+   }
+   // sygvd destroys B -> refresh from resident dS (device-to-device, no PCIe)
+   if (cudaMemcpy(sess.dB, sess.dS, sizeof(double)*nn, cudaMemcpyDeviceToDevice) != cudaSuccess) return -77;
+   cusolverStatus_t st = cusolverDnDsygvd(sess.handle, CUSOLVER_EIG_TYPE_1,
+      CUSOLVER_EIG_MODE_VECTOR, CUBLAS_FILL_MODE_UPPER, n, sess.dH, n,
+      sess.dB, n, sess.dW, sess.dWork, sess.lwork, sess.dInfo);
+   if (st != CUSOLVER_STATUS_SUCCESS) return (int)st;
+   int info = 0;
+   if (cudaMemcpy(&info, sess.dInfo, sizeof(int), cudaMemcpyDeviceToHost) != cudaSuccess) return -78;
+   if (info != 0) return 2000 + info;
+   if (cudaMemcpy(emo, sess.dW, sizeof(double)*n, cudaMemcpyDeviceToHost) != cudaSuccess) return -79;
+   return 0;
+}
+
+// Density (from resident eigenvectors dH + occupations) and shell-Mulliken
+// charges. Returns P (host needs it for electro) and qsh.
+extern "C" int gpu_scf_finish(int n, int nshell, const double *focc,
+                              double *P, double *qsh)
+{
+   if (!sess.active || n != sess.n) return -80;
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   const size_t nn = (size_t)n * n;
+   const int threads = 256;
+   if (cudaMemcpy(sess.dFocc, focc, sizeof(double)*n, cudaMemcpyHostToDevice) != cudaSuccess) return -81;
+   scale_columns<<<(int)((nn + threads - 1)/threads), threads>>>(n, sess.dH, sess.dFocc, sess.dScaled);
+   if (cudaGetLastError() != cudaSuccess) return -82;
+   const double alpha = 1.0, beta = 0.0;
+   if (cublasDgemm(sess.blas, CUBLAS_OP_N, CUBLAS_OP_T, n, n, n, &alpha,
+                   sess.dScaled, n, sess.dH, n, &beta, sess.dP, n) != CUBLAS_STATUS_SUCCESS) return -83;
+   if (cudaMemcpy(P, sess.dP, sizeof(double)*nn, cudaMemcpyDeviceToHost) != cudaSuccess) return -84;
+   if (nshell > 0) {
+      if (cudaMemset(sess.dQsh, 0, sizeof(double)*nshell) != cudaSuccess) return -85;
+      mulliken_shell_kernel<<<(n + threads - 1)/threads, threads>>>(
+         n, sess.dAo2sh, sess.dS, sess.dP, sess.dQsh);
+      if (cudaGetLastError() != cudaSuccess) return -86;
+      if (cudaMemcpy(qsh, sess.dQsh, sizeof(double)*nshell, cudaMemcpyDeviceToHost) != cudaSuccess) return -87;
+   }
+   return cudaDeviceSynchronize() == cudaSuccess ? 0 : -88;
+}
+
+// Copy the resident eigenvectors (from the last solve) back to the host. Called
+// once after SCF convergence so the host C is available for the gradient's
+// energy-weighted density and any orbital-based properties.
+extern "C" int gpu_scf_get_vectors(int n, double *C)
+{
+   if (!sess.active || n != sess.n) return -90;
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   const size_t nn = (size_t)n * n;
+   if (cudaMemcpy(C, sess.dH, sizeof(double)*nn, cudaMemcpyDeviceToHost) != cudaSuccess) return -91;
+   return 0;
+}
+
+extern "C" int gpu_scf_close()
+{
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   sess.free();
+   return 0;
+}

@@ -142,7 +142,42 @@ were identical.
 
 Remaining before the original batched Phase-2 architecture is complete:
 lift the step procedure behind a batch-callable system context, compact active
-states into true cross-molecule SCF launches, and move H1/Mulliken/GFN2 AES
-kernels off the CPU. The current `--opt` path is numerically validated and uses
+states into true cross-molecule SCF launches, and move GFN2 AES potentials off
+the CPU. The current `--opt` path is numerically validated and uses
 GPU diagonalization+density at every SCF cycle, while analytical force assembly
 is still CPU-side.
+
+## Increment 2 — resident GPU SCF session (performance)
+
+The per-call GPU offload above was correct but *slower* than the CPU for small
+molecules: each SCF iteration copied H/S/C/P host<->device through several
+separate kernels (~8 n^2 transfers/iter), and the constant overlap S was
+re-uploaded ~3x per iteration. cuSolver's per-call generalized solve also
+re-factorized S every time.
+
+A resident **SCF session** (`gpu_scf_open/solve/finish/get_vectors/close`,
+src/gpu/gpu_eig.cu + xtb_gpu_runtime) now keeps S — and, for GFN1, H0 / matlist
+/ ao2sh — resident on the device for the whole SCF. The Hamiltonian and density
+stay resident between solve and finish, so per iteration only small vectors
+cross PCIe: `shift`/`focc` in, `emo`/`qsh` out, plus `P` out (the host
+`electro()` energy needs it). GFN1 rebuilds H1 on-device each cycle (zero n^2
+in); GFN2 still uploads the host-built anisotropic H once per cycle. The
+converged eigenvectors are fetched back once after convergence for the
+gradient's energy-weighted density. `scc_core.f90` opens the session in
+`scc_init`, routes solve/finish in `scc_step`, and closes in `scc_final`, with a
+full CPU fallback whenever the session does not open or a solve fails.
+
+The gate stays bit-exact (GFN1/GFN2 |dE_sp| = 0, max|dG| ~1e-16, opt dx = 0).
+
+Benchmarks (RTX 3050, GPU uses 8 CPU helper threads):
+
+| system | method | CPU | GPU | speedup |
+|---|---|---|---|---|
+| taxol, 113 atoms | GFN2 sp | 0.74 s | 3.6 s | 0.2x (CPU wins) |
+| water cluster, 648 atoms | GFN2 sp | 95.2 s | 10.1 s | **9.5x** |
+| water cluster, 648 atoms | GFN1 sp | 433.8 s | 13.6 s | **32x** |
+
+Crossover is near a few hundred atoms: below it CPU wins (GPU launch overhead
+dominates), above it the GPU wins by ~10-32x. The `xtbx` front-end encodes this
+— a single large molecule is auto-routed to the GPU, small ones run on the CPU
+with a CPU->GPU fallback on failure, and folders advise `--gpu` for throughput.

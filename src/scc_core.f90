@@ -24,6 +24,8 @@ module xtb_scc_core
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_gpu_runtime, only : gpu_use, gpu_solve, gpu_density
    use xtb_gpu_runtime, only : gpu_build_h1, gpu_mpopsh
+   use xtb_gpu_runtime, only : gpu_scf_open, gpu_scf_solve, gpu_scf_finish
+   use xtb_gpu_runtime, only : gpu_scf_get_vectors, gpu_scf_close
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    use xtb_xtb_data
@@ -422,9 +424,12 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp) :: eh1,dum,tgb
    logical  :: step_done
    logical  :: gpu_ok
+   logical  :: gpu_session_ok    ! resident GPU SCF session opened successfully
+   logical  :: solved_on_gpu     ! this iteration's diagonalization ran on GPU
    integer :: iter_driver
    type(TScfBatchState) :: state
 
+   gpu_session_ok = .false.
    call scc_init()
 
 !! ------------------------------------------------------------------------
@@ -466,6 +471,13 @@ subroutine scc_init()
    &        state%dq(state%nbr),state%dqlast(state%nbr), &
    &        state%qlast_in(state%nbr),state%omega(state%thisiter), &
    &        state%q_in(state%nbr),state%atomicShift(n), source = 0.0_wp )
+
+   ! Open a resident GPU SCF session: S (+ GFN1 H0/matlist/ao2sh) stay on the
+   ! device for the whole SCF; per iteration only small vectors cross PCIe.
+   if (gpu_use) then
+      call gpu_scf_open(ndim, nshell, nmat, .not.present(aes), &
+         & H0, S, matlist, ao2sh, gpu_session_ok)
+   end if
 end subroutine scc_init
 
 subroutine scc_step(done)
@@ -507,21 +519,9 @@ subroutine scc_step(done)
    ! expand all atomic potentials to shell resolved potentials
    call addToShellShift(ash, atomicShift, shellShift)
 
-   ! build the charge dependent Hamiltonian
-   if (present(aes)) then
-      call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
-         & H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
-   else
-      gpu_ok = .false.
-      if (gpu_use) call gpu_build_h1(ndim, nmat, nshell, matlist, H0, S, &
-         & shellShift, ao2sh, autoev, H, gpu_ok)
-      if (.not.gpu_ok) call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
-         & shellShift,aoat2,ao2sh)
-   end if
-
    ! ------------------------------------------------------------------------
-   ! solve HC=SCemo(X,P are scratch/store)
-   ! solution is in H(=C)/emo
+   ! build the charge dependent Hamiltonian and solve HC=SCemo.
+   ! solution is in H(=C)/emo (GPU session keeps C resident on the device).
    ! ------------------------------------------------------------------------
    fulldiag=.false.
    if(iter.lt.startpdiag) fulldiag=.true.
@@ -529,9 +529,27 @@ subroutine scc_step(done)
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
-   gpu_ok = .false.
-   if (gpu_use) call gpu_solve(ndim, H, S, emo, gpu_ok)
-   if (.not.gpu_ok) call solver%fact_solve(env, H, S_factorized, emo)
+   solved_on_gpu = .false.
+   if (present(aes)) then
+      ! GFN2: anisotropic H1 is built on the host, then diagonalized (GPU or CPU)
+      call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
+         & H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+      if (gpu_session_ok) then
+         call gpu_scf_solve(ndim, nshell, H, shellShift, autoev, emo, solved_on_gpu)
+      end if
+      if (.not.solved_on_gpu) call solver%fact_solve(env, H, S_factorized, emo)
+   else
+      ! GFN1: with a session the isotropic H1 is built on-device from resident
+      ! H0/S/shift; otherwise build on the host and diagonalize on the CPU.
+      if (gpu_session_ok) then
+         call gpu_scf_solve(ndim, nshell, H, shellShift, autoev, emo, solved_on_gpu)
+      end if
+      if (.not.solved_on_gpu) then
+         call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
+            & shellShift,aoat2,ao2sh)
+         call solver%fact_solve(env, H, S_factorized, emo)
+      end if
+   end if
    call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
@@ -568,15 +586,20 @@ subroutine scc_step(done)
       call gfn2broyden_save(n,k,nbr,dipm,qp,q_in)
    end if
 
-   ! density matrix
-   gpu_ok = .false.
-   if (gpu_use) call gpu_density(ndim, H, focc, P, gpu_ok)
-   if (.not.gpu_ok) call dmat(ndim,focc,H,P)
-
-   ! new q
-   gpu_ok = .false.
-   if (gpu_use) call gpu_mpopsh(ndim, nshell, ao2sh, S, P, qsh, gpu_ok)
-   if (.not.gpu_ok) call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
+   ! density matrix + shell-Mulliken charges
+   if (solved_on_gpu) then
+      ! eigenvectors are resident on the device; form P and qsh there, copying
+      ! back only P (host electro() needs it) and qsh.
+      call gpu_scf_finish(ndim, nshell, focc, P, qsh, gpu_ok)
+      if (.not.gpu_ok) then
+         call env%error("GPU SCF density/charges failed", source)
+         fail = .true.
+         return
+      end if
+   else
+      call dmat(ndim,focc,H,P)
+      call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
+   end if
    qsh = zsh - qsh
 
    ! qat from qsh
@@ -702,6 +725,12 @@ subroutine scc_step(done)
 end subroutine scc_step
 
 subroutine scc_final()
+   ! Bring the converged eigenvectors back to the host (the gradient's
+   ! energy-weighted density needs C), then release the resident session.
+   if (gpu_session_ok) then
+      if (solved_on_gpu) call gpu_scf_get_vectors(ndim, H, gpu_ok)
+      call gpu_scf_close()
+   end if
    jter = jter + min(state%iter,state%thisiter)
    fail = .not.state%converged
    state%active = .false.
