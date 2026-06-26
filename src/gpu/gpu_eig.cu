@@ -457,3 +457,16 @@ extern "C" int gpu_scf_close()
    sess.free();
    return 0;
 }
+
+// ============================================================================
+//  Analytical gradient (build_dSDQH0): overlap/dipole/quadrupole integral-
+//  derivative contraction with the density and energy-weighted density.
+//  MILESTONE 1 (scaffold): returns non-zero so the caller falls back to the CPU
+//  build_dSDQH0. The kernel body is filled in over later milestones (see
+//  GPU_GRADIENT_KERNEL_PLAN.md) and only then returns 0 (success).
+// ============================================================================
+extern "C" int gpu_build_dsdqh0(int nat, int nao)
+{
+   (void)nat; (void)nao;
+   return -1;   // not implemented yet -> CPU fallback
+}

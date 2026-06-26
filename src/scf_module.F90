@@ -46,6 +46,7 @@ module xtb_scf
    use xtb_xtb_hamiltonian, only : getSelfEnergy, build_SDQH0, build_dSDQH0, &
       & build_dSdQH0_noreset, count_dpint, count_qpint
    use xtb_xtb_hamiltonian_gpu, only: build_SDQH0_gpu, build_dSDQH0_gpu
+   use xtb_gpu_runtime, only : gpu_use, gpu_grad_dsdqh0
    use xtb_xtb_multipole
    use xtb_paramset, only : tmmetal
    use xtb_scc_core
@@ -204,6 +205,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    character(len=128) :: atmp,ftmp
    logical :: ex,minpr,pr,fulldiag,lastdiag,iniqsh,fail
+   logical :: gpu_grad_ok
 
 !  GBSA stuff
    real(wp) :: gborn,ghb,gsasa,gshift
@@ -699,7 +701,14 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       & basis%alp, basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, &
       & dhdcn, gradient, sigma)
 #else
-   if (mol%npbc == 0) then
+   ! GPU analytical gradient (CUDA-C shim) when --gpu is active; ok=.false. (the
+   ! current scaffold / no-shim build) falls through to the CPU build_dSDQH0.
+   gpu_grad_ok = .false.
+   if (gpu_use) call gpu_grad_dsdqh0(mol%n, basis%nao, gpu_grad_ok)
+   if (gpu_grad_ok) then
+      ! gradient (g/sigma/dhdcn) computed on the GPU
+      continue
+   else if (mol%npbc == 0) then
       allocate(H(basis%nao, basis%nao))
       H(:, :) = 0.0_wp
       do i = 1, basis%nao

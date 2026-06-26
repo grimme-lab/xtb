@@ -35,6 +35,7 @@ module xtb_gpu_runtime
    public :: gpu_shim_available, gpu_solve_count
    public :: gpu_scf_open, gpu_scf_solve, gpu_scf_finish, gpu_scf_close
    public :: gpu_scf_get_vectors
+   public :: gpu_grad_dsdqh0
 #ifdef WITH_GPU_SHIM
    public :: gpu_sygvd_batch
 #endif
@@ -135,6 +136,13 @@ module xtb_gpu_runtime
          import :: c_int
          integer(c_int) :: rc
       end function gpu_scf_close_i
+
+      function gpu_build_dsdqh0_i(nat, nao) result(rc) &
+            & bind(C, name="gpu_build_dsdqh0")
+         import :: c_int
+         integer(c_int), value :: nat, nao
+         integer(c_int) :: rc
+      end function gpu_build_dsdqh0_i
    end interface
 #endif
 
@@ -310,6 +318,19 @@ contains
       ok = .false.
 #endif
    end subroutine gpu_scf_get_vectors
+
+   !> GPU analytical gradient (build_dSDQH0).  ok=.true. means the GPU filled
+   !> g/sigma/dhdcn and the caller must skip the CPU build_dSDQH0; ok=.false.
+   !> (current scaffold / no shim) means fall back to the CPU routine.
+   subroutine gpu_grad_dsdqh0(nat, nao, ok)
+      integer, intent(in) :: nat, nao
+      logical, intent(out) :: ok
+#ifdef WITH_GPU_SHIM
+      ok = (gpu_build_dsdqh0_i(int(nat, c_int), int(nao, c_int)) == 0)
+#else
+      ok = .false.
+#endif
+   end subroutine gpu_grad_dsdqh0
 
    !> Release the resident SCF session.
    subroutine gpu_scf_close()
