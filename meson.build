@@ -127,6 +127,16 @@ if get_option('gpu_shim')
   gpu_shim_def  = ['-DWITH_GPU_SHIM']
 endif
 
+## OpenACC NVPTX offload of integrals/gradient/AES/dispersion (#ifdef XTB_GPU).
+## -fopenacc activates the !$acc regions; -foffload=nvptx-none builds the GPU
+## image at link time. Requires gfortran with the nvptx-none offload backend.
+gpu_acc_args = []
+gpu_acc_link = []
+if get_option('gpu_acc')
+  gpu_acc_args = ['-DXTB_GPU', '-fopenacc', '-foffload=nvptx-none']
+  gpu_acc_link = ['-fopenacc', '-foffload=nvptx-none']
+endif
+
 xtb_inc = meson.current_source_dir() / 'include'
 incdir = include_directories('include')
 
@@ -141,7 +151,7 @@ xtb_lib = library(
   fortran_args: [
     '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
     '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
-  ] + gpu_shim_def,
+  ] + gpu_shim_def + gpu_acc_args,
   link_language: 'fortran',
 )
 
@@ -167,12 +177,12 @@ xtb_exe = executable(
   objects: gpu_shim_objs,
   dependencies: xtb_dep_static,
   link_language: 'fortran',
-  link_args: gpu_shim_link,
+  link_args: gpu_shim_link + gpu_acc_link,
   install: install,
   fortran_args: [
     '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
     '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
-  ] + gpu_shim_def,
+  ] + gpu_shim_def + gpu_acc_args,
 )
 
 xtb_header = files('include/xtb.h')

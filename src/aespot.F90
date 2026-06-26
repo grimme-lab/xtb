@@ -194,7 +194,7 @@ subroutine mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
          !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
          !  when doing the Mulliken population, we switch to lin-compatible sorting
          !  i,e. xx,xy,yy,xz,yz,zz
-         !$acc loop vector private(xk1,xl1,xk2,xl2,tii,tjj,pqm,pdmk,pdml,kl,kj)
+         !$acc loop seq private(xk1,xl1,xk2,xl2,tii,tjj,pqm,pdmk,pdml,kl,kj)
          do k = 1,3
             xk1 = ra(k)
             xk2 = xyz(k,jj)
@@ -242,7 +242,7 @@ subroutine mmompop_gpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
       !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
       !  when doing the Mulliken population, we switch to lin-compatible sorting
       !  i,e. xx,xy,yy,xz,yz,zz
-      !$acc loop vector private(xk1,xl1,xk2,xl2,tii,pqm,pdmk,pdml,kl,kj)
+      !$acc loop seq private(xk1,xl1,xk2,xl2,tii,pqm,pdmk,pdml,kl,kj)
       do k = 1,3
          xk1 = ra(k)
          pdmk = pij*dpint(k,i,i)

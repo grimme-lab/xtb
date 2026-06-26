@@ -87,3 +87,12 @@ option('nvhpc_root', type: 'string',
        description: 'NVIDIA HPC SDK root (for nvcc + cuSolver/cudart)')
 option('gpu_cuda_ver', type: 'string', value: '13.1',
        description: 'CUDA version subdir under the HPC SDK math_libs/REDIST')
+# EXPERIMENTAL / NOT YET FUNCTIONAL under gfortran. The #ifdef XTB_GPU !$acc
+# regions were authored for nvfortran with managed/unified memory: they list
+# derived types both whole and by-component (gfortran rejects as "mixed
+# component access") and use default(present) without explicit data management
+# (crashes without managed memory). Enabling this needs a real OpenACC port
+# (split manual deep-copy clauses; explicit enter/exit data) or nvfortran.
+# Left in place as scaffolding; production GPU builds use gpu_shim only.
+option('gpu_acc', type: 'boolean', value: false,
+       description: 'EXPERIMENTAL OpenACC NVPTX offload (needs port; see meson_options.txt)')

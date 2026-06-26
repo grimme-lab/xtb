@@ -181,3 +181,36 @@ Crossover is near a few hundred atoms: below it CPU wins (GPU launch overhead
 dominates), above it the GPU wins by ~10-32x. The `xtbx` front-end encodes this
 — a single large molecule is auto-routed to the GPU, small ones run on the CPU
 with a CPU->GPU fallback on failure, and folders advise `--gpu` for throughput.
+
+## Increment 3 — analytical gradient / AES offload (investigation, shelved)
+
+Profiling a *warm* GFN2 optimization cycle (375-atom system, 6-iter SCF) showed
+the analytical gradient is ~42% of each cycle (SCF ~47%), so the gradient is
+worth offloading for optimization. The dominant gradient cost is
+`build_dSDQH0` (overlap/dipole/quadrupole integral-derivative contraction).
+
+A pre-existing OpenACC port exists (`#ifdef XTB_GPU` `!$acc` regions in
+`hamiltonian_gpu.f90`, `aespot.F90`, `dftd4.F90`, `intgrad.f90`, `repulsion.F90`,
+`property.F90`) and is selected by `scf_module.F90`. The `gpu_acc` meson option
+was added to drive it (`-DXTB_GPU -fopenacc -foffload=nvptx-none`), and the
+gfortran NVPTX offload toolchain (`gcc-11-offload-nvptx`) was verified working
+on the RTX 3050. **However the OpenACC code does not build/run under gfortran**:
+it was authored for nvfortran with managed/unified memory. Concrete blockers:
+- nested `vector` parallelism in `aespot.F90` (fixed: inner loops -> `seq`);
+- data clauses listing a derived type **and** its components together
+  (`hData, hData%...`, `dispm, dispm%...`) — gfortran error "mixed component and
+  non-component accesses"; needs splitting into manual deep-copy (parent shallow,
+  then components) across every enter/exit pair;
+- `!$acc routine` with gang/worker/vector in PURE procedures (dftd4);
+- module parameters in copy clauses (dftd4 `zeff`);
+- `default(present)` regions in `intgrad.f90`/`repulsion.F90` (not even gated by
+  `XTB_GPU`) that assume managed memory and would fault without explicit
+  enter/exit data.
+
+Verdict: enabling it is a real OpenACC port (rewrite all derived-type data
+management for gfortran + validate gcc-11 nvptx deep-copy at runtime), not a free
+reuse. **Shelved.** Production GPU builds use `gpu_shim` (cuSolver SCF) only;
+`build-gpushim` stays the validated, fast build. The realistic fallback for the
+gradient is a CUDA-C kernel for `build_dSDQH0` (like the SCF shim) — a sizeable
+effort, deferred pending a decision. The `gpu_acc` scaffolding is left in (off by
+default, marked experimental) for whoever completes the port.
