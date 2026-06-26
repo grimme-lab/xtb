@@ -428,8 +428,18 @@ subroutine molecule_to_structure(struc, mol)
    type(TMolecule), intent(in) :: mol
    integer :: ibd, idx(3)
 
-   call new_structure(struc, mol%at, mol%sym, mol%xyz, charge=mol%chrg, uhf=mol%uhf, &
-      & periodic=mol%pbc, lattice=mol%lattice, info=mol%info)
+   ! Pass clean, canonically-sized element symbols (from toSymbol) instead of
+   ! mol%sym, which is character(len=80): on this build the long strings sent
+   ! through mctc's get_identity_symbol produced a corrupt id mapping, so the
+   ! written geometry got garbage element symbols for atoms 2..N. Rebuilding the
+   ! symbols at their natural short length avoids that.
+   block
+      character(len=len(toSymbol(1))), allocatable :: clean_sym(:)
+      allocate(clean_sym(size(mol%at)))
+      clean_sym(:) = toSymbol(mol%at(:))
+      call new_structure(struc, mol%at, clean_sym, mol%xyz, charge=mol%chrg, uhf=mol%uhf, &
+         & periodic=mol%pbc, lattice=mol%lattice, info=mol%info)
+   end block
    if (allocated(mol%sdf)) then
       struc%sdf = mol%sdf
    end if
