@@ -47,6 +47,55 @@ count_atoms() {
   printf '%s' "$n"
 }
 
+# GFN-FF pre-relaxation: a cheap O(N) force-field optimization to a sane geometry
+# BEFORE the expensive GFN2 optimization, cutting the number of GFN2 cycles (and
+# giving a fast bulk relax for protein-sized inputs). Runs in a temp dir to avoid
+# clobbering the GFN2 output files. Echoes the relaxed .xyz path on success, or
+# the original input on failure (so the caller is never worse off). stderr only.
+prerelax_geometry() {
+  local input tag pre tmp
+  input="$(realpath "$1" 2>/dev/null || printf '%s' "$1")"
+  tag="$(basename "${input%.*}")"
+  pre="$(pwd)/${tag}_gfnff.xyz"
+  tmp="$(mktemp -d /tmp/xtbx-prerelax.XXXXXX)" || { printf '%s' "$input"; return; }
+  echo "xtbx: GFN-FF pre-relaxation (fast O(N) force field) before GFN2 ..." >&2
+  # NOTE: this build's GFN-FF xtbopt.xyz writer corrupts the element-symbol
+  # column (coordinates are correct). GFN-FF preserves atom order, so rebuild a
+  # clean geometry from the ORIGINAL symbols + the optimized coordinates.
+  if ( cd "$tmp" && "$CPU_XTB" "$input" --gfnff --opt > prerelax.out 2>&1 ) \
+     && [ -f "$tmp/xtbopt.xyz" ] \
+     && python3 - "$input" "$tmp/xtbopt.xyz" "$pre" <<'PY'
+import sys, re
+orig, opt, out = sys.argv[1:4]
+# Element symbols: from the ORIGINAL input (clean). split on '\n' only.
+Lo = open(orig, encoding="latin-1").read().split("\n")
+n = int(Lo[0].split()[0])
+syms = [Lo[2+i].split()[0] for i in range(n)]
+# Coordinates: from the GFN-FF output. Its element-symbol column is corrupt with
+# arbitrary bytes (incl. newlines), so DON'T rely on line structure -- skip the
+# clean count+comment lines, then pull every long-decimal float in order. The
+# garbage bytes never form a 14-digit decimal, so this recovers exactly 3N coords.
+raw = open(opt, encoding="latin-1").read().split("\n", 2)
+body = raw[2] if len(raw) > 2 else ""
+nums = re.findall(r'[-+]?\d+\.\d{6,}', body)
+if len(nums) != 3*n: sys.exit(1)
+with open(out, "w") as o:
+    o.write("%d\nxtbx GFN-FF prerelaxed\n" % n)
+    for i in range(n):
+        o.write("%s %s %s %s\n" % (syms[i], nums[3*i], nums[3*i+1], nums[3*i+2]))
+PY
+  then
+    cp -f "$tmp/prerelax.out" "$(pwd)/${tag}_gfnff.out" 2>/dev/null
+    rm -rf "$tmp"
+    echo "xtbx: pre-relaxed geometry -> $pre" >&2
+    printf '%s' "$pre"
+  else
+    rm -rf "$tmp"
+    echo "xtbx: GFN-FF pre-relax failed; continuing from the original geometry" >&2
+    printf '%s' "$input"
+  fi
+}
+
 # ------------------------------- pretty terminal -----------------------------
 # ANSI styling, an animated/continuous progress bar, and a final energy table.
 # Colours are only emitted to a real terminal so redirected output stays clean.
@@ -126,7 +175,7 @@ declare -a copts batch
 # gfn defaults to 2 (xtb's default method) when --gfn is not given, so dispatch
 # routing matches the actual calculation. We do NOT inject --gfn into the command;
 # xtb itself applies the GFN2 default.
-folder=""; has_gpu=0; has_gpu_batch=0; has_heavy=0; has_task=0; gfn="2"; prev=""
+folder=""; has_gpu=0; has_gpu_batch=0; has_heavy=0; has_task=0; has_prerelax=0; gfn="2"; prev=""
 for a in "$@"; do
   ta="$a"
   case "$ta" in [A-Za-z]:/*) ta="$(wslpath -a "$ta" 2>/dev/null || printf '%s' "$ta")";; esac
@@ -140,6 +189,7 @@ for a in "$@"; do
     case "$a" in
       --gpu) has_gpu=1;;                                   # dispatch flag (not for CPU xtb)
       --gpu-batch) has_gpu=1; has_gpu_batch=1;;            # explicit legacy all-at-once path
+      --prerelax) has_prerelax=1;;                         # GFN-FF pre-opt before GFN2 (xtbx only)
       --opt|--ohess|--hess|--grad|--md|--omd|--metadyn|--modef|--esp|--stm) has_heavy=1; has_task=1; copts+=("$a");;
       --sp|--vip|--vea|--vipea|--vfukui|--vomega) has_task=1; copts+=("$a");;
       *) copts+=("$a");;
@@ -287,26 +337,32 @@ if [ "$N" -eq 0 ]; then exec "$CPU_XTB" "${copts[@]}"; fi
 #                            that run fails, retry on the GPU so we still get a
 #                            result on hard/large molecules ("dynamic switch").
 if [ "$N" -eq 1 ] && [ -z "$folder" ]; then
+  MOL="${batch[0]}"
+  # Optional GFN-FF pre-relaxation before a GFN2/GFN1 optimization.
+  if [ "$has_prerelax" = 1 ] && printf ' %s ' "${copts[*]}" | grep -q -- ' --opt'; then
+    MOL="$(prerelax_geometry "$MOL")"
+  fi
+
   if [ "$has_gpu" = 1 ]; then
     setup_gpu_env
-    exec "$GPU_XTB" --gpu "${batch[0]}" "${copts[@]}"
+    exec "$GPU_XTB" --gpu "$MOL" "${copts[@]}"
   fi
 
   thresh=${XTB_GPU_AUTO_ATOMS:-350}
-  natoms=$(count_atoms "${batch[0]}")
+  natoms=$(count_atoms "$MOL")
   case "$thresh" in ''|*[!0-9]*) thresh=350;; esac
   if [ "$thresh" -gt 0 ] && [ -n "$natoms" ] && [ "$natoms" -ge "$thresh" ] && gpu_available; then
     echo "xtbx: large system ($natoms atoms >= $thresh) -> GPU (much faster here; CPU would be slow)" >&2
     setup_gpu_env
-    exec "$GPU_XTB" --gpu "${batch[0]}" "${copts[@]}"
+    exec "$GPU_XTB" --gpu "$MOL" "${copts[@]}"
   fi
 
   # Small system: CPU first. On failure, fall back to the GPU.
-  "$CPU_XTB" "${batch[0]}" "${copts[@]}"; rc=$?
+  "$CPU_XTB" "$MOL" "${copts[@]}"; rc=$?
   if [ "$rc" -ne 0 ] && gpu_available; then
     echo "xtbx: CPU run failed (exit $rc) -> retrying on GPU" >&2
     setup_gpu_env
-    exec "$GPU_XTB" --gpu "${batch[0]}" "${copts[@]}"
+    exec "$GPU_XTB" --gpu "$MOL" "${copts[@]}"
   fi
   exit "$rc"
 fi
