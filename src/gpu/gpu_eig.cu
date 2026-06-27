@@ -913,3 +913,120 @@ extern "C" int gpu_build_dsdqh0(
    }
    return 0;
 }
+
+// ============================================================================
+//  GFN2 AES (anisotropic electrostatics) on GPU
+// ============================================================================
+namespace aesk {
+// 1-based (l1,l2) -> packed lower-triangle index 1..6 (matches Fortran lin)
+__device__ __forceinline__ int lin(int a,int b){
+   return (a>=b) ? b + a*(a-1)/2 : a + b*(b-1)/2;
+}
+}
+
+// setvsdq: AES potentials vs/vd/vq from q/dipm/qp via gab3/gab5 + CT correction.
+// One thread per atom i; each writes its own vs(i)/vd(:,i)/vq(:,i) (no atomics).
+// Faithful port of aespot.F90:setvsdq.
+__global__ void aes_setvsdq_kernel(int nat, const int* at, const double* xyz,
+      const double* q, const double* dipm, const double* qp,
+      const double* gab3, const double* gab5,
+      const double* dipKernel, const double* quadKernel,
+      double* vs, double* vd, double* vq)
+{
+   int i = blockIdx.x*blockDim.x+threadIdx.x;
+   if (i>=nat) return;
+   double ra[3]={xyz[0+3*i],xyz[1+3*i],xyz[2+3*i]};
+   double stmp=0, dtmp[3]={0,0,0}, qtmp[6]={0,0,0,0,0,0};
+   for(int j=0;j<nat;j++){
+      double g3=gab3[j+(size_t)nat*i], g5=gab5[j+(size_t)nat*i];
+      double dra[3]={ra[0]-xyz[0+3*j],ra[1]-xyz[1+3*j],ra[2]-xyz[2+3*j]};
+      double dum5a=0,r2a=0,r2ab=0,t1a=0,t2a=0,t3a=0;
+      for(int l1=1;l1<=3;l1++){
+         double ral1=ra[l1-1], dral1=dra[l1-1];
+         r2a += ral1*ral1; r2ab += dral1*dral1; t1a += ral1*dral1;
+         t2a += dipm[(l1-1)+3*j]*dral1; t3a += ral1*dipm[(l1-1)+3*j];
+         for(int l2=1;l2<=3;l2++){
+            int ll=aesk::lin(l1,l2);
+            dum5a += -qp[(ll-1)+6*j]*dral1*dra[l2-1]
+                     -1.5*q[j]*dral1*dra[l2-1]*ral1*ra[l2-1];
+            if (l2>=l1) continue;
+            qtmp[(l1+l2+1)-1] += -3.0*q[j]*g5*dra[l2-1]*dral1;
+         }
+         qtmp[l1-1] += -1.5*q[j]*g5*dral1*dral1;
+      }
+      double dum3a = -t1a*q[j]-t2a;
+      dum5a += t3a*r2ab - 3.0*t1a*t2a + 0.5*q[j]*r2a*r2ab;
+      stmp += dum5a*g5 + dum3a*g3;
+      for(int l1=1;l1<=3;l1++){
+         double dral1=dra[l1-1];
+         double d3 = dral1*q[j];
+         double d5 = 3.0*dral1*t2a - r2ab*dipm[(l1-1)+3*j] - q[j]*r2ab*ra[l1-1]
+                   + 3.0*q[j]*dral1*t1a;
+         dtmp[l1-1] += d3*g3 + d5*g5;
+         qtmp[l1-1] += 0.5*r2ab*q[j]*g5;
+      }
+   }
+   vs[i]=stmp; for(int k=0;k<3;k++) vd[k+3*i]=dtmp[k];
+   for(int k=0;k<6;k++) vq[k+6*i]=qtmp[k];
+   // CT correction (per atom)
+   double qs1=dipKernel[at[i]-1]*2.0, qs2=quadKernel[at[i]-1]*6.0, ct3=0, ct2=0;
+   for(int l1=1;l1<=3;l1++){
+      ct3 += ra[l1-1]*dipm[(l1-1)+3*i]*qs1;
+      vd[(l1-1)+3*i] -= qs1*dipm[(l1-1)+3*i];
+      for(int l2=1;l2<l1;l2++){
+         int ll=aesk::lin(l1,l2);
+         vq[(l1+l2+1)-1+6*i] -= qp[(ll-1)+6*i]*qs2;
+         ct3 -= ra[l1-1]*ra[l2-1]*qp[(ll-1)+6*i]*qs2;
+         vd[(l1-1)+3*i] += ra[l2-1]*qp[(ll-1)+6*i]*qs2;
+         vd[(l2-1)+3*i] += ra[l1-1]*qp[(ll-1)+6*i]*qs2;
+      }
+      int lld=aesk::lin(l1,l1);
+      vq[(l1-1)+6*i] -= qp[(lld-1)+6*i]*qs2*0.5;
+      ct3 -= ra[l1-1]*ra[l1-1]*qp[(lld-1)+6*i]*qs2*0.5;
+      vd[(l1-1)+3*i] += ra[l1-1]*qp[(lld-1)+6*i]*qs2;
+      ct2 += qp[(lld-1)+6*i];
+   }
+   vs[i] += ct3;
+   ct2 *= quadKernel[at[i]-1];
+   for(int l1=1;l1<=3;l1++){
+      vq[(l1-1)+6*i] += ct2;
+      vd[(l1-1)+3*i] -= 2.0*ra[l1-1]*ct2;
+      vs[i] += ct2*ra[l1-1]*ra[l1-1];
+   }
+}
+
+extern "C" int gpu_setvsdq(int nat, int nelem,
+      const int* at, const double* xyz, const double* q, const double* dipm,
+      const double* qp, const double* gab3, const double* gab5,
+      const double* dipKernel, const double* quadKernel,
+      double* vs, double* vd, double* vq)
+{
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   int *d_at=devcopy(at,nat);
+   double *d_xyz=devcopy(xyz,(size_t)3*nat), *d_q=devcopy(q,nat);
+   double *d_dipm=devcopy(dipm,(size_t)3*nat), *d_qp=devcopy(qp,(size_t)6*nat);
+   double *d_g3=devcopy(gab3,(size_t)nat*nat), *d_g5=devcopy(gab5,(size_t)nat*nat);
+   double *d_dk=devcopy(dipKernel,nelem), *d_qk=devcopy(quadKernel,nelem);
+   double *d_vs=nullptr,*d_vd=nullptr,*d_vq=nullptr;
+   cudaMalloc((void**)&d_vs,sizeof(double)*nat);
+   cudaMalloc((void**)&d_vd,sizeof(double)*3*nat);
+   cudaMalloc((void**)&d_vq,sizeof(double)*6*nat);
+   int rc=0;
+   if(!d_at||!d_xyz||!d_q||!d_dipm||!d_qp||!d_g3||!d_g5||!d_dk||!d_qk||!d_vs||!d_vd||!d_vq){
+      rc=-1;
+   } else {
+      int tb=128;
+      aes_setvsdq_kernel<<<(nat+tb-1)/tb,tb>>>(nat,d_at,d_xyz,d_q,d_dipm,d_qp,
+            d_g3,d_g5,d_dk,d_qk,d_vs,d_vd,d_vq);
+      if(cudaDeviceSynchronize()!=cudaSuccess) rc=-2;
+      else{
+         cudaMemcpy(vs,d_vs,sizeof(double)*nat,cudaMemcpyDeviceToHost);
+         cudaMemcpy(vd,d_vd,sizeof(double)*3*nat,cudaMemcpyDeviceToHost);
+         cudaMemcpy(vq,d_vq,sizeof(double)*6*nat,cudaMemcpyDeviceToHost);
+      }
+   }
+   cudaFree(d_at);cudaFree(d_xyz);cudaFree(d_q);cudaFree(d_dipm);cudaFree(d_qp);
+   cudaFree(d_g3);cudaFree(d_g5);cudaFree(d_dk);cudaFree(d_qk);
+   cudaFree(d_vs);cudaFree(d_vd);cudaFree(d_vq);
+   return rc;
+}

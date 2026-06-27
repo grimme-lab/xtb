@@ -36,6 +36,7 @@ module xtb_gpu_runtime
    public :: gpu_scf_open, gpu_scf_solve, gpu_scf_finish, gpu_scf_close
    public :: gpu_scf_get_vectors
    public :: gpu_grad_dsdqh0
+   public :: gpu_aes_setvsdq
 #ifdef WITH_GPU_SHIM
    public :: gpu_sygvd_batch
 #endif
@@ -156,6 +157,17 @@ module xtb_gpu_runtime
          real(c_double), intent(inout) :: g(*),sigma(*),dhdcn(*)
          integer(c_int) :: rc
       end function gpu_build_dsdqh0_i
+
+      function gpu_setvsdq_i(nat,nelem,at,xyz,q,dipm,qp,gab3,gab5, &
+            & dipKernel,quadKernel,vs,vd,vq) result(rc) bind(C,name="gpu_setvsdq")
+         import :: c_int, c_double
+         integer(c_int), value :: nat, nelem
+         integer(c_int), intent(in) :: at(*)
+         real(c_double), intent(in) :: xyz(*),q(*),dipm(*),qp(*),gab3(*),gab5(*)
+         real(c_double), intent(in) :: dipKernel(*),quadKernel(*)
+         real(c_double), intent(out) :: vs(*),vd(*),vq(*)
+         integer(c_int) :: rc
+      end function gpu_setvsdq_i
    end interface
 #endif
 
@@ -367,6 +379,22 @@ contains
       ok = .false.
 #endif
    end subroutine gpu_grad_dsdqh0
+
+   !> GFN2 AES potentials (setvsdq) on the GPU.  ok=.false. -> CPU fallback.
+   subroutine gpu_aes_setvsdq(nat,nelem,at,xyz,q,dipm,qp,gab3,gab5, &
+         & dipKernel,quadKernel,vs,vd,vq,ok)
+      integer, intent(in) :: nat,nelem,at(*)
+      real(wp), intent(in) :: xyz(*),q(*),dipm(*),qp(*),gab3(*),gab5(*)
+      real(wp), intent(in) :: dipKernel(*),quadKernel(*)
+      real(wp), intent(out) :: vs(*),vd(*),vq(*)
+      logical, intent(out) :: ok
+#ifdef WITH_GPU_SHIM
+      ok = (gpu_setvsdq_i(int(nat,c_int),int(nelem,c_int),at,xyz,q,dipm,qp, &
+         & gab3,gab5,dipKernel,quadKernel,vs,vd,vq) == 0)
+#else
+      ok = .false.
+#endif
+   end subroutine gpu_aes_setvsdq
 
    !> Release the resident SCF session.
    subroutine gpu_scf_close()

@@ -26,6 +26,7 @@ module xtb_scc_core
    use xtb_gpu_runtime, only : gpu_build_h1, gpu_mpopsh
    use xtb_gpu_runtime, only : gpu_scf_open, gpu_scf_solve, gpu_scf_finish
    use xtb_gpu_runtime, only : gpu_scf_get_vectors, gpu_scf_close
+   use xtb_gpu_runtime, only : gpu_aes_setvsdq
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    use xtb_xtb_data
@@ -513,7 +514,10 @@ subroutine scc_step(done)
    ! compute potential intermediates
    if (present(aes)) then
       call system_clock(aesc0, aescr)
-      call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
+      gpu_ok = .false.
+      if (gpu_use) call gpu_aes_setvsdq(n, size(aes%dipKernel), at, xyz, q, dipm, qp, &
+         & aes%gab3, aes%gab5, aes%dipKernel, aes%quadKernel, vs, vd, vq, gpu_ok)
+      if (.not.gpu_ok) call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
       call system_clock(aesc1); taes_pot = taes_pot + real(aesc1-aesc0,wp)/real(aescr,wp)
    end if
    ! Solvation contributions
