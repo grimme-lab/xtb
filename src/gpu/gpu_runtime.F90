@@ -37,6 +37,7 @@ module xtb_gpu_runtime
    public :: gpu_scf_get_vectors
    public :: gpu_grad_dsdqh0
    public :: gpu_aes_open, gpu_aes_close, gpu_aes_setvsdq, gpu_aes_aniso
+   public :: gpu_aes_mmompop, gpu_aes_buildh1
 #ifdef WITH_GPU_SHIM
    public :: gpu_sygvd_batch
 #endif
@@ -158,12 +159,15 @@ module xtb_gpu_runtime
          integer(c_int) :: rc
       end function gpu_build_dsdqh0_i
 
-      function gpu_aes_open_i(nat,nelem,nao,at,xyz,gab3,gab5,dipKernel,quadKernel) &
+      function gpu_aes_open_i(nat,nelem,nao,nmat,ndp,nqp,nshell, &
+            & at,xyz,gab3,gab5,dipKernel,quadKernel, S,dpint,qpint,H0, &
+            & aoat2,ao2sh,matlist,mdlst,mqlst) &
             & result(rc) bind(C,name="gpu_aes_open")
          import :: c_int, c_double
-         integer(c_int), value :: nat, nelem, nao
-         integer(c_int), intent(in) :: at(*)
+         integer(c_int), value :: nat, nelem, nao, nmat, ndp, nqp, nshell
+         integer(c_int), intent(in) :: at(*),aoat2(*),ao2sh(*),matlist(*),mdlst(*),mqlst(*)
          real(c_double), intent(in) :: xyz(*),gab3(*),gab5(*),dipKernel(*),quadKernel(*)
+         real(c_double), intent(in) :: S(*),dpint(*),qpint(*),H0(*)
          integer(c_int) :: rc
       end function gpu_aes_open_i
       function gpu_aes_close_i() result(rc) bind(C,name="gpu_aes_close")
@@ -184,6 +188,20 @@ module xtb_gpu_runtime
          real(c_double), intent(out) :: eaes, epol
          integer(c_int) :: rc
       end function gpu_aes_aniso_i
+      function gpu_aes_mmompop_i(P,dipm,qp) result(rc) bind(C,name="gpu_aes_mmompop")
+         import :: c_int, c_double
+         real(c_double), intent(in) :: P(*)
+         real(c_double), intent(out) :: dipm(*), qp(*)
+         integer(c_int) :: rc
+      end function gpu_aes_mmompop_i
+      function gpu_aes_buildh1_i(shellShift,vs,vd,vq,autoev,H) result(rc) &
+            & bind(C,name="gpu_aes_buildh1")
+         import :: c_int, c_double
+         real(c_double), intent(in) :: shellShift(*), vs(*), vd(*), vq(*)
+         real(c_double), value :: autoev
+         real(c_double), intent(out) :: H(*)
+         integer(c_int) :: rc
+      end function gpu_aes_buildh1_i
    end interface
 #endif
 
@@ -398,13 +416,19 @@ contains
 
    !> Open the resident AES context (constants for the whole SCF). ok=.false. if
    !> no shim -> the caller keeps using the CPU AES routines.
-   subroutine gpu_aes_open(nat,nelem,nao,at,xyz,gab3,gab5,dipKernel,quadKernel,ok)
-      integer, intent(in) :: nat,nelem,nao,at(*)
+   subroutine gpu_aes_open(nat,nelem,nao,nmat,ndp,nqp,nshell, &
+         & at,xyz,gab3,gab5,dipKernel,quadKernel, S,dpint,qpint,H0, &
+         & aoat2,ao2sh,matlist,mdlst,mqlst, ok)
+      integer, intent(in) :: nat,nelem,nao,nmat,ndp,nqp,nshell
+      integer, intent(in) :: at(*),aoat2(*),ao2sh(*),matlist(*),mdlst(*),mqlst(*)
       real(wp), intent(in) :: xyz(*),gab3(*),gab5(*),dipKernel(*),quadKernel(*)
+      real(wp), intent(in) :: S(*),dpint(*),qpint(*),H0(*)
       logical, intent(out) :: ok
 #ifdef WITH_GPU_SHIM
       ok = (gpu_aes_open_i(int(nat,c_int),int(nelem,c_int),int(nao,c_int), &
-         & at,xyz,gab3,gab5,dipKernel,quadKernel) == 0)
+         & int(nmat,c_int),int(ndp,c_int),int(nqp,c_int),int(nshell,c_int), &
+         & at,xyz,gab3,gab5,dipKernel,quadKernel, S,dpint,qpint,H0, &
+         & aoat2,ao2sh,matlist,mdlst,mqlst) == 0)
 #else
       ok = .false.
 #endif
@@ -428,6 +452,31 @@ contains
       ok = .false.
 #endif
    end subroutine gpu_aes_setvsdq
+
+   !> GFN2 multipole populations (mmompop) via the resident context.
+   subroutine gpu_aes_mmompop(P,dipm,qp,ok)
+      real(wp), intent(in) :: P(*)
+      real(wp), intent(out) :: dipm(*), qp(*)
+      logical, intent(out) :: ok
+#ifdef WITH_GPU_SHIM
+      ok = (gpu_aes_mmompop_i(P,dipm,qp) == 0)
+#else
+      ok = .false.
+#endif
+   end subroutine gpu_aes_mmompop
+
+   !> GFN2 isotropic+anisotropic Fockian (buildIsoAnisotropicH1) via the context.
+   subroutine gpu_aes_buildh1(shellShift,vs,vd,vq,H,ok)
+      use xtb_mctc_convert, only : autoev
+      real(wp), intent(in) :: shellShift(*), vs(*), vd(*), vq(*)
+      real(wp), intent(out) :: H(*)
+      logical, intent(out) :: ok
+#ifdef WITH_GPU_SHIM
+      ok = (gpu_aes_buildh1_i(shellShift,vs,vd,vq,autoev,H) == 0)
+#else
+      ok = .false.
+#endif
+   end subroutine gpu_aes_buildh1
 
    !> GFN2 AES energy (aniso_electro) via the resident context.
    subroutine gpu_aes_aniso(q,dipm,qp,eaes,epol,ok)

@@ -1057,15 +1057,26 @@ AesCtx aesc;
 // gab/at/xyz/kernels (setvsdq + aniso_electro); dpint/qpint/S/H0/lists are added
 // in Stage B for mmompop + buildIsoAnisotropicH1.
 extern "C" int gpu_aes_open(int nat, int nelem, int nao,
+      int nmat, int ndp, int nqp, int nshell,
       const int* at, const double* xyz, const double* gab3, const double* gab5,
-      const double* dipKernel, const double* quadKernel)
+      const double* dipKernel, const double* quadKernel,
+      const double* S, const double* dpint, const double* qpint, const double* H0,
+      const int* aoat2, const int* ao2sh,
+      const int* matlist, const int* mdlst, const int* mqlst)
 {
    std::lock_guard<std::mutex> lock(ctx_mutex);
    aesc.free();
    aesc.nat=nat; aesc.nelem=nelem; aesc.nao=nao;
+   aesc.nmat=nmat; aesc.ndp=ndp; aesc.nqp=nqp; aesc.ldsh=nshell;
+   const size_t nn=(size_t)nao*nao;
    aesc.at=devcopy(at,nat); aesc.xyz=devcopy(xyz,(size_t)3*nat);
    aesc.gab3=devcopy(gab3,(size_t)nat*nat); aesc.gab5=devcopy(gab5,(size_t)nat*nat);
    aesc.dipKernel=devcopy(dipKernel,nelem); aesc.quadKernel=devcopy(quadKernel,nelem);
+   aesc.Sm=devcopy(S,nn); aesc.dpint=devcopy(dpint,3*nn); aesc.qpint=devcopy(qpint,6*nn);
+   aesc.H0=devcopy(H0,(size_t)nao*(nao+1)/2);
+   aesc.aoat2=devcopy(aoat2,nao); aesc.ao2sh=devcopy(ao2sh,nao);
+   aesc.matlist=devcopy(matlist,(size_t)2*nmat);
+   aesc.mdlst=devcopy(mdlst,(size_t)2*ndp); aesc.mqlst=devcopy(mqlst,(size_t)2*nqp);
    cudaMalloc((void**)&aesc.q,sizeof(double)*nat);
    cudaMalloc((void**)&aesc.dipm,sizeof(double)*3*nat);
    cudaMalloc((void**)&aesc.qp,sizeof(double)*6*nat);
@@ -1073,8 +1084,164 @@ extern "C" int gpu_aes_open(int nat, int nelem, int nao,
    cudaMalloc((void**)&aesc.vd,sizeof(double)*3*nat);
    cudaMalloc((void**)&aesc.vq,sizeof(double)*6*nat);
    cudaMalloc((void**)&aesc.eacc,sizeof(double)*4);
-   if(!aesc.at||!aesc.xyz||!aesc.gab3||!aesc.gab5||!aesc.q||!aesc.vs||!aesc.eacc) return -1;
+   cudaMalloc((void**)&aesc.shift,sizeof(double)*(nshell>0?nshell:1));
+   cudaMalloc((void**)&aesc.Hm,sizeof(double)*nn);
+   cudaMalloc((void**)&aesc.Pm,sizeof(double)*nn);
+   if(!aesc.at||!aesc.xyz||!aesc.gab3||!aesc.gab5||!aesc.q||!aesc.vs||!aesc.eacc
+      ||!aesc.Sm||!aesc.dpint||!aesc.qpint||!aesc.H0||!aesc.Hm||!aesc.Pm) return -1;
    aesc.active=true; return 0;
+}
+
+// mmompop: multipole populations (dipm/qp) from the density P. qpint is stored
+// xx,yy,zz,xy,xz,yz [index kj=k+l+1 / k]; qp output is lin order [kl]. Port of
+// aespot.F90:mmompop_cpu.  off-diagonal AO pairs (i>j) -> atomicAdd both atoms.
+__global__ void aes_mmompop_off_kernel(int nao, const int* aoat2, const double* xyz,
+      const double* P, const double* S, const double* dpint, const double* qpint,
+      double* dipm, double* qp)
+{
+   int i=blockIdx.x*blockDim.x+threadIdx.x+1, j=blockIdx.y*blockDim.y+threadIdx.y+1;
+   if(i>nao || j>=i) return;
+   int ii=aoat2[i-1], jj=aoat2[j-1];
+   double ra[3]={xyz[0+3*(ii-1)],xyz[1+3*(ii-1)],xyz[2+3*(ii-1)]};
+   size_t ji=(size_t)(j-1)+(size_t)nao*(i-1);
+   double pij=P[ji], ps=pij*S[ji];
+   for(int k=1;k<=3;k++){
+      double xk1=ra[k-1], xk2=xyz[(k-1)+3*(jj-1)];
+      double pdmk=pij*dpint[(k-1)+3*ji];
+      atomicAdd(&dipm[(k-1)+3*(jj-1)], xk2*ps-pdmk);
+      atomicAdd(&dipm[(k-1)+3*(ii-1)], xk1*ps-pdmk);
+      for(int l=1;l<k;l++){
+         int kl=k*(k-1)/2+l, kj=k+l+1;
+         double xl1=ra[l-1], xl2=xyz[(l-1)+3*(jj-1)];
+         double pdml=pij*dpint[(l-1)+3*ji], pqm=pij*qpint[(kj-1)+6*ji];
+         atomicAdd(&qp[(kl-1)+6*(jj-1)], pdmk*xl2+pdml*xk2-xl2*xk2*ps-pqm);
+         atomicAdd(&qp[(kl-1)+6*(ii-1)], pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm);
+      }
+      int kl=k*(k+1)/2; double pqm=pij*qpint[(k-1)+6*ji];
+      atomicAdd(&qp[(kl-1)+6*(jj-1)], 2.0*pdmk*xk2-xk2*xk2*ps-pqm);
+      atomicAdd(&qp[(kl-1)+6*(ii-1)], 2.0*pdmk*xk1-xk1*xk1*ps-pqm);
+   }
+}
+// diagonal AO (i==i)
+__global__ void aes_mmompop_diag_kernel(int nao, const int* aoat2, const double* xyz,
+      const double* P, const double* S, const double* dpint, const double* qpint,
+      double* dipm, double* qp)
+{
+   int i=blockIdx.x*blockDim.x+threadIdx.x+1; if(i>nao) return;
+   int ii=aoat2[i-1];
+   double ra[3]={xyz[0+3*(ii-1)],xyz[1+3*(ii-1)],xyz[2+3*(ii-1)]};
+   size_t di=(size_t)(i-1)+(size_t)nao*(i-1);
+   double pij=P[di], ps=pij*S[di];
+   for(int k=1;k<=3;k++){
+      double xk1=ra[k-1], pdmk=pij*dpint[(k-1)+3*di];
+      atomicAdd(&dipm[(k-1)+3*(ii-1)], xk1*ps-pdmk);
+      for(int l=1;l<k;l++){
+         int kl=k*(k-1)/2+l, kj=k+l+1;
+         double xl1=ra[l-1], pdml=pij*dpint[(l-1)+3*di], pqm=pij*qpint[(kj-1)+6*di];
+         atomicAdd(&qp[(kl-1)+6*(ii-1)], pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm);
+      }
+      int kl=k*(k+1)/2; double pqm=pij*qpint[(k-1)+6*di];
+      atomicAdd(&qp[(kl-1)+6*(ii-1)], 2.0*pdmk*xk1-xk1*xk1*ps-pqm);
+   }
+}
+// trace removal (per atom), qp lin order: diag = indices 1,3,6 (0-based 0,2,5)
+__global__ void aes_mmompop_trace_kernel(int nat, double* qp){
+   int i=blockIdx.x*blockDim.x+threadIdx.x; if(i>=nat) return;
+   double t=0.5*(qp[0+6*i]+qp[2+6*i]+qp[5+6*i]);
+   for(int k=0;k<6;k++) qp[k+6*i]*=1.5;
+   qp[0+6*i]-=t; qp[2+6*i]-=t; qp[5+6*i]-=t;
+}
+
+extern "C" int gpu_aes_mmompop(const double* P, double* dipm, double* qp)
+{
+   if(!aesc.active) return -1;
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   int nao=aesc.nao, nat=aesc.nat;
+   cudaMemcpy(aesc.Pm, P, sizeof(double)*(size_t)nao*nao, cudaMemcpyHostToDevice);
+   cudaMemset(aesc.dipm,0,sizeof(double)*3*nat);
+   cudaMemset(aesc.qp,0,sizeof(double)*6*nat);
+   dim3 blk(16,16), grd((nao+15)/16,(nao+15)/16);
+   aes_mmompop_off_kernel<<<grd,blk>>>(nao,aesc.aoat2,aesc.xyz,aesc.Pm,aesc.Sm,
+         aesc.dpint,aesc.qpint,aesc.dipm,aesc.qp);
+   int tb=128;
+   aes_mmompop_diag_kernel<<<(nao+tb-1)/tb,tb>>>(nao,aesc.aoat2,aesc.xyz,aesc.Pm,aesc.Sm,
+         aesc.dpint,aesc.qpint,aesc.dipm,aesc.qp);
+   aes_mmompop_trace_kernel<<<(nat+tb-1)/tb,tb>>>(nat,aesc.qp);
+   if(cudaDeviceSynchronize()!=cudaSuccess) return -2;
+   cudaMemcpy(dipm,aesc.dipm,sizeof(double)*3*nat,cudaMemcpyDeviceToHost);
+   cudaMemcpy(qp,aesc.qp,sizeof(double)*6*nat,cudaMemcpyDeviceToHost);
+   return 0;
+}
+
+// buildIsoAnisotropicH1: H = H0 + SCC(shellShift) + CAMM(vs/vd/vq). Port of
+// scc_core.f90:buildIsoAnisotropicH1. matlist spans the full packed triangle incl.
+// diagonal, so the mat kernel fully initializes H; dip/quad ADD (run after, same
+// stream). Each list entry is a unique (i,j) pair -> no intra-kernel race.
+__global__ void aes_buildh1_mat_kernel(int nmat, int nao, const int* matlist,
+      const double* H0, const double* S, const double* shellShift, const double* vs,
+      const int* aoat2, const int* ao2sh, double autoev, double* H)
+{
+   int m=blockIdx.x*blockDim.x+threadIdx.x; if(m>=nmat) return;
+   int i=matlist[0+2*m], j=matlist[1+2*m];
+   size_t kp=(size_t)j+(size_t)i*(i-1)/2;            // 1-based packed index k
+   size_t ji=(size_t)(j-1)+(size_t)nao*(i-1);
+   double dum=S[ji]*autoev*0.5;
+   int is=ao2sh[i-1], js=ao2sh[j-1];
+   double val=H0[kp-1]-dum*(shellShift[is-1]+shellShift[js-1]);
+   int ia=aoat2[i-1], ja=aoat2[j-1];
+   val+=dum*(vs[ia-1]+vs[ja-1]);
+   H[ji]=val;
+   H[(size_t)(i-1)+(size_t)nao*(j-1)]=val;
+}
+__global__ void aes_buildh1_dip_kernel(int ndp, int nao, const int* mdlst,
+      const double* dpint, const double* vd, const int* aoat2, double autoev, double* H)
+{
+   int m=blockIdx.x*blockDim.x+threadIdx.x; if(m>=ndp) return;
+   int i=mdlst[0+2*m], j=mdlst[1+2*m];
+   int ia=aoat2[i-1], ja=aoat2[j-1];
+   size_t ij=(size_t)(i-1)+(size_t)nao*(j-1);        // dpint(l,i,j)
+   double eh1=0.0;
+   for(int l=0;l<3;l++) eh1+=dpint[l+3*ij]*(vd[l+3*(ia-1)]+vd[l+3*(ja-1)]);
+   eh1*=0.5*autoev;
+   double val=H[ij]+eh1;
+   H[ij]=val;
+   H[(size_t)(j-1)+(size_t)nao*(i-1)]=val;
+}
+__global__ void aes_buildh1_quad_kernel(int nqp, int nao, const int* mqlst,
+      const double* qpint, const double* vq, const int* aoat2, double autoev, double* H)
+{
+   int m=blockIdx.x*blockDim.x+threadIdx.x; if(m>=nqp) return;
+   int i=mqlst[0+2*m], j=mqlst[1+2*m];
+   int ia=aoat2[i-1], ja=aoat2[j-1];
+   size_t ij=(size_t)(i-1)+(size_t)nao*(j-1);        // qpint(l,i,j)
+   double eh1=0.0;
+   for(int l=0;l<6;l++) eh1+=qpint[l+6*ij]*(vq[l+6*(ia-1)]+vq[l+6*(ja-1)]);
+   eh1*=0.5*autoev;
+   double val=H[ij]+eh1;
+   H[ij]=val;
+   H[(size_t)(j-1)+(size_t)nao*(i-1)]=val;
+}
+
+extern "C" int gpu_aes_buildh1(const double* shellShift, const double* vs,
+      const double* vd, const double* vq, double autoev, double* H)
+{
+   if(!aesc.active) return -1;
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   int nao=aesc.nao, nat=aesc.nat, nmat=aesc.nmat, ndp=aesc.ndp, nqp=aesc.nqp;
+   cudaMemcpy(aesc.shift, shellShift, sizeof(double)*aesc.ldsh, cudaMemcpyHostToDevice);
+   cudaMemcpy(aesc.vs, vs, sizeof(double)*nat, cudaMemcpyHostToDevice);
+   cudaMemcpy(aesc.vd, vd, sizeof(double)*3*nat, cudaMemcpyHostToDevice);
+   cudaMemcpy(aesc.vq, vq, sizeof(double)*6*nat, cudaMemcpyHostToDevice);
+   int tb=128;
+   aes_buildh1_mat_kernel<<<(nmat+tb-1)/tb,tb>>>(nmat,nao,aesc.matlist,aesc.H0,aesc.Sm,
+         aesc.shift,aesc.vs,aesc.aoat2,aesc.ao2sh,autoev,aesc.Hm);
+   if(ndp>0) aes_buildh1_dip_kernel<<<(ndp+tb-1)/tb,tb>>>(ndp,nao,aesc.mdlst,aesc.dpint,
+         aesc.vd,aesc.aoat2,autoev,aesc.Hm);
+   if(nqp>0) aes_buildh1_quad_kernel<<<(nqp+tb-1)/tb,tb>>>(nqp,nao,aesc.mqlst,aesc.qpint,
+         aesc.vq,aesc.aoat2,autoev,aesc.Hm);
+   if(cudaDeviceSynchronize()!=cudaSuccess) return -2;
+   cudaMemcpy(H, aesc.Hm, sizeof(double)*(size_t)nao*nao, cudaMemcpyDeviceToHost);
+   return 0;
 }
 
 extern "C" int gpu_aes_close(){ std::lock_guard<std::mutex> lock(ctx_mutex); aesc.free(); return 0; }

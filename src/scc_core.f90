@@ -27,7 +27,8 @@ module xtb_scc_core
    use xtb_gpu_runtime, only : gpu_scf_open, gpu_scf_solve, gpu_scf_finish
    use xtb_gpu_runtime, only : gpu_scf_get_vectors, gpu_scf_close
    use xtb_gpu_runtime, only : gpu_aes_open, gpu_aes_close
-   use xtb_gpu_runtime, only : gpu_aes_setvsdq, gpu_aes_aniso
+   use xtb_gpu_runtime, only : gpu_aes_setvsdq, gpu_aes_aniso, gpu_aes_mmompop
+   use xtb_gpu_runtime, only : gpu_aes_buildh1
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    use xtb_xtb_data
@@ -489,11 +490,19 @@ subroutine scc_init()
       call gpu_scf_open(ndim, nshell, nmat, .not.present(aes), &
          & H0, S, matlist, ao2sh, gpu_session_ok)
    end if
-   ! Open the resident GPU AES context (GFN2): gab/dipKernel/quadKernel/xyz/at
-   ! stay on the device, so per-iter setvsdq/aniso_electro only move q/dipm/qp.
+   ! Open the resident GPU AES context (GFN2). OPT-IN via XTB_GPU_AES=1: at pocket
+   ! scale (hundreds of atoms) the 8-thread CPU AES is faster, because the AES
+   ! routines are memory/atomic-bound (mmompop atomicAdd contention, buildH1 H
+   ! round-trip) rather than compute-bound. Default keeps AES on the CPU while the
+   ! gradient and diagonalization stay on the GPU. The bit-exact GPU path remains
+   ! available for very large systems / weak CPUs (and is validated by the gate).
    if (gpu_use .and. present(aes)) then
-      call gpu_aes_open(n, size(aes%dipKernel), ndim, at, xyz, &
-         & aes%gab3, aes%gab5, aes%dipKernel, aes%quadKernel, gpu_aes_ok)
+      call get_environment_variable("XTB_GPU_AES", aes_env, aes_len, aes_stat)
+      if (aes_stat == 0 .and. aes_len > 0 .and. aes_env(1:1) /= '0') then
+         call gpu_aes_open(n, size(aes%dipKernel), ndim, nmat, ndp, nqp, nshell, &
+            & at, xyz, aes%gab3, aes%gab5, aes%dipKernel, aes%quadKernel, &
+            & S, dpint, qpint, H0, aoat2, ao2sh, matlist, mdlst, mqlst, gpu_aes_ok)
+      end if
    end if
 end subroutine scc_init
 
@@ -552,9 +561,12 @@ subroutine scc_step(done)
 
    solved_on_gpu = .false.
    if (present(aes)) then
-      ! GFN2: anisotropic H1 is built on the host, then diagonalized (GPU or CPU)
+      ! GFN2: anisotropic H1 is built (GPU or host), then diagonalized (GPU or CPU)
       call system_clock(aesc0, aescr)
-      call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
+      gpu_ok = .false.
+      if (gpu_aes_ok) call gpu_aes_buildh1(shellShift,vs,vd,vq,H,gpu_ok)
+      if (.not.gpu_ok) &
+         & call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          & H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
       call system_clock(aesc1); taes_h1 = taes_h1 + real(aesc1-aesc0,wp)/real(aescr,wp)
       if (gpu_session_ok) then
@@ -633,7 +645,9 @@ subroutine scc_step(done)
    ! multipole electrostatic
    if (present(aes)) then
       call system_clock(aesc0, aescr)
-      call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+      gpu_ok = .false.
+      if (gpu_aes_ok) call gpu_aes_mmompop(p,dipm,qp,gpu_ok)
+      if (.not.gpu_ok) call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
       call system_clock(aesc1); taes_mom = taes_mom + real(aesc1-aesc0,wp)/real(aescr,wp)
       ! evaluate energy
       call system_clock(aesc0, aescr)
