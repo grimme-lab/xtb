@@ -311,6 +311,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        minpr,pr, &
       &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
+   use, intrinsic :: iso_fortran_env, only : int64
    use xtb_mctc_lapack_trf, only : mctc_potrf
 
    use xtb_disp_dftd4,  only: disppot,edisp_scc
@@ -428,8 +429,14 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: solved_on_gpu     ! this iteration's diagonalization ran on GPU
    integer :: iter_driver
    type(TScfBatchState) :: state
+   ! per-iter AES profiling (env XTB_AES_TRACE); wall-time accumulators
+   real(wp) :: taes_pot, taes_h1, taes_mom, taes_ele
+   integer(int64) :: aesc0, aesc1, aescr
+   character(len=8) :: aes_env
+   integer :: aes_len, aes_stat
 
    gpu_session_ok = .false.
+   taes_pot = 0.0_wp; taes_h1 = 0.0_wp; taes_mom = 0.0_wp; taes_ele = 0.0_wp
    call scc_init()
 
 !! ------------------------------------------------------------------------
@@ -505,7 +512,9 @@ subroutine scc_step(done)
    call ies%addShift(q, qsh, atomicShift, shellShift)
    ! compute potential intermediates
    if (present(aes)) then
+      call system_clock(aesc0, aescr)
       call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
+      call system_clock(aesc1); taes_pot = taes_pot + real(aesc1-aesc0,wp)/real(aescr,wp)
    end if
    ! Solvation contributions
    if (allocated(solvation)) then
@@ -532,8 +541,10 @@ subroutine scc_step(done)
    solved_on_gpu = .false.
    if (present(aes)) then
       ! GFN2: anisotropic H1 is built on the host, then diagonalized (GPU or CPU)
+      call system_clock(aesc0, aescr)
       call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          & H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+      call system_clock(aesc1); taes_h1 = taes_h1 + real(aesc1-aesc0,wp)/real(aescr,wp)
       if (gpu_session_ok) then
          call gpu_scf_solve(ndim, nshell, H, shellShift, autoev, emo, solved_on_gpu)
       end if
@@ -609,9 +620,13 @@ subroutine scc_step(done)
    call electro(n,at,ndim,nshell,ies,H0,P,q,qsh,ees,eel)
    ! multipole electrostatic
    if (present(aes)) then
+      call system_clock(aesc0, aescr)
       call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+      call system_clock(aesc1); taes_mom = taes_mom + real(aesc1-aesc0,wp)/real(aescr,wp)
       ! evaluate energy
+      call system_clock(aesc0, aescr)
       call aniso_electro(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,eaes,epol)
+      call system_clock(aesc1); taes_ele = taes_ele + real(aesc1-aesc0,wp)/real(aescr,wp)
       eel=eel+eaes+epol
    end if
 
@@ -734,6 +749,12 @@ subroutine scc_final()
    jter = jter + min(state%iter,state%thisiter)
    fail = .not.state%converged
    state%active = .false.
+   if (present(aes)) then
+      call get_environment_variable("XTB_AES_TRACE", aes_env, aes_len, aes_stat)
+      if (aes_stat == 0) write(*,'(a,4(f8.3,a))') &
+         & " [aes-prof] setvsdq ", taes_pot, "s  buildH1 ", taes_h1, &
+         & "s  mmompop ", taes_mom, "s  aniso_electro ", taes_ele, "s"
+   end if
 end subroutine scc_final
 
 end subroutine scc
