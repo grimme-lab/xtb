@@ -137,10 +137,23 @@ module xtb_gpu_runtime
          integer(c_int) :: rc
       end function gpu_scf_close_i
 
-      function gpu_build_dsdqh0_i(nat, nao) result(rc) &
+      function gpu_build_dsdqh0_i(nat,nao,nbf,maxsh,nelem,nprimtot,ntrans, &
+            & ldSE,ldcao,ldsp, nShell,at,xyz,trans, angShell,valShell,slaterExp, &
+            & shellPoly,atomicRad,en, enScale,enScale4,kDiff,wExp, kScale,pairParam, &
+            & selfEnergy,dSEdcn, caoshell,saoshell,nprim,primcount, alp,cont, &
+            & intcut,evtoau, P,Pew,ves, vs,vd,vq, g,sigma,dhdcn) result(rc) &
             & bind(C, name="gpu_build_dsdqh0")
-         import :: c_int
-         integer(c_int), value :: nat, nao
+         import :: c_int, c_double
+         integer(c_int), value :: nat,nao,nbf,maxsh,nelem,nprimtot,ntrans
+         integer(c_int), value :: ldSE,ldcao,ldsp
+         real(c_double), value :: enScale4,kDiff,wExp,intcut,evtoau
+         integer(c_int), intent(in) :: nShell(*),at(*),angShell(*),valShell(*)
+         integer(c_int), intent(in) :: caoshell(*),saoshell(*),nprim(*),primcount(*)
+         real(c_double), intent(in) :: xyz(*),trans(*),slaterExp(*),shellPoly(*)
+         real(c_double), intent(in) :: atomicRad(*),en(*),enScale(*),kScale(*),pairParam(*)
+         real(c_double), intent(in) :: selfEnergy(*),dSEdcn(*),alp(*),cont(*)
+         real(c_double), intent(in) :: P(*),Pew(*),ves(*),vs(*),vd(*),vq(*)
+         real(c_double), intent(inout) :: g(*),sigma(*),dhdcn(*)
          integer(c_int) :: rc
       end function gpu_build_dsdqh0_i
    end interface
@@ -319,14 +332,37 @@ contains
 #endif
    end subroutine gpu_scf_get_vectors
 
-   !> GPU analytical gradient (build_dSDQH0).  ok=.true. means the GPU filled
-   !> g/sigma/dhdcn and the caller must skip the CPU build_dSDQH0; ok=.false.
-   !> (current scaffold / no shim) means fall back to the CPU routine.
-   subroutine gpu_grad_dsdqh0(nat, nao, ok)
-      integer, intent(in) :: nat, nao
+   !> GPU analytical gradient (build_dSDQH0).  Thin forwarder to the CUDA shim:
+   !> g/sigma/dhdcn are seeded with the incoming contributions and accumulated.
+   !> ok=.true. means the GPU filled them (skip the CPU build_dSDQH0); ok=.false.
+   !> (no shim) means fall back to the CPU routine.  Integer/real arrays are
+   !> passed straight through (default integer == c_int, wp == c_double).
+   subroutine gpu_grad_dsdqh0(nat,nao,nbf,maxsh,nelem,nprimtot,ntrans, &
+         & ldSE,ldcao,ldsp, nShell,at,xyz,trans, angShell,valShell,slaterExp, &
+         & shellPoly,atomicRad,en, enScale,enScale4,kDiff,wExp, kScale,pairParam, &
+         & selfEnergy,dSEdcn, caoshell,saoshell,nprim,primcount, alp,cont, &
+         & intcut,evtoau, P,Pew,ves, vs,vd,vq, g,sigma,dhdcn, ok)
+      integer, intent(in) :: nat,nao,nbf,maxsh,nelem,nprimtot,ntrans,ldSE,ldcao,ldsp
+      integer, intent(in) :: nShell(*),at(*),angShell(*),valShell(*)
+      integer, intent(in) :: caoshell(*),saoshell(*),nprim(*),primcount(*)
+      real(wp), intent(in) :: xyz(*),trans(*),slaterExp(*),shellPoly(*),atomicRad(*)
+      real(wp), intent(in) :: en(*),enScale(*),kScale(*),pairParam(*)
+      real(wp), intent(in) :: selfEnergy(*),dSEdcn(*),alp(*),cont(*)
+      real(wp), intent(in) :: P(*),Pew(*),ves(*),vs(*),vd(*),vq(*)
+      real(wp), intent(in) :: enScale4,kDiff,wExp,intcut,evtoau
+      real(wp), intent(inout) :: g(*),sigma(*),dhdcn(*)
       logical, intent(out) :: ok
 #ifdef WITH_GPU_SHIM
-      ok = (gpu_build_dsdqh0_i(int(nat, c_int), int(nao, c_int)) == 0)
+      integer(c_int) :: rc
+      rc = gpu_build_dsdqh0_i(int(nat,c_int),int(nao,c_int),int(nbf,c_int), &
+         & int(maxsh,c_int),int(nelem,c_int),int(nprimtot,c_int),int(ntrans,c_int), &
+         & int(ldSE,c_int),int(ldcao,c_int),int(ldsp,c_int), &
+         & nShell,at,xyz,trans, angShell,valShell,slaterExp, &
+         & shellPoly,atomicRad,en, enScale,real(enScale4,c_double),real(kDiff,c_double), &
+         & real(wExp,c_double), kScale,pairParam, selfEnergy,dSEdcn, &
+         & caoshell,saoshell,nprim,primcount, alp,cont, &
+         & real(intcut,c_double),real(evtoau,c_double), P,Pew,ves, vs,vd,vq, g,sigma,dhdcn)
+      ok = (rc == 0)
 #else
       ok = .false.
 #endif

@@ -704,7 +704,20 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! GPU analytical gradient (CUDA-C shim) when --gpu is active; ok=.false. (the
    ! current scaffold / no-shim build) falls through to the CPU build_dSDQH0.
    gpu_grad_ok = .false.
-   if (gpu_use) call gpu_grad_dsdqh0(mol%n, basis%nao, gpu_grad_ok)
+   if (gpu_use) then
+      associate(hd => xtbData%hamiltonian)
+      call gpu_grad_dsdqh0(mol%n, basis%nao, size(basis%nprim), &
+         & size(hd%angShell,1), size(hd%angShell,2), size(basis%alp), size(trans,2), &
+         & size(selfEnergy,1), size(basis%caoshell,1), size(hd%shellPoly,1), &
+         & xtbData%nShell, mol%at, mol%xyz, trans, &
+         & hd%angShell, hd%valenceShell, hd%slaterExponent, &
+         & hd%shellPoly, hd%atomicRad, hd%electronegativity, &
+         & hd%enScale, hd%enScale4, hd%kDiff, hd%wExp, hd%kScale, hd%pairParam, &
+         & selfEnergy, dSEdcn, basis%caoshell, basis%saoshell, &
+         & basis%nprim, basis%primcount, basis%alp, basis%cont, intcut, evtoau, &
+         & wfn%p, Pew, shellShift, vs, vd, vq, gradient, sigma, dhdcn, gpu_grad_ok)
+      end associate
+   end if
    if (gpu_grad_ok) then
       ! gradient (g/sigma/dhdcn) computed on the GPU
       continue
