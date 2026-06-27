@@ -18,6 +18,7 @@
 #include <mutex>
 #include <cstdio>
 #include <cstdlib>
+#include <chrono>
 
 namespace {
 
@@ -719,8 +720,9 @@ __global__ void grad_pair_kernel(GradData d)
                d.atomicRad[izp-1],d.atomicRad[jzp-1],rij2,ri,rj,shpoly,dshpoly);
             // ---- integrals: get_grad_multiint ----
             double sdq[10][6][6]; double sdqg[6][6][3][19];
-            for(int a=0;a<10;a++)for(int b=0;b<6;b++)for(int c=0;c<6;c++) sdq[a][b][c]=0.0;
-            for(int b=0;b<6;b++)for(int c=0;c<6;c++)for(int x=0;x<3;x++)for(int k=0;k<19;k++) sdqg[b][c][x][k]=0.0;
+            // only the [naoj][naoi] (Cartesian) block is ever touched
+            for(int a=0;a<10;a++)for(int b=0;b<naoj;b++)for(int c=0;c<naoi;c++) sdq[a][b][c]=0.0;
+            for(int b=0;b<naoj;b++)for(int c=0;c<naoi;c++)for(int x=0;x<3;x++)for(int k=0;k<19;k++) sdqg[b][c][x][k]=0.0;
             int npi=d.nprim[icao], npj=d.nprim[jcao];
             for(int ip=0; ip<npi; ip++){
                double alpi=d.alp[ip+d.primcount[icao]];
@@ -753,18 +755,22 @@ __global__ void grad_pair_kernel(GradData d)
             }
             // dtrf2 (CAO->SAO) on the overlap block and on each sdqg(ixyz,k,:,:).
             // CPU layout sdq(1,jj,ii) -> here sdq[0][jj][ii]; build s[i=ii][j=jj].
-            // dtrf2 expects s[mlj][mli] (CPU tmp(mlj,mli)); our sdq/sdqg are
-            // already stored [mlj][mli], so build s WITHOUT transposing.
-            { double s[6][6];
-              for(int i=0;i<6;i++)for(int j=0;j<6;j++) s[i][j]=sdq[0][i][j];
-              gradk::dtrf2(s,ishtyp,jshtyp);
-              for(int i=0;i<6;i++)for(int j=0;j<6;j++) sdq[0][i][j]=s[i][j];
-            }
-            for(int k=0;k<19;k++)for(int x=0;x<3;x++){
-               double s[6][6];
-               for(int i=0;i<6;i++)for(int j=0;j<6;j++) s[i][j]=sdqg[i][j][x][k];
-               gradk::dtrf2(s,ishtyp,jshtyp);
-               for(int i=0;i<6;i++)for(int j=0;j<6;j++) sdqg[i][j][x][k]=s[i][j];
+            // dtrf2 (CAO->SAO) only does work when a d-shell is involved; for
+            // s/p it is a no-op, so skip the 57 build-transform-store passes
+            // entirely (bit-exact, big saving for C/N/O/H). dtrf2 expects
+            // s[mlj][mli], which is how sdq/sdqg are stored (no transpose).
+            if (ishtyp>=2 || jshtyp>=2){
+               { double s[6][6];
+                 for(int i=0;i<6;i++)for(int j=0;j<6;j++) s[i][j]=sdq[0][i][j];
+                 gradk::dtrf2(s,ishtyp,jshtyp);
+                 for(int i=0;i<6;i++)for(int j=0;j<6;j++) sdq[0][i][j]=s[i][j];
+               }
+               for(int k=0;k<19;k++)for(int x=0;x<3;x++){
+                  double s[6][6];
+                  for(int i=0;i<6;i++)for(int j=0;j<6;j++) s[i][j]=sdqg[i][j][x][k];
+                  gradk::dtrf2(s,ishtyp,jshtyp);
+                  for(int i=0;i<6;i++)for(int j=0;j<6;j++) sdqg[i][j][x][k]=s[i][j];
+               }
             }
             // ---- contraction (build_dSDQH0 lines 509-546) ----
             int li2=gradk::llao2(ishtyp), lj2=gradk::llao2(jshtyp);
@@ -853,6 +859,9 @@ extern "C" int gpu_build_dsdqh0(
    double* g,double* sigma,double* dhdcn)
 {
    std::lock_guard<std::mutex> lock(ctx_mutex);
+   using clk=std::chrono::high_resolution_clock;
+   const bool tprof = getenv("XTB_GRAD_TRACE")!=nullptr;
+   auto t0=clk::now();
    GradData d; memset(&d,0,sizeof(d));
    d.nat=nat; d.nao=nao; d.maxsh=maxsh; d.nelem=nelem; d.ntrans=ntrans;
    d.ldSE=ldSE; d.ldcao=ldcao; d.ldsp=ldsp;
@@ -873,16 +882,16 @@ extern "C" int gpu_build_dsdqh0(
    d.vs=devcopy(vs,nat); d.vd=devcopy(vd,(size_t)3*nat); d.vq=devcopy(vq,(size_t)6*nat);
    // accumulators seeded with the incoming (non-GPU) contributions
    d.gout=devcopy(g,(size_t)3*nat); d.sigout=devcopy(sigma,9); d.dhdcn=devcopy(dhdcn,nat);
-   const bool trace = getenv("XTB_GRAD_TRACE")!=nullptr;
    if (!d.nShell||!d.at||!d.xyz||!d.angShell||!d.alp||!d.cont||!d.P||!d.Pew||!d.gout||!d.dhdcn)
-      { if(trace) fprintf(stderr,"[gpu-grad] alloc failed -> CPU fallback\n"); return -1; }
+      { if(tprof) fprintf(stderr,"[gpu-grad] alloc failed -> CPU fallback\n"); return -1; }
+   auto t1=clk::now();
 
    dim3 blk(16,16), grd((nat+15)/16,(nat+15)/16);
    grad_pair_kernel<<<grd,blk>>>(d);
    int tb=128; grad_diag_kernel<<<(nat+tb-1)/tb,tb>>>(d);
    cudaError_t kerr=cudaDeviceSynchronize();
-   if (kerr!=cudaSuccess){ if(trace) fprintf(stderr,"[gpu-grad] kernel error: %s -> CPU fallback\n",cudaGetErrorString(kerr)); return -2; }
-   if (trace) fprintf(stderr,"[gpu-grad] kernel ran OK (nat=%d nao=%d)\n",nat,nao);
+   if (kerr!=cudaSuccess){ if(tprof) fprintf(stderr,"[gpu-grad] kernel error: %s -> CPU fallback\n",cudaGetErrorString(kerr)); return -2; }
+   auto t2=clk::now();
 
    cudaMemcpy(g,    d.gout,  sizeof(double)*3*nat, cudaMemcpyDeviceToHost);
    cudaMemcpy(sigma,d.sigout,sizeof(double)*9,     cudaMemcpyDeviceToHost);
@@ -895,5 +904,12 @@ extern "C" int gpu_build_dsdqh0(
       (void*)d.cont,(void*)d.P,(void*)d.Pew,(void*)d.ves,(void*)d.vs,(void*)d.vd,(void*)d.vq,
       (void*)d.gout,(void*)d.sigout,(void*)d.dhdcn};
    for(void* p : ptrs) cudaFree(p);
+   if (tprof){
+      auto t3=clk::now();
+      auto ms=[](clk::time_point a,clk::time_point b){
+         return std::chrono::duration<double,std::milli>(b-a).count(); };
+      fprintf(stderr,"[gpu-grad] nat=%d nao=%d | upload+malloc %.1fms | kernel %.1fms | download+free %.1fms\n",
+              nat,nao,ms(t0,t1),ms(t1,t2),ms(t2,t3));
+   }
    return 0;
 }
