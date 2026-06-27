@@ -36,7 +36,7 @@ module xtb_gpu_runtime
    public :: gpu_scf_open, gpu_scf_solve, gpu_scf_finish, gpu_scf_close
    public :: gpu_scf_get_vectors
    public :: gpu_grad_dsdqh0
-   public :: gpu_aes_setvsdq
+   public :: gpu_aes_open, gpu_aes_close, gpu_aes_setvsdq, gpu_aes_aniso
 #ifdef WITH_GPU_SHIM
    public :: gpu_sygvd_batch
 #endif
@@ -158,16 +158,32 @@ module xtb_gpu_runtime
          integer(c_int) :: rc
       end function gpu_build_dsdqh0_i
 
-      function gpu_setvsdq_i(nat,nelem,at,xyz,q,dipm,qp,gab3,gab5, &
-            & dipKernel,quadKernel,vs,vd,vq) result(rc) bind(C,name="gpu_setvsdq")
+      function gpu_aes_open_i(nat,nelem,nao,at,xyz,gab3,gab5,dipKernel,quadKernel) &
+            & result(rc) bind(C,name="gpu_aes_open")
          import :: c_int, c_double
-         integer(c_int), value :: nat, nelem
+         integer(c_int), value :: nat, nelem, nao
          integer(c_int), intent(in) :: at(*)
-         real(c_double), intent(in) :: xyz(*),q(*),dipm(*),qp(*),gab3(*),gab5(*)
-         real(c_double), intent(in) :: dipKernel(*),quadKernel(*)
+         real(c_double), intent(in) :: xyz(*),gab3(*),gab5(*),dipKernel(*),quadKernel(*)
+         integer(c_int) :: rc
+      end function gpu_aes_open_i
+      function gpu_aes_close_i() result(rc) bind(C,name="gpu_aes_close")
+         import :: c_int
+         integer(c_int) :: rc
+      end function gpu_aes_close_i
+      function gpu_aes_setvsdq2_i(q,dipm,qp,vs,vd,vq) result(rc) &
+            & bind(C,name="gpu_aes_setvsdq2")
+         import :: c_int, c_double
+         real(c_double), intent(in) :: q(*),dipm(*),qp(*)
          real(c_double), intent(out) :: vs(*),vd(*),vq(*)
          integer(c_int) :: rc
-      end function gpu_setvsdq_i
+      end function gpu_aes_setvsdq2_i
+      function gpu_aes_aniso_i(q,dipm,qp,eaes,epol) result(rc) &
+            & bind(C,name="gpu_aes_aniso")
+         import :: c_int, c_double
+         real(c_double), intent(in) :: q(*),dipm(*),qp(*)
+         real(c_double), intent(out) :: eaes, epol
+         integer(c_int) :: rc
+      end function gpu_aes_aniso_i
    end interface
 #endif
 
@@ -380,21 +396,50 @@ contains
 #endif
    end subroutine gpu_grad_dsdqh0
 
-   !> GFN2 AES potentials (setvsdq) on the GPU.  ok=.false. -> CPU fallback.
-   subroutine gpu_aes_setvsdq(nat,nelem,at,xyz,q,dipm,qp,gab3,gab5, &
-         & dipKernel,quadKernel,vs,vd,vq,ok)
-      integer, intent(in) :: nat,nelem,at(*)
-      real(wp), intent(in) :: xyz(*),q(*),dipm(*),qp(*),gab3(*),gab5(*)
-      real(wp), intent(in) :: dipKernel(*),quadKernel(*)
+   !> Open the resident AES context (constants for the whole SCF). ok=.false. if
+   !> no shim -> the caller keeps using the CPU AES routines.
+   subroutine gpu_aes_open(nat,nelem,nao,at,xyz,gab3,gab5,dipKernel,quadKernel,ok)
+      integer, intent(in) :: nat,nelem,nao,at(*)
+      real(wp), intent(in) :: xyz(*),gab3(*),gab5(*),dipKernel(*),quadKernel(*)
+      logical, intent(out) :: ok
+#ifdef WITH_GPU_SHIM
+      ok = (gpu_aes_open_i(int(nat,c_int),int(nelem,c_int),int(nao,c_int), &
+         & at,xyz,gab3,gab5,dipKernel,quadKernel) == 0)
+#else
+      ok = .false.
+#endif
+   end subroutine gpu_aes_open
+
+   subroutine gpu_aes_close()
+#ifdef WITH_GPU_SHIM
+      integer(c_int) :: rc
+      rc = gpu_aes_close_i()
+#endif
+   end subroutine gpu_aes_close
+
+   !> GFN2 AES potentials (setvsdq) via the resident context.  ok=.false. -> CPU.
+   subroutine gpu_aes_setvsdq(q,dipm,qp,vs,vd,vq,ok)
+      real(wp), intent(in) :: q(*),dipm(*),qp(*)
       real(wp), intent(out) :: vs(*),vd(*),vq(*)
       logical, intent(out) :: ok
 #ifdef WITH_GPU_SHIM
-      ok = (gpu_setvsdq_i(int(nat,c_int),int(nelem,c_int),at,xyz,q,dipm,qp, &
-         & gab3,gab5,dipKernel,quadKernel,vs,vd,vq) == 0)
+      ok = (gpu_aes_setvsdq2_i(q,dipm,qp,vs,vd,vq) == 0)
 #else
       ok = .false.
 #endif
    end subroutine gpu_aes_setvsdq
+
+   !> GFN2 AES energy (aniso_electro) via the resident context.
+   subroutine gpu_aes_aniso(q,dipm,qp,eaes,epol,ok)
+      real(wp), intent(in) :: q(*),dipm(*),qp(*)
+      real(wp), intent(out) :: eaes, epol
+      logical, intent(out) :: ok
+#ifdef WITH_GPU_SHIM
+      ok = (gpu_aes_aniso_i(q,dipm,qp,eaes,epol) == 0)
+#else
+      ok = .false.
+#endif
+   end subroutine gpu_aes_aniso
 
    !> Release the resident SCF session.
    subroutine gpu_scf_close()

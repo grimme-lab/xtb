@@ -26,7 +26,8 @@ module xtb_scc_core
    use xtb_gpu_runtime, only : gpu_build_h1, gpu_mpopsh
    use xtb_gpu_runtime, only : gpu_scf_open, gpu_scf_solve, gpu_scf_finish
    use xtb_gpu_runtime, only : gpu_scf_get_vectors, gpu_scf_close
-   use xtb_gpu_runtime, only : gpu_aes_setvsdq
+   use xtb_gpu_runtime, only : gpu_aes_open, gpu_aes_close
+   use xtb_gpu_runtime, only : gpu_aes_setvsdq, gpu_aes_aniso
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    use xtb_xtb_data
@@ -427,6 +428,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: step_done
    logical  :: gpu_ok
    logical  :: gpu_session_ok    ! resident GPU SCF session opened successfully
+   logical  :: gpu_aes_ok        ! resident GPU AES context opened (GFN2)
    logical  :: solved_on_gpu     ! this iteration's diagonalization ran on GPU
    integer :: iter_driver
    type(TScfBatchState) :: state
@@ -437,6 +439,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer :: aes_len, aes_stat
 
    gpu_session_ok = .false.
+   gpu_aes_ok = .false.
    taes_pot = 0.0_wp; taes_h1 = 0.0_wp; taes_mom = 0.0_wp; taes_ele = 0.0_wp
    call scc_init()
 
@@ -486,6 +489,12 @@ subroutine scc_init()
       call gpu_scf_open(ndim, nshell, nmat, .not.present(aes), &
          & H0, S, matlist, ao2sh, gpu_session_ok)
    end if
+   ! Open the resident GPU AES context (GFN2): gab/dipKernel/quadKernel/xyz/at
+   ! stay on the device, so per-iter setvsdq/aniso_electro only move q/dipm/qp.
+   if (gpu_use .and. present(aes)) then
+      call gpu_aes_open(n, size(aes%dipKernel), ndim, at, xyz, &
+         & aes%gab3, aes%gab5, aes%dipKernel, aes%quadKernel, gpu_aes_ok)
+   end if
 end subroutine scc_init
 
 subroutine scc_step(done)
@@ -515,8 +524,7 @@ subroutine scc_step(done)
    if (present(aes)) then
       call system_clock(aesc0, aescr)
       gpu_ok = .false.
-      if (gpu_use) call gpu_aes_setvsdq(n, size(aes%dipKernel), at, xyz, q, dipm, qp, &
-         & aes%gab3, aes%gab5, aes%dipKernel, aes%quadKernel, vs, vd, vq, gpu_ok)
+      if (gpu_aes_ok) call gpu_aes_setvsdq(q,dipm,qp,vs,vd,vq,gpu_ok)
       if (.not.gpu_ok) call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
       call system_clock(aesc1); taes_pot = taes_pot + real(aesc1-aesc0,wp)/real(aescr,wp)
    end if
@@ -629,7 +637,9 @@ subroutine scc_step(done)
       call system_clock(aesc1); taes_mom = taes_mom + real(aesc1-aesc0,wp)/real(aescr,wp)
       ! evaluate energy
       call system_clock(aesc0, aescr)
-      call aniso_electro(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,eaes,epol)
+      gpu_ok = .false.
+      if (gpu_aes_ok) call gpu_aes_aniso(q,dipm,qp,eaes,epol,gpu_ok)
+      if (.not.gpu_ok) call aniso_electro(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,eaes,epol)
       call system_clock(aesc1); taes_ele = taes_ele + real(aesc1-aesc0,wp)/real(aescr,wp)
       eel=eel+eaes+epol
    end if
@@ -750,6 +760,7 @@ subroutine scc_final()
       if (solved_on_gpu) call gpu_scf_get_vectors(ndim, H, gpu_ok)
       call gpu_scf_close()
    end if
+   if (gpu_aes_ok) call gpu_aes_close()
    jter = jter + min(state%iter,state%thisiter)
    fail = .not.state%converged
    state%active = .false.

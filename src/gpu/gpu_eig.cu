@@ -995,38 +995,130 @@ __global__ void aes_setvsdq_kernel(int nat, const int* at, const double* xyz,
    }
 }
 
-extern "C" int gpu_setvsdq(int nat, int nelem,
-      const int* at, const double* xyz, const double* q, const double* dipm,
-      const double* qp, const double* gab3, const double* gab5,
-      const double* dipKernel, const double* quadKernel,
-      double* vs, double* vd, double* vq)
+// AES energy: per-atom CT (epol) reduction
+__global__ void aes_aniso_epol_kernel(int nat, const int* at, const double* dipm,
+      const double* qp, const double* dipKernel, const double* quadKernel, double* epol)
+{
+   int i=blockIdx.x*blockDim.x+threadIdx.x; if(i>=nat) return;
+   double tt = dipm[0+3*i]*dipm[0+3*i]+dipm[1+3*i]*dipm[1+3*i]+dipm[2+3*i]*dipm[2+3*i];
+   double tt3=0.0;
+   for(int k=1;k<=3;k++)for(int l=1;l<=3;l++){ double v=qp[(aesk::lin(l,k)-1)+6*i]; tt3+=v*v; }
+   atomicAdd(epol, dipKernel[at[i]-1]*tt + tt3*quadKernel[at[i]-1]);
+}
+// AES energy: atom-pair (e01 dip-charge, e02 charge-qpole, e11 dip-dip) reduction
+__global__ void aes_aniso_pair_kernel(int nat, const double* xyz, const double* q,
+      const double* dipm, const double* qp, const double* gab3, const double* gab5,
+      double* eacc /* [3] = e01,e02,e11 */)
+{
+   int i=blockIdx.x*blockDim.x+threadIdx.x+1, j=blockIdx.y*blockDim.y+threadIdx.y+1;
+   if (i>nat || j>=i) return;
+   double q1=q[i-1], rr[3]={xyz[0+3*(i-1)],xyz[1+3*(i-1)],xyz[2+3*(i-1)]};
+   double dp1[3]={dipm[0+3*(i-1)],dipm[1+3*(i-1)],dipm[2+3*(i-1)]};
+   double rij[3]={xyz[0+3*(j-1)]-rr[0],xyz[1+3*(j-1)]-rr[1],xyz[2+3*(j-1)]-rr[2]};
+   double r2=rij[0]*rij[0]+rij[1]*rij[1]+rij[2]*rij[2];
+   double ed=0,eq=0,edd=0;
+   for(int k=1;k<=3;k++){
+      ed += q[j-1]*dp1[k-1]*rij[k-1] - dipm[(k-1)+3*(j-1)]*q1*rij[k-1];
+      for(int l=1;l<=3;l++){
+         int kl=aesk::lin(l,k); double tt=rij[l-1]*rij[k-1];
+         eq += q[j-1]*qp[(kl-1)+6*(i-1)]*tt + qp[(kl-1)+6*(j-1)]*q1*tt;
+         edd -= dipm[(k-1)+3*(j-1)]*dp1[l-1]*3.0*tt;
+      }
+      edd += dipm[(k-1)+3*(j-1)]*dp1[k-1]*r2;
+   }
+   atomicAdd(&eacc[0], ed *gab3[(j-1)+(size_t)nat*(i-1)]);
+   atomicAdd(&eacc[1], eq *gab5[(j-1)+(size_t)nat*(i-1)]);
+   atomicAdd(&eacc[2], edd*gab5[(j-1)+(size_t)nat*(i-1)]);
+}
+
+// ---- resident AES context: constants uploaded once per SCF ----
+namespace {
+struct AesCtx {
+   int nat=0, nelem=0, nao=0, nmat=0, ndp=0, nqp=0, ldsh=0;
+   bool active=false;
+   int *at=0,*aoat2=0,*ao2sh=0,*matlist=0,*mdlst=0,*mqlst=0;
+   double *xyz=0,*gab3=0,*gab5=0,*dipKernel=0,*quadKernel=0,*Sm=0,*dpint=0,*qpint=0,*H0=0;
+   double *q=0,*dipm=0,*qp=0,*vs=0,*vd=0,*vq=0,*shift=0,*Hm=0,*Pm=0,*eacc=0;
+   void free(){
+      cudaFree(at);cudaFree(aoat2);cudaFree(ao2sh);cudaFree(matlist);cudaFree(mdlst);cudaFree(mqlst);
+      cudaFree(xyz);cudaFree(gab3);cudaFree(gab5);cudaFree(dipKernel);cudaFree(quadKernel);
+      cudaFree(Sm);cudaFree(dpint);cudaFree(qpint);cudaFree(H0);
+      cudaFree(q);cudaFree(dipm);cudaFree(qp);cudaFree(vs);cudaFree(vd);cudaFree(vq);
+      cudaFree(shift);cudaFree(Hm);cudaFree(Pm);cudaFree(eacc);
+      at=aoat2=ao2sh=matlist=mdlst=mqlst=0;
+      xyz=gab3=gab5=dipKernel=quadKernel=Sm=dpint=qpint=H0=0;
+      q=dipm=qp=vs=vd=vq=shift=Hm=Pm=eacc=0; active=false;
+   }
+};
+AesCtx aesc;
+}
+
+// Open the resident AES context (constants for the whole SCF). Stage A uploads
+// gab/at/xyz/kernels (setvsdq + aniso_electro); dpint/qpint/S/H0/lists are added
+// in Stage B for mmompop + buildIsoAnisotropicH1.
+extern "C" int gpu_aes_open(int nat, int nelem, int nao,
+      const int* at, const double* xyz, const double* gab3, const double* gab5,
+      const double* dipKernel, const double* quadKernel)
 {
    std::lock_guard<std::mutex> lock(ctx_mutex);
-   int *d_at=devcopy(at,nat);
-   double *d_xyz=devcopy(xyz,(size_t)3*nat), *d_q=devcopy(q,nat);
-   double *d_dipm=devcopy(dipm,(size_t)3*nat), *d_qp=devcopy(qp,(size_t)6*nat);
-   double *d_g3=devcopy(gab3,(size_t)nat*nat), *d_g5=devcopy(gab5,(size_t)nat*nat);
-   double *d_dk=devcopy(dipKernel,nelem), *d_qk=devcopy(quadKernel,nelem);
-   double *d_vs=nullptr,*d_vd=nullptr,*d_vq=nullptr;
-   cudaMalloc((void**)&d_vs,sizeof(double)*nat);
-   cudaMalloc((void**)&d_vd,sizeof(double)*3*nat);
-   cudaMalloc((void**)&d_vq,sizeof(double)*6*nat);
-   int rc=0;
-   if(!d_at||!d_xyz||!d_q||!d_dipm||!d_qp||!d_g3||!d_g5||!d_dk||!d_qk||!d_vs||!d_vd||!d_vq){
-      rc=-1;
-   } else {
-      int tb=128;
-      aes_setvsdq_kernel<<<(nat+tb-1)/tb,tb>>>(nat,d_at,d_xyz,d_q,d_dipm,d_qp,
-            d_g3,d_g5,d_dk,d_qk,d_vs,d_vd,d_vq);
-      if(cudaDeviceSynchronize()!=cudaSuccess) rc=-2;
-      else{
-         cudaMemcpy(vs,d_vs,sizeof(double)*nat,cudaMemcpyDeviceToHost);
-         cudaMemcpy(vd,d_vd,sizeof(double)*3*nat,cudaMemcpyDeviceToHost);
-         cudaMemcpy(vq,d_vq,sizeof(double)*6*nat,cudaMemcpyDeviceToHost);
-      }
-   }
-   cudaFree(d_at);cudaFree(d_xyz);cudaFree(d_q);cudaFree(d_dipm);cudaFree(d_qp);
-   cudaFree(d_g3);cudaFree(d_g5);cudaFree(d_dk);cudaFree(d_qk);
-   cudaFree(d_vs);cudaFree(d_vd);cudaFree(d_vq);
-   return rc;
+   aesc.free();
+   aesc.nat=nat; aesc.nelem=nelem; aesc.nao=nao;
+   aesc.at=devcopy(at,nat); aesc.xyz=devcopy(xyz,(size_t)3*nat);
+   aesc.gab3=devcopy(gab3,(size_t)nat*nat); aesc.gab5=devcopy(gab5,(size_t)nat*nat);
+   aesc.dipKernel=devcopy(dipKernel,nelem); aesc.quadKernel=devcopy(quadKernel,nelem);
+   cudaMalloc((void**)&aesc.q,sizeof(double)*nat);
+   cudaMalloc((void**)&aesc.dipm,sizeof(double)*3*nat);
+   cudaMalloc((void**)&aesc.qp,sizeof(double)*6*nat);
+   cudaMalloc((void**)&aesc.vs,sizeof(double)*nat);
+   cudaMalloc((void**)&aesc.vd,sizeof(double)*3*nat);
+   cudaMalloc((void**)&aesc.vq,sizeof(double)*6*nat);
+   cudaMalloc((void**)&aesc.eacc,sizeof(double)*4);
+   if(!aesc.at||!aesc.xyz||!aesc.gab3||!aesc.gab5||!aesc.q||!aesc.vs||!aesc.eacc) return -1;
+   aesc.active=true; return 0;
+}
+
+extern "C" int gpu_aes_close(){ std::lock_guard<std::mutex> lock(ctx_mutex); aesc.free(); return 0; }
+
+// per-iter setvsdq using the resident context: only q/dipm/qp in, vs/vd/vq out
+extern "C" int gpu_aes_setvsdq2(const double* q, const double* dipm, const double* qp,
+      double* vs, double* vd, double* vq)
+{
+   if(!aesc.active) return -1;
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   int nat=aesc.nat;
+   cudaMemcpy(aesc.q,q,sizeof(double)*nat,cudaMemcpyHostToDevice);
+   cudaMemcpy(aesc.dipm,dipm,sizeof(double)*3*nat,cudaMemcpyHostToDevice);
+   cudaMemcpy(aesc.qp,qp,sizeof(double)*6*nat,cudaMemcpyHostToDevice);
+   int tb=128;
+   aes_setvsdq_kernel<<<(nat+tb-1)/tb,tb>>>(nat,aesc.at,aesc.xyz,aesc.q,aesc.dipm,aesc.qp,
+         aesc.gab3,aesc.gab5,aesc.dipKernel,aesc.quadKernel,aesc.vs,aesc.vd,aesc.vq);
+   if(cudaDeviceSynchronize()!=cudaSuccess) return -2;
+   cudaMemcpy(vs,aesc.vs,sizeof(double)*nat,cudaMemcpyDeviceToHost);
+   cudaMemcpy(vd,aesc.vd,sizeof(double)*3*nat,cudaMemcpyDeviceToHost);
+   cudaMemcpy(vq,aesc.vq,sizeof(double)*6*nat,cudaMemcpyDeviceToHost);
+   return 0;
+}
+
+// per-iter aniso_electro energy: returns eaes (e) and epol
+extern "C" int gpu_aes_aniso(const double* q, const double* dipm, const double* qp,
+      double* eaes, double* epol)
+{
+   if(!aesc.active) return -1;
+   std::lock_guard<std::mutex> lock(ctx_mutex);
+   int nat=aesc.nat;
+   cudaMemcpy(aesc.q,q,sizeof(double)*nat,cudaMemcpyHostToDevice);
+   cudaMemcpy(aesc.dipm,dipm,sizeof(double)*3*nat,cudaMemcpyHostToDevice);
+   cudaMemcpy(aesc.qp,qp,sizeof(double)*6*nat,cudaMemcpyHostToDevice);
+   cudaMemset(aesc.eacc,0,sizeof(double)*4);
+   int tb=128;
+   aes_aniso_epol_kernel<<<(nat+tb-1)/tb,tb>>>(nat,aesc.at,aesc.dipm,aesc.qp,
+         aesc.dipKernel,aesc.quadKernel,aesc.eacc+3);
+   dim3 blk(16,16), grd((nat+15)/16,(nat+15)/16);
+   aes_aniso_pair_kernel<<<grd,blk>>>(nat,aesc.xyz,aesc.q,aesc.dipm,aesc.qp,
+         aesc.gab3,aesc.gab5,aesc.eacc);
+   if(cudaDeviceSynchronize()!=cudaSuccess) return -2;
+   double e4[4]; cudaMemcpy(e4,aesc.eacc,sizeof(double)*4,cudaMemcpyDeviceToHost);
+   *eaes = e4[0]+e4[1]+e4[2];   // e01+e02+e11
+   *epol = e4[3];
+   return 0;
 }
