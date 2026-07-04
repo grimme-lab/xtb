@@ -40,6 +40,8 @@
 # directories
 /build*/
 /_*/
+/xtb-gpu-release/
+/xtb-win-release/
 
 
 # files produces by the documentation

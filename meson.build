@@ -109,21 +109,30 @@ gpu_shim_objs = []
 gpu_shim_link = []
 gpu_shim_def  = []
 if get_option('gpu_shim')
-  nvhpc = get_option('nvhpc_root')
-  cuda_ver = get_option('gpu_cuda_ver')
-  nvcc = find_program(nvhpc / 'cuda' / 'bin' / 'nvcc', 'nvcc', required: true)
-  cuda_inc   = nvhpc / 'math_libs' / cuda_ver / 'targets/x86_64-linux/include'
-  math_lib   = nvhpc / 'math_libs' / cuda_ver / 'targets/x86_64-linux/lib'
-  cudart_lib = nvhpc / 'REDIST/cuda' / cuda_ver / 'targets/x86_64-linux/lib'
-  gpu_eig_obj = custom_target('gpu_eig',
-    input: 'src/gpu/gpu_eig.cu',
-    output: 'gpu_eig.o',
-    command: [nvcc, '-O2', '-arch=sm_' + get_option('gpu_arch'),
-              '-Xcompiler', '-fPIC', '-c', '@INPUT@',
-              '-I' + cuda_inc, '-o', '@OUTPUT@'])
-  gpu_shim_objs = [gpu_eig_obj]
-  gpu_shim_link = ['-L' + math_lib, '-lcusolver', '-lcublas',
-                   '-L' + cudart_lib, '-lcudart', '-lstdc++']
+  if host_machine.system() == 'windows'
+    ## Native Windows: nvcc requires MSVC (cl.exe) as host compiler, whose object
+    ## files can't be fed to MinGW's ld directly. So the shim is prebuilt out of
+    ## band (dev/win/build_gpu_shim.ps1: nvcc+MSVC -> gpu_eig.dll, then dlltool ->
+    ## a MinGW-compatible import lib) and just linked in here as a plain library.
+    gpu_win_dir = get_option('gpu_shim_win_dir')
+    gpu_shim_link = ['-L' + gpu_win_dir, '-lgpu_eig']
+  else
+    nvhpc = get_option('nvhpc_root')
+    cuda_ver = get_option('gpu_cuda_ver')
+    nvcc = find_program(nvhpc / 'cuda' / 'bin' / 'nvcc', 'nvcc', required: true)
+    cuda_inc   = nvhpc / 'math_libs' / cuda_ver / 'targets/x86_64-linux/include'
+    math_lib   = nvhpc / 'math_libs' / cuda_ver / 'targets/x86_64-linux/lib'
+    cudart_lib = nvhpc / 'REDIST/cuda' / cuda_ver / 'targets/x86_64-linux/lib'
+    gpu_eig_obj = custom_target('gpu_eig',
+      input: 'src/gpu/gpu_eig.cu',
+      output: 'gpu_eig.o',
+      command: [nvcc, '-O2', '-arch=sm_' + get_option('gpu_arch'),
+                '-Xcompiler', '-fPIC', '-c', '@INPUT@',
+                '-I' + cuda_inc, '-o', '@OUTPUT@'])
+    gpu_shim_objs = [gpu_eig_obj]
+    gpu_shim_link = ['-L' + math_lib, '-lcusolver', '-lcublas',
+                     '-L' + cudart_lib, '-lcudart', '-lstdc++']
+  endif
   gpu_shim_def  = ['-DWITH_GPU_SHIM']
 endif
 
@@ -248,8 +257,13 @@ endif
 xtbenv = environment()
 xtbenv.prepend('LD_LIBRARY_PATH', meson.current_build_dir())
 if get_option('gpu_shim')
-  xtbenv.prepend('LD_LIBRARY_PATH', math_lib)
-  xtbenv.prepend('LD_LIBRARY_PATH', cudart_lib)
+  if host_machine.system() == 'windows'
+    xtbenv.prepend('PATH', get_option('gpu_shim_win_dir'))
+    xtbenv.prepend('PATH', get_option('gpu_cuda_bin_dir'))
+  else
+    xtbenv.prepend('LD_LIBRARY_PATH', math_lib)
+    xtbenv.prepend('LD_LIBRARY_PATH', cudart_lib)
+  endif
 endif
 xtbenv.prepend('PYTHONPATH', meson.current_source_dir() / 'python')
 xtbenv.set('XTBPATH', meson.current_source_dir())

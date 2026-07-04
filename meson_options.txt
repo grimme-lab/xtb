@@ -87,6 +87,12 @@ option('nvhpc_root', type: 'string',
        description: 'NVIDIA HPC SDK root (for nvcc + cuSolver/cudart)')
 option('gpu_cuda_ver', type: 'string', value: '13.1',
        description: 'CUDA version subdir under the HPC SDK math_libs/REDIST')
+option('gpu_shim_win_dir', type: 'string',
+       value: 'E:/Prasanna/xTB/dev/win/dist',
+       description: 'Windows only: directory holding the prebuilt gpu_eig.dll + libgpu_eig.dll.a (see dev/win/build_gpu_shim.ps1)')
+option('gpu_cuda_bin_dir', type: 'string',
+       value: 'C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin',
+       description: 'Windows only: CUDA Toolkit bin dir holding cudart/cusolver/cublas/nvJitLink DLLs, needed on PATH at runtime')
 # EXPERIMENTAL / NOT YET FUNCTIONAL under gfortran. The #ifdef XTB_GPU !$acc
 # regions were authored for nvfortran with managed/unified memory: they list
 # derived types both whole and by-component (gfortran rejects as "mixed
