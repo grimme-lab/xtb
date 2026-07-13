@@ -39,7 +39,7 @@ link_project_alias() {
     local source="$1"
     local alias="$2"
 
-    if [ -d "$source" ] && [ ! -e "$alias" ]; then
+    if [ -d "$source" ] && { [ ! -e "$alias" ] || [ -L "$alias" ]; }; then
         echo "  -> Symlinking $source as top-level $alias subproject"
         ln -sfn "$source" "$alias"
     fi
