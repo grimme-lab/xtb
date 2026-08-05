@@ -495,7 +495,11 @@ subroutine numhess( &
             xsum = xsum + (amass_amu(ii))**2 * (res%hess(ii,i))**2
          enddo
       enddo
-      res%rmass(i)= 1.0_wp / xsum
+      if (xsum > 0.0_wp) then
+         res%rmass(i) = 1.0_wp / xsum
+      else
+         res%rmass(i) = 0.0_wp
+      end if
    enddo
 
    !--- IR intensity ---! (holds in a similar fashion also for Raman)
