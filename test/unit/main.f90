@@ -24,6 +24,7 @@ program tester
    use test_coulomb, only : collect_coulomb
    use test_dftd3, only : collect_dftd3
    use test_dftd4, only : collect_dftd4
+   use test_detrotra, only : collect_detrotra
    use test_docking, only : collect_docking
    use test_eeq, only : collect_eeq
    use test_gfn0, only : collect_gfn0
@@ -62,6 +63,7 @@ program tester
       new_testsuite("coulomb", collect_coulomb), &
       new_testsuite("dftd3", collect_dftd3), &
       new_testsuite("dftd4", collect_dftd4), &
+      new_testsuite("detrotra", collect_detrotra), &
       new_testsuite("docking", collect_docking), &
       new_testsuite("eeq", collect_eeq), &
       new_testsuite("gfn0", collect_gfn0), &

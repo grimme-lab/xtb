@@ -37,6 +37,7 @@ tests = [
   'coulomb',
   'dftd3',
   'dftd4',
+  'detrotra',
   'docking',
   'eeq',
   'gfn0',

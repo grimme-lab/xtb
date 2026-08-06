@@ -671,7 +671,7 @@ subroutine l_ancopt &
    end select
 
    if (.not. fragmented_hessian) then
-      call detrotra4(linear,mol,hess,eig)
+      call detrotra4(linear, mol%n, mol%xyz, hess, eig)
    end if
 
    select type(calc)
