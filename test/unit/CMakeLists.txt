@@ -40,6 +40,7 @@ set(
   "dipro"
   "pbc-tools"
   "peeq"
+  "random"
   "repulsion"
   "symmetry"
   "tblite"

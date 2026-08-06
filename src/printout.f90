@@ -103,6 +103,8 @@ subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc)
    !$ write(iunit,'(10x,a,":",6x,i16)') 'omp threads                ',omp_get_num_threads()
    !$omp end master
    !$omp end parallel
+   ! initrand reduces even a processor-generated state to this replayable scalar.
+   write(iunit,'(10x,a,":",6x,i16)') 'random seed                ',set%randseed
    ! ----------------------------------------------------------------------
    write(iunit,'(a)')
 

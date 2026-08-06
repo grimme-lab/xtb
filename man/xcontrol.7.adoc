@@ -43,7 +43,21 @@ be absent in every productive run.
 $samerand
 ~~~~~~~~~
 logical instruction to initialize the random number generator
-with the same sequence
+with the same sequence. This is equivalent to using `$seed 41`.
+
+$seed 'int'
+~~~~~~~~~~~
+initialize the random number generator from a single integer. The value is
+expanded deterministically to the seed-vector length required by the Fortran
+compiler. Without this instruction, `xtb(1)` obtains an initial state from the
+Fortran runtime, derives one scalar from it, and then reseeds the generator from
+that scalar. The seed printed in the calculation setup is therefore sufficient
+to reconstruct the state rather than just identifying part of it; it is also
+written as `$seed` when the `--copy` option is used. Supplying that value with
+`$seed` reproduces the random-number sequence when using the same compiler,
+runtime, and thread configuration. Fortran does not standardize the underlying
+random number algorithm, so the same seed need not produce the same sequence
+with a different compiler.
 
 $chrg 'int'
 ~~~~~~~~~~~

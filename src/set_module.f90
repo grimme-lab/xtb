@@ -31,6 +31,7 @@
 !> # logical instructions require a single statement
 !> $fit
 !> $samerand
+!> $seed <int>
 !> # special logicals are chrg and spin
 !> $chrg <int>
 !> $spin <int>
@@ -125,7 +126,11 @@ subroutine write_set(ictrl)
 
 !  was the fit-flag set?
    if (set%fit) write(ictrl,'(a,"fit")') flag
-   if (set%samerand) write(ictrl,'(a,"samerand")') flag
+   if (set%randseed_set) then
+      write(ictrl,'(a,"seed",1x,i0)') flag,set%randseed
+   elseif (set%samerand) then
+      write(ictrl,'(a,"samerand")') flag
+   endif
 
    call write_set_gfn(ictrl)
    call write_set_scc(ictrl)
@@ -822,6 +827,7 @@ subroutine rdcontrol(fname,env,copy_file)
          case default 
             if (index(line(2:),'chrg').eq.1) call set_chrg(env,line(7:))
             if (index(line(2:),'spin').eq.1) call set_spin(env,line(7:))
+            if (index(line(2:),'seed').eq.1) call set_seed(env,line(7:))
             
             ! get a new line !
             call mirror_line(id,copy,line,err)
@@ -1125,10 +1131,35 @@ subroutine set_enso_mode
    set%enso_mode = .true.
 end subroutine set_enso_mode
 
+!> Request the legacy repeatable sequence, now represented by scalar seed 41.
 subroutine set_samerand
    implicit none
    set%samerand = .true.
 end subroutine set_samerand
+
+!> Read the scalar RNG seed from a top-level `$seed <int>` instruction.
+!>
+!> The first value encountered wins, consistent with the input-source priority
+!> implemented by the other scalar xcontrol instructions.  `initrand` later
+!> expands this value to the processor-dependent Fortran seed-vector length.
+subroutine set_seed(env,val)
+   implicit none
+   character(len=*), parameter :: source = 'set_seed'
+   type(TEnvironment), intent(inout) :: env
+   character(len=*), intent(in) :: val
+   integer :: idum
+   logical, save :: set1 = .true.
+
+   if (set1) then
+      if (getValue(env,val,idum)) then
+         set%randseed = idum
+         set%randseed_set = .true.
+      else
+         call env%error('Random seed could not be read from your argument',source)
+      endif
+   endif
+   set1 = .false.
+end subroutine set_seed
 
 subroutine set_define
    implicit none
@@ -2777,6 +2808,7 @@ subroutine set_legacy(env,key,val)
    case('uhf');           call set_spin(env,val)
    case('restartmd','mdrestart'); call set_md(env,'restart','1')
    case('samerand');    call set_samerand
+   case('seed');        call set_seed(env,val)
    case('hessf');       continue ! used later in read_userdata
 !   case('atomlist-');
    case('fragment1');   continue ! used later in read_userdata
