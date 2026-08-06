@@ -399,10 +399,10 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    if (version == gffVersion%harmonic2020) then
       ebond=0
       !$omp parallel do default(none) reduction(+:ebond, g) &
-      !$omp shared(topo, param, xyz, at) private(i, iat, jat, rab, r2, r3, rn, dum)
-      do i=1,topo%nbond
-         iat=topo%blist(1,i)
-         jat=topo%blist(2,i)
+      !$omp shared(neigh, param, xyz, at) private(i, iat, jat, rab, r2, r3, rn, dum)
+      do i=1,neigh%nbond
+         iat=neigh%blist(1,i)
+         jat=neigh%blist(2,i)
          r3 =xyz(:,iat)-xyz(:,jat)
          rab=sqrt(sum(r3*r3))
          rn=0.7*(param%rcov(at(iat))+param%rcov(at(jat)))
