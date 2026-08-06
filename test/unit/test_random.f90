@@ -20,6 +20,13 @@ module test_random
    implicit none
    private
 
+   type :: random_state_type
+      integer :: randseed
+      logical :: randseed_set
+      logical :: samerand
+      integer, allocatable :: seed_vector(:)
+   end type random_state_type
+
    public :: collect_random
 
 contains
@@ -54,17 +61,10 @@ end subroutine test_seed_expansion
 !> Ensure repeated initialization with an explicit scalar replays the sequence.
 subroutine test_explicit_seed(error)
    type(error_type), allocatable, intent(out) :: error
+   type(random_state_type) :: previous_state
    real :: first(4), second(4)
-   integer :: old_randseed, nseed
-   integer, allocatable :: old_seed_vector(:)
-   logical :: old_randseed_set, old_samerand
 
-   old_randseed = set%randseed
-   old_randseed_set = set%randseed_set
-   old_samerand = set%samerand
-   call random_seed(size=nseed)
-   allocate(old_seed_vector(nseed))
-   call random_seed(get=old_seed_vector)
+   call save_random_state(previous_state)
 
    set%randseed = 314159
    set%randseed_set = .true.
@@ -76,26 +76,17 @@ subroutine test_explicit_seed(error)
 
    call check(error, all(first == second))
 
-   set%randseed = old_randseed
-   set%randseed_set = old_randseed_set
-   set%samerand = old_samerand
-   call random_seed(put=old_seed_vector)
+   call restore_random_state(previous_state)
 end subroutine test_explicit_seed
 
 !> Ensure the automatically selected scalar can reconstruct the generated state.
 subroutine test_automatic_seed(error)
    type(error_type), allocatable, intent(out) :: error
+   type(random_state_type) :: previous_state
    real :: first(4), second(4)
-   integer :: old_randseed, selected_seed, nseed
-   integer, allocatable :: old_seed_vector(:)
-   logical :: old_randseed_set, old_samerand
+   integer :: selected_seed
 
-   old_randseed = set%randseed
-   old_randseed_set = set%randseed_set
-   old_samerand = set%samerand
-   call random_seed(size=nseed)
-   allocate(old_seed_vector(nseed))
-   call random_seed(get=old_seed_vector)
+   call save_random_state(previous_state)
 
    set%randseed_set = .false.
    set%samerand = .false.
@@ -109,26 +100,16 @@ subroutine test_automatic_seed(error)
 
    call check(error, all(first == second))
 
-   set%randseed = old_randseed
-   set%randseed_set = old_randseed_set
-   set%samerand = old_samerand
-   call random_seed(put=old_seed_vector)
+   call restore_random_state(previous_state)
 end subroutine test_automatic_seed
 
 !> Ensure the legacy `$samerand` input is equivalent to scalar seed 41.
 subroutine test_samerand(error)
    type(error_type), allocatable, intent(out) :: error
+   type(random_state_type) :: previous_state
    real :: samerand_values(4), seed_values(4)
-   integer :: old_randseed, nseed
-   integer, allocatable :: old_seed_vector(:)
-   logical :: old_randseed_set, old_samerand
 
-   old_randseed = set%randseed
-   old_randseed_set = set%randseed_set
-   old_samerand = set%samerand
-   call random_seed(size=nseed)
-   allocate(old_seed_vector(nseed))
-   call random_seed(get=old_seed_vector)
+   call save_random_state(previous_state)
 
    set%randseed_set = .false.
    set%samerand = .true.
@@ -143,10 +124,44 @@ subroutine test_samerand(error)
    call random_number(seed_values)
    call check(error, all(samerand_values == seed_values))
 
-   set%randseed = old_randseed
-   set%randseed_set = old_randseed_set
-   set%samerand = old_samerand
-   call random_seed(put=old_seed_vector)
+   call restore_random_state(previous_state)
 end subroutine test_samerand
+
+!> Capture all global state changed by the random-seed unit tests.
+!>
+!> The xTB scalar seed and its control flags are stored alongside the complete
+!> processor-dependent seed vector.  Saving the full vector is necessary
+!> because restoring only `set%randseed` would leave later tests with a changed
+!> `random_number` sequence.
+!>
+!> @param[out] state Snapshot to pass to `restore_random_state` after the test.
+subroutine save_random_state(state)
+   type(random_state_type), intent(out) :: state
+   integer :: nseed
+
+   state%randseed = set%randseed
+   state%randseed_set = set%randseed_set
+   state%samerand = set%samerand
+   call random_seed(size=nseed)
+   allocate(state%seed_vector(nseed))
+   call random_seed(get=state%seed_vector)
+end subroutine save_random_state
+
+!> Restore the global xTB settings and processor RNG state after a unit test.
+!>
+!> Keeping this cleanup in one routine prevents a seed test from affecting the
+!> result of tests that run later in the same process.  `state` is produced by
+!> `save_random_state`, including a seed vector of the length required by the
+!> active Fortran processor.
+!>
+!> @param[in] state Snapshot captured before the test changed random state.
+subroutine restore_random_state(state)
+   type(random_state_type), intent(in) :: state
+
+   set%randseed = state%randseed
+   set%randseed_set = state%randseed_set
+   set%samerand = state%samerand
+   call random_seed(put=state%seed_vector)
+end subroutine restore_random_state
 
 end module test_random
