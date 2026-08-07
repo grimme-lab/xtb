@@ -210,6 +210,8 @@ module xtb_gfnff_fraghess
         nspinsyst(nsystem+1:maxsystem) = 0
         ispinsyst(:,nsystem+1:maxsystem) = 0
 
+        ! Atom pairs in different Hessian fragments are disconnected.
+        rmaxab = huge(1.0_sp)
         do i = 1, nsystem !loop über separierte systeme
            do j = 1, nspinsyst(i) !loop über atom1 im system
               do k = j, nspinsyst(i)
