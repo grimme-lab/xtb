@@ -38,10 +38,86 @@ subroutine collect_gfnff(testsuite)
       new_unittest("pdb", test_gfnff_pdb), &
       new_unittest("sdf", test_gfnff_sdf), &
       new_unittest("pbc", test_gfnff_pbc), &
+      new_unittest("lbfgs-history", test_lbfgs_history), &
+      new_unittest("lbfgs-curvature", test_lbfgs_curvature), &
       new_unittest("Ln_An", test_gfnff_LnAn_H) &
       ]
 
 end subroutine collect_gfnff
+
+
+subroutine test_lbfgs_history(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_pbc_optimizer_lbfgs, only : lbfgs_optimizer
+   type(error_type), allocatable, intent(out) :: error
+   type(lbfgs_optimizer) :: opt
+   real(wp), parameter :: thr = 1.0e-12_wp
+   real(wp) :: energy
+   real(wp) :: gradient(2), previous_gradient(2), displacement(2)
+   real(wp) :: reference(2)
+
+   opt%iter = 3
+   opt%nvar = 2
+   opt%memory = 2
+   opt%max_displacement = 1.0_wp
+   allocate(opt%s(2, 2), source=0.0_wp)
+   allocate(opt%y(2, 2), source=0.0_wp)
+   allocate(opt%rho(2), source=0.0_wp)
+   allocate(opt%valid(2), source=.false.)
+   allocate(opt%hdiag(2), source=1.0_wp)
+
+   ! The first slot holds iteration 3; iteration 4 wraps into the second slot.
+   opt%s(:, 1) = [0.03_wp, 0.00_wp]
+   opt%y(:, 1) = [0.03_wp, 0.01_wp]
+   opt%rho(1) = 1.0_wp/dot_product(opt%s(:, 1), opt%y(:, 1))
+   opt%valid(1) = .true.
+   displacement = [0.01_wp, 0.02_wp]
+   gradient = [0.05_wp, 0.04_wp]
+   previous_gradient = [0.03_wp, 0.03_wp]
+   energy = 0.0_wp
+
+   call opt%step(energy, gradient, previous_gradient, displacement, 4)
+
+   reference = [-0.0197916666666667_wp, -0.0904166666666667_wp]
+   call check_(error, displacement(1), reference(1), thr=thr)
+   if (allocated(error)) return
+   call check_(error, displacement(2), reference(2), thr=thr)
+end subroutine test_lbfgs_history
+
+
+subroutine test_lbfgs_curvature(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_pbc_optimizer_lbfgs, only : lbfgs_optimizer
+   type(error_type), allocatable, intent(out) :: error
+   type(lbfgs_optimizer) :: opt
+   real(wp), parameter :: max_displacement = 0.25_wp
+   real(wp) :: energy
+   real(wp) :: gradient(2), previous_gradient(2), displacement(2)
+
+   opt%iter = 1
+   opt%nvar = 2
+   opt%memory = 2
+   opt%max_displacement = max_displacement
+   allocate(opt%s(2, 2), source=0.0_wp)
+   allocate(opt%y(2, 2), source=0.0_wp)
+   allocate(opt%rho(2), source=0.0_wp)
+   allocate(opt%valid(2), source=.false.)
+   allocate(opt%hdiag(2), source=1.0_wp)
+
+   ! This update has s.y < 0 and must not enter the L-BFGS history.
+   displacement = [-0.25_wp, 0.00_wp]
+   previous_gradient = [1.00_wp, 0.00_wp]
+   gradient = [1.50_wp, 0.00_wp]
+   energy = 0.0_wp
+
+   call opt%step(energy, gradient, previous_gradient, displacement, 100)
+
+   call check_(error, opt%valid(2), .false.)
+   if (allocated(error)) return
+   call check_(error, norm2(displacement), max_displacement, thr=epsilon(1.0_wp))
+   if (allocated(error)) return
+   call check_(error, dot_product(displacement, gradient) < 0.0_wp)
+end subroutine test_lbfgs_curvature
 
 
 subroutine test_gfnff_sp(error)

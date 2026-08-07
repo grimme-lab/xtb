@@ -36,8 +36,10 @@ module xtb_pbc_optimizer_driver
 
 !> Driver for performing geometry optimization
 !subroutine    relax(self, ctx, mol, calc, filter, accuracy, verbosity)
-subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, iter_needed)
+subroutine relax_pbc(self, env, mol, chk, calc, filter, optlevel, maxcycle_in, &
+      & printlevel, optfail, iter_needed)
   use xtb_pbc, only: cross_product
+  use xtb_optimizer, only : get_optthr
   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
   !> Instance of the optimization driver
   class(optimizer_type), intent(inout) :: self
@@ -53,6 +55,10 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
   class(TCalculator), intent(inout) :: calc
   !> Transformation filter for coordinates
   class(cartesian_filter), intent(in) :: filter
+  !> Optimization level controlling convergence thresholds
+  integer, intent(in) :: optlevel
+  !> User-provided maximum number of optimization cycles
+  integer, intent(in) :: maxcycle_in
   !> Output verbosity
   integer, intent(in) :: printlevel
   ! Variables for/from singlepoint 
@@ -76,7 +82,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
 
   !> Convergence accuracy
   real(wp) :: accuracy
-  integer :: nvar, step, this_step, i, stat
+  integer :: nvar, step, this_step, steps_taken, i, stat
   real(wp) :: elast, ediff, gnorm, dnorm, ethr, gthr, dthr, gamax, damax, cvol
   real(wp), allocatable :: val, gcurr(:), glast(:), displ(:)
   logical :: econv, gconv, dconv, converged, f_exists
@@ -100,9 +106,9 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
   glast(:) = 0.0_wp
   displ(:) = 0.0_wp
 
-  accuracy = 1.0_wp
-  call get_thr(accuracy, ethr, gthr, dthr)
-  this_step = 20*nvar
+  call get_optthr(mol%n, optlevel, ethr, gthr, this_step, accuracy)
+  if (maxcycle_in > 0) this_step = maxcycle_in
+  dthr = 1.0e-3_wp
 
   inquire( file="xtboptlog.cif", exist=f_exists )
   if(f_exists)then
@@ -122,8 +128,8 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
     call filter%transform_structure(mol, displ) ! original
 
     dnorm = norm2(displ)
-    damax = maxval(abs(gcurr))
-    dconv = dnorm/nvar < dthr
+    damax = maxval(abs(displ))
+    dconv = dnorm < dthr
 
     glast(:) = gcurr
     elast = val
@@ -155,7 +161,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
     econv = ediff <= epsilon(0.0_wp) .and. abs(ediff) < ethr
     gnorm = norm2(gcurr)
     gamax = maxval(abs(gcurr))
-    gconv = gnorm/nvar < gthr
+    gconv = gnorm < gthr
     converged = econv .and. gconv .and. dconv
     cvol=dot_product(mol%lattice(:,1), cross_product( &
                    & mol%lattice(:,2), mol%lattice(:,3)))/6.748334606_wp !in a0 now
@@ -181,6 +187,8 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
 
   end do optLoop
   ! end of optimization loop
+
+  steps_taken = min(step, this_step)
 
 close(133) ! close xtboptlog.cif unit
 
@@ -211,7 +219,7 @@ endif
   if (.not.converged) then
     optfail = .true.
     write(*,*) ''
-    write(*,*) 'Could not converge in',step,' steps.'
+    write(*,*) 'Could not converge in',steps_taken,' steps.'
     call env%error("Could not converge geometry.",source)
   end if
   ! Output message if converged in time
@@ -222,7 +230,7 @@ endif
   end if
 
   if (present(iter_needed)) then
-    iter_needed = step
+    iter_needed = steps_taken
   end if
 
 end subroutine relax_pbc
@@ -258,17 +266,6 @@ subroutine step_summary(env, energy, ediff, gnorm, gamax, dnorm, damax, cvol, &
    end if
 end subroutine step_summary
 
-
-subroutine get_thr(accuracy, ethr, gthr, dthr)
-   real(wp), intent(in) :: accuracy
-   real(wp), intent(out) :: ethr
-   real(wp), intent(out) :: gthr
-   real(wp), intent(out) :: dthr
-
-   ethr = accuracy * 5.0e-7_wp
-   gthr = accuracy * 1.0e-3_wp
-   dthr = 5.0e-2_wp
-end subroutine get_thr
 
 !>
 subroutine write_optlog(step, n, xyz, lattice, symbol, energy)
