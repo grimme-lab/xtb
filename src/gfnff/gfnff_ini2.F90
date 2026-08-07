@@ -2028,7 +2028,7 @@ end subroutine goedeckera_PBC
       !  have the metal as a neighbor 
       ! Therefore a list set up with only paired bonds
       allocate(tmpp(3, 10*n), source=0) ! tmpp_usage
-      allocate(nbr(numnb, n, numctr), source=nb)
+      allocate(nbr, source=nb)
       nt=0     ! tmpp_usage
       do i=1, n
         do iTr=1,neigh%numctr

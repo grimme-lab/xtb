@@ -3726,9 +3726,12 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
    !$omp& neighs, cn, dcndr, dcndL) private(den, ij, img, jat, ati, atj, r2, &
    !$omp& rij, r1, rc, countf, countd, stress, cn_omp, dcndr_omp, dcndL_omp)
 
-   allocate(cn_omp(size(cn)), source=0.0_wp)
-   allocate(dcndr_omp(size(dcndr, 1), size(dcndr, 2), size(dcndr, 3)), source=0.0_wp)
-   allocate(dcndL_omp(size(dcndL, 1), size(dcndL, 2), size(dcndL, 3)), source=0.0_wp)
+   allocate(cn_omp, mold=cn)
+   allocate(dcndr_omp, mold=dcndr)
+   allocate(dcndL_omp, mold=dcndL)
+   cn_omp = 0.0_wp
+   dcndr_omp = 0.0_wp
+   dcndL_omp = 0.0_wp
 
    !$omp do
    do iat = 1, mol%n
@@ -3904,9 +3907,12 @@ subroutine ncoordLatP(mol, ntrans, trans, cutoff, kcn, cfunc, dfunc, enscale, &
    !$omp& cutoff2, ntrans, cn, dcndr, dcndL) private(den, jat, itr, ati, atj, &
    !$omp& r2, rij, r1, rc, countf, countd, stress, cn_omp, dcndr_omp, dcndL_omp)
 
-   allocate(cn_omp(size(cn)), source=0.0_wp)
-   allocate(dcndr_omp(size(dcndr, 1), size(dcndr, 2), size(dcndr, 3)), source=0.0_wp)
-   allocate(dcndL_omp(size(dcndL, 1), size(dcndL, 2), size(dcndL, 3)), source=0.0_wp)
+   allocate(cn_omp, mold=cn)
+   allocate(dcndr_omp, mold=dcndr)
+   allocate(dcndL_omp, mold=dcndL)
+   cn_omp = 0.0_wp
+   dcndr_omp = 0.0_wp
+   dcndL_omp = 0.0_wp
 
    !$omp do
    do iat = 1, mol%n
@@ -4425,8 +4431,10 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
    !$omp private(iat, jat, img, gam, wsw, vec, dG, dS, &
    !$omp& dGr, dSr, dGd, dSd, atrace_omp, dadL_omp)
 
-   allocate(atrace_omp(size(atrace, 1), size(atrace, 2)), source=0.0_wp)
-   allocate(dadL_omp(size(dadL, 1), size(dadL, 2), size(dadL, 3)), source=0.0_wp)
+   allocate(atrace_omp, mold=atrace)
+   allocate(dadL_omp, mold=dadL)
+   atrace_omp = 0.0_wp
+   dadL_omp = 0.0_wp
 
    !$omp do schedule(runtime)
    do iat = 1, mol%n
