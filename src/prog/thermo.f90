@@ -374,9 +374,9 @@ contains
          "", &
          "   --dftbplus             Read a DFTB+ hessian.out file, implies projection", &
          "", &
-         "   --turbomole         Read a Turbomole Hessian file", &
+         "   --turbomole         Read a non-mass-weighted Turbomole Hessian file", &
          "", &
-         "   --mass-weighted     Input Hessian is already mass weighted", &
+         "   --mass-weighted     Assume mass-weighted input Hessian", &
          "", &
          "   --orca         Read an Orca Hessian file", &
          "", &
