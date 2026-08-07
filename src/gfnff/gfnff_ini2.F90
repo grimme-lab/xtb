@@ -2014,9 +2014,10 @@ end subroutine goedeckera_PBC
       integer,allocatable,intent(out) ::  pair(:,:,:)
       integer :: nnbi, nbi(2,numnb), cval
       integer :: i,inew,j,inb,ixnb,xnb,iTr,iTrnew,sumiTr,k,iTr2,l
-      integer  :: nbr(numnb,n,numctr) ! reduced neighbor list no unpaired bonds
+      integer, allocatable :: nbr(:, :, :) ! reduced neighbor list no unpaired bonds
       logical :: hasnb ! true if atom i and k have a paired bond (both have each other as nb)
-      integer :: tmpp(3,10*n),nt
+      integer, allocatable :: tmpp(:, :)
+      integer :: nt
       ! using temporary list tmpp to match setup of nbondmat for mindless03
       !  in that case the sum of single bonds in bpair connecting atoms A and B
       !  does not necessarily add up to bpair(A,B) 
@@ -2026,9 +2027,9 @@ end subroutine goedeckera_PBC
       ! e.g. metals have one sided bonds where the bond partner does not
       !  have the metal as a neighbor 
       ! Therefore a list set up with only paired bonds
-      tmpp = 0 ! tmpp_usage
+      allocate(tmpp(3, 10*n), source=0) ! tmpp_usage
+      allocate(nbr(numnb, n, numctr), source=nb)
       nt=0     ! tmpp_usage
-      nbr = nb
       do i=1, n
         do iTr=1,neigh%numctr
           do j=1, nb(neigh%numnb,i,iTr)

@@ -197,7 +197,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    real(wp),allocatable :: xtmp(:)
    type(tb_timer) :: timer
    real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
-   real(wp) :: dist(n,n)
+   real(wp), allocatable :: dist(:, :)
    real(wp) :: ds(3,3)
    real(wp) :: convF  !convergence factor alpha, aka ewald parameter 
    logical, allocatable :: considered_ABH(:,:,:)
@@ -249,7 +249,8 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
 
    allocate(sqrab(n*(n+1)/2),srab(n*(n+1)/2),qtmp(n),g5tmp(3,n), &
    &         eeqtmp(2,n*(n+1)/2),d3list(2,n*(n+1)/2),dcn(3,n,n),cn(n), &
-   &         dcndr(3,n,n), dcndL(3,3,n), hb_dcn(3,n,n),hb_cn(n),dhbcndL(3,3,n))
+   &         dcndr(3,n,n), dcndL(3,3,n), hb_dcn(3,n,n),hb_cn(n),dhbcndL(3,3,n), &
+   &         dist(n,n))
 
    if (pr) then   
    
@@ -3715,14 +3716,21 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
 
    integer :: iat, jat, ati, atj, ij, img
    real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den
+   real(wp), allocatable :: cn_omp(:), dcndr_omp(:, :, :), dcndL_omp(:, :, :)
 
    cn = 0.0_wp
    dcndr = 0.0_wp
    dcndL = 0.0_wp
 
-   !$omp parallel do default(none) private(den) shared(enscale, rcov, en)&
-   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, neighlist, neighs) &
-   !$omp private(ij, img, jat, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+   !$omp parallel default(none) shared(enscale, rcov, en, mol, kcn, neighlist, &
+   !$omp& neighs, cn, dcndr, dcndL) private(den, ij, img, jat, ati, atj, r2, &
+   !$omp& rij, r1, rc, countf, countd, stress, cn_omp, dcndr_omp, dcndL_omp)
+
+   allocate(cn_omp(size(cn)), source=0.0_wp)
+   allocate(dcndr_omp(size(dcndr, 1), size(dcndr, 2), size(dcndr, 3)), source=0.0_wp)
+   allocate(dcndL_omp(size(dcndL, 1), size(dcndL, 2), size(dcndL, 3)), source=0.0_wp)
+
+   !$omp do
    do iat = 1, mol%n
       ati = mol%at(iat)
       do ij = 1, neighs(iat)
@@ -3744,28 +3752,37 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
          countf = den * cfunc(kcn, r1, rc)
          countd = den * dfunc(kcn, r1, rc) * rij/r1
 
-         cn(iat) = cn(iat) + countf
+         cn_omp(iat) = cn_omp(iat) + countf
          if (iat /= jat) then
-            cn(jat) = cn(jat) + countf
+            cn_omp(jat) = cn_omp(jat) + countf
          endif
 
-         dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
-         dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
-         dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
-         dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+         dcndr_omp(:, iat, iat) = dcndr_omp(:, iat, iat) + countd
+         dcndr_omp(:, jat, jat) = dcndr_omp(:, jat, jat) - countd
+         dcndr_omp(:, iat, jat) = dcndr_omp(:, iat, jat) + countd
+         dcndr_omp(:, jat, iat) = dcndr_omp(:, jat, iat) - countd
 
          stress(:, 1) = countd(1) * rij
          stress(:, 2) = countd(2) * rij
          stress(:, 3) = countd(3) * rij
 
-         dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+         dcndL_omp(:, :, iat) = dcndL_omp(:, :, iat) + stress
          if (iat /= jat) then
-            dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+            dcndL_omp(:, :, jat) = dcndL_omp(:, :, jat) + stress
          endif
 
       enddo
    enddo
-   !$omp end parallel do
+   !$omp end do nowait
+
+   !$omp critical(gfnff_cn_neighs)
+   cn = cn + cn_omp
+   dcndr = dcndr + dcndr_omp
+   dcndL = dcndL + dcndL_omp
+   !$omp end critical(gfnff_cn_neighs)
+
+   deallocate(cn_omp, dcndr_omp, dcndL_omp)
+   !$omp end parallel
 
 end subroutine ncoordNeighs
 
@@ -3876,14 +3893,22 @@ subroutine ncoordLatP(mol, ntrans, trans, cutoff, kcn, cfunc, dfunc, enscale, &
 
    integer :: iat, jat, ati, atj, itr 
    real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den, cutoff2
+   real(wp), allocatable :: cn_omp(:), dcndr_omp(:, :, :), dcndL_omp(:, :, :)
 
    cn = 0.0_wp
    dcndr = 0.0_wp
    dcndL = 0.0_wp
    cutoff2 = cutoff**2
-   !$omp parallel do default(none) private(den) shared(enscale, rcov, en)&
-   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, trans, cutoff2, ntrans) &
-   !$omp private(jat, itr, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+
+   !$omp parallel default(none) shared(enscale, rcov, en, mol, kcn, trans, &
+   !$omp& cutoff2, ntrans, cn, dcndr, dcndL) private(den, jat, itr, ati, atj, &
+   !$omp& r2, rij, r1, rc, countf, countd, stress, cn_omp, dcndr_omp, dcndL_omp)
+
+   allocate(cn_omp(size(cn)), source=0.0_wp)
+   allocate(dcndr_omp(size(dcndr, 1), size(dcndr, 2), size(dcndr, 3)), source=0.0_wp)
+   allocate(dcndL_omp(size(dcndL, 1), size(dcndL, 2), size(dcndL, 3)), source=0.0_wp)
+
+   !$omp do
    do iat = 1, mol%n
       ati = mol%at(iat)
       do jat = 1, iat
@@ -3906,29 +3931,37 @@ subroutine ncoordLatP(mol, ntrans, trans, cutoff, kcn, cfunc, dfunc, enscale, &
             countf = den * cfunc(kcn, r1, rc)
             countd = den * dfunc(kcn, r1, rc) * rij/r1
 
-            cn(iat) = cn(iat) + countf
+            cn_omp(iat) = cn_omp(iat) + countf
             if (iat.ne.jat.or.itr.ne.1) then
-               cn(jat) = cn(jat) + countf
+               cn_omp(jat) = cn_omp(jat) + countf
             end if
 
-            dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
-            dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
-            dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
-            dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+            dcndr_omp(:, iat, iat) = dcndr_omp(:, iat, iat) + countd
+            dcndr_omp(:, jat, jat) = dcndr_omp(:, jat, jat) - countd
+            dcndr_omp(:, iat, jat) = dcndr_omp(:, iat, jat) + countd
+            dcndr_omp(:, jat, iat) = dcndr_omp(:, jat, iat) - countd
 
             stress(:, 1) = countd(1) * rij
             stress(:, 2) = countd(2) * rij
             stress(:, 3) = countd(3) * rij
 
-            dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+            dcndL_omp(:, :, iat) = dcndL_omp(:, :, iat) + stress
             if (iat.ne.jat.or.itr.ne.1) then
-               dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+               dcndL_omp(:, :, jat) = dcndL_omp(:, :, jat) + stress
             end if
          end do
      end do
    end do
+   !$omp end do nowait
 
-   !$omp end parallel do
+   !$omp critical(gfnff_cn_latp)
+   cn = cn + cn_omp
+   dcndr = dcndr + dcndr_omp
+   dcndL = dcndL + dcndL_omp
+   !$omp end critical(gfnff_cn_latp)
+
+   deallocate(cn_omp, dcndr_omp, dcndL_omp)
+   !$omp end parallel
 
 end subroutine ncoordLatP
 
@@ -4276,8 +4309,8 @@ subroutine get_amat_3d(mol, topo, alpha, rTrans, gTrans, amat)
    vol = mol%volume ! abs(matdet_3x3(mol%lattice))
    
    !$omp parallel do default(none) schedule(runtime) &
-   !$omp reduction(+:amat) shared(mol, topo, rTrans, gTrans, alpha, vol) &
-   !$omp private(iat, jat, gam, wsw, vec, dtmp, rtmp)
+   !$omp shared(mol, topo, rTrans, gTrans, alpha, vol, amat) &
+   !$omp private(iat, jat, img, gam, wsw, vec, dtmp, rtmp)
    do iat = 1, mol%n
       !izp = mol%id(iat)
       do jat = 1, iat-1
@@ -4379,6 +4412,7 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
    real(wp) :: vol, gam, wsw, vec(3), dG(3), dS(3, 3)
    real(wp) :: dGd(3), dSd(3, 3), dGr(3), dSr(3, 3)
    real(wp), parameter :: zero(3) = 0.0_wp
+   real(wp), allocatable :: atrace_omp(:, :), dadL_omp(:, :, :)
 
    atrace(:, :) = 0.0_wp
    dadr(:, :, :) = 0.0_wp
@@ -4386,11 +4420,15 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
 
    vol = mol%volume ! abs(matdet_3x3(mol%lattice))
 
-   !$omp parallel do default(none) schedule(runtime) &
-   !$omp reduction(+:atrace, dadr, dadL) &
-   !$omp shared(mol, topo, alpha, vol, rTrans, gTrans, qvec) &
+   !$omp parallel default(none) shared(mol, topo, alpha, vol, rTrans, gTrans, &
+   !$omp& qvec, atrace, dadr, dadL) &
    !$omp private(iat, jat, img, gam, wsw, vec, dG, dS, &
-   !$omp& dGr, dSr, dGd, dSd)
+   !$omp& dGr, dSr, dGd, dSd, atrace_omp, dadL_omp)
+
+   allocate(atrace_omp(size(atrace, 1), size(atrace, 2)), source=0.0_wp)
+   allocate(dadL_omp(size(dadL, 1), size(dadL, 2), size(dadL, 3)), source=0.0_wp)
+
+   !$omp do schedule(runtime)
    do iat = 1, mol%n
       !izp = mol%id(iat)
       do jat = 1, iat-1
@@ -4409,12 +4447,12 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
             dG = dG + (dGd + dGr) * wsw
             dS = dS + (dSd + dSr) * wsw
          end do
-         atrace(:, iat) = +dG*qvec(jat) + atrace(:, iat)
-         atrace(:, jat) = -dG*qvec(iat) + atrace(:, jat)
+         atrace_omp(:, iat) = +dG*qvec(jat) + atrace_omp(:, iat)
+         atrace_omp(:, jat) = -dG*qvec(iat) + atrace_omp(:, jat)
          dadr(:, iat, jat) = +dG*qvec(iat) + dadr(:, iat, jat)
          dadr(:, jat, iat) = -dG*qvec(jat) + dadr(:, jat, iat)
-         dadL(:, :, jat) = +dS*qvec(iat) + dadL(:, :, jat)
-         dadL(:, :, iat) = +dS*qvec(jat) + dadL(:, :, iat)
+         dadL_omp(:, :, jat) = +dS*qvec(iat) + dadL_omp(:, :, jat)
+         dadL_omp(:, :, iat) = +dS*qvec(jat) + dadL_omp(:, :, iat)
       end do
 
       dS(:, :) = 0.0_wp
@@ -4426,9 +4464,17 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
          call get_damat_rec_3d(vec, vol, alpha, gTrans, dGr, dSr)
          dS = dS + (dSd + dSr) * wsw
       end do
-      dadL(:, :, iat) = +dS*qvec(iat) + dadL(:, :, iat)
+      dadL_omp(:, :, iat) = +dS*qvec(iat) + dadL_omp(:, :, iat)
    end do
-   !$omp end parallel do
+   !$omp end do nowait
+
+   !$omp critical(gfnff_damat)
+   atrace = atrace + atrace_omp
+   dadL = dadL + dadL_omp
+   !$omp end critical(gfnff_damat)
+
+   deallocate(atrace_omp, dadL_omp)
+   !$omp end parallel
 
 end subroutine get_damat_3d
 

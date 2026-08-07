@@ -62,7 +62,7 @@ module xtb_gfnff_fraghess
         integer, allocatable, intent(out) :: ispinsyst(:,:)         ! array with list of atoms of each fragment
         integer, allocatable, intent(out) :: nspinsyst(:)           ! array with # of atoms for each fragment
         integer,  intent(out) :: nsystem                            ! # of fragments
-        real(sp)  :: rmaxab(nspin, nspin)
+        real(sp), allocatable :: rmaxab(:, :)
 
         !Stack
         integer  :: i, ati
@@ -84,7 +84,7 @@ module xtb_gfnff_fraghess
         integer  :: nbox
         integer  :: nci_frag_size
         real(wp) :: grid(3,maxsystem)
-        real(wp) :: magdist(nspin, nspin)
+        real(wp), allocatable :: magdist(:, :)
         real(wp) :: shortest_distance
         real(wp) :: maxdist
         real(wp) :: cur_dist
@@ -93,7 +93,7 @@ module xtb_gfnff_fraghess
         real(wp) :: frag_cma(3,maxsystem)
         logical  :: equal(maxsystem)
         logical  :: visited(nspin)
-        logical  :: assigned(nspin, nspin)
+        logical, allocatable :: assigned(:, :)
 
         integer, allocatable  :: ifrag_ini(:)
 
@@ -106,6 +106,10 @@ module xtb_gfnff_fraghess
            nsystem = 1
            return
         end if
+
+        allocate(rmaxab(nspin, nspin), source=0.0_sp)
+        allocate(magdist(nspin, nspin), source=0.0_wp)
+        allocate(assigned(nspin, nspin), source=.false.)
 
         nci_frag_size = 50
         fragcount = 0
