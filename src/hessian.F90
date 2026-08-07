@@ -107,7 +107,6 @@ subroutine numhess( &
    real(wp),allocatable :: aux (:)
    real(wp),allocatable :: isqm(:)
    real(wp),allocatable :: gl  (:,:)
-   real(wp),allocatable :: xyzsave(:,:)
    real(wp),allocatable :: pold(:)
    real(wp),allocatable :: dipd(:,:), dalphadr(:,:), dalphadq(:,:)
    real(wp),allocatable :: amass_au(:), amass_amu(:)
@@ -127,7 +126,7 @@ subroutine numhess( &
    res%n3true = n3-3*freezeset%n
 
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
-      & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), amass_amu(n3), &
+      & gl(3,mol%n),isqm(n3),dipd(3,n3), amass_amu(n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
       & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass_au(n3), h_dummy(n3,n3), izero(n3))
 
@@ -137,11 +136,6 @@ subroutine numhess( &
    end if
 
    rd=.false.
-   xyzsave = mol%xyz
-
-   step=0.0001_wp
-   call rotmol(mol%n,mol%xyz,step,2.*step,3.*step)
-
    ! step length
    step=set%step_hess
    if(set%extcode.eq.5) step=step*2.0_wp ! MOPAC is not very accurate
@@ -635,40 +629,6 @@ subroutine numhess_rmsd( &
 !! ========================================================================
 
 end subroutine numhess_rmsd
-
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-subroutine rotmol(n,xyz,xrot,yrot,zrot)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_constants, only: pi
-   implicit none
-   integer :: n,i
-   real(wp) :: xrot,yrot,zrot,xyz(3,n)
-   real(wp) :: ang,xo,yo
-
-   ang=xrot*pi/180.0_wp
-   do i=1,n
-      xo=xyz(2,i)
-      yo=xyz(3,i)
-      xyz(2,i)= xo*cos(ang)+yo*sin(ang)
-      xyz(3,i)=-xo*sin(ang)+yo*cos(ang)
-   enddo
-   ang=yrot*pi/180.0_wp
-   do i=1,n
-      xo=xyz(1,i)
-      yo=xyz(3,i)
-      xyz(1,i)= xo*cos(ang)+yo*sin(ang)
-      xyz(3,i)=-xo*sin(ang)+yo*cos(ang)
-   enddo
-   ang=zrot*pi/180.0_wp
-   do i=1,n
-      xo=xyz(1,i)
-      yo=xyz(2,i)
-      xyz(1,i)= xo*cos(ang)+yo*sin(ang)
-      xyz(2,i)=-xo*sin(ang)+yo*cos(ang)
-   enddo
-
-end subroutine rotmol
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
