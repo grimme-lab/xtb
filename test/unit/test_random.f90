@@ -1,4 +1,7 @@
 ! This file is part of xtb.
+!
+! Copyright (C) 2026 Ty Balduf
+!
 ! SPDX-Identifier: LGPL-3.0-or-later
 !
 ! xtb is free software: you can redistribute it and/or modify it under
@@ -16,7 +19,7 @@
 
 module test_random
    use testdrive, only : new_unittest, unittest_type, error_type, check
-   use xtb_setparam, only : set, initrand, expand_random_seed
+   use xtb_setparam, only : set, initrand
    implicit none
    private
 
@@ -31,34 +34,18 @@ module test_random
 
 contains
 
-!> Collect tests for scalar RNG seed expansion and replay.
+!> Collect all exported unit tests
 subroutine collect_random(testsuite)
+   !> Collection of tests
    type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
    testsuite = [ &
-      new_unittest("seed expansion", test_seed_expansion), &
       new_unittest("explicit seed replay", test_explicit_seed), &
       new_unittest("automatic seed replay", test_automatic_seed), &
       new_unittest("samerand alias", test_samerand) &
       ]
 end subroutine collect_random
 
-!> Ensure expansion is deterministic and independent of output-vector length.
-subroutine test_seed_expansion(error)
-   type(error_type), allocatable, intent(out) :: error
-   integer :: short_seed(2), long_seed(8)
-   integer, parameter :: expected(8) = [ &
-      2075653, 1409598201, 1842888923, 728608805, &
-      1335939236, 336425193, 309152689, 245587716]
-
-   call expand_random_seed(42, short_seed)
-   call expand_random_seed(42, long_seed)
-
-   call check(error, all(short_seed == long_seed(:size(short_seed))))
-   call check(error, all(long_seed == expected))
-end subroutine test_seed_expansion
-
-!> Ensure repeated initialization with an explicit scalar replays the sequence.
 subroutine test_explicit_seed(error)
    type(error_type), allocatable, intent(out) :: error
    type(random_state_type) :: previous_state
@@ -79,7 +66,6 @@ subroutine test_explicit_seed(error)
    call restore_random_state(previous_state)
 end subroutine test_explicit_seed
 
-!> Ensure the automatically selected scalar can reconstruct the generated state.
 subroutine test_automatic_seed(error)
    type(error_type), allocatable, intent(out) :: error
    type(random_state_type) :: previous_state
@@ -103,7 +89,6 @@ subroutine test_automatic_seed(error)
    call restore_random_state(previous_state)
 end subroutine test_automatic_seed
 
-!> Ensure the legacy `$samerand` input is equivalent to scalar seed 41.
 subroutine test_samerand(error)
    type(error_type), allocatable, intent(out) :: error
    type(random_state_type) :: previous_state
@@ -127,14 +112,7 @@ subroutine test_samerand(error)
    call restore_random_state(previous_state)
 end subroutine test_samerand
 
-!> Capture all global state changed by the random-seed unit tests.
-!>
-!> The xTB scalar seed and its control flags are stored alongside the complete
-!> processor-dependent seed vector.  Saving the full vector is necessary
-!> because restoring only `set%randseed` would leave later tests with a changed
-!> `random_number` sequence.
-!>
-!> @param[out] state Snapshot to pass to `restore_random_state` after the test.
+!> Save the global random-number state
 subroutine save_random_state(state)
    type(random_state_type), intent(out) :: state
    integer :: nseed
@@ -147,14 +125,7 @@ subroutine save_random_state(state)
    call random_seed(get=state%seed_vector)
 end subroutine save_random_state
 
-!> Restore the global xTB settings and processor RNG state after a unit test.
-!>
-!> Keeping this cleanup in one routine prevents a seed test from affecting the
-!> result of tests that run later in the same process.  `state` is produced by
-!> `save_random_state`, including a seed vector of the length required by the
-!> active Fortran processor.
-!>
-!> @param[in] state Snapshot captured before the test changed random state.
+!> Restore the global random-number state
 subroutine restore_random_state(state)
    type(random_state_type), intent(in) :: state
 

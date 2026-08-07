@@ -1131,17 +1131,13 @@ subroutine set_enso_mode
    set%enso_mode = .true.
 end subroutine set_enso_mode
 
-!> Request the legacy repeatable sequence, now represented by scalar seed 41.
+!> Request the legacy repeatable sequence with seed 41
 subroutine set_samerand
    implicit none
    set%samerand = .true.
 end subroutine set_samerand
 
-!> Read the scalar RNG seed from a top-level `$seed <int>` instruction.
-!>
-!> The first value encountered wins, consistent with the input-source priority
-!> implemented by the other scalar xcontrol instructions.  `initrand` later
-!> expands this value to the processor-dependent Fortran seed-vector length.
+!> Read the scalar RNG seed from xcontrol input
 subroutine set_seed(env,val)
    implicit none
    character(len=*), parameter :: source = 'set_seed'
