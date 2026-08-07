@@ -26,7 +26,9 @@ contains
 
 !> Determine rotational and translational modes using single precision modes
 subroutine detrotra4(linear, n, xyz, h, eig)
+   !> Whether the molecular structure is linear
    logical, intent(in) :: linear
+   !> Number of atoms
    integer, intent(in) :: n
    !> Cartesian coordinates
    real(wp), intent(in) :: xyz(3, n)
@@ -43,7 +45,9 @@ end subroutine detrotra4
 
 !> Determine rotational and translational modes using double precision modes
 subroutine detrotra8(linear, n, xyz, h, eig)
+   !> Whether the molecular structure is linear
    logical, intent(in) :: linear
+   !> Number of atoms
    integer, intent(in) :: n
    !> Cartesian coordinates
    real(wp), intent(in) :: xyz(3, n)
@@ -60,11 +64,17 @@ end subroutine detrotra8
 
 !> Identify the modes which best preserve all interatomic distances
 subroutine detrotra_worker(linear, n, xyz, h, eig, rigid)
+   !> Whether the molecular structure is linear
    logical, intent(in) :: linear
+   !> Number of atoms
    integer, intent(in) :: n
+   !> Cartesian coordinates
    real(wp), intent(in) :: xyz(3, n)
+   !> Eigenvectors from the projected Lindh diagonalization
    class(*), intent(in) :: h(:, :)
+   !> Eigenvalues from the projected Lindh diagonalization
    real(wp), intent(in) :: eig(3*n)
+   !> Indices of the rotational and translational modes
    integer, allocatable, intent(out) :: rigid(:)
    real(wp), parameter :: low_mode_threshold = 0.05_wp
    integer :: i, j, ii, nn, n3, nend
@@ -109,8 +119,8 @@ subroutine detrotra_worker(linear, n, xyz, h, eig, rigid)
       c0 = 0.0_wp
       do i = 2, n
          do j = 1, i - 1
-            a0 = sqrt(sum((xyz(:, i) - xyz(:, j))**2))
-            b0 = sqrt(sum((tmpxyz(:, i) - tmpxyz(:, j))**2))
+            a0 = norm2(xyz(:, i) - xyz(:, j))
+            b0 = norm2(tmpxyz(:, i) - tmpxyz(:, j))
             ! Sum the squared distance differences.
             c0 = c0 + (a0 - b0)**2
          end do
