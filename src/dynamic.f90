@@ -307,7 +307,9 @@ subroutine md(env,mol,chk,calc, &
       edum=f*Tinit*0.5*kB*nfreedom
       call mdinitu(mol%n,mol%at,velo,mass,edum)
    else
-      call rdmdrestart(mol%n,mol%xyz,velo)
+      call rdmdrestart(env,mol%n,mol%xyz,velo)
+      call env%check(ldum)
+      if (ldum) return
    endif
 
    if(set%shake_md) then
@@ -826,20 +828,34 @@ subroutine wrmdrestart(n,xyz,velo)
 
 end subroutine wrmdrestart
 
-subroutine rdmdrestart(n,xyz,velo)
+subroutine rdmdrestart(env,n,xyz,velo)
    use xtb_setparam, only : get_namespace
+   use xtb_type_environment, only : TEnvironment
    implicit none
+   type(TEnvironment), intent(inout) :: env
    integer n,i
    real(wp) xyz(3,n),velo(3,n),dum
-   integer :: ich
-   character(len=:),allocatable :: fname
+   integer :: ich, stat
+   character(len=:), allocatable :: fname
+   character(len=*), parameter :: source = "dynamic_rdmdrestart"
 
-   call open_file(ich,'mdrestart','r')
-   read(ich,*) dum
-   do i=1,n
-      read (ich,'(6D22.14)')xyz(1:3,i),velo(1:3,i)
-   enddo
+   fname = get_namespace('mdrestart')
+   call open_file(ich, 'mdrestart', 'r')
+   if (ich == -1) then
+      call env%error("Could not open MD restart file '"//fname//"'", source)
+      return
+   end if
+
+   read(ich, *, iostat=stat) dum
+   do i = 1, n
+      if (stat /= 0) exit
+      read(ich, '(6D22.14)', iostat=stat) xyz(1:3, i), velo(1:3, i)
+   end do
    call close_file(ich)
+
+   if (stat /= 0) then
+      call env%error("Could not read MD restart file '"//fname//"'", source)
+   end if
 
 end subroutine rdmdrestart
 

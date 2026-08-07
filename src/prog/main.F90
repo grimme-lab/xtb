@@ -1151,6 +1151,7 @@ contains
          call md &
             &     (env, mol, chk, calc, &
             &      egap, set%etemp, set%maxscciter, etot, g, sigma, 0, set%temp_md, idum)
+         call env%checkpoint("Molecular dynamics terminated")
          call stop_timing(6)
       end if
 
