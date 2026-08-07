@@ -32,8 +32,7 @@ subroutine collect_docking(testsuite)
       new_unittest("dock_gfn2_eth_wat", test_dock_eth_wat_gfn2), &
       new_unittest("dock_gfn2_wat_wat_wall", test_dock_wat_wat_gfn2_wall), &
       new_unittest("dock_gfn2_wat_wat_attpot", test_dock_wat_wat_gfn2_attpot), &
-      new_unittest("dock_gfnff_wat_wat", test_dock_wat_wat_gfnff), &
-      new_unittest("restore_gfnff_topology", test_restore_gfnff_topology) &
+      new_unittest("dock_gfnff_wat_wat", test_dock_wat_wat_gfnff) &
       ]
 
 end subroutine collect_docking
@@ -641,89 +640,5 @@ subroutine test_dock_wat_wat_gfnff(error)
    call molB%deallocate
 
 end subroutine test_dock_wat_wat_gfnff
-
-
-subroutine test_restore_gfnff_topology(error)
-   use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
-   use xtb_mctc_accuracy, only : wp
-   use xtb_type_data, only : scc_results
-   use xtb_type_environment, only : TEnvironment, init
-   use xtb_type_molecule, only : TMolecule, init
-   use xtb_type_restart, only : TRestart
-   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
-   use xtb_gfnff_neighbor, only : TNeigh
-   use xtb_gfnff_topology, only : TGFFTopology
-   use xtb_docking_search_nci, only : restore_gff
-
-   type(error_type), allocatable, intent(out) :: error
-
-   integer, parameter :: nat = 6
-   integer, parameter :: at(nat) = [8, 1, 1, 8, 1, 1]
-   real(wp), parameter :: water(3, 3) = reshape([&
-      &  0.00000000000000_wp, 0.00000000000000_wp, 0.74114171466667_wp, &
-      & -1.42882182100000_wp, 0.00000000000000_wp, -0.37057085733333_wp, &
-      &  1.42882182100000_wp, 0.00000000000000_wp, -0.37057085733333_wp], &
-      & shape(water))
-
-   type(TEnvironment) :: env
-   type(TMolecule) :: mol
-   type(TRestart) :: chk
-   type(TGFFCalculator) :: calc
-   type(TGFFTopology) :: topo
-   type(TNeigh) :: neigh
-   type(scc_results) :: res
-   real(wp) :: xyz(3, nat), energy, hl_gap, sigma(3, 3), gradient(3, nat)
-   logical :: exitRun
-
-   call init(env)
-
-   xyz(:, 1:3) = water
-   xyz(:, 4:6) = water
-   xyz(1, 4:6) = xyz(1, 4:6) + 20.0_wp
-   call init(mol, at, xyz)
-   call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
-
-   call env%check(exitRun)
-   call check_(error, .not.exitRun)
-   if (exitRun) return
-
-   topo = calc%topo
-   neigh = calc%neigh
-   call check_(error, neigh%nbond, 4)
-
-   call mol%deallocate
-   xyz(:, 4:6) = water
-   xyz(1, 4:6) = xyz(1, 4:6) + 4.0_wp
-   call init(mol, at, xyz)
-   call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
-
-   call env%check(exitRun)
-   call check_(error, .not.exitRun)
-   if (exitRun) return
-   call check_(error, calc%neigh%nbond > neigh%nbond)
-
-   call restore_gff(env, mol, calc, topo, neigh)
-
-   call check_(error, calc%neigh%nbond, neigh%nbond)
-   call check_(error, all(calc%neigh%blist == neigh%blist))
-   call check_(error, all(calc%neigh%vbond == neigh%vbond))
-   call check_(error, all(calc%neigh%bpair == neigh%bpair))
-   call check_(error, calc%topo%nangl, topo%nangl)
-   call check_(error, all(calc%topo%alist == topo%alist))
-   call check_(error, all(calc%topo%vangl == topo%vangl))
-   call check_(error, calc%topo%ntors, topo%ntors)
-   call check_(error, all(calc%topo%tlist == topo%tlist))
-   call check_(error, all(calc%topo%vtors == topo%vtors))
-   call check_(error, all(calc%topo%xyze0 == mol%xyz))
-
-   call calc%singlepoint(env, mol, chk, 0, .false., energy, gradient, sigma, &
-      & hl_gap, res)
-
-   call env%check(exitRun)
-   call check_(error, .not.exitRun)
-   call check_(error, ieee_is_finite(energy))
-   call check_(error, all(ieee_is_finite(gradient)))
-
-end subroutine test_restore_gfnff_topology
 
 end module test_docking

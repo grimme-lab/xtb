@@ -151,6 +151,7 @@ subroutine test_gfnff_harmonic(error)
    type(TRestart) :: chk
    type(TGFFCalculator) :: calc
    type(scc_results) :: res
+   real(wp), parameter :: thr = 1000*epsilon(1.0_wp)
    real(wp) :: energy, hl_gap, sigma(3, 3), gradient(3, 3)
    logical :: exitRun
 
@@ -163,6 +164,7 @@ subroutine test_gfnff_harmonic(error)
    call check_(error, .not.exitRun)
    if (exitRun) return
 
+   ! Harmonic GFN-FF stores its bond list in the neighbor data.
    call check_(error, calc%neigh%nbond, 2)
    call check_(error, allocated(calc%neigh%blist))
    call check_(error, .not.allocated(calc%topo%blist))
@@ -174,8 +176,8 @@ subroutine test_gfnff_harmonic(error)
    call check_(error, .not.exitRun)
    call check_(error, ieee_is_finite(energy))
    call check_(error, all(ieee_is_finite(gradient)))
-   call check_(error, energy, 0.00476278587765942_wp, thr=1.0e-12_wp)
-   call check_(error, norm2(gradient), 0.0478776130669465_wp, thr=1.0e-12_wp)
+   call check_(error, energy, 0.00476278587765942_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.0478776130669465_wp, thr=thr)
 
 end subroutine test_gfnff_harmonic
 

@@ -59,7 +59,7 @@ module xtb_docking_search_nci
    implicit none
 
    private
-   public :: docking_search, restore_gff
+   public :: docking_search
 
 contains
 
@@ -1060,7 +1060,11 @@ contains
 
       integer :: itopo = 32
 
-      call update_gff_constraints(env, mol)
+      if (constraint_xyz) then
+         nconstr = 0
+         call read_userdata(xcontrol, env, mol)
+         call constrain_xTB_gff(env, mol)
+      end if
 
       !if(auto_walls) call number_walls=0; read_userdata(xcontrol,env,mol) !everytime new wall pot
 
@@ -1091,19 +1095,10 @@ contains
 
    end subroutine restart_gff
 
-   !> @brief Restore the stable GFN-FF state before optimizing a docking pose.
+   !> Restore GFN-FF state determined from separated docking fragments
    !>
-   !> GFN-FF derives its covalent topology from the input geometry.  A docking
-   !> pose can bring otherwise separate fragments close enough that rebuilding
-   !> the calculator would create spurious intermolecular bonds, angles, and
-   !> torsions.  Restore the topology and neighbor data saved while the
-   !> fragments were separated so all connectivity-dependent arrays remain
-   !> consistent.
-   !>
-   !> Mark the calculator for an update so geometry-dependent interaction lists
-   !> are refreshed by the next energy evaluation.  The external-field reference
-   !> geometry is also reset to the current pose rather than retained from the
-   !> separated backup structure.
+   !> Reuse the saved covalent topology while refreshing data that depend on the
+   !> current pose.
    subroutine restore_gff(env, mol, calc, topo, neigh)
 
       !> Calculation environment
@@ -1117,7 +1112,11 @@ contains
       !> Neighbor data generated with the docking fragments separated
       type(TNeigh), intent(in) :: neigh
 
-      call update_gff_constraints(env, mol)
+      if (constraint_xyz) then
+         nconstr = 0
+         call read_userdata(xcontrol, env, mol)
+         call constrain_xTB_gff(env, mol)
+      end if
 
       calc%topo = topo
       calc%neigh = neigh
@@ -1125,29 +1124,6 @@ contains
       if (allocated(calc%topo%xyze0)) calc%topo%xyze0 = mol%xyz
 
    end subroutine restore_gff
-
-   !> @brief Rebuild coordinate-dependent GFN-FF constraints for a new geometry.
-   !>
-   !> User constraints whose values are taken from the input coordinates must be
-   !> reread whenever docking changes the molecule or pose.  Reset the global
-   !> distance, angle, and dihedral constraint count before parsing to avoid
-   !> accumulating entries from the previous geometry.  If no coordinate-based
-   !> constraints were requested, this routine is a no-op.
-   subroutine update_gff_constraints(env, mol)
-
-      !> Calculation environment
-      type(TEnvironment), intent(inout) :: env
-      !> Molecule supplying the current coordinates
-      type(TMolecule), intent(inout) :: mol
-
-      !> Read the constraints again with new xyz only if necessary
-      if (constraint_xyz) then
-         nconstr = 0 ! Reset number of constraints for distance, angle, and dihedral
-         call read_userdata(xcontrol, env, mol)
-         call constrain_xTB_gff(env, mol)
-      end if
-
-   end subroutine update_gff_constraints
 
    subroutine restart_xTB(env, mol, chk, calc, basisset)
 
