@@ -38,7 +38,8 @@ subroutine collect_detrotra(testsuite)
    testsuite = [ &
       new_unittest("single precision linear diatomic", test_detrotra4_diatomic), &
       new_unittest("double precision linear diatomic", test_detrotra8_diatomic), &
-      new_unittest("preserve sufficient low-mode candidates", test_low_mode_candidates) &
+      new_unittest("preserve sufficient low-mode candidates", test_low_mode_candidates), &
+      new_unittest("adaptively expand mode candidates", test_adaptive_mode_candidates) &
       ]
 
 end subroutine collect_detrotra
@@ -102,6 +103,30 @@ subroutine test_low_mode_candidates(error)
    call check(error, count(eig == 0.0_wp), 6)
    call check(error, eig(7), 3.0_wp, thr=1.0e-12_wp)
 end subroutine test_low_mode_candidates
+
+subroutine test_adaptive_mode_candidates(error)
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 3
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      0.0_wp, 0.0_wp, 0.0_wp, &
+      1.0_wp, 0.0_wp, 0.0_wp, &
+      0.0_wp, 1.0_wp, 0.0_wp], shape(xyz))
+   real(wp) :: hess(3*nat, 3*nat), eig(3*nat)
+   integer :: i
+
+   hess = 0.0_wp
+   do i = 1, 6
+      hess(i, i) = 1.0_wp
+   end do
+   eig = [0.01_wp, 0.01_wp, 0.01_wp, 0.01_wp, 0.01_wp, 0.10_wp, &
+      0.20_wp, 0.30_wp, 0.40_wp]
+
+   call detrotra8(.false., nat, xyz, hess, eig)
+
+   call check(error, count(eig == 0.0_wp), 6)
+   call check(error, eig(6), 0.0_wp)
+   call check(error, eig(7), 0.20_wp, thr=1.0e-12_wp)
+end subroutine test_adaptive_mode_candidates
 
 subroutine build_diatomic_modes_sp(hess)
    real(sp), intent(out) :: hess(6, 6)

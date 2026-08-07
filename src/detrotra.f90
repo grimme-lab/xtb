@@ -71,7 +71,7 @@ subroutine detrotra_worker(linear, n, xyz, h, eig, rigid)
    integer, allocatable :: ind(:)
    real(wp), allocatable :: mode(:), tmpxyz(:, :), score(:)
    real(wp) :: a0, b0, c0
-   logical :: check_all
+   logical, allocatable :: candidate(:)
 
    n3 = 3*n
    nend = min(merge(5, 6, linear), n3)
@@ -79,14 +79,18 @@ subroutine detrotra_worker(linear, n, xyz, h, eig, rigid)
    if (nend == 0) return
 
    ! Preserve the historic low-mode candidate set when it is large enough.
-   ! If it is not, inspect all modes instead of indexing uninitialized entries.
-   check_all = count(eig <= low_mode_threshold) < nend
+   ! Otherwise, add the remaining modes in ascending eigenvalue order until
+   ! there are enough candidates to identify all rigid-body modes.
+   allocate(candidate(n3), source=eig <= low_mode_threshold)
+   do while (count(candidate) < nend)
+      ii = minloc(eig, dim=1, mask=.not.candidate)
+      candidate(ii) = .true.
+   end do
    allocate(mode(n3), tmpxyz(3, n), score(n3), ind(n3))
 
    nn = 0
    do ii = 1, n3
-      ! Check only low-lying modes unless the full fallback is required.
-      if (.not.check_all .and. eig(ii) > low_mode_threshold) cycle
+      if (.not.candidate(ii)) cycle
 
       select type(h)
       type is(real(sp))
