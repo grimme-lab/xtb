@@ -39,6 +39,7 @@ subroutine collect_gfnff(testsuite)
       new_unittest("pdb", test_gfnff_pdb), &
       new_unittest("sdf", test_gfnff_sdf), &
       new_unittest("pbc", test_gfnff_pbc), &
+      new_unittest("fragmentation", test_gfnff_fragmentation), &
       new_unittest("Ln_An", test_gfnff_LnAn_H) &
       ]
 
@@ -927,6 +928,74 @@ subroutine test_gfnff_pbc(error)
     call check_(error, energy2, energy, thr=thr2)
 
 end subroutine test_gfnff_pbc
+
+subroutine test_gfnff_fragmentation(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_gfnff_fraghess, only : fragmentize
+
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 501
+   integer, parameter :: maxsystem = 600
+   integer, parameter :: maxmagnat = 500
+   integer, parameter :: numnb = 2
+   integer, parameter :: numctr = 1
+
+   type(TEnvironment) :: env
+   integer :: at(nat), neigh(numnb,nat,numctr), counts(nat)
+   integer :: i, j, nsystem, shifted_nsystem
+   integer, allocatable :: fragments(:,:), fragment_sizes(:)
+   integer, allocatable :: shifted_fragments(:,:), shifted_sizes(:)
+   real(wp) :: xyz(3,nat), shifted_xyz(3,nat)
+   real(wp), allocatable :: jab(:)
+
+   call init(env)
+   at = 1
+   neigh = 0
+   allocate(jab(nat*(nat+1)/2), source=1.0_wp)
+   do i = 1, nat
+      jab(i*(i+1)/2) = 0.0_wp
+      j = i - 1
+      xyz(:,i) = [real(mod(j,11),wp), real(mod(j/11,11),wp), &
+         & real(j/121,wp)]
+   end do
+
+   call fragmentize(nat, at, xyz, maxsystem, maxmagnat, jab, numnb, numctr, neigh, &
+      & fragments, fragment_sizes, nsystem, env)
+   shifted_xyz = xyz + 300.0_wp
+   call fragmentize(nat, at, shifted_xyz, maxsystem, maxmagnat, jab, numnb, numctr, neigh, &
+      & shifted_fragments, shifted_sizes, shifted_nsystem, env)
+
+   call check_(error, shifted_nsystem, nsystem)
+   if (allocated(error)) return
+   call check_(error, all(shifted_sizes(1:nsystem) == fragment_sizes(1:nsystem)))
+   if (allocated(error)) return
+   call check_(error, all(shifted_fragments(:,1:nsystem) == fragments(:,1:nsystem)))
+   if (allocated(error)) return
+
+   counts = 0
+   do i = 1, nsystem
+      do j = 1, fragment_sizes(i)
+         counts(fragments(j,i)) = counts(fragments(j,i)) + 1
+      end do
+   end do
+   call check_(error, all(counts == 1))
+   if (allocated(error)) return
+   call check_(error, maxval(fragment_sizes(1:nsystem)) <= maxmagnat)
+   if (allocated(error)) return
+
+   ! A crowded grid cell must be divided without losing disconnected atoms.
+   xyz = 300.0_wp
+   call fragmentize(nat, at, xyz, maxsystem, maxmagnat, jab, numnb, numctr, neigh, &
+      & fragments, fragment_sizes, nsystem, env)
+   call check_(error, nsystem, 2)
+   if (allocated(error)) return
+   call check_(error, sum(fragment_sizes(1:nsystem)), nat)
+   if (allocated(error)) return
+   call check_(error, maxval(fragment_sizes(1:nsystem)) <= maxmagnat)
+
+end subroutine test_gfnff_fragmentation
 
 subroutine test_gfnff_LnAn_H(error)
    use xtb_mctc_accuracy, only : wp

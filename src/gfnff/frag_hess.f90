@@ -89,11 +89,12 @@ module xtb_gfnff_fraghess
         real(wp) :: maxdist
         real(wp) :: cur_dist
         real(wp) :: max_link
-        real(wp) :: box_xyz(3), vec(3)
+        real(wp) :: box_min(3), box_xyz(3), vec(3)
         real(wp) :: frag_cma(3,maxsystem)
         logical  :: equal(maxsystem)
         logical  :: visited(nspin)
         logical, allocatable :: assigned(:, :)
+        logical  :: valid_partition
 
         integer, allocatable  :: ifrag_ini(:)
 
@@ -117,6 +118,8 @@ module xtb_gfnff_fraghess
         eq_frag = 0
         frag_cma = 0
         grid = 0
+        box_min = 0
+        box_xyz = 0
         equal = .false.
 
         call mrecgffPBC(nspin,numctr, numnb, neigh, fragcount, fragvec)
@@ -140,10 +143,17 @@ module xtb_gfnff_fraghess
            end if
         end do
 
-        !Determine box size
-        do i = 1, 3
-           box_xyz(i) = maxval(frag_cma(i,:)) - minval(frag_cma(i,:))
-        end do
+        nci_ini = nsystem
+
+        ! Determine the bounds from the small fragments placed on the grid.
+        if (any(nspinsyst(1:nci_ini) < nci_frag_size)) then
+           do i = 1, 3
+              box_min(i) = minval(frag_cma(i,1:nci_ini), &
+                 & mask=nspinsyst(1:nci_ini) < nci_frag_size)
+              box_xyz(i) = maxval(frag_cma(i,1:nci_ini), &
+                 & mask=nspinsyst(1:nci_ini) < nci_frag_size) - box_min(i)
+           end do
+        end if
 
         !Determine number of sub boxes
         nbox =  ceiling((real(nspin)/real(maxmagnat))**(1.0d0/3.0d0))
@@ -153,22 +163,27 @@ module xtb_gfnff_fraghess
            nfrag_ini = nspinsyst(i)
            if (nfrag_ini.lt.nci_frag_size) then
              do j = 1, 3
-                grid(j,i) =   nbox * ( frag_cma(j,i) - minval(frag_cma(j,:)) ) / box_xyz(j)
-                if (grid(j,i).eq.0) grid(j,i) = grid(j,i) + 1.0d0
-                grid(j,i) = ceiling( grid(j,i) )
+                if (box_xyz(j).gt.epsilon(1.0_wp)) then
+                   grid(j,i) = nbox * (frag_cma(j,i) - box_min(j)) / box_xyz(j)
+                   if (grid(j,i).eq.0) grid(j,i) = grid(j,i) + 1.0_wp
+                   grid(j,i) = ceiling(grid(j,i))
+                else
+                   grid(j,i) = 1.0_wp
+                end if
              end do
            end if
         end do
 
         !Sum over all nci fragments on same grid position
-        nci_ini=nsystem
         do i = 1, nci_ini !nsystem
+           if (equal(i)) cycle
            eq_frag=0
            !nfrag_ini=nspinsyst(i)
            do j = i+1, nci_ini
               nfrag_ini=nspinsyst(j)
               vec(:) = grid(:,i)-grid(:,j)
-              if (norm2(grid(:,i)).ne.0.and.norm2(vec).eq.0.and..not.equal(j)) then
+              if (norm2(grid(:,i)) /= 0 .and. norm2(vec) == 0 .and. &
+                 & .not. equal(j) .and. nspinsyst(i) + nfrag_ini <= maxmagnat) then
                 eq_frag = eq_frag + 1
                 do k = 1, nfrag_ini
                    ispinsyst(nspinsyst(i)+k,i) = ispinsyst(k,j)
@@ -298,6 +313,25 @@ module xtb_gfnff_fraghess
                return
             end if
         end do ! End loop: while nspinsyst(ass) > maxmagnat
+
+        ! Every atom must occur in exactly one Hessian fragment. Fall back to
+        ! full diagonalization rather than using an incomplete partition.
+        assigned_to_frag = 0
+        valid_partition = .true.
+        do i = 1, nsystem
+           do j = 1, nspinsyst(i)
+              ati = ispinsyst(j,i)
+              if (ati < 1 .or. ati > nspin) then
+                 valid_partition = .false.
+              else
+                 assigned_to_frag(ati) = assigned_to_frag(ati) + 1
+              end if
+           end do
+        end do
+        if (.not. valid_partition .or. any(assigned_to_frag /= 1)) then
+           call env%warning("Invalid Hessian fragmentation. Turning off fragmentation.")
+           nsystem = 1
+        end if
 
 
      end subroutine fragmentize
