@@ -572,18 +572,16 @@ subroutine l_ancopt &
          & gnorm=norm2(gradient), number=iter)
    endif
 
-   ! different DOF in case of frag hess
+   ! determine degrees of freedom
    nat3 = 3 * mol%n
-   if (fragmented_hessian) then
+   if (fixset%n > 0) then ! exact fixing
+      nvar = nat3 - 3*fixset%n - 3
+      if (nvar <= 0) nvar = 1
+   else if (fragmented_hessian) then
       nvar = nat3
    else
       nvar = nat3 - 6
-      if(linear) nvar = nat3 - 5
-
-      if(fixset%n.gt.0) then ! exact fixing
-         nvar=nat3-3*fixset%n-3
-         if(nvar.le.0) nvar=1
-      endif
+      if (linear) nvar = nat3 - 5
    end if
 
    allocate( hdiag(nvar), source = 0.0_wp )
@@ -650,7 +648,7 @@ subroutine l_ancopt &
       if (calc%topo%nsystem.gt.1) then
          write(env%unit,'(" * fragmented diagonalization...",1x,i0,1x,"fragments")') calc%topo%nsystem
          call frag_hess_diag(mol%n,hess,eig,calc%topo%ispinsyst, &
-            & calc%topo%nspinsyst,calc%topo%nsystem)
+            & calc%topo%nspinsyst,calc%topo%nsystem,fixset%n == 0)
        else if (calc%topo%nsystem.eq.1) then
           lwork  = 1 + 6*nat3 + 2*nat3**2
           allocate(aux(lwork))

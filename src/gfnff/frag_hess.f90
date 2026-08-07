@@ -298,7 +298,7 @@ module xtb_gfnff_fraghess
 
      end subroutine fragmentize
 
-     subroutine frag_hess_diag( nat,hess,eig_calc,ispinsyst,nspinsyst,nsystem )
+     subroutine frag_hess_diag( nat,hess,eig_calc,ispinsyst,nspinsyst,nsystem,subtract_mean )
      !---------------------------------------------------------------------------------------------
      ! Purpose:
      ! Subroutine performs diagonalization of fragmented hessian.
@@ -315,6 +315,7 @@ module xtb_gfnff_fraghess
      ! Input:
      ! nat      - Number of atoms of the entire system
      ! hess     - (Lindh) Hessian of the entire system
+     ! subtract_mean - Remove the uniform component from each fragmented eigenvector
      !
      ! Output:
      ! hess     - diagonalized hessian (eigenvectors), overwritten
@@ -329,6 +330,7 @@ module xtb_gfnff_fraghess
         integer,  intent(in) :: ispinsyst(:,:)         ! array with list of atoms of each fragment
         integer,  intent(in) :: nspinsyst(:)           ! array with # of atoms for each fragment
         integer,  intent(in) :: nsystem                            ! # of fragments
+        logical,  intent(in) :: subtract_mean
         !Stack
         integer                  :: isystem
         integer                  :: i,j,ii,jj,k
@@ -400,9 +402,13 @@ module xtb_gfnff_fraghess
 !$omp end do
 !$omp end parallel
 
-        do i = 1,nat3
-           ev_calc(:,i) = ev_calc(:,i) - ( sum( ev_calc(:,i) ) / nat3 )
-        end do
+        ! Exact fixing already anchors the system. Applying this adjustment in
+        ! that case would reintroduce components in the fixed-coordinate rows.
+        if (subtract_mean) then
+           do i = 1,nat3
+              ev_calc(:,i) = ev_calc(:,i) - ( sum( ev_calc(:,i) ) / nat3 )
+           end do
+        end if
 
         hess = ev_calc
 
