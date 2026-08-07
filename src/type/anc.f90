@@ -184,7 +184,7 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
 
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la
-   use xtb_detrotra, only : detrotra8
+   use xtb_detrotra, only : detrotra
    implicit none
 
    !> ANC object
@@ -241,7 +241,7 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
       &        aux,lwork,iwork,liwork,info)
 
    ! determine, sort, and nullify rot/trans modes !  
-   call detrotra8(linear,self%n,self%xyz,hess,self%eigv) 
+   call detrotra(linear,self%n,self%xyz,hess,self%eigv)
 
    ! find lowest eigenvalue (ignore nullified ones) !
    elow = minval(self%eigv,mask=(abs(self%eigv) > thr1)) 

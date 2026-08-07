@@ -20,12 +20,17 @@ module xtb_detrotra
    implicit none
    private
 
-   public :: detrotra4, detrotra8
+   public :: detrotra
+
+   interface detrotra
+      module procedure detrotra_sp
+      module procedure detrotra_wp
+   end interface detrotra
 
 contains
 
 !> Determine rotational and translational modes using single precision modes
-subroutine detrotra4(linear, n, xyz, h, eig)
+subroutine detrotra_sp(linear, n, xyz, h, eig)
    !> Whether the molecular structure is linear
    logical, intent(in) :: linear
    !> Number of atoms
@@ -41,10 +46,10 @@ subroutine detrotra4(linear, n, xyz, h, eig)
    call detrotra_worker(linear, n, xyz, h, real(eig, wp), rigid)
    ! Identifier for rotational and translational modes
    eig(rigid) = 0.0_sp
-end subroutine detrotra4
+end subroutine detrotra_sp
 
 !> Determine rotational and translational modes using double precision modes
-subroutine detrotra8(linear, n, xyz, h, eig)
+subroutine detrotra_wp(linear, n, xyz, h, eig)
    !> Whether the molecular structure is linear
    logical, intent(in) :: linear
    !> Number of atoms
@@ -60,7 +65,7 @@ subroutine detrotra8(linear, n, xyz, h, eig)
    call detrotra_worker(linear, n, xyz, h, eig, rigid)
    ! Identifier for rotational and translational modes
    eig(rigid) = 0.0_wp
-end subroutine detrotra8
+end subroutine detrotra_wp
 
 !> Identify the modes which best preserve all interatomic distances
 subroutine detrotra_worker(linear, n, xyz, h, eig, rigid)

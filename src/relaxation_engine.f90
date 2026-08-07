@@ -421,7 +421,7 @@ subroutine l_ancopt &
    use xtb_axis
    use xtb_hessian
    use xtb_lsrmsd
-   use xtb_detrotra, only : detrotra4
+   use xtb_detrotra, only : detrotra
 
    use xtb_gfnff_fraghess
 
@@ -671,7 +671,7 @@ subroutine l_ancopt &
    end select
 
    if (.not. fragmented_hessian) then
-      call detrotra4(linear, mol%n, mol%xyz, hess, eig)
+      call detrotra(linear, mol%n, mol%xyz, hess, eig)
    end if
 
    select type(calc)
