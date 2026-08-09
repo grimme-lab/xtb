@@ -403,6 +403,7 @@ module xtb_setparam
    logical  :: pr_wbofrag = .false.
    logical  :: pr_charges = .true.
    logical  :: pr_dipole = .true.
+   logical  :: pr_quadrupole = .false.
    logical  :: pr_mulliken = .true.
    logical  :: pr_eig = .true.
    logical  :: pr_gbw = .false.
