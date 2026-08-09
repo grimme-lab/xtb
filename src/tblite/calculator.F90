@@ -32,22 +32,23 @@ module xtb_tblite_calculator
    use tblite_container, only : container_type
    use tblite_context, only : context_type, context_terminal, escape
    use tblite_external_field, only : electric_field
+   use tblite_features, only : get_tblite_feature
    use tblite_param, only : param_record
    use tblite_post_processing_list, only : add_post_processing, post_processing_list
    use tblite_results, only : results_type
    use tblite_spin, only : spin_polarization, new_spin_polarization
    use tblite_solvation, only : solvation_type, solvation_input, new_solvation, &
       & new_solvation_cds, new_solvation_shift, alpb_input, cds_input, &
-      & shift_input, cpcm_input, born_kernel, solution_state, solvent_data, &
-      & get_solvent_data
+      & shift_input, ddx_input, ddx_solvation_model, born_kernel, solution_state, &
+      & solvent_data, get_solvent_data
    use tblite_wavefunction, only : wavefunction_type, new_wavefunction, &
       & sad_guess, eeq_guess, eeqbc_guess
    use tblite_xtb_calculator, only : xtb_calculator, new_xtb_calculator
-   use tblite_xtb_gfn2, only : new_gfn2_calculator, export_gfn2_param
-   use tblite_xtb_gfn1, only : new_gfn1_calculator, export_gfn1_param
-   use tblite_xtb_ipea1, only : new_ipea1_calculator, export_ipea1_param
+   use tblite_xtb_gfn2, only : new_gfn2_calculator
+   use tblite_xtb_gfn1, only : new_gfn1_calculator
+   use tblite_xtb_ipea1, only : new_ipea1_calculator
    use tblite_xtb_singlepoint, only : xtb_singlepoint
-   use tblite_data_spin, only : get_spin_constant 
+   use tblite_data_spin, only : get_spin_constant
    use xtb_tblite_mapping, only : convert_tblite_to_wfn
 #endif
    use xtb_tblite_mapping, only : convert_tblite_to_results
@@ -172,6 +173,7 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
    type(error_type), allocatable :: error
    type(structure_type) :: struc
    type(param_record) :: param
+   type(solvation_input) :: solv_input
 
    struc = mol
 
@@ -310,7 +312,7 @@ subroutine construct_solv_input(input, solv_input, error)
 
    logical :: parametrized_solvation, alpb
    type(solvent_data), allocatable :: solvent
-   integer :: sol_state, kernel, iostat
+   integer :: sol_state, kernel, iostat, ddx_model
    real(wp) :: val
 
    ! Collect solvent data if a solvent name is provided
@@ -393,13 +395,25 @@ subroutine construct_solv_input(input, solv_input, error)
 
          ! Construct purely electrostatic solvation model input for tblite
          solv_input%alpb = alpb_input(solvent%eps, kernel=kernel, alpb=alpb)
-      case("cosmo")
-         ! ddCOSMO solvation model (currently called CPCM in tblite)
-         if (sol_state /= solution_state%gsolv) then 
-            call fatal_error(error, "Solution state shift not supported for ddCOSMO")
+      case("cosmo", "cpcm", "pcm")
+         if (.not.get_tblite_feature("ddx")) then
+            call fatal_error(error, "ddX solvation support is not available in this build")
             return
          end if
-         solv_input%cpcm = cpcm_input(solvent%eps)
+         ! ddX solvation models
+         if (sol_state /= solution_state%gsolv) then 
+            call fatal_error(error, "Solution state shift not supported for ddX solvation models")
+            return
+         end if
+         if (input%solvation_model == "cosmo") then
+            ddx_model = ddx_solvation_model%cosmo
+         else if (input%solvation_model == "cpcm") then
+            ddx_model = ddx_solvation_model%cpcm
+         else if (input%solvation_model == "pcm") then
+            ddx_model = ddx_solvation_model%pcm
+         end if
+
+         solv_input%ddx = ddx_input(ddx_model, solvent%eps)
       end select
    else
       call fatal_error(error, "No solvation model specified")
@@ -511,20 +525,24 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! Setup the required post-processing
    allocate(post_proc)
-   ! Wiberg-Mayer bond orders
-   wbo_label = "bond-orders"
-   call add_post_processing(post_proc, struc, wbo_label, error)
-   if (allocated(error)) then
-      call env%error(error%message, source)
-      return
+   if (set%pr_wiberg .or. set%pr_wbofrag) then
+      ! Wiberg-Mayer bond orders
+      wbo_label = "bond-orders"
+      call add_post_processing(post_proc, struc, wbo_label, error)
+      if (allocated(error)) then
+         call env%error(error%message, source)
+         return
+      end if
    end if
 
    ! Molecular multipole moments
    molmom_label = "molmom"
-   call add_post_processing(post_proc, struc, molmom_label, error)
-   if (allocated(error)) then
-      call env%error(error%message, source)
-      return
+   if (set%pr_dipole) then
+      call add_post_processing(post_proc, struc, molmom_label, error)
+      if (allocated(error)) then
+         call env%error(error%message, source)
+         return
+      end if
    end if
 
    ! Needed to update atomic charges after reading restart file

@@ -44,8 +44,8 @@ subroutine collect_tblite(testsuite)
       new_unittest("gfn2-mindless-alpb", test_gfn2_mindless_alpb), &
       new_unittest("gfn1-mindless-gb", test_gfn1_mindless_gb), &
       new_unittest("gfn2-mindless-gbe", test_gfn2_mindless_gbe), &
-      new_unittest("gfn1-mindless-cosmo", test_gfn1_mindless_cosmo), &
-      new_unittest("gfn2-mindless-cosmo", test_gfn2_mindless_cosmo), &
+      new_unittest("gfn1-mindless-ddx", test_gfn1_mindless_ddx), &
+      new_unittest("gfn2-mindless-ddx", test_gfn2_mindless_ddx), &
       new_unittest("mindless-efield", test_mindless_efield) &
       ]
 
@@ -614,7 +614,7 @@ subroutine test_gfn2_mindless_gbe(error)
 end subroutine test_gfn2_mindless_gbe
 
 
-subroutine test_gfn1_mindless_cosmo(error)
+subroutine test_gfn1_mindless_ddx(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -642,10 +642,12 @@ subroutine test_gfn1_mindless_cosmo(error)
 
    character(len=*), parameter :: mindless(3) = [&
       & "mindless01", "mindless02", "mindless03"]
+   character(len=*), parameter :: solv_model(3) = [&
+      & "cosmo", "cpcm ", "pcm  "]
    real(wp), parameter :: ref_energies(3) = [&
-      & -33.036952137095_wp, -26.848464402907_wp, -25.792048284469_wp]
+      & -33.074347046151_wp, -26.876370111233_wp, -25.840189123165_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.058937174458_wp, 0.070321418330_wp, 0.052262096907_wp]
+      &  0.052710146819_wp, 0.060872658809_wp, 0.052661835629_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "12.0 ", "water", "dmso "]
 
@@ -663,8 +665,8 @@ subroutine test_gfn1_mindless_cosmo(error)
       allocate(gradient(3, len(mol)))
 
       call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn1", &
-         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="cosmo", &
-         & solvent=solvents(iMol))))
+         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput( &
+         & solvation_model=trim(solv_model(iMol)), solvent=solvents(iMol))))
       call newTBLiteWavefunction(env, mol, calc, chk)
 
       call env%check(exitRun)
@@ -683,10 +685,10 @@ subroutine test_gfn1_mindless_cosmo(error)
 
    end do
 
-end subroutine test_gfn1_mindless_cosmo
+end subroutine test_gfn1_mindless_ddx
 
 
-subroutine test_gfn2_mindless_cosmo(error)
+subroutine test_gfn2_mindless_ddx(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -714,10 +716,12 @@ subroutine test_gfn2_mindless_cosmo(error)
 
    character(len=*), parameter :: mindless(3) = [&
       & "mindless01", "mindless02", "mindless03"]
+   character(len=*), parameter :: solv_model(3) = [&
+      & "cosmo", "cpcm ", "pcm  "]
    real(wp), parameter :: ref_energies(3) = [&
-      & -30.356424662078_wp, -24.066751782005_wp, -23.707798962536_wp]
+      & -30.388028543875_wp, -24.108974893111_wp, -23.766262242608_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.072996739434_wp, 0.063735506800_wp, 0.048425301852_wp]
+      &  0.064627429484_wp, 0.065047741475_wp, 0.0489928038278_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "12.0 ", "water", "dmso "]
 
@@ -735,8 +739,8 @@ subroutine test_gfn2_mindless_cosmo(error)
       allocate(gradient(3, len(mol)))
 
       call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2", &
-         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="cosmo", &
-         & solvent=solvents(iMol))))
+         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput( &
+         & solvation_model=trim(solv_model(iMol)), solvent=solvents(iMol))))
       call newTBLiteWavefunction(env, mol, calc, chk)
 
       call env%check(exitRun)
@@ -755,7 +759,7 @@ subroutine test_gfn2_mindless_cosmo(error)
 
    end do
 
-end subroutine test_gfn2_mindless_cosmo
+end subroutine test_gfn2_mindless_ddx
 
 
 subroutine test_mindless_efield(error)

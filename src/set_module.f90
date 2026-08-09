@@ -387,6 +387,7 @@ subroutine write_set_write(ictrl)
    write(ictrl,'(3x,"wiberg=",a)')           bool2string(set%pr_wiberg)
    write(ictrl,'(3x,"wbo fragments=",a)')    bool2string(set%pr_wbofrag)
    write(ictrl,'(3x,"dipole=",a)')           bool2string(set%pr_dipole)
+   write(ictrl,'(3x,"quadrupole=",a)')       bool2string(set%pr_quadrupole)
    write(ictrl,'(3x,"charges=",a)')          bool2string(set%pr_charges)
    write(ictrl,'(3x,"mulliken=",a)')         bool2string(set%pr_mulliken)
    write(ictrl,'(3x,"orbital energies=",a)') bool2string(set%pr_eig)
@@ -1335,6 +1336,7 @@ subroutine set_write(env,key,val)
    logical,save :: set29 = .true.
    logical,save :: set30 = .true.
    logical,save :: set31 = .true.
+   logical,save :: set32 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by write",source)
@@ -1368,72 +1370,75 @@ subroutine set_write(env,key,val)
    case('dipole')
       if (getValue(env,val,ldum).and.set9)  set%pr_dipole = ldum
       set9 = .false.
-   case('charges')
-      if (getValue(env,val,ldum).and.set10) set%pr_charges = ldum
+   case('quadrupole')
+      if (getValue(env,val,ldum).and.set10)  set%pr_quadrupole = ldum
       set10 = .false.
-   case('mulliken')
-      if (getValue(env,val,ldum).and.set11) set%pr_mulliken = ldum
+   case('charges')
+      if (getValue(env,val,ldum).and.set11) set%pr_charges = ldum
       set11 = .false.
-   case('orbital energies')
-      if (getValue(env,val,ldum).and.set12) set%pr_eig = ldum
+   case('mulliken')
+      if (getValue(env,val,ldum).and.set12) set%pr_mulliken = ldum
       set12 = .false.
-   case('gridfile', 'grid file')
-       if (set13) set%esp_gridfile = val
+   case('orbital energies')
+      if (getValue(env,val,ldum).and.set13) set%pr_eig = ldum
       set13 = .false.
-   case('stm')
-      if (getValue(env,val,ldum).and.set14) set%pr_stm = ldum
+   case('gridfile', 'grid file')
+       if (set14) set%esp_gridfile = val
       set14 = .false.
-   case('gbw')
-      if (getValue(env,val,ldum).and.set15) set%pr_gbw = ldum
+   case('stm')
+      if (getValue(env,val,ldum).and.set15) set%pr_stm = ldum
       set15 = .false.
-   case('tm mos')
-      if (getValue(env,val,ldum).and.set16) set%pr_tmmos = ldum
+   case('gbw')
+      if (getValue(env,val,ldum).and.set16) set%pr_gbw = ldum
       set16 = .false.
-   case('tm basis')
-      if (getValue(env,val,ldum).and.set17) set%pr_tmbas = ldum
+   case('tm mos')
+      if (getValue(env,val,ldum).and.set17) set%pr_tmmos = ldum
       set17 = .false.
-   case('json')
-      if (getValue(env,val,ldum).and.set18) set%pr_json = ldum
+   case('tm basis')
+      if (getValue(env,val,ldum).and.set18) set%pr_tmbas = ldum
       set18 = .false.
-   case('distances')
-      if (getValue(env,val,ldum).and.set19) set%pr_distances = ldum
+   case('json')
+      if (getValue(env,val,ldum).and.set19) set%pr_json = ldum
       set19 = .false.
-   case('angles')
-      if (getValue(env,val,ldum).and.set20) set%pr_angles = ldum
+   case('distances')
+      if (getValue(env,val,ldum).and.set20) set%pr_distances = ldum
       set20 = .false.
-   case('torsions')
-      if (getValue(env,val,ldum).and.set21) set%pr_torsions = ldum
+   case('angles')
+      if (getValue(env,val,ldum).and.set21) set%pr_angles = ldum
       set21 = .false.
-   case('final struct')
-      if (getValue(env,val,ldum).and.set22) set%pr_finalstruct = ldum
+   case('torsions')
+      if (getValue(env,val,ldum).and.set22) set%pr_torsions = ldum
       set22 = .false.
-   case('geosum')
-      if (getValue(env,val,ldum).and.set23) set%pr_geosum = ldum
+   case('final struct')
+      if (getValue(env,val,ldum).and.set23) set%pr_finalstruct = ldum
       set23 = .false.
-   case('moments','inertia')
-      if (getValue(env,val,ldum).and.set24) set%pr_moments = ldum
+   case('geosum')
+      if (getValue(env,val,ldum).and.set24) set%pr_geosum = ldum
       set24 = .false.
-   case('modef')
-      if (getValue(env,val,ldum).and.set25) set%pr_modef = ldum
+   case('moments','inertia')
+      if (getValue(env,val,ldum).and.set25) set%pr_moments = ldum
       set25 = .false.
-   case('wbo fragments')
-      if (getValue(env,val,ldum).and.set26) set%pr_wbofrag = ldum
+   case('modef')
+      if (getValue(env,val,ldum).and.set26) set%pr_modef = ldum
       set26 = .false.
-   case('output file')
-      if (set27) set%property_file = val
+   case('wbo fragments')
+      if (getValue(env,val,ldum).and.set27) set%pr_wbofrag = ldum
       set27 = .false.
-   case('fod population')
-      if (getValue(env,val,ldum).and.set28) set%pr_fod_pop = ldum
+   case('output file')
+      if (set28) set%property_file = val
       set28 = .false.
-   case('gbsa')
-      if (getValue(env,val,ldum).and.set29) set%pr_gbsa = ldum
+   case('fod population')
+      if (getValue(env,val,ldum).and.set29) set%pr_fod_pop = ldum
       set29 = .false.
-   case('vib_normal_modes', 'nmtm')
-      if (getValue(env,val,ldum).and.set30) set%pr_nmtm = ldum
+   case('gbsa')
+      if (getValue(env,val,ldum).and.set30) set%pr_gbsa = ldum
       set30 = .false.
-   case('hessian.out')
-      if (getValue(env,val,ldum).and.set31) set%pr_dftbp_hessian_out = ldum
+   case('vib_normal_modes', 'nmtm')
+      if (getValue(env,val,ldum).and.set31) set%pr_nmtm = ldum
       set31 = .false.
+   case('hessian.out')
+      if (getValue(env,val,ldum).and.set32) set%pr_dftbp_hessian_out = ldum
+      set32 = .false.
    end select
 end subroutine set_write
 
