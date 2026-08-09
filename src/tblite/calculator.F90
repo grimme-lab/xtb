@@ -70,6 +70,7 @@ module xtb_tblite_calculator
    public :: TTBLiteCalculator, TTBLiteInput, TTBLiteSolvationInput
    public :: newTBLiteCalculator, newTBLiteWavefunction
    public :: get_ceh, num_grad_chrg
+   public :: getTBLiteFeature
 
    type, private :: ceh
       !> numerical gradients
@@ -797,6 +798,22 @@ subroutine num_grad_chrg(env, mol, tblite)
    write(env%unit, '(1x, a)') "CEH gradients written to ceh.charges.numgrad"
 
 end subroutine num_grad_chrg
+
+!> Wrapper to check if a feature is available in the tblite library
+subroutine getTBLiteFeature(env, feature, available)
+   !> Computational environment
+   type(TEnvironment), intent(inout) :: env
+   !> Name of the feature to check
+   character(len=*), intent(in) :: feature
+   !> Whether the feature is available
+   logical, intent(out) :: available
+
+#if WITH_TBLITE
+   available = get_tblite_feature(feature)
+#else
+   call feature_not_implemented(env)
+#endif
+end subroutine getTBLiteFeature
 
 #if ! WITH_TBLITE
 subroutine feature_not_implemented(env)

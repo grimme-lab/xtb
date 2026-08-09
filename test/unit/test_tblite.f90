@@ -20,7 +20,8 @@ module test_tblite
    use xtb_mctc_accuracy, only : wp
    use xtb_features, only : get_xtb_feature
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, &
-      & TTBLiteSolvationInput, newTBLiteCalculator, newTBLiteWavefunction
+      & TTBLiteSolvationInput, newTBLiteCalculator, newTBLiteWavefunction, &
+      & getTBLiteFeature
    implicit none
    private
 
@@ -636,7 +637,7 @@ subroutine test_gfn1_mindless_ddx(error)
    type(scc_results) :: res
 
    integer :: iMol
-   logical :: exitRun
+   logical :: exitRun, ddx_available
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
 
@@ -657,6 +658,12 @@ subroutine test_gfn1_mindless_ddx(error)
    end if
 
    call init(env)
+   call getTBLiteFeature(env, 'ddx', ddx_available)
+   if (.not.ddx_available) then
+      call skip_test(error, "xtb not compiled with tblite ddx support")
+      return
+   end if
+
    do iMol = 1, 3
 
       call getMolecule(mol, mindless(iMol))
@@ -710,7 +717,7 @@ subroutine test_gfn2_mindless_ddx(error)
    type(scc_results) :: res
 
    integer :: iMol
-   logical :: exitRun
+   logical :: exitRun, ddx_available
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
 
@@ -731,6 +738,12 @@ subroutine test_gfn2_mindless_ddx(error)
    end if
 
    call init(env)
+   call getTBLiteFeature(env, 'ddx', ddx_available)
+   if (.not.ddx_available) then
+      call skip_test(error, "xtb not compiled with tblite ddx support")
+      return
+   end if
+
    do iMol = 1, 3
 
       call getMolecule(mol, mindless(iMol))
