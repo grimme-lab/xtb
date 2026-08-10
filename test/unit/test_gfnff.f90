@@ -977,6 +977,10 @@ subroutine test_gfnff_fragmentation(error)
    counts = 0
    do i = 1, nsystem
       do j = 1, fragment_sizes(i)
+         if (fragments(j,i) < 1 .or. fragments(j,i) > nat) then
+            call check_(error, .false.)
+            return
+         end if
          counts(fragments(j,i)) = counts(fragments(j,i)) + 1
       end do
    end do
