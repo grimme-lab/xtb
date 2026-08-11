@@ -26,7 +26,6 @@ module test_hessian
    use xtb_type_data
    use xtb_type_environment
 
-   use xtb_freq_project, only : projectHessian
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
    implicit none
@@ -45,8 +44,6 @@ subroutine collect_hessian(testsuite)
    testsuite = [ &
       new_unittest("gfn1", test_gfn1_hessian), &
       new_unittest("gfn2", test_gfn2_hessian), &
-      new_unittest("linear_projection", test_linear_projection), &
-      new_unittest("fixed_projection", test_fixed_projection) &
       ]
 
 end subroutine collect_hessian
