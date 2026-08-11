@@ -26,6 +26,7 @@ module test_hessian
    use xtb_type_data
    use xtb_type_environment
 
+   use xtb_freq_project, only : projectHessian
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
    implicit none
@@ -43,7 +44,9 @@ subroutine collect_hessian(testsuite)
 
    testsuite = [ &
       new_unittest("gfn1", test_gfn1_hessian), &
-      new_unittest("gfn2", test_gfn2_hessian) &
+      new_unittest("gfn2", test_gfn2_hessian), &
+      new_unittest("linear_projection", test_linear_projection), &
+      new_unittest("fixed_projection", test_fixed_projection) &
       ]
 
 end subroutine collect_hessian
@@ -240,5 +243,114 @@ subroutine test_gfn2_hessian(error)
    end do
 
 end subroutine test_gfn2_hessian
+
+subroutine test_linear_projection(error)
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 3, n3 = 3*nat
+   character(len=*), parameter :: sym(nat) = ["H", "O", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      0.0_wp, 0.0_wp,  1.75_wp, &
+      0.0_wp, 0.0_wp,  0.00_wp, &
+      0.0_wp, 0.0_wp, -1.75_wp], shape(xyz))
+   integer, parameter :: ix(nat) = [1, 4, 7]
+   integer, parameter :: iy(nat) = [2, 5, 8]
+   integer, parameter :: iz(nat) = [3, 6, 9]
+   real(wp), parameter :: bend(nat, nat) = reshape([ &
+      -0.0549348701_wp,  0.1100458377_wp, -0.0551129899_wp, &
+       0.1100458377_wp, -0.2200876307_wp,  0.1100458377_wp, &
+      -0.0551129899_wp,  0.1100458377_wp, -0.0549348701_wp], &
+      [nat, nat])
+   real(wp), parameter :: stretch(nat, nat) = reshape([ &
+       0.5461344167_wp, -0.5427760809_wp, -0.0033451749_wp, &
+      -0.5427760809_wp,  1.0855258398_wp, -0.5427760807_wp, &
+      -0.0033451749_wp, -0.5427760807_wp,  0.5461344165_wp], &
+      [nat, nat])
+   type(TMolecule) :: mol
+   real(wp) :: hessian(n3, n3), eig(n3), invmass(n3), work(3*n3)
+   integer :: i, j, info
+
+   call init(mol, sym, xyz)
+
+   hessian = 0.0_wp
+   do i = 1, nat
+      do j = 1, nat
+         hessian(ix(j), ix(i)) = bend(j, i)
+         hessian(iy(j), iy(i)) = bend(j, i)
+         hessian(iz(j), iz(i)) = stretch(j, i)
+      end do
+   end do
+   do i = 1, nat
+      invmass(3*i-2:3*i) = 1.0_wp/sqrt(mol%atmass(i))
+   end do
+   do i = 1, n3
+      do j = 1, n3
+         hessian(j, i) = hessian(j, i)*invmass(j)*invmass(i)
+      end do
+   end do
+
+   call projectHessian(hessian, mol, .true., .true., linear=.true.)
+   call dsyev('N', 'U', n3, hessian, n3, eig, work, size(work), info)
+
+   call check(error, info, 0)
+   if (allocated(error)) return
+   call check(error, count(abs(eig) < 1.0e-10_wp), 5)
+   call check(error, count(eig < -1.0e-6_wp), 2)
+end subroutine test_linear_projection
+
+subroutine test_fixed_projection(error)
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 3, n3 = 3*nat
+   character(len=*), parameter :: sym(nat) = ["H", "O", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      -1.50_wp, 0.00_wp, 0.00_wp, &
+       0.00_wp, 0.00_wp, 0.00_wp, &
+       0.50_wp, 1.40_wp, 0.00_wp], shape(xyz))
+   real(wp), parameter :: xyzLinear(3, nat) = reshape([ &
+       0.00_wp, 0.00_wp,  1.75_wp, &
+       0.00_wp, 0.00_wp,  0.00_wp, &
+       0.00_wp, 0.00_wp, -1.75_wp], shape(xyzLinear))
+   integer, parameter :: fixed(1) = [2]
+   type(TMolecule) :: mol, linearMol
+   real(wp) :: hessian(n3, n3), eig(n3), work(3*n3)
+   integer :: i, info
+
+   call init(mol, sym, xyz)
+
+   hessian = 0.0_wp
+   do i = 1, n3
+      hessian(i, i) = 1.0_wp
+   end do
+
+   call projectHessian(hessian, mol, .false., .true., &
+      & linear=.false., fixedAtoms=fixed)
+
+   call check(error, maxval(abs(hessian(4:6, :))), 0.0_wp, thr=1.0e-12_wp)
+   if (allocated(error)) return
+   call check(error, maxval(abs(hessian(:, 4:6))), 0.0_wp, thr=1.0e-12_wp)
+   if (allocated(error)) return
+
+   call dsyev('N', 'U', n3, hessian, n3, eig, work, size(work), info)
+   call check(error, info, 0)
+   if (allocated(error)) return
+   call check(error, count(abs(eig) < 1.0e-10_wp), 6)
+   if (allocated(error)) return
+   call check(error, count(abs(eig - 1.0_wp) < 1.0e-10_wp), 3)
+   if (allocated(error)) return
+
+   call init(linearMol, sym, xyzLinear)
+   hessian = 0.0_wp
+   do i = 1, n3
+      hessian(i, i) = 1.0_wp
+   end do
+
+   call projectHessian(hessian, linearMol, .false., .true., &
+      & linear=.true., fixedAtoms=fixed)
+   call dsyev('N', 'U', n3, hessian, n3, eig, work, size(work), info)
+   call check(error, info, 0)
+   if (allocated(error)) return
+   call check(error, count(abs(eig) < 1.0e-10_wp), 5)
+   if (allocated(error)) return
+   call check(error, count(abs(eig - 1.0_wp) < 1.0e-10_wp), 4)
+end subroutine test_fixed_projection
 
 end module test_hessian
