@@ -40,7 +40,7 @@ contains
 subroutine collect_hessian(testsuite)
    !> Collection of tests
    type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
+   
    testsuite = [ &
       new_unittest("gfn1", test_gfn1_hessian), &
       new_unittest("gfn2", test_gfn2_hessian) &
