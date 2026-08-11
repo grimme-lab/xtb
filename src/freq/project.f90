@@ -18,7 +18,8 @@
 !> Implementation of Hessian projections
 module xtb_freq_project
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas, only : mctc_syrk, mctc_nrm2, mctc_symm
+   use xtb_mctc_blas, only : mctc_syrk, mctc_symm
+   use xtb_mctc_la, only : blckmgs, syprj
    use xtb_mctc_math, only : eigvec3x3, crossProd
    use xtb_type_molecule, only : TMolecule
    implicit none
@@ -31,7 +32,7 @@ contains
 
 
 !> Project translations and rotations from the Hessian matrix
-subroutine projectHessian(hessian, mol, removeTrans, removeRot)
+subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, fixedAtoms)
 
    !> Mass weighted Hessian matrix
    real(wp), intent(inout) :: hessian(:,:)
@@ -45,21 +46,38 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot)
    !> Rotations should be projected, will be automatically disabled for PBC input
    logical, intent(in) :: removeRot
 
+   !> Molecular structure is linear and has only two rotational modes
+   logical, intent(in), optional :: linear
+
+   !> Atoms whose three Cartesian coordinates are fixed
+   integer, intent(in), optional :: fixedAtoms(:)
+
    real(wp), allocatable :: nullvec(:, :), projector(:, :), scratch(:, :)
    real(wp), parameter :: unity(3, 3) = reshape(&
       & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
       & [3, 3])
    real(wp) :: center(3), vec(3), r2, inertia(3,3), moments(3), molMass, axes(3,3)
-   integer :: ndim, nproj, ii, jj, iat, ic
+   integer :: ndim, nproj, nrot, nfixed, offset, rotOffset, linearAxis
+   integer :: ii, jj, iat, ic, ifixed
+   logical :: isLinear
 
    ndim = 3*mol%n
+
+   isLinear = .false.
+   if (present(linear)) isLinear = linear
+
+   nfixed = 0
+   if (present(fixedAtoms)) nfixed = size(fixedAtoms)
 
    nproj = 0
    if (removeTrans) then
       nproj = nproj + 3
    end if
+   nproj = nproj + 3*nfixed
+   nrot = 0
    if (removeRot .and. mol%npbc == 0) then
-      nproj = nproj + 3
+      nrot = merge(2, 3, isLinear)
+      nproj = nproj + nrot
    end if
 
    if (nproj == 0) then
@@ -92,6 +110,18 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot)
       end do
    end if
 
+   offset = merge(3, 0, removeTrans)
+   if (nfixed > 0) then
+      do ifixed = 1, nfixed
+         iat = fixedAtoms(ifixed)
+         ic = (iat - 1) * 3
+         do ii = 1, 3
+            nullvec(ic+ii, offset+3*(ifixed-1)+ii) = 1.0_wp
+         end do
+      end do
+      offset = offset + 3*nfixed
+   end if
+
    if (removeRot .and. mol%npbc == 0) then
       center(:) = 0.0_wp
       molMass = 0.0_wp
@@ -114,13 +144,18 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot)
       call eigvec3x3(inertia, moments, axes)
 
       ! axis to project with respect to
+      linearAxis = 0
+      if (isLinear) linearAxis = minloc(moments, dim=1)
+      rotOffset = offset
       do ii = 1, 3
-         if (moments(ii) < epsilon(0.0_wp)) cycle
+         if (ii == linearAxis) cycle
+         if (.not.isLinear .and. moments(ii) < epsilon(0.0_wp)) cycle
+         rotOffset = rotOffset + 1
          do iat = 1, mol%n
             ic = (iat - 1) * 3
             vec(:) = mol%xyz(:,iat) - center
             vec(:) = crossProd(axes(:, ii), vec)
-            nullvec(ic+1:ic+3, nproj-ii+1) = vec
+            nullvec(ic+1:ic+3, rotOffset) = vec
          end do
       end do
    end if
@@ -131,12 +166,10 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot)
       nullvec(ic+1:ic+3, :) = nullvec(ic+1:ic+3, :) * sqrt(mol%atmass(iat))
    end do
 
-   ! renormalise
-   do ii = 1, nproj
-      if (sum(nullvec(:,ii)**2) > epsilon(1.0_wp)) then
-         nullvec(:,ii) = nullvec(:,ii) / mctc_nrm2(nullvec(:, ii))
-      end if
-   end do
+   ! Fixed Cartesian directions overlap with rotational vectors. Build an
+   ! orthonormal basis for their combined span; dependent vectors (including
+   ! rotation about a linear molecular axis) are set to zero.
+   call blckmgs(ndim, nproj, ndim, nullvec)
 
    call mctc_syrk(nullvec, projector, alpha=-1.0_wp, beta=1.0_wp)
 
@@ -232,8 +265,6 @@ subroutine gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
    !   hess    = projected hessian
    !----------------------------------------------------------------------
    use xtb_fixparam
-   use xtb_mctc_la, only : blckmgs,syprj
-
    implicit none
 
    ! Input
