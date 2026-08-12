@@ -33,7 +33,7 @@ module xtb_gfnff_ini2
 contains
 
 subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
-                      & mchar,hyb,itag,param,topo,mol,neigh,nb_call)
+                      & mchar,hyb,itag,param,topo,mol,neigh,nb_call,print_setup)
       use xtb_gfnff_param
       implicit none
       character(len=*), parameter :: source = 'gfnff_ini2_neigh'
@@ -43,6 +43,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       type(TMolecule), intent(in) :: mol
       type(TNeigh), intent(inout) :: neigh ! contains nb, nbf and nbm
       logical, intent(in) :: makeneighbor, nb_call
+      logical, intent(in), optional :: print_setup
       integer, intent(in) :: natoms
       integer at(natoms)
       integer hyb (natoms)
@@ -55,6 +56,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       real*8  lintr                    ! threshold for linearity
 
       logical etacoord,da,strange_iat,metal_iat
+      logical :: do_print
       integer,allocatable :: nbdum(:,:,:), nbdum2(:,:), locarr(:,:)
       real*8 ,allocatable :: cn(:),rtmp(:)
       integer iat,i,j,k,ni,ii,jj,kk,ll,lin,ati,nb20i,nbdiff,hc_crit,nbmdiff,nnf,nni,nh,nm
@@ -62,6 +64,9 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       real*8 r,pi,a1,f,f1,phi,f2,rco,fat(103)
       data pi/3.1415926535897932384626433832795029d0/
       data fat   / 103 * 1.0d0 /
+
+      do_print = .true.
+      if (present(print_setup)) do_print = print_setup
 
 !     special hacks
       fat( 1)=1.02
@@ -133,9 +138,9 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 ! tag atoms in nb(19,i) if they belong to a cluster (which avoids the ring search)
       do i=1,natoms
          if(sum(neigh%nbf(neigh%numnb,i,:)).eq.0.and.param%group(at(i)).ne.8)then
-            write(env%unit,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
-            write(env%unit,'(''  warning: no bond partners for atom'',i4)')i
-            write(env%unit,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
+            if (do_print) write(env%unit,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
+            if (do_print) write(env%unit,'(''  warning: no bond partners for atom'',i4)')i
+            if (do_print) write(env%unit,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
          endif
          if(at(i).lt.11.and.sum(neigh%nbf(neigh%numnb,i,:)).gt.2)then
            do iTr=1, numctr 
