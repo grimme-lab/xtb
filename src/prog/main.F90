@@ -671,6 +671,7 @@ contains
 
       call env%checkpoint("Setup for calculation failed")
 
+      exist = .false.
       select type (calc)
       type is (TxTBCalculator)
          if (restart .and. calc%xtbData%level /= 0) then ! only in first run
@@ -723,6 +724,10 @@ contains
       select type (calc)
       type is (TGFFCalculator)
          gff_print = .false.
+      type is (TxTBCalculator)
+         if (restart) call writeRestart(env, chk%wfn, 'xtbrestart', set%gfn_method)
+      type is (TTBLiteCalculator)
+         if (restart) call dumpRestart(env, chk, 'xtbrestart')
       end select
       call env%checkpoint("Single point calculation terminated")
 
@@ -1238,18 +1243,6 @@ contains
          call mdopt(env, mol, chk, calc, egap, set%etemp, set%maxscciter, etot, g, sigma)
          call stop_timing(10)
       end if
-
-      ! ------------------------------------------------------------------------
-      !  to further speed up xtb calculations we dump our most important
-      !  quantities in a restart file, so we can save some precious seconds
-      select type (calc)
-      type is (TxTBCalculator)
-         if (restart) then
-            call writeRestart(env, chk%wfn, 'xtbrestart', set%gfn_method)
-         end if
-      type is (TTBLiteCalculator)
-         if (restart) call dumpRestart(env, chk, 'xtbrestart')
-      end select
 
       ! ------------------------------------------------------------------------
       !  we may have generated some non-fatal errors, which have been saved,
