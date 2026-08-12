@@ -1527,7 +1527,8 @@ subroutine set_gfn(env,key,val)
    case('version','method')
       if (key.eq.'version') &
          call env%warning("Don't use the 'version' key, since it is confusing",source)
-      if(val.eq.'ff') then
+      if (lowercase(trim(val)) == 'ff') then
+         if (set1) call set_exttyp('ff')
          set1=.false.
          return
       endif
