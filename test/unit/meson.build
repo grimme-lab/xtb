@@ -93,6 +93,11 @@ test('Argparser print version', xtb_exe, args: '--version', env: xtbenv)
 test('Argparser print help', xtb_exe, args: '--help', env: xtbenv)
 test('Argparser print license', xtb_exe, args: '--license', env: xtbenv)
 test('Argparser no arguments', xtb_exe, should_fail: true, env: xtbenv)
+test('Single atom optimization', xtb_exe, args: [
+  files('../../assets/inputs/xyz/lithium.xyz'),
+  '--chrg', '1', '--uhf', '0', '--opt', '--strict', '--norestart',
+  '--namespace', 'single_atom_opt',
+], env: xtbenv)
 if host_machine.system() != 'windows'
   test('Info', xtb_exe, env: xtbenv, args: [
     'info',
