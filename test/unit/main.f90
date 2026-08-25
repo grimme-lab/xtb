@@ -36,6 +36,7 @@ program tester
    use test_latticepoint, only : collect_latticepoint
    use test_molecule, only : collect_molecule
    use test_oniom, only : collect_oniom
+   use test_optimizer, only : collect_optimizer
    use test_dipro, only : collect_dipro
    use test_pbc_tools, only : collect_pbc_tools
    use test_peeq, only : collect_peeq
@@ -76,6 +77,7 @@ program tester
       new_testsuite("latticepoint", collect_latticepoint), &
       new_testsuite("molecule", collect_molecule), &
       new_testsuite("oniom", collect_oniom), &
+      new_testsuite("optimizer", collect_optimizer), &
       new_testsuite("dipro", collect_dipro), &
       new_testsuite("pbc-tools", collect_pbc_tools), &
       new_testsuite("peeq", collect_peeq), &
@@ -256,4 +258,3 @@ subroutine clear_error(error)
 end subroutine clear_error
 
 end program tester
-

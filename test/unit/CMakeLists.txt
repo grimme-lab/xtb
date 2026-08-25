@@ -38,6 +38,7 @@ set(
   "latticepoint"
   "molecule"
   "oniom"
+  "optimizer"
   "dipro"
   "pbc-tools"
   "peeq"

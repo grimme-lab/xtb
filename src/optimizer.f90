@@ -306,6 +306,11 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    logical, parameter :: debug(2) = [.false.,.false.]
    character(len=9):: hessfmt
 
+   ! initialize outputs before the single-atom early return
+   iter = 0
+   fail = .false.
+   if (present(iter_needed)) iter_needed = iter
+
    ! print ANCopt header !
    call ancopt_header(env%unit,set%veryverbose)
    
@@ -316,8 +321,6 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    if (profile) call timer%measure(1,'optimizer setup')
    
    ! defaults !
-   iter = 0
-   fail  = .false.
    modef = 0
    iupdat= 0 
    hmax  = 5.0_wp
