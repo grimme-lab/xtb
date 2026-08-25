@@ -111,6 +111,11 @@ set(XTB-EXE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}")
 add_test("xtb/Argparser_print_version" ${XTB-EXE} --version)
 add_test("xtb/Argparser_print_help" ${XTB-EXE} --help)
 add_test("xtb/Argparser_print_license" ${XTB-EXE} --license)
+add_test("xtb/Single_atom_optimization" ${XTB-EXE}
+  "${PROJECT_SOURCE_DIR}/assets/inputs/xyz/lithium.xyz"
+  --chrg 1 --uhf 0 --opt --strict --norestart
+  --namespace single_atom_opt
+)
 add_test("xtb/Info" ${XTB-EXE} info
   "${PROJECT_SOURCE_DIR}/assets/inputs/coord/caffeine.coord"
   "${PROJECT_SOURCE_DIR}/assets/inputs/coord/quartz.3d.coord"
@@ -125,6 +130,7 @@ add_test("xtb/GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --n
 add_test("xtb/GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
 
 set_tests_properties(
+  "xtb/Single_atom_optimization"
   "xtb/Singlepoint"
   "xtb/GFN0-xTB"
   "xtb/IP/EA"
