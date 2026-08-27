@@ -55,12 +55,12 @@ contains
       !> Temporary overlap matrix as a result of the diagonalization
       real(wp), allocatable :: tmps(:, :)
       !> Temporary overlap matrix for the matrix multiplication
-      real(wp) :: tmp2s(bas%nao, bas%nao)
+      real(wp), allocatable :: tmp2s(:, :)
 
       !> debug mode
       logical, parameter :: debug(2) = [ .false., .false. ]
 
-      allocate (tmps(bas%nao, bas%nao), seig(bas%nao), &
+      allocate (tmps(bas%nao, bas%nao), tmp2s(bas%nao, bas%nao), seig(bas%nao), &
       & seig1(bas%nao), seig2(bas%nao))
       tmps = overlap
 
