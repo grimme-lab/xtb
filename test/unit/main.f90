@@ -20,6 +20,7 @@ program tester
    use testdrive, only : new_testsuite, testsuite_type, select_suite, run_selected, &
       & get_argument, unittest_type, collect_interface, error_type
    use test_atomlist, only : collect_atomlist
+   use test_bmatrix, only : collect_bmatrix
    use test_coordinationnumber, only : collect_coordinationnumber
    use test_coulomb, only : collect_coulomb
    use test_dftd3, only : collect_dftd3
@@ -35,6 +36,7 @@ program tester
    use test_iff, only : collect_iff
    use test_latticepoint, only : collect_latticepoint
    use test_molecule, only : collect_molecule
+   use test_model_hessian, only : collect_model_hessian
    use test_oniom, only : collect_oniom
    use test_dipro, only : collect_dipro
    use test_pbc_tools, only : collect_pbc_tools
@@ -60,6 +62,7 @@ program tester
 
    testsuites = [ &
       new_testsuite("atomlist", collect_atomlist), &
+      new_testsuite("bmatrix", collect_bmatrix), &
       new_testsuite("coordinationnumber", collect_coordinationnumber), &
       new_testsuite("coulomb", collect_coulomb), &
       new_testsuite("dftd3", collect_dftd3), &
@@ -75,6 +78,7 @@ program tester
       new_testsuite("iff", collect_iff), &
       new_testsuite("latticepoint", collect_latticepoint), &
       new_testsuite("molecule", collect_molecule), &
+      new_testsuite("model-hessian", collect_model_hessian), &
       new_testsuite("oniom", collect_oniom), &
       new_testsuite("dipro", collect_dipro), &
       new_testsuite("pbc-tools", collect_pbc_tools), &

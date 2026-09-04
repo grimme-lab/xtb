@@ -100,6 +100,9 @@ module xtb_type_molecule
       !> Coordination number
       real(wp),allocatable :: cn(:)
 
+      !> Linear molecule flag; recomputed by mol%update from unit-mass inertia.
+      logical :: linear = .false.
+
       !> Cell parameters
       real(wp) :: cellpar(6) = 0.0_wp
 
@@ -505,6 +508,7 @@ end subroutine deallocate_molecule
 subroutine update(self)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
+   use xtb_axis, only : is_linear
 
    implicit none
    class(TMolecule),intent(inout) :: self  
@@ -520,6 +524,8 @@ subroutine update(self)
    endif
    
    call self%calculate_distances
+
+   self%linear = is_linear(self%xyz)
 
 end subroutine update
 

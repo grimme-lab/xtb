@@ -708,7 +708,7 @@ contains
    end subroutine singlepoint
 
 !> Evaluate hessian by finite difference for all atoms
-   subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
+   subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, odlr, final_err)
       character(len=*), parameter :: source = "extern_turbomole_hessian"
       !> Single point calculator
       class(TOrcaCalculator), intent(inout) :: self
@@ -728,6 +728,10 @@ contains
       real(wp), intent(inout) :: dipgrad(:, :)
       !> Array to add polarizability gradient to
       real(wp), intent(inout), optional :: polgrad(:, :)
+      !> Use ODLR approximated numerical hessian
+      logical, intent(in), optional :: odlr
+      !> Final residual error (ODLR only)
+      real(wp), intent(out), optional :: final_err
 
       integer :: i, j, err
       integer :: iorca ! file handle
@@ -735,6 +739,13 @@ contains
       character(len=:), allocatable :: line
       character(len=:), allocatable :: outfile
 !$    integer, external :: omp_get_num_threads
+
+      if (present(odlr)) then
+         if (odlr) then
+            call env%error("ORCA calculator does not support ODLR hessian", source)
+            return
+         end if
+      end if
 
       !$omp critical (orca_lock)
       if (self%ext%exist) then

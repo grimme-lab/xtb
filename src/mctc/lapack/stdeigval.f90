@@ -176,7 +176,7 @@ module xtb_mctc_lapack_stdeigval
          integer, intent(in) :: ldz
          real(sp), intent(inout) :: work(*)
          integer, intent(in) :: lwork
-         integer, intent(in) :: iwork(*)
+         integer, intent(out) :: iwork(*)
       end subroutine ssyevx
       pure subroutine dsyevx(jobz, range, uplo, n, a, lda, vl, vu, il, iu, &
             & abstol, m, w, z, ldz, work, lwork, iwork, ifail, info)
@@ -200,7 +200,7 @@ module xtb_mctc_lapack_stdeigval
          integer, intent(in) :: ldz
          real(dp), intent(inout) :: work(*)
          integer, intent(in) :: lwork
-         integer, intent(in) :: iwork(*)
+         integer, intent(out) :: iwork(*)
       end subroutine dsyevx
    end interface lapack_syevx
 

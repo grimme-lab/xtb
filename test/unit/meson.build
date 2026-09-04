@@ -33,6 +33,7 @@ endif
 
 tests = [
   'atomlist',
+  'bmatrix',
   'coordinationnumber',
   'coulomb',
   'dftd3',
@@ -48,6 +49,7 @@ tests = [
   'iff',
   'latticepoint',
   'molecule',
+  'model-hessian',
   'oniom',
   'dipro',
   'pbc-tools',

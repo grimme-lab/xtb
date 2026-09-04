@@ -751,21 +751,20 @@ module xtb_propertyoutput
       write (iunit, '(6(i5,'':'',f10.2))') (i, res%dipt(i), i=1, res%n3)
       write (iunit, '(1x,a)') 'Raman intensities (Ä⁴*amu⁻¹)'
       write (iunit, '(6(i5,'':'',f10.2))') (i, res%polt(i), i=1, res%n3)
-
       call open_file(ifile, 'vibspectrum', 'w')
       if (set%elprop == p_elprop_alpha) then
          call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt,&
-                                           set%ptbsetup%raman_temp, set%ptbsetup%raman_lambda)
+         set%ptbsetup%raman_temp, set%ptbsetup%raman_lambda)
       else
          call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt)
       end if
       call close_file(ifile)
-
       write (iunit, '(1x,a)') 'output can be read by thermo (or use thermo option).'
       write (iunit, '(1x,a)') 'writing <g98.out> molden fake output.'
       write (iunit, '(1x,a)') &
-         & 'recommended (thermochemical) frequency scaling factor: 1.0'
+      & 'recommended (thermochemical) frequency scaling factor: 1.0'
       call g98fake2('g98.out', mol%n, mol%at, mol%xyz, res%freq, res%rmass, res%dipt, res%hess)
+
 
       if (set%pr_nmtm) then
          call open_file(ifile, "vib_normal_modes", 'w')
@@ -1270,7 +1269,7 @@ module xtb_propertyoutput
       use xtb_mctc_convert
       use xtb_readin
       use xtb_setparam
-      use xtb_axis, only: axis2
+      use xtb_axis, only: axis2, is_linear
       use xtb_thermo
       implicit none
       integer, intent(in) :: iunit
@@ -1330,8 +1329,9 @@ module xtb_propertyoutput
 
    call axis2(nat,xyz,aa,bb,cc,avmom,wt)
 
+      linear = is_linear(xyz)
+
       nvib_theo = 3 * nat - 6
-      if (cc < 1.d-10) linear = .true.
       if (linear) nvib_theo = 3 * nat - 5
 
       if (aa + bb + cc < 1.d-6) then

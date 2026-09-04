@@ -486,7 +486,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 end subroutine singlepoint
 
 !> Evaluate hessian by finite difference for all atoms
-subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
+subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, odlr, final_err)
 
    character(len=*), parameter :: source = "extern_oniom_hessian"
    
@@ -515,6 +515,10 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
    real(wp), intent(inout) :: dipgrad(:, :)
    !> Array to add polarizability gradient to
    real(wp), intent(inout), optional :: polgrad(:, :)
+   !> Use ODLR approximated numerical hessian
+   logical, intent(in), optional :: odlr
+   !> Final residual error (ODLR only)
+   real(wp), intent(out), optional :: final_err
 
    real(wp), allocatable :: jacobian(:,:)
    integer,allocatable :: idx2(:)

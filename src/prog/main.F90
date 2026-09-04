@@ -172,6 +172,8 @@ contains
 !! ------------------------------------------------------------------------
       logical :: struc_conversion_done = .false.
       logical :: anyopt, anyhess
+      ! logical for checking whether ODLR approximation can be used
+      logical :: odlr_valid
 
 !! ========================================================================
 !  debugging variables for numerical gradient
@@ -240,7 +242,13 @@ contains
       ! If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
       anyhess = (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)
       if (anyhess) then
-         if(set%mode_extrun == p_ext_ptb) then
+         ! O1NumHess only supports Hessian calculation, nothing else
+         odlr_valid = freezeset%n == 0 .and. set%mode_extrun /= p_ext_ptb
+         if (set%o1numhess) then
+            if (.not. odlr_valid) then
+               call env%error("O1NumHess does not support frozen atoms/PTB", source)
+            end if
+         else if(set%mode_extrun == p_ext_ptb) then
             set%mode_extrun = p_ext_xtb
             set%ptbsetup%ptb_in_hessian = .true.
             call set_gfn(env, 'method', '2')
@@ -414,6 +422,11 @@ contains
          call env%checkpoint("reading geometry input '"//fname//"' failed")
       end if
 
+      if (mol%n == 1 .and. set%o1numhess) then
+         call env%warning("O1NumHess not supported for single atoms. Using default semi-numerical Hessian.", source)
+         set%o1numhess = .false.
+      end if
+
       ! ------------------------------------------------------------------------
       ! initialize the global storage
       call init_fix(mol%n)
@@ -540,7 +553,8 @@ contains
          call env%terminate("Some atoms in the start geometry are *very* close")
       end if
 
-      ! check if someone is still using GFN3...
+      !> check if someone is still using GFN3...
+      ! TODO: this is probably a bit outdated now
       if (set%gfn_method == 3) then
          call env%terminate('Wait for some months - for now, please use gfn_method=2!')
       end if
@@ -1952,6 +1966,25 @@ contains
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
+            end if
+
+         case ('--o1nh')
+            set%o1numhess = .true.
+
+         case ('--imagmin')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_hess(env, 'imagmin', '-'//sec)
+            else
+               call env%error("Imaginary significance floor is missing", source)
+            end if
+
+         case ('--imagmax')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_hess(env, 'imagmax', '-'//sec)
+            else
+               call env%error("Imaginary repair cutoff is missing", source)
             end if
 
          case ('--omd')

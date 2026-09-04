@@ -30,7 +30,8 @@ module xtb_api_results
    public :: newResults_api, delResults_api, getEnergy_api, getGradient_api, &
       & getPCGradient_api, getVirial_api, getDipole_api, getCharges_api, &
       & getBondOrders_api, getNao_api, getOrbitalEigenvalues_api, &
-      & getOrbitalOccupations_api, getOrbitalCoefficients_api, copyResults_api
+      & getOrbitalOccupations_api, getOrbitalCoefficients_api, copyResults_api, &
+      & getSolvationEnergy_api
 
 
    !> Void pointer to wavefunction and result objects
