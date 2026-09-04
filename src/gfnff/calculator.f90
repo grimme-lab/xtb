@@ -82,7 +82,7 @@ module xtb_gfnff_calculator
 contains
 
 
-subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
+subroutine newGFFCalculator(env, mol, calc, fname, restart, version, printlevel)
    
    use xtb_gfnff_param
    use xtb_gfnff_setup, only : gfnff_setup
@@ -101,10 +101,12 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    logical, intent(in) :: restart
 
    integer, intent(in), optional :: version
+   integer, intent(in), optional :: printlevel
 
    integer :: ich
    logical :: exist, okbas
    logical :: exitRun
+   logical :: print_setup
 
    if (present(version)) then
       calc%version = version
@@ -139,8 +141,12 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
 
    call newD3Model(calc%topo%dispm, mol%n, mol%at)
 
+   print_setup = .true.
+   if (present(printlevel)) print_setup = printlevel > 0
+
    call gfnff_setup(env, set%verbose, restart, mol, &
-      & calc%gen, calc%param, calc%topo, calc%neigh, calc%accuracy, set%efield, calc%version)
+      & calc%gen, calc%param, calc%topo, calc%neigh, calc%accuracy, set%efield, calc%version, &
+      & print_setup=print_setup)
 
    call env%check(exitRun)
    if (exitRun) then
