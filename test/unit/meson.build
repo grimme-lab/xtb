@@ -95,6 +95,10 @@ test('Argparser print version', xtb_exe, args: '--version', env: xtbenv)
 test('Argparser print help', xtb_exe, args: '--help', env: xtbenv)
 test('Argparser print license', xtb_exe, args: '--license', env: xtbenv)
 test('Argparser no arguments', xtb_exe, should_fail: true, env: xtbenv)
+test('GFN2-FF xcontrol', xtb_exe, env: xtbenv, args: [
+  '--coffee', '--strict', '--norestart', '--namespace', 'test7',
+  '--input', files('../inputs/gfnff.inp'),
+])
 if host_machine.system() != 'windows'
   test('Info', xtb_exe, env: xtbenv, args: [
     'info',

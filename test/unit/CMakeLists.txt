@@ -125,6 +125,8 @@ add_test("xtb/GFN0-xTB" ${XTB-EXE} --coffee --gfn 0 --strict --norestart --names
 add_test("xtb/GFN1-xTB" ${XTB-EXE} --coffee --gfn 1 --strict --norestart --namespace test4)
 add_test("xtb/GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --norestart --namespace test5)
 add_test("xtb/GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
+add_test("xtb/GFN2-FF/xcontrol" ${XTB-EXE} --coffee --strict --norestart --namespace test7
+  --input "${PROJECT_SOURCE_DIR}/test/inputs/gfnff.inp")
 
 set_tests_properties(
   "xtb/Singlepoint"
@@ -133,6 +135,7 @@ set_tests_properties(
   "xtb/GFN1-xTB"
   "xtb/GFN2-xTB/GBSA"
   "xtb/GFN2-FF"
+  "xtb/GFN2-FF/xcontrol"
   PROPERTIES
   ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
 )
