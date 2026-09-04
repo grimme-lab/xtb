@@ -33,6 +33,57 @@ project(
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 
+# ---------------------------------------------------------------------------
+# GPU acceleration (NVIDIA HPC SDK / nvfortran only).
+# Mirrors the meson options `gpu`, `gpu_arch`, `cusolver`. Disabled by default;
+# the CPU build is unaffected. Requires the compiler to be NVHPC (nvfortran).
+# Enable with: cmake -DWITH_GPU=ON -DGPU_ARCH=80 -DWITH_CUSOLVER=ON ...
+# ---------------------------------------------------------------------------
+option(WITH_GPU "Enable GPU acceleration (requires NVIDIA HPC SDK / nvfortran)" FALSE)
+set(GPU_ARCH "70" CACHE STRING "Target NVIDIA GPU compute capability (e.g. 70, 80, 90)")
+option(WITH_CUSOLVER "Use cuSOLVER/cuBLAS for (batched) eigensolver routines" FALSE)
+option(WITH_GPU_SHIM
+   "Enable the CUDA C++ cuSolver/cuBLAS shim with the normal Fortran compiler"
+   FALSE)
+
+if(WITH_GPU)
+   if(NOT CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
+      message(FATAL_ERROR
+         "WITH_GPU requires the NVIDIA HPC SDK Fortran compiler (nvfortran). "
+         "Detected Fortran compiler: ${CMAKE_Fortran_COMPILER_ID}. "
+         "Configure with: FC=nvfortran cmake -DWITH_GPU=ON ...")
+   endif()
+   message(STATUS "xtb: GPU acceleration ENABLED (cc${GPU_ARCH}); cuSOLVER=${WITH_CUSOLVER}")
+
+   # OpenACC offload + target architecture. Scope flags to Fortran so the C
+   # sources (symmetry/) are not affected.
+   add_compile_options(
+      "$<$<COMPILE_LANGUAGE:Fortran>:-acc>"
+      "$<$<COMPILE_LANGUAGE:Fortran>:-gpu=cc${GPU_ARCH}>"
+      "$<$<COMPILE_LANGUAGE:Fortran>:-Minfo=accel>"
+   )
+   add_link_options(-acc "-gpu=cc${GPU_ARCH}")
+   add_compile_definitions("$<$<COMPILE_LANGUAGE:Fortran>:XTB_GPU>")
+
+   if(WITH_CUSOLVER)
+      add_compile_options("$<$<COMPILE_LANGUAGE:Fortran>:-cudalib=cusolver,cublas>")
+      add_link_options(-cudalib=cusolver,cublas)
+      add_compile_definitions(
+         "$<$<COMPILE_LANGUAGE:Fortran>:USE_CUSOLVER>"
+         "$<$<COMPILE_LANGUAGE:Fortran>:USE_CUBLAS>"
+      )
+   endif()
+endif()
+
+# CUDA C++ shim used by the gfortran build.  This is the supported path for
+# modern xTB dependency trees that cannot be compiled by nvfortran.
+if(WITH_GPU_SHIM)
+   enable_language(CUDA)
+   find_package(CUDAToolkit REQUIRED)
+   add_compile_definitions(WITH_GPU_SHIM)
+   message(STATUS "xtb: CUDA C++ GPU shim ENABLED")
+endif()
+
 
 # Include CMake specific configurations
 add_subdirectory("cmake")
@@ -82,6 +133,25 @@ if(NOT TARGET "OpenMP::OpenMP_Fortran" AND WITH_OpenMP)
 endif()
 find_package("LAPACK" REQUIRED)
 find_package("BLAS" REQUIRED)
+
+if(WITH_GPU_SHIM)
+   add_library("${PROJECT_NAME}-gpu-shim" STATIC "src/gpu/gpu_eig.cu")
+   set_target_properties(
+      "${PROJECT_NAME}-gpu-shim"
+      PROPERTIES
+      CUDA_STANDARD 14
+      CUDA_STANDARD_REQUIRED ON
+      CUDA_ARCHITECTURES "${GPU_ARCH}"
+      POSITION_INDEPENDENT_CODE ON
+   )
+   target_link_libraries(
+      "${PROJECT_NAME}-gpu-shim"
+      PUBLIC
+      CUDA::cusolver
+      CUDA::cublas
+      CUDA::cudart
+   )
+endif()
 
 
 if(NOT EXISTS "${PROJECT_BINARY_DIR}/include")
@@ -159,6 +229,7 @@ target_link_libraries(
    "mctc-lib::mctc-lib"
    "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
    $<$<BOOL:${WITH_TBLITE}>:tblite::tblite>
+   "$<$<BOOL:${WITH_GPU_SHIM}>:${PROJECT_NAME}-gpu-shim>"
 )
 
 set_target_properties(
@@ -199,6 +270,7 @@ if (WITH_OBJECT)
       "mctc-lib::mctc-lib"
       "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
       "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
+      "$<$<BOOL:${WITH_GPU_SHIM}>:${PROJECT_NAME}-gpu-shim>"
    )
 
    set_target_properties(
@@ -249,6 +321,26 @@ target_include_directories(
    ${PROJECT_SOURCE_DIR}/include
    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
+
+if(WITH_GPU_SHIM)
+   find_package(Python3 COMPONENTS Interpreter REQUIRED)
+   add_test(
+      NAME "gfn1-gfn2-gpu-sp-grad-opt"
+      COMMAND
+      "${Python3_EXECUTABLE}"
+      "${PROJECT_SOURCE_DIR}/test/gpu/gfn12_gpu_gate.py"
+      --cpu "$<TARGET_FILE:${PROJECT_NAME}-exe>"
+      --gpu "$<TARGET_FILE:${PROJECT_NAME}-exe>"
+      --fixture "${PROJECT_SOURCE_DIR}/test/gpu/water.xyz"
+   )
+   set_tests_properties(
+      "gfn1-gfn2-gpu-sp-grad-opt"
+      PROPERTIES
+      ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR};OMP_NUM_THREADS=1"
+      TIMEOUT 300
+      LABELS "gpu"
+   )
+endif()
 
 ######################
 # Installation rules #

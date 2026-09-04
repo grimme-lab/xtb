@@ -31,6 +31,7 @@ module xtb_prog_main
    use xtb_type_data
    use xtb_type_environment, only: TEnvironment, init
    use xtb_prog_argparser
+   use xtb_gpu_batch, only: gpu_batch, run_gpu_batch, gpu_use
    use xtb_solv_state
    use xtb_setparam
    use xtb_sphereparam
@@ -263,6 +264,31 @@ contains
       endif 
 
       nFiles = argParser%countFiles()
+
+      ! GPU-BATCH: when --gpu-batch is given, process *all* input structures in
+      ! a single process via the high-throughput batch driver, then exit. The
+      ! GFN method is taken from the global settings (combine with --gfn 0|1|2).
+      if (gpu_batch) then
+         block
+            integer, parameter :: pathlen = 512
+            character(len=pathlen), allocatable :: batchFiles(:)
+            character(len=:), allocatable :: bf
+            integer :: ib
+            allocate(batchFiles(nFiles))
+            batchFiles = ''
+            do ib = 1, nFiles
+               call argParser%nextFile(bf)
+               if (allocated(bf)) then
+                  if (len_trim(bf) > pathlen) &
+                     & call env%warning("path longer than 512 chars truncated in --gpu-batch", source)
+                  batchFiles(ib) = bf
+               end if
+            end do
+            call run_gpu_batch(env, batchFiles)
+         end block
+         call terminate(0)
+      end if
+
       select case (nFiles)
       case (0)
          if (.not. coffee) then
@@ -1420,6 +1446,18 @@ contains
 
          case ('--norestart')
             restart = .false.
+
+         case ('--gpu-batch')
+            ! High-throughput multi-structure mode: every input file is run in
+            ! one process by the GPU batch driver (see xtb_gpu_batch). Method is
+            ! taken from --gfn; e.g. `xtb --gfn 0 --gpu-batch a.xyz b.xyz ...`.
+            gpu_batch = .true.
+
+         case ('--gpu')
+            ! Route supported electronic-structure kernels to the CUDA shim.
+            ! This is independent of --gpu-batch so regular single-points,
+            ! gradients and geometry optimizations can use the GPU too.
+            gpu_use = .true.
 
          case ('--copy')
             copycontrol = .true.
