@@ -1245,6 +1245,18 @@ contains
       end if
 
       ! ------------------------------------------------------------------------
+      !  to further speed up xtb calculations we dump our most important
+      !  quantities in a restart file, so we can save some precious seconds
+      select type (calc)
+      type is (TxTBCalculator)
+         if (restart) then
+            call writeRestart(env, chk%wfn, 'xtbrestart', set%gfn_method)
+         end if
+      type is (TTBLiteCalculator)
+         if (restart) call dumpRestart(env, chk, 'xtbrestart')
+      end select
+
+      ! ------------------------------------------------------------------------
       !  we may have generated some non-fatal errors, which have been saved,
       !  so we should tell the user, (s)he may want to know what went wrong
       call env%show("Runtime exception occurred")
