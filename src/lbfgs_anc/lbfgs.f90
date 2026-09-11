@@ -28,6 +28,7 @@ module xtb_pbc_optimizer_lbfgs
 
    type :: lbfgs_input
       integer :: memory = 20
+      real(wp) :: max_displacement = 1.0_wp
    end type lbfgs_input
                                                    
   type, abstract :: optimizer_type                  
@@ -43,7 +44,7 @@ module xtb_pbc_optimizer_lbfgs
         real(wp), intent(in) :: gcurr(:)            
         real(wp), intent(in) :: glast(:)            
         integer, intent(in) :: tot_step
-        real(wp), intent(out) :: displ(:)     
+        real(wp), intent(inout) :: displ(:)
      end subroutine step_i                           
   end interface                                     
 
@@ -52,10 +53,12 @@ module xtb_pbc_optimizer_lbfgs
       integer :: iter
       integer :: nvar
       integer :: memory
+      real(wp) :: max_displacement
       real(wp), allocatable :: hdiag(:)
       real(wp), allocatable :: s(:, :)
       real(wp), allocatable :: y(:, :)
       real(wp), allocatable :: rho(:)
+      logical, allocatable :: valid(:)
    contains
       procedure :: step
    end type lbfgs_optimizer
@@ -77,9 +80,11 @@ subroutine new_lbfgs_optimizer(self, env, input, filter)
    self%iter = 0
    self%nvar = filter%get_dimension()
    self%memory = input%memory
+   self%max_displacement = input%max_displacement
    allocate(self%s(self%nvar, input%memory), source=0.0_wp)
    allocate(self%y(self%nvar, input%memory), source=0.0_wp)
    allocate(self%rho(input%memory), source=0.0_wp)
+   allocate(self%valid(input%memory), source=.false.)
    allocate(self%hdiag(self%nvar), source=1.0_wp)
 
 end subroutine new_lbfgs_optimizer
@@ -87,7 +92,8 @@ end subroutine new_lbfgs_optimizer
 
 !> updates displacement using the formula given by Nocedal, generally known
 !> as limited memory BFGS algorithm
-subroutine lbfgs_step(iter, memory, nvar, gradient, glast, displacement, hdiag, s, y, rho, tot_step)
+subroutine lbfgs_step(iter, memory, nvar, gradient, glast, displacement, &
+      & hdiag, s, y, rho, valid, max_displacement, tot_step)
    !> Current iteration step
    integer, intent(in) :: iter
    !> Memory limit for the LBFGS update
@@ -110,11 +116,15 @@ subroutine lbfgs_step(iter, memory, nvar, gradient, glast, displacement, hdiag, 
    real(wp), intent(inout) :: y(:, :)
    !> LBFGS scratch array of dot products between s and y
    real(wp), intent(inout) :: rho(:)
+   !> Whether a history slot contains a positive-curvature update
+   logical, intent(inout) :: valid(:)
+   !> Maximum norm of the proposed displacement
+   real(wp), intent(in) :: max_displacement
 
    real(wp), allocatable :: d(:), q(:), a(:)
-   real(wp) :: b
+   real(wp) :: b, curvature_tol, displacement_norm
 
-   integer :: thisiter, lastiter, mem
+   integer :: thisiter, mem
    integer :: i
    real(wp) :: f_damp
 
@@ -125,36 +135,39 @@ subroutine lbfgs_step(iter, memory, nvar, gradient, glast, displacement, hdiag, 
    y(:, thisiter) = gradient - glast
 
    b = mctc_dot(s(:, thisiter), y(:, thisiter))
-
-   rho(thisiter) = 1.0_wp / max(abs(b), epsilon(1.0_wp))
+   curvature_tol = sqrt(epsilon(1.0_wp)) * norm2(s(:, thisiter)) * &
+      & norm2(y(:, thisiter))
+   valid(thisiter) = b > curvature_tol
+   if (valid(thisiter)) then
+      rho(thisiter) = 1.0_wp / b
+   else
+      rho(thisiter) = 0.0_wp
+   end if
 
    q = gradient
    do mem = iter, max(1, iter-memory+1), -1
       i = mod(mem-1, memory)+1
+      if (.not.valid(i)) cycle
       a(i) = rho(i) * mctc_dot(s(:, i), q)
       q = q - a(i) * y(:, i)
    enddo
 
    d = hdiag * q
-if(iter.le.memory) then
-   do mem = max(1, iter-memory), iter
+   do mem = max(1, iter-memory+1), iter
       i = mod(mem-1, memory)+1
+      if (.not.valid(i)) cycle
       b = rho(i) * mctc_dot(y(:, i), d)
       d = d + s(:, i) * (a(i) - b)
    enddo
-else
-   do mem = max(1, iter-memory), iter-1
-      i = mod(mem-1, memory)+1
-      b = rho(i) * mctc_dot(y(:, i), d)
-      d = d + s(:, i) * (a(i) - b)
-   enddo
-endif
+
    f_damp = 1.0_wp/(1.0_wp + 3000.0_wp*real(tot_step)**(-3))
-   if (maxval(abs(d)).lt.0.1_wp.or.tot_step.gt.50) then
-     displacement = -d
-   else
-     displacement = -d*f_damp
-   endif
+   if (maxval(abs(d)) >= 0.1_wp) d = d*f_damp
+
+   displacement_norm = norm2(d)
+   if (max_displacement > 0.0_wp .and. displacement_norm > max_displacement) then
+      d = d * max_displacement/displacement_norm
+   end if
+   displacement = -d
 end subroutine lbfgs_step
 
 
@@ -164,12 +177,13 @@ subroutine step(self, val, gcurr, glast, displ, tot_step)
    real(wp), intent(in) :: gcurr(:)
    real(wp), intent(in) :: glast(:)
    integer, intent(in) :: tot_step
-   real(wp), intent(out) :: displ(:)
+   real(wp), intent(inout) :: displ(:)
 
    self%iter = self%iter + 1
 
-   call lbfgs_step(self%iter, self%memory, self%nvar, gcurr, glast, displ, self%hdiag, &
-      & self%s, self%y, self%rho, tot_step)
+   call lbfgs_step(self%iter, self%memory, self%nvar, gcurr, glast, displ, &
+      & self%hdiag, self%s, self%y, self%rho, self%valid, &
+      & self%max_displacement, tot_step)
 end subroutine step
 
 end module xtb_pbc_optimizer_lbfgs
