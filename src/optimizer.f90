@@ -593,7 +593,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       endif
    endif
 
-   mol = molopt ! copy optimized geometry back to molecule
+   call mol%copy(molopt)
 
    if (pr.and.profile) call timer%write(env%unit,'ANCopt') ! write timer report
 
