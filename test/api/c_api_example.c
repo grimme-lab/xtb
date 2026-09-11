@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
+
 #include "xtb.h"
 
 #define check(x, ...)                                                          \
@@ -24,6 +29,69 @@ static inline bool check_double(double actual, double expected, double tol,
   }
   fprintf(stderr, "FAIL: %s: expected %.10f, got %.10f\n", msg, expected, actual);
   return false;
+}
+
+static int testOutputFileDescriptorRelease(void) {
+#if defined(__unix__) || defined(__APPLE__)
+  struct rlimit original_limit;
+  if (getrlimit(RLIMIT_NOFILE, &original_limit) != 0) {
+    fprintf(stderr, "FAIL: unable to inspect the file descriptor limit\n");
+    return EXIT_FAILURE;
+  }
+
+  // Keep this regression test short while still exceeding a deliberately
+  // restricted descriptor limit if releaseOutput_api leaks file units.
+  const rlim_t test_limit = 64;
+  if ((original_limit.rlim_cur != RLIM_INFINITY &&
+       original_limit.rlim_cur <= test_limit) ||
+      (original_limit.rlim_max != RLIM_INFINITY &&
+       original_limit.rlim_max < test_limit)) {
+    fprintf(stderr, "SKIP: file descriptor limit is too low for this test\n");
+    return EXIT_SUCCESS;
+  }
+
+  struct rlimit restricted_limit = original_limit;
+  restricted_limit.rlim_cur = test_limit;
+  if (setrlimit(RLIMIT_NOFILE, &restricted_limit) != 0) {
+    fprintf(stderr, "SKIP: unable to restrict the file descriptor limit\n");
+    return EXIT_SUCCESS;
+  }
+
+  int stat = EXIT_SUCCESS;
+  const size_t iterations = test_limit + 16;
+  for (size_t i = 0; i < iterations; ++i) {
+    char filename[256];
+    snprintf(filename, sizeof(filename), "xtb_capi_output_%ld_%zu.log",
+             (long)getpid(), i);
+
+    xtb_TEnvironment env = xtb_newEnvironment();
+    xtb_setOutput(env, filename);
+    if (xtb_checkEnvironment(env)) {
+      fprintf(stderr, "FAIL: output file could not be opened at iteration %zu\n",
+              i);
+      xtb_showEnvironment(env, NULL);
+      stat = EXIT_FAILURE;
+      xtb_delete(env);
+      unlink(filename);
+      break;
+    }
+
+    xtb_delete(env);
+    if (unlink(filename) != 0) {
+      fprintf(stderr, "FAIL: output file could not be removed: %s\n", filename);
+      stat = EXIT_FAILURE;
+      break;
+    }
+  }
+
+  if (setrlimit(RLIMIT_NOFILE, &original_limit) != 0) {
+    fprintf(stderr, "FAIL: unable to restore the file descriptor limit\n");
+    stat = EXIT_FAILURE;
+  }
+  return stat;
+#else
+  return EXIT_SUCCESS;
+#endif
 }
 
 int testFirst() {
@@ -422,5 +490,6 @@ int main(int argc, char **argv) {
   int stat = 0;
   stat += testFirst();
   stat += testSecond();
+  stat += testOutputFileDescriptorRelease();
   return stat > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
