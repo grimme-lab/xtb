@@ -312,8 +312,8 @@ module xtb_setparam
    integer  :: md_hmass = 4
 !  shake on (=0: off which is default) for X-H bonds only (=1),
 !  or all bonds (=2) or user defined bonds (=3)
-   integer  :: shake_mode = 2
-   logical  :: shake_md = .true.
+   integer  :: shake_mode = 0
+   logical  :: shake_md = .false.
    logical  :: xhonly = .true.
    logical  :: honly = .false.
    logical :: forcewrrestart = .false.
