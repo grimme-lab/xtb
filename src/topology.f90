@@ -53,7 +53,7 @@ subroutine checkTopology(unit, mol, wbo, verbosity)
    ! bail out if we encounter a structure not suitable for this format
    if (mol%npbc /= 0 .or. mol%n > 999) return
 
-   copy = mol
+   call copy%copy(mol)
    call makeBondTopology(copy%bonds, mol, wbo)
 
    call compareBondTopology(unit, mol%bonds, copy%bonds, mol, verbosity, match)

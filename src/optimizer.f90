@@ -445,7 +445,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    endif
 
    call anc%allocate(mol%n,nvar,hlow,hmax) ! allocate ANC
-   molopt = mol ! copy molecular information
+   call molopt%copy(mol) ! copy molecular information
    if (profile) call timer%measure(1) ! start opt timer
 
 ! ======================================================================
@@ -592,7 +592,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       endif
    endif
 
-   mol = molopt ! copy optimized geometry back to molecule
+   call mol%copy(molopt)
    if (present(iter_needed)) then
       iter_needed = iter
    end if
