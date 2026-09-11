@@ -239,6 +239,14 @@ contains
          call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
       end if
 
+      ! CPCM and PCM solvation models are only available in the tblite library
+      if ((set%mode_extrun /= p_ext_tblite) .and. allocated(tblite%solvation)) then
+         if (tblite%solvation%solvation_model == "cpcm" &
+            & .or. tblite%solvation%solvation_model == "pcm") then
+            call env%error("CPCM and PCM solvation models are only available with the tblite library! Try --tblite", source)
+         end if
+      end if
+
       ! If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
       anyhess = (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)
       if (anyhess) then
@@ -632,7 +640,9 @@ contains
          else
             ! Restricted open-shell case
             if (mol%uhf /= 0) then
-               call env%terminate("Assigned number of unpaired electrons (flag '--uhf <int>' or <int> in file '.UHF') is not consistent with the total number of electrons")
+               call env%terminate("Assigned number of unpaired electrons "// &
+                  & "(flag '--uhf <int>' or <int> in file '.UHF') is not consistent"// &
+                  & " with the total number of electrons")
             end if
             chk%wfn%nopen = mod(int(chk%wfn%nel), 2)
          end if 
@@ -881,7 +891,7 @@ contains
          ! calculation !
          call geometry_optimization &
             &     (env, mol, chk, calc, &
-        &      egap,set%etemp,set%maxscciter,set%optset%maxoptcycle,etot,g,sigma,set%optset%optlev,.true.,.false.,murks, iter_needed)
+        &      egap,set%etemp,set%maxscciter,set%optset%maxoptcycle,etot,g,sigma,set%optset%optlev,.true.,.false.,murks, iter_needed, res)
 
          ! save results !
          res%e_total = etot
@@ -1401,6 +1411,10 @@ contains
             set%verbose = .true.
             set%veryverbose = .true.
 
+         case ('-s', '--silent')
+            set%verbose = .false.
+            set%silent = .true.
+
          case ('--define')
             call set_define
 
@@ -1720,6 +1734,9 @@ contains
          case ('--dipole')
             call set_write(env, 'dipole', 'true')
 
+         case ('--quadrupole')
+            call set_write(env, 'quadrupole', 'true')
+
          case ('--wbo')
             call set_write(env, 'wiberg', 'true')
 
@@ -1857,11 +1874,13 @@ contains
                call env%error("No solvent name or dielectric constant provided for GB.", source)
             end if
 
-         case ('--cosmo', '--tmcosmo')
+         case ('--cosmo', '--cpcm', '--pcm', '--tmcosmo')
             call args%nextArg(sec)
             if (allocated(sec)) then
-               call set_gbsa(env, 'solvent', sec)
-               call set_gbsa(env, flag(3:), 'true')
+               if (flag == "--tmcosmo" .or. flag == "--cosmo") then
+                  call set_gbsa(env, 'solvent', sec)
+                  call set_gbsa(env, flag(3:), 'true')
+               end if
                ! Add solvation model also to tblite input
                if (.not. allocated(tblite%solvation)) then
                   allocate(tblite%solvation)
@@ -1869,7 +1888,14 @@ contains
                if (allocated(tblite%solvation%solvation_model)) then
                   call env%error("Cannot specify multiple solvation models", source)
                end if
-               tblite%solvation%solvation_model = "cosmo"
+               ! Select tblite solvation model
+               if (flag == "--cosmo") then
+                  tblite%solvation%solvation_model = "cosmo"
+               else if (flag == "--cpcm") then
+                  tblite%solvation%solvation_model = "cpcm"
+               else if (flag == "--pcm") then
+                  tblite%solvation%solvation_model = "pcm"
+               end if
                tblite%solvation%solvent = sec
                ! Read possible reference state
                call args%nextArg(sec)
@@ -1888,7 +1914,7 @@ contains
                   end if
                end if
             else
-               call env%error("No solvent name provided for COSMO", source)
+               call env%error("No solvent name provided for COSMO/CPCM/PCM", source)
             end if
 
          case ('--cpcmx')
@@ -1952,9 +1978,25 @@ contains
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
             end if
+            ! Tighten the SCF convergence with the optimization level
+            ! if there is no user defined accuracy
+            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+               if (set%optset%optlev == 1) then
+                  set%acc = 0.5_wp
+               else if (set%optset%optlev >= 2) then
+                  set%acc = 0.2_wp
+               end if
+               tblite%accuracy = set%acc
+            end if
 
          case ('--hess')
             call set_runtyp('hess')
+            ! Tighten SCF convergence by default for numerical Hessian
+            ! if there is no user defined accuracy
+            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+               set%acc = 0.2_wp
+               tblite%accuracy = set%acc
+            end if
 
          case ('--md')
             call set_runtyp('md')
@@ -1965,12 +2007,24 @@ contains
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
             end if
+            ! Tighten SCF convergence by default for numerical Hessian
+            ! if there is no user defined accuracy
+            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+               set%acc = 0.2_wp
+               tblite%accuracy = set%acc
+            end if
 
          case ('--bhess')
             call set_runtyp('bhess')
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
+            end if
+            ! Tighten SCF convergence by default for numerical Hessian
+            ! if there is no user defined accuracy
+            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+               set%acc = 0.2_wp
+               tblite%accuracy = set%acc
             end if
 
          case ('--o1nh')
@@ -2037,6 +2091,16 @@ contains
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
+            end if
+            ! Tighten the SCF convergence with the optimization level
+            ! if there is no user defined accuracy
+            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+               if (set%optset%optlev == 1) then
+                  set%acc = 0.5_wp
+               else if (set%optset%optlev >= 2) then
+                  set%acc = 0.2_wp
+               end if
+               tblite%accuracy = set%acc
             end if
 
          case ('--nat')

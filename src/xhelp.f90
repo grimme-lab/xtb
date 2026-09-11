@@ -162,7 +162,8 @@ subroutine help(iunit)
    "    calculate STM image",&
    "",&
    "-a, --acc REAL",&
-   "    accuracy for SCC calculation, lower is better (default = 1.0)",&
+   "    accuracy for SCC calculation, lower is better (default = 1.0),",&
+   "    overwrites also tighter defaults for optimization and hessians",&
    "",&
    "--vparam FILE",&
    "    Parameter file for vTB calculation",&
@@ -204,6 +205,22 @@ subroutine help(iunit)
    "    available solvents are all solvents that are available for alpb.",&
    "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
    "    can be chosen by setting epsilon to infinity.",&
+   "    Available via tblite or in the legacy version in xtb lacking density response",&
+   "    to the continuum polarization (non-variational).",&
+   "",&
+   "--cpcm SOLVENT/EPSILON",&
+   "    domain decomposition conductor-like polarizable continuum solvation model (ddCPCM),",&
+   "    available solvents are all solvents that are available for alpb.",&
+   "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
+   "    can be chosen by setting epsilon to infinity.",&
+   "    Only available via tblite.",&
+   "",&
+   "--pcm SOLVENT/EPSILON",&
+   "    domain decomposition polarizable continuum model (ddPCM),",&
+   "    available solvents are all solvents that are available for alpb.",&
+   "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
+   "    can be chosen by setting epsilon to infinity.",&
+   "    Only available via tblite.",&
    "",&
    "--tmcosmo SOLVENT/EPSILON",&
    "    same as --cosmo, but uses TM convention for writing the .cosmo files.",&
@@ -220,10 +237,13 @@ subroutine help(iunit)
    "    requests printout of Mulliken population analysis",&
    "",&
    "--molden",&
-   "    requests printout of molden file",&
+   "    requests printout of molden file (name: molden.input), format differs with --tblite",&
    "",&
    "--dipole",&
    "    requests dipole printout",&
+   "",&
+   "--quadrupole",&
+   "    requests quadrupole printout",&
    "",&
    "--raman", &
    "    requests Raman spectrum calculation via combination of GFN2-xTB and PTB",&
@@ -269,19 +289,24 @@ subroutine help(iunit)
    "",&
    "-o, --opt [LEVEL]",&
    "    call ancopt(3) to perform a geometry optimization, levels from crude, sloppy,", &
-   "    loose, normal (default), tight, verytight to extreme can be chosen",&
+   "    loose, normal (default), tight [0.5], verytight [0.2] to extreme [0.2] can be chosen,",&
+   "    level tightens also the default accuracy setting", &
+   "    (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)", &
    "",&
    "--cycles [int]",&
    "    maximum number of optimization cycles.",&
    "",&
    "--hess",&
-   "    perform a numerical hessian calculation on input geometry",&
+   "    perform a numerical hessian calculation on input geometry,",&
+   "    tightens default accuracy setting to 0.2 (overwritten by --acc flag)", &
    "",&
    "--ohess [LEVEL]",&
-   "    perform a numerical hessian calculation on an ancopt(3) optimized geometry",&
+   "    perform a numerical hessian calculation on an ancopt(3) optimized geometry,",&
+   "    tightens default accuracy setting to 0.2 (overwritten by --acc flag)", &
    "",&
    "--bhess [LEVEL]",&
-   "    perform a biased numerical hessian calculation on an ancopt(3) optimized geometry",&
+   "    perform a biased numerical hessian calculation on an ancopt(3) optimized geometry,",&
+   "    tightens default accuracy setting to 0.2 (overwritten by --acc flag).", &
    "",&
    "--o1nh",&
    "    perform the numerical hessian calculation using the ODLR approximation (O1NumHess)",&
@@ -311,7 +336,8 @@ subroutine help(iunit)
    "",&
    "--metaopt [LEVEL]",&
    "    call ancopt(3) to perform a geometry optimization, then try to find other", &
-   "    minimas by meta dynamics",&
+   "    minimas by meta dynamics, level tightens also the default accuracy setting",&
+   "    (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)", &
    "",&
    "--path [FILE]",&
    "    use meta dynamics to calculate a path from the input geometry to the given", &
