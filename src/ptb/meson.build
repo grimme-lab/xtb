@@ -33,4 +33,5 @@ srcs += files(
   'plusu.F90',
   'property.F90',
   'response.F90',
+  'solver.F90',
 )

@@ -19,8 +19,8 @@ module test_tblite
       & test_failed, skip_test
    use xtb_mctc_accuracy, only : wp
    use xtb_features, only : get_xtb_feature
-   use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteCalculator, &
-      & newTBLiteWavefunction
+   use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, &
+      & TTBLiteSolvationInput, newTBLiteCalculator, newTBLiteWavefunction
    implicit none
    private
 
@@ -38,8 +38,15 @@ subroutine collect_tblite(testsuite)
    testsuite = [ &
       new_unittest("gfn1", test_gfn1), &
       new_unittest("gfn2", test_gfn2), &
-      new_unittest("gfn1-mindless", test_gfn2_mindless_basic), &
-      new_unittest("gfn2-mindless", test_gfn2_mindless_basic) &
+      new_unittest("gfn1-mindless", test_gfn1_mindless_basic), &
+      new_unittest("gfn2-mindless", test_gfn2_mindless_basic), &
+      new_unittest("gfn1-mindless-gbsa", test_gfn1_mindless_gbsa), &
+      new_unittest("gfn2-mindless-alpb", test_gfn2_mindless_alpb), &
+      new_unittest("gfn1-mindless-gb", test_gfn1_mindless_gb), &
+      new_unittest("gfn2-mindless-gbe", test_gfn2_mindless_gbe), &
+      new_unittest("gfn1-mindless-cosmo", test_gfn1_mindless_cosmo), &
+      new_unittest("gfn2-mindless-cosmo", test_gfn2_mindless_cosmo), &
+      new_unittest("mindless-efield", test_mindless_efield) &
       ]
 
 end subroutine collect_tblite
@@ -264,20 +271,20 @@ subroutine test_gfn1_mindless_basic(error)
       & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
       & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
    real(wp), parameter :: ref_energies(10) = &
-      &[-33.040345103560_wp, -26.858637887392_wp, -25.818131312372_wp, &
-      & -24.896623131166_wp, -29.038403257541_wp, -20.596982571512_wp, &
-      & -35.754243805311_wp, -33.088749099589_wp, -21.414820157390_wp, &
-      & -26.650774557476_wp]
+      &[-33.040345115781_wp, -26.858637903042_wp, -25.818131309454_wp, &
+      & -24.896623137384_wp, -29.038403271958_wp, -20.596982576505_wp, &
+      & -35.754243825064_wp, -33.088749111514_wp, -21.414820173177_wp, &
+      & -26.650774569501_wp]
    real(wp), parameter :: ref_gnorms(10) = &
-      &[0.049510354228196_wp, 0.062164738458454_wp, 0.050970505747783_wp, &
-      & 0.089329244570940_wp, 0.049188889391502_wp, 0.059353809155596_wp, &
-      & 0.063932193893054_wp, 0.059154356097925_wp, 0.043307936447560_wp, &
-      & 0.043009212776427_wp]
+      &[0.049510570012608_wp, 0.062164747776809_wp, 0.050970566397999_wp, &
+      & 0.089329574492273_wp, 0.049188966613709_wp, 0.059353966643586_wp, &
+      & 0.063932340268411_wp, 0.059154281017514_wp, 0.043307764220264_wp, &
+      & 0.043009324840974_wp]
    real(wp), parameter :: ref_hlgaps(10) = &
-      &[3.4192962150687_wp, 1.6702597448498_wp, 2.4899572196060_wp, &
-      & 1.6706491472352_wp, 2.4613273978074_wp, 3.9778768185046_wp, &
-      & 2.5370236462819_wp, 1.3590769445407_wp, 4.0816020166740_wp, &
-      & 1.3640382002752_wp]
+      &[3.4192955977944_wp, 1.6702606935679_wp, 2.4899512662496_wp, &
+      & 1.6706475895573_wp, 2.4613135820079_wp, 3.9778639201986_wp, &
+      & 2.5370073793248_wp, 1.3590765655343_wp, 4.0816037280637_wp, &
+      & 1.3640455036507_wp]
 
    if (.not.get_xtb_feature('tblite')) then
       call skip_test(error, "xtb not compiled with tblite support")
@@ -313,5 +320,513 @@ subroutine test_gfn1_mindless_basic(error)
    end do
 
 end subroutine test_gfn1_mindless_basic
+
+
+subroutine test_gfn1_mindless_gbsa(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   type(TTBLiteInput), allocatable :: input
+   type(TTBLiteSolvationInput), allocatable :: solv_input
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(3) = [&
+      & "mindless01", "mindless02", "mindless03"]
+   real(wp), parameter :: ref_energies(3) = [&
+      & -33.072695457843_wp, -26.891768686617_wp, -25.862989566439_wp]
+   real(wp), parameter :: ref_gnorms(3) = [&
+      &  0.058628136130_wp, 0.063073074869_wp, 0.056104584806_wp]
+   character(len=*), parameter :: solvents(3) = [&
+      & "toluene", "water  ", "dmso   "]
+   character(len=*), parameter :: reference_states(3) = [&
+      & "reference", "gsolv    ", "bar1M    "]
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   do iMol = 1, 3
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn1", &
+         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="gbsa", &
+         & solvent=solvents(iMol), reference_state=reference_states(iMol))))
+      call newTBLiteWavefunction(env, mol, calc, chk)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thrg)
+
+   end do
+
+end subroutine test_gfn1_mindless_gbsa
+
+
+subroutine test_gfn2_mindless_alpb(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   type(TTBLiteInput), allocatable :: input
+   type(TTBLiteSolvationInput), allocatable :: solv_input
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(3) = [&
+      & "mindless01", "mindless02", "mindless03"]
+   real(wp), parameter :: ref_energies(3) = [&
+      & -30.370379038871_wp, -24.094915747408_wp, -23.753741199115_wp]
+   real(wp), parameter :: ref_gnorms(3) = [&
+      &  0.059708802674_wp, 0.058776300817_wp, 0.038985705570_wp]
+   character(len=*), parameter :: solvents(3) = [&
+      & "toluene", "water  ", "dioxane"]
+   character(len=*), parameter :: reference_states(3) = [&
+      & "reference", "gsolv    ", "bar1M    "]
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   do iMol = 1, 3
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2", &
+         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="alpb", &
+         & solvent=solvents(iMol), reference_state=reference_states(iMol))))
+      call newTBLiteWavefunction(env, mol, calc, chk)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thrg)
+
+   end do
+
+end subroutine test_gfn2_mindless_alpb
+
+
+subroutine test_gfn1_mindless_gb(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   type(TTBLiteInput), allocatable :: input
+   type(TTBLiteSolvationInput), allocatable :: solv_input
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(3) = [&
+      & "mindless01", "mindless02", "mindless03"]
+   real(wp), parameter :: ref_energies(3) = [&
+      & -33.064405942599_wp, -26.868953153982_wp, -25.842056538615_wp]
+   real(wp), parameter :: ref_gnorms(3) = [&
+      &  0.049650911438_wp, 0.060795167702_wp, 0.052671765954_wp]
+   character(len=*), parameter :: solvents(3) = [&
+      & "12.0 ", "water", "dmso "]
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   do iMol = 1, 3
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn1", &
+         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="gb", &
+         & solvent=solvents(iMol))))
+      call newTBLiteWavefunction(env, mol, calc, chk)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thrg)
+
+   end do
+
+end subroutine test_gfn1_mindless_gb
+
+
+subroutine test_gfn2_mindless_gbe(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   type(TTBLiteInput), allocatable :: input
+   type(TTBLiteSolvationInput), allocatable :: solv_input
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(3) = [&
+      & "mindless01", "mindless02", "mindless03"]
+   real(wp), parameter :: ref_energies(3) = [&
+      & -30.372378247546_wp, -24.088080237554_wp, -23.752565609529_wp]
+   real(wp), parameter :: ref_gnorms(3) = [&
+      &  0.061857944458_wp, 0.057444286571_wp, 0.042941843446_wp]
+   character(len=*), parameter :: solvents(3) = [&
+      & "12.0 ", "water", "dmso "]
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   do iMol = 1, 3
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2", &
+         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="gbe", &
+         & solvent=solvents(iMol))))
+      call newTBLiteWavefunction(env, mol, calc, chk)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thrg)
+
+   end do
+
+end subroutine test_gfn2_mindless_gbe
+
+
+subroutine test_gfn1_mindless_cosmo(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   type(TTBLiteInput), allocatable :: input
+   type(TTBLiteSolvationInput), allocatable :: solv_input
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(3) = [&
+      & "mindless01", "mindless02", "mindless03"]
+   real(wp), parameter :: ref_energies(3) = [&
+      & -33.036952137095_wp, -26.848464402907_wp, -25.792048284469_wp]
+   real(wp), parameter :: ref_gnorms(3) = [&
+      &  0.058937174458_wp, 0.070321418330_wp, 0.052262096907_wp]
+   character(len=*), parameter :: solvents(3) = [&
+      & "12.0 ", "water", "dmso "]
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   do iMol = 1, 3
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn1", &
+         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="cosmo", &
+         & solvent=solvents(iMol))))
+      call newTBLiteWavefunction(env, mol, calc, chk)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thrg)
+
+   end do
+
+end subroutine test_gfn1_mindless_cosmo
+
+
+subroutine test_gfn2_mindless_cosmo(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   type(TTBLiteInput), allocatable :: input
+   type(TTBLiteSolvationInput), allocatable :: solv_input
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(3) = [&
+      & "mindless01", "mindless02", "mindless03"]
+   real(wp), parameter :: ref_energies(3) = [&
+      & -30.356424662078_wp, -24.066751782005_wp, -23.707798962536_wp]
+   real(wp), parameter :: ref_gnorms(3) = [&
+      &  0.072996739434_wp, 0.063735506800_wp, 0.048425301852_wp]
+   character(len=*), parameter :: solvents(3) = [&
+      & "12.0 ", "water", "dmso "]
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   do iMol = 1, 3
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2", &
+         & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="cosmo", &
+         & solvent=solvents(iMol))))
+      call newTBLiteWavefunction(env, mol, calc, chk)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thrg)
+
+   end do
+
+end subroutine test_gfn2_mindless_cosmo
+
+
+subroutine test_mindless_efield(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   type(TTBLiteInput), allocatable :: input
+   type(TTBLiteSolvationInput), allocatable :: solv_input
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: method(2) = [&
+      & "gfn1", "gfn2"]
+   character(len=*), parameter :: mindless(2) = [&
+      & "mindless01", "mindless02"]
+   real(wp), parameter :: ref_energies(2) = [&
+      & -33.021306346085_wp, -24.079954040112_wp]
+   real(wp), parameter :: ref_gnorms(2) = [&
+      &  0.071794704990_wp, 0.071819398796_wp]
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   do iMol = 1, 2
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method=method(iMol), &
+         & accuracy=0.01_wp, efield=(/0.1_wp, 0.2_wp, 0.5_wp/)))
+      call newTBLiteWavefunction(env, mol, calc, chk)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (exitRun) exit
+
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thrg)
+
+   end do
+
+end subroutine test_mindless_efield
+
 
 end module test_tblite

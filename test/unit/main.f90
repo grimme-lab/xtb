@@ -20,10 +20,12 @@ program tester
    use testdrive, only : new_testsuite, testsuite_type, select_suite, run_selected, &
       & get_argument, unittest_type, collect_interface, error_type
    use test_atomlist, only : collect_atomlist
+   use test_bmatrix, only : collect_bmatrix
    use test_coordinationnumber, only : collect_coordinationnumber
    use test_coulomb, only : collect_coulomb
    use test_dftd3, only : collect_dftd3
    use test_dftd4, only : collect_dftd4
+   use test_detrotra, only : collect_detrotra
    use test_docking, only : collect_docking
    use test_eeq, only : collect_eeq
    use test_gfn0, only : collect_gfn0
@@ -34,11 +36,13 @@ program tester
    use test_iff, only : collect_iff
    use test_latticepoint, only : collect_latticepoint
    use test_molecule, only : collect_molecule
+   use test_model_hessian, only : collect_model_hessian
    use test_oniom, only : collect_oniom
    use test_dipro, only : collect_dipro
    use test_pbc_tools, only : collect_pbc_tools
    use test_peeq, only : collect_peeq
    use test_ptb, only: collect_ptb
+   use test_random, only : collect_random
    use test_repulsion, only : collect_repulsion
    use test_symmetry, only : collect_symmetry
    use test_tblite, only : collect_tblite
@@ -58,10 +62,12 @@ program tester
 
    testsuites = [ &
       new_testsuite("atomlist", collect_atomlist), &
+      new_testsuite("bmatrix", collect_bmatrix), &
       new_testsuite("coordinationnumber", collect_coordinationnumber), &
       new_testsuite("coulomb", collect_coulomb), &
       new_testsuite("dftd3", collect_dftd3), &
       new_testsuite("dftd4", collect_dftd4), &
+      new_testsuite("detrotra", collect_detrotra), &
       new_testsuite("docking", collect_docking), &
       new_testsuite("eeq", collect_eeq), &
       new_testsuite("gfn0", collect_gfn0), &
@@ -72,11 +78,13 @@ program tester
       new_testsuite("iff", collect_iff), &
       new_testsuite("latticepoint", collect_latticepoint), &
       new_testsuite("molecule", collect_molecule), &
+      new_testsuite("model-hessian", collect_model_hessian), &
       new_testsuite("oniom", collect_oniom), &
       new_testsuite("dipro", collect_dipro), &
       new_testsuite("pbc-tools", collect_pbc_tools), &
       new_testsuite("peeq", collect_peeq), &
       new_testsuite("ptb", collect_ptb), &
+      new_testsuite("random", collect_random), &
       new_testsuite("repulsion", collect_repulsion), &
       new_testsuite("symmetry", collect_symmetry), &
       new_testsuite("tblite", collect_tblite), &

@@ -14,6 +14,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !-----------------------------------------------------------------------
 !> Workflows employing multiple singlepoint calculations
 !-----------------------------------------------------------------------
@@ -70,6 +74,12 @@ subroutine vfukui(env, mol, chk, calc, fukui)
    wf_an%wfn = chk%wfn
    wf_cat%wfn = chk%wfn
 
+#if WITH_TBLITE
+   ! copy tblite wavefunction as well
+   wf_an%tblite = chk%tblite
+   wf_cat%tblite = chk%tblite
+#endif
+
    ! reduce the charge -> anion
    mol%chrg = mol%chrg - 1
    ! Create UHF entry for cation and anion -> we assume the UHF state to be equal for both species (adding or removing always towards the lowest multiplicity possible)
@@ -78,6 +88,10 @@ subroutine vfukui(env, mol, chk, calc, fukui)
       ! -> Increase UHF to 1
       wf_an%wfn%nopen = 1
       wf_cat%wfn%nopen = 1
+#if WITH_TBLITE
+      wf_an%tblite%nuhf = 1
+      wf_cat%tblite%nuhf = 1
+#endif
       ! mol object has to be modified as of today, since PTB sets its wavefunction only in the singlepoint calculation and checks for consistency with mol%uhf
       mol%uhf = 1
    elseif ((mod(wf_an%wfn%nel, 2) /= 0) .or. (mol%uhf > 0)) then
@@ -89,6 +103,10 @@ subroutine vfukui(env, mol, chk, calc, fukui)
       end if
       wf_an%wfn%nopen = wf_an%wfn%nopen - 1
       wf_cat%wfn%nopen = wf_cat%wfn%nopen - 1
+#if WITH_TBLITE
+      wf_an%tblite%nuhf = wf_an%tblite%nuhf - 1
+      wf_cat%tblite%nuhf = wf_cat%tblite%nuhf - 1
+#endif
       ! mol object has to be modified as of today, since PTB sets its wavefunction only in the singlepoint calculation and checks for consistency with mol%uhf
       mol%uhf = mol%uhf - 1
    else

@@ -559,7 +559,7 @@ subroutine writeInfo(self, unit, mol)
 end subroutine writeInfo
 
 !> Evaluate hessian by finite difference for all atoms
-subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
+subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, odlr, final_err)
    character(len=*), parameter :: source = "extern_turbomole_hessian"
    !> Single point calculator
    class(TTMCalculator), intent(inout) :: self
@@ -579,9 +579,20 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
    real(wp), intent(inout) :: dipgrad(:, :)
    !> Array to add polarizability gradient to
    real(wp), intent(inout), optional :: polgrad(:, :)
+   !> Use ODLR approximated numerical hessian
+   logical, intent(in), optional :: odlr
+   !> Final residual error (ODLR only)
+   real(wp), intent(out), optional :: final_err
 
    integer :: idipd, stat
    type(TReader) :: reader
+
+   if (present(odlr)) then
+      if (odlr) then
+         call env%error("Turbomole calculator does not support ODLR hessian", source)
+         return
+      end if
+   end if
 
    call wrtm(mol0%n,mol0%at,mol0%xyz) !Overwrite coord with RAM-xyz file
 

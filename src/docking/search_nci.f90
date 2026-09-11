@@ -544,14 +544,7 @@ contains
             !> Select which kind of optimization is done
             select type (calc)
             type is (TGFFCalculator)
-               call restart_gff(env, comb, calc)
-               !Keeping Fragments and charges
-               calc%neigh%nbond = neigh_backup%nbond
-               calc%neigh%nb = neigh_backup%nb
-               calc%topo%qfrag = topo_backup%qfrag
-               calc%topo%qa = topo_backup%qa
-               calc%topo%fraglist = topo_backup%fraglist
-               calc%topo%nfrag = topo_backup%nfrag
+               call restore_gff(env, comb, calc, topo_backup, neigh_backup)
             type is (TxTBCalculator)
                call restart_xTB(env, comb, chk, calc)
             end select
@@ -916,13 +909,7 @@ contains
 
          select type (calc)
          type is (TGFFCalculator)
-            call restart_gff(env, comb, calc)
-            calc%neigh%nbond = neigh_backup%nbond
-            calc%neigh%nb = neigh_backup%nb
-            calc%topo%qfrag = topo_backup%qfrag
-            calc%topo%qa = topo_backup%qa
-            calc%topo%fraglist = topo_backup%fraglist
-            calc%topo%nfrag = topo_backup%nfrag
+            call restore_gff(env, comb, calc, topo_backup, neigh_backup)
          type is (TxTBCalculator)
             call restart_xTB(env, comb, chk, calc)
          end select
@@ -1073,9 +1060,8 @@ contains
 
       integer :: itopo = 32
 
-      !> Read the constrain again with new xyz only if necessary
       if (constraint_xyz) then
-         nconstr=0 !Reset number of constraints for distance, angle, and dihedral
+         nconstr = 0
          call read_userdata(xcontrol, env, mol)
          call constrain_xTB_gff(env, mol)
       end if
@@ -1108,6 +1094,36 @@ contains
            &         calc%param, calc%topo, calc%neigh, set%efield, calc%accuracy)
 
    end subroutine restart_gff
+
+   !> Restore GFN-FF state determined from separated docking fragments
+   !>
+   !> Reuse the saved covalent topology while refreshing data that depend on the
+   !> current pose.
+   subroutine restore_gff(env, mol, calc, topo, neigh)
+
+      !> Calculation environment
+      type(TEnvironment), intent(inout) :: env
+      !> Molecule containing the current docking pose
+      type(TMolecule), intent(inout) :: mol
+      !> GFN-FF calculator to restore
+      type(TGFFCalculator), intent(inout) :: calc
+      !> Topology generated with the docking fragments separated
+      type(TGFFTopology), intent(in) :: topo
+      !> Neighbor data generated with the docking fragments separated
+      type(TNeigh), intent(in) :: neigh
+
+      if (constraint_xyz) then
+         nconstr = 0
+         call read_userdata(xcontrol, env, mol)
+         call constrain_xTB_gff(env, mol)
+      end if
+
+      calc%topo = topo
+      calc%neigh = neigh
+      calc%update = .true.
+      if (allocated(calc%topo%xyze0)) calc%topo%xyze0 = mol%xyz
+
+   end subroutine restore_gff
 
    subroutine restart_xTB(env, mol, chk, calc, basisset)
 

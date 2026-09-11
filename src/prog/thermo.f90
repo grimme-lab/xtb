@@ -270,6 +270,8 @@ contains
 
          case ('--turbomole')
             htype = hessType%tmol
+
+         case ('--mass-weighted', '--massweighted')
             massWeighted = .true.
 
          case ('--orca')
@@ -354,7 +356,7 @@ contains
          "", &
          "<geometry> may be provided as any valid input to xtb", &
          "the [hessian] file is read and processed depending on the selected options,", &
-         "the default format is a non-massweighted Turbomole hessian file", &
+         "the default format is a Cartesian, non-mass-weighted Turbomole Hessian file", &
          "", &
          "Options", &
          "", &
@@ -372,8 +374,9 @@ contains
          "", &
          "   --dftbplus             Read a DFTB+ hessian.out file, implies projection", &
          "", &
-         "   --turbomole         Read a Turbomole Hessian file", &
-         "                       use this only when $nomw is not present in control", &
+         "   --turbomole         Read a non-mass-weighted Turbomole Hessian file", &
+         "", &
+         "   --mass-weighted     Assume mass-weighted input Hessian", &
          "", &
          "   --orca         Read an Orca Hessian file", &
          "", &

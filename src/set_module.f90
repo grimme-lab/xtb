@@ -31,6 +31,7 @@
 !> # logical instructions require a single statement
 !> $fit
 !> $samerand
+!> $seed <int>
 !> # special logicals are chrg and spin
 !> $chrg <int>
 !> $spin <int>
@@ -125,7 +126,11 @@ subroutine write_set(ictrl)
 
 !  was the fit-flag set?
    if (set%fit) write(ictrl,'(a,"fit")') flag
-   if (set%samerand) write(ictrl,'(a,"samerand")') flag
+   if (set%randseed_set) then
+      write(ictrl,'(a,"seed",1x,i0)') flag,set%randseed
+   elseif (set%samerand) then
+      write(ictrl,'(a,"samerand")') flag
+   endif
 
    call write_set_gfn(ictrl)
    call write_set_scc(ictrl)
@@ -283,6 +288,8 @@ subroutine write_set_hess(ictrl)
    write(ictrl,'(3x,"sccacc=",g0)') set%accu_hess
    write(ictrl,'(3x,"step=",g0)') set%step_hess
    write(ictrl,'(3x,"scale=",g0)') set%scale_hess
+   write(ictrl,'(3x,"imagmin=",g0)') set%imagmin_hess
+   write(ictrl,'(3x,"imagmax=",g0)') set%imagmax_hess
 end subroutine write_set_hess
 
 subroutine write_set_gbsa(ictrl)
@@ -822,6 +829,7 @@ subroutine rdcontrol(fname,env,copy_file)
          case default 
             if (index(line(2:),'chrg').eq.1) call set_chrg(env,line(7:))
             if (index(line(2:),'spin').eq.1) call set_spin(env,line(7:))
+            if (index(line(2:),'seed').eq.1) call set_seed(env,line(7:))
             
             ! get a new line !
             call mirror_line(id,copy,line,err)
@@ -1125,10 +1133,31 @@ subroutine set_enso_mode
    set%enso_mode = .true.
 end subroutine set_enso_mode
 
+!> Request the legacy repeatable sequence with seed 41
 subroutine set_samerand
    implicit none
    set%samerand = .true.
 end subroutine set_samerand
+
+!> Read the scalar RNG seed from xcontrol input
+subroutine set_seed(env,val)
+   implicit none
+   character(len=*), parameter :: source = 'set_seed'
+   type(TEnvironment), intent(inout) :: env
+   character(len=*), intent(in) :: val
+   integer :: idum
+   logical, save :: set1 = .true.
+
+   if (set1) then
+      if (getValue(env,val,idum)) then
+         set%randseed = idum
+         set%randseed_set = .true.
+      else
+         call env%error('Random seed could not be read from your argument',source)
+      endif
+   endif
+   set1 = .false.
+end subroutine set_seed
 
 subroutine set_define
    implicit none
@@ -1201,18 +1230,43 @@ end subroutine set_chrg
 
 
 subroutine set_spin(env,val)
+
    implicit none
+
    character(len=*), parameter :: source = 'set_spin'
+
    type(TEnvironment), intent(inout) :: env
+
    character(len=*),intent(in) :: val
+
    integer  :: err
    integer  :: idum
+   integer :: ind, idum1, idum2
    logical,save :: set1 = .true.
+
    if (set1) then
-      if (getValue(env,val,idum)) then
-         set%nalphabeta = idum
-      else
-         call env%error('Spin could not be read from your argument',source)
+
+      ind = index(val,":")
+
+      if (ind.ne.0) then
+         if ( getValue(env, val(:ind-1), idum1)  .and. &
+            & getValue(env, val(ind+1:), idum2)) then
+            set%oniom_settings%fixed_spin = .true.
+            set%oniom_settings%innerspin = idum1
+            set%nalphabeta = idum2
+         else
+            call env%error('Spin could not be read from your argument', source)
+            
+         end if
+
+      ! conventional
+      else 
+
+         if (getValue(env,val,idum)) then
+            set%nalphabeta = idum
+         else
+            call env%error('Spin could not be read from your argument',source)
+         endif
       endif
    endif
    set1 = .false.
@@ -1475,7 +1529,8 @@ subroutine set_gfn(env,key,val)
    case('version','method')
       if (key.eq.'version') &
          call env%warning("Don't use the 'version' key, since it is confusing",source)
-      if(val.eq.'ff') then
+      if (lowercase(trim(val)) == 'ff') then
+         if (set1) call set_exttyp('ff')
          set1=.false.
          return
       endif
@@ -2112,6 +2167,8 @@ subroutine set_hess(env,key,val)
    logical,save :: set1 = .true.
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
+   logical,save :: set4 = .true.
+   logical,save :: set5 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by hess",source)
@@ -2124,6 +2181,12 @@ subroutine set_hess(env,key,val)
    case('scale')
       if (getValue(env,val,ddum).and.set3) set%scale_hess = ddum
       set3 = .false.
+   case('imagmin')
+      if (getValue(env,val,ddum).and.set4) set%imagmin_hess = ddum
+      set4 = .false.
+   case('imagmax')
+      if (getValue(env,val,ddum).and.set5) set%imagmax_hess = ddum
+      set5 = .false.
    end select
 end subroutine set_hess
 
@@ -2211,7 +2274,7 @@ subroutine set_gbsa(env,key,val)
             endif
          case('normal');    set%solvInput%nAng = p_angsa_normal
          case('tight');     set%solvInput%nAng = p_angsa_tight
-         case('verytight'); set%solvInput%nAng = p_angsa_verytight
+         case('verytight', 'vtight'); set%solvInput%nAng = p_angsa_verytight
          case('extreme');   set%solvInput%nAng = p_angsa_extreme
          endselect
       endif
@@ -2752,6 +2815,7 @@ subroutine set_legacy(env,key,val)
    case('uhf');           call set_spin(env,val)
    case('restartmd','mdrestart'); call set_md(env,'restart','1')
    case('samerand');    call set_samerand
+   case('seed');        call set_seed(env,val)
    case('hessf');       continue ! used later in read_userdata
 !   case('atomlist-');
    case('fragment1');   continue ! used later in read_userdata

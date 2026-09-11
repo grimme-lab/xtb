@@ -108,7 +108,16 @@ subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
 
    !     Build dF(iter-1)
    df(it1,:)=dq-dqlast
-   inv=1.0d0 / sqrt(dot_product(df(it1,:),df(it1,:)))
+   inv=sqrt(dot_product(df(it1,:),df(it1,:)))
+   !     no change in the residual carries no new information for the update,
+   !     normalizing would divide by zero: take the full step to the new charges
+   if (inv < 1.0d-14) then
+      dqlast = dq
+      qlast = q
+      q = q + dq
+      return
+   endif
+   inv=1.0d0 / inv
    df(it1,:)=inv*df(it1,:)
 
 

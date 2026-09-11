@@ -45,13 +45,13 @@ module xtb_ptb_response
    use xtb_ptb_data, only: TPTBData
    use xtb_ptb_integral_types, only: aux_integral_type
    use xtb_ptb_param, only: ptbGlobals
-   use xtb_ptb_scf, only: get_density
    use xtb_ptb_mmlpopanalysis, only: get_mml_shell_charges
    use xtb_ptb_hamiltonian, only: get_hamiltonian
    use xtb_ptb_guess, only: get_psh_from_qsh
    use xtb_ptb_paulixc, only: calc_Vxc_pauli
    use xtb_ptb_coulomb, only: coulomb_potential
    use xtb_ptb_plusu, only: plusu_potential_type
+   use xtb_ptb_solver, only : ptb_solver_type, new_ptb_solver
 
    implicit none
    private
@@ -98,31 +98,27 @@ contains
       real(wp), intent(out) :: alpha(3, 3)
       !> (optional) Electric field
       real(wp), intent(in), optional :: efield(:)
-      !> Error type
+
+      ! Error type
       type(error_type), allocatable :: error
-      !> Potential type
+      ! Potential type
       type(potential_type) :: pot
-      !> Restart data for interaction containers
+      ! Restart data for interaction containers
       type(container_cache) :: icache
-      !> Electric field object
+      ! Electric field object
       type(electric_field) :: efield_object
-      !> Electronic solver
-      class(solver_type), allocatable :: solver
-      !> Electronic entropy
-      real(wp) :: ts
-      !> Molecular dipole moment
+      ! PTB electronic solver
+      type(ptb_solver_type) :: ptbsolver
+      ! Molecular dipole moment
       real(wp) :: dip_plus(3), dip_minus(3)
       real(wp) :: eff_ef(3), tmp_ef(3)
-      !> Loop variables
+      ! Loop variables
       integer :: k, i, j
 
 
       !> debug mode
       logical, parameter :: debug(4) = &
                [ .false., .false., .false., .false. ]
-
-      !> Solver for the effective Hamiltonian
-      call ctx%new_solver(solver, bas%nao)
 
       alpha = 0.0_wp
       if (present(efield)) then
@@ -158,7 +154,8 @@ contains
          endif
             
          !> Solve effective Hamiltonian including the electric field
-         call get_density(wfn_tmp, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
+         call new_ptb_solver(ptbsolver, wfn%nel, wfn%kt, ptbGlobals%geps, ptbGlobals%geps0)
+         call ptbsolver%get_density(wfn_tmp%coeff, ints%overlap, wfn_tmp%emo, wfn_tmp%focc, wfn_tmp%density, error)
          if (allocated(error)) then
             call ctx%set_error(error)
             return
@@ -209,7 +206,8 @@ contains
          endif
          
          !> Solve effective Hamiltonian including the electric field
-         call get_density(wfn_tmp, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
+         call new_ptb_solver(ptbsolver, wfn%nel, wfn%kt, ptbGlobals%geps, ptbGlobals%geps0)
+         call ptbsolver%get_density(wfn_tmp%coeff, ints%overlap, wfn_tmp%emo, wfn_tmp%focc, wfn_tmp%density, error)
          if (allocated(error)) then
             call ctx%set_error(error)
             return
@@ -235,7 +233,8 @@ contains
             & ves_twostepscf, CN_plusU, efield_object, dip_plus)
          if (ctx%failed()) return
 
-         alpha(k, 1:3) = -(dip_minus - dip_plus) / (2.0_wp * delta)                               ! numerical diff. dmu/dfield
+         ! numerical diff. dmu/dfield
+         alpha(k, 1:3) = -(dip_minus - dip_plus) / (2.0_wp * delta)
       end do cart_coord_loop
 
       !> Symmetrization of polarizability tensor
@@ -278,33 +277,29 @@ contains
       type(electric_field), intent(in) :: efield
       !> Dipole moment
       real(wp), intent(out) :: dipole(3)
-      !> Electronic solver
-      class(solver_type), allocatable :: solver
-      !> Electronic entropy
-      real(wp) :: ts
-      !> Error type
+
+      ! PTB electronic solver
+      type(ptb_solver_type) :: ptbsolver
+      ! Error type
       type(error_type), allocatable :: error
-      !> Restart data for interaction containers
+      ! Restart data for interaction containers
       type(container_cache) :: icache
-      !> Potential type
+      ! Potential type
       type(potential_type) :: pot
-      !> Coulomb potential
+      ! Coulomb potential
       type(coulomb_potential) :: coulomb
-      !> +U potential
+      ! +U potential
       type(plusu_potential_type) :: plusu
-      !> Shell popoulations
+      ! Shell popoulations
       real(wp), allocatable :: psh(:, :)
-      !> Temporary Mulliken populations
+      ! Temporary Mulliken populations
       real(wp), allocatable :: mulliken_qsh(:, :), mulliken_qat(:, :)
-      !> Tmp variable for dipole moment
+      ! Tmp variable for dipole moment
       real(wp) :: tmpdip(3)
       integer :: i, j, iat, izp, ii, ish
 
       !> debug mode
       logical, parameter :: debug = .false.
-
-      !> Solver for the effective Hamiltonian
-      call ctx%new_solver(solver, bas%nao)
 
       !> Reset H0 matrix
       ints%hamiltonian = 0.0_wp
@@ -362,7 +357,8 @@ contains
          end do
       endif
 
-      call get_density(wfn, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
+      call new_ptb_solver(ptbsolver, wfn%nel, wfn%kt, ptbGlobals%geps, ptbGlobals%geps0)
+      call ptbsolver%get_density(wfn%coeff, ints%overlap, wfn%emo, wfn%focc, wfn%density, error)
       if (allocated(error)) then
          call ctx%set_error(error)
          return

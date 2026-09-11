@@ -30,14 +30,13 @@ project(
   LANGUAGES "C" "Fortran"
 )
 
-enable_testing()
-
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 
 
 # Include CMake specific configurations
 add_subdirectory("cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/modules/xtb-utils.cmake")
 
 # Check a specific CMake targets for xtb build & execute corresponding Find scripts
 if(NOT TARGET "mctc-lib::mctc-lib")
@@ -49,12 +48,22 @@ if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
    add_compile_definitions(WITH_TBLITE)
 endif()
 
+foreach(_xtb_dep IN ITEMS toml-f test-drive mstore multicharge dftd4 s-dftd3 tblite)
+   xtb_promote_target("${_xtb_dep}")
+endforeach()
+unset(_xtb_dep)
+
 if(NOT TARGET "cpcmx::cpcmx" AND WITH_CPCMX)
    find_package("cpcmx" REQUIRED)
    add_compile_definitions(WITH_CPCMX)
 endif()
 
-if(NOT TARGET "test-drive::test-drive")
+foreach(_xtb_dep IN ITEMS cpcmx numsa toml-f test-drive mctc-lib)
+   xtb_promote_target("${_xtb_dep}")
+endforeach()
+unset(_xtb_dep)
+
+if(WITH_TESTS AND NOT TARGET "test-drive::test-drive")
   find_package("test-drive" REQUIRED)
 endif()
 
@@ -339,4 +348,7 @@ install(
 )
    
 # Tests
-add_subdirectory("test")
+if(WITH_TESTS)
+   enable_testing()
+   add_subdirectory("test")
+endif()

@@ -38,7 +38,8 @@ subroutine collect_gfn1(testsuite)
       new_unittest("mindless-basic", test_gfn1_mindless_basic), &
       new_unittest("mindless-solvation", test_gfn1_mindless_solvation), &
       new_unittest("ipea-indole", test_ipea_indole), &
-      new_unittest("mindless-cosmo", test_gfn1_mindless_cosmo) &
+      new_unittest("mindless-cosmo", test_gfn1_mindless_cosmo), &
+      new_unittest("restart", test_gfn1_restart) &
       ]
 
 end subroutine collect_gfn1
@@ -920,5 +921,54 @@ subroutine test_gfn1_mindless_cosmo(error)
    end do
 
 end subroutine test_gfn1_mindless_cosmo
+
+
+subroutine test_gfn1_restart(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_wavefunction, only : TWavefunction
+   use xtb_restart, only : readRestart, writeRestart
+
+   type(error_type), allocatable, intent(out) :: error
+   character(len=*), parameter :: fname = '.xtb_issue_1146_restart'
+
+   type(TEnvironment) :: env
+   type(TWavefunction) :: wfn, wfn_bad
+   logical :: success
+
+   call init(env)
+   call wfn%allocate(2, 2, 2)
+   wfn%nel = 2
+   wfn%nopen = 0
+   wfn%qsh = [0.1_wp, 0.2_wp]
+
+   call writeRestart(env, wfn, fname, 1)
+
+   call readRestart(env, wfn, fname, 2, [1, 1], 1, success, .false.)
+   call check_(error, success)
+
+   call readRestart(env, wfn, fname, 2, [1, 1], 2, success, .false.)
+   call check_(error, success)
+
+   wfn%nel = 3
+   call readRestart(env, wfn, fname, 2, [1, 1], 1, success, .false.)
+   call check_(error, success)
+
+   wfn%nel = 2
+   wfn%nopen = 1
+   call readRestart(env, wfn, fname, 2, [1, 1], 1, success, .false.)
+   call check_(error, success)
+
+   call wfn_bad%allocate(3, 3, 3)
+   wfn_bad%nel = 2
+   wfn_bad%nopen = 0
+   call readRestart(env, wfn_bad, fname, 3, [1, 1, 1], 1, success, .false.)
+   call check_(error, .not.success)
+
+   call delete_file(fname)
+   call wfn_bad%deallocate
+   call wfn%deallocate
+
+end subroutine test_gfn1_restart
 
 end module test_gfn1

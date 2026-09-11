@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""
+Git commit-msg hook for xtb
+Enforces Developer Certificate of Origin (DCO) sign-off
+
+This file is part of xtb.
+SPDX-Identifier: LGPL-3.0-or-later
+"""
+
+import sys
+import re
+
+def check_signoff(commit_msg_file):
+    """Check if commit message has a Signed-off-by line"""
+    try:
+        with open(commit_msg_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception as e:
+        print(f"Error reading commit message: {e}", file=sys.stderr)
+        return False
+    
+    # Check for Signed-off-by line
+    if re.search(r'^Signed-off-by:\s+.+\s+<[^>]+>\s*$', content, re.MULTILINE):
+        return True
+    
+    return False
+
+def main():
+    if len(sys.argv) < 2:
+        print("Error: No commit message file provided", file=sys.stderr)
+        sys.exit(1)
+    
+    commit_msg_file = sys.argv[1]
+    
+    if not check_signoff(commit_msg_file):
+        print("❌ ERROR: Commit is not signed off!", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("All commits to xtb must include a 'Signed-off-by' line to certify", file=sys.stderr)
+        print("that you have the right to submit it under the project's license.", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("Please use:  git commit -s -m \"your message\"", file=sys.stderr)
+        print("Or amend:    git commit --amend --signoff", file=sys.stderr)
+        print("To bypass:   git commit --no-verify", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("See: https://developercertificate.org/", file=sys.stderr)
+        sys.exit(1)
+    
+    sys.exit(0)
+
+if __name__ == '__main__':
+    main()

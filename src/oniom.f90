@@ -292,12 +292,17 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    ! define inner region charge !
    inner_mol%chrg = real(set%oniom_settings%innerchrg)
 
+   ! define inner region unpaired electrons
+   inner_mol%uhf = set%oniom_settings%innerspin
+
    ! --cut flag termination !
    if (set%oniom_settings%cut_inner) then
       
       write(env%unit,'(a)')
       write(env%unit,'(2x,72("-"))')
       write(env%unit,'(2x,"|",24x,a,1x,i0,22x,"|")') "INNER REGION CHARGE = ", nint(inner_mol%chrg)
+      write(env%unit, '(2x,"|",24x,a,1x,i0,10x,"|")') "INNER REGION UNPAIRED ELECTRONS = ", inner_mol%uhf
+      write(env%unit, '(2x,"|",24x,a,1x,i0,10x,"|")') "WHOLE REGION UNPAIRED ELECTRONS = ", mol%uhf
       write(env%unit,'(2x,72("-"))')
       write(env%unit,'(a)')
       call terminate(0)
@@ -481,7 +486,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 end subroutine singlepoint
 
 !> Evaluate hessian by finite difference for all atoms
-subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
+subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, odlr, final_err)
 
    character(len=*), parameter :: source = "extern_oniom_hessian"
    
@@ -510,6 +515,10 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
    real(wp), intent(inout) :: dipgrad(:, :)
    !> Array to add polarizability gradient to
    real(wp), intent(inout), optional :: polgrad(:, :)
+   !> Use ODLR approximated numerical hessian
+   logical, intent(in), optional :: odlr
+   !> Final residual error (ODLR only)
+   real(wp), intent(out), optional :: final_err
 
    real(wp), allocatable :: jacobian(:,:)
    integer,allocatable :: idx2(:)

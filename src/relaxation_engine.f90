@@ -130,7 +130,7 @@ contains
 !> frontend implementation of the fast inertial relaxation engine
 subroutine fire &
       &   (env,ilog,mol,chk,calc, &
-      &    optlevel,maxstep,energy,egap,gradient,sigma,printlevel,fail)
+      &    optlevel,maxstep,energy,egap,gradient,sigma,printlevel,fail, iter_needed)
 
    use xtb_mctc_convert
 
@@ -176,12 +176,12 @@ subroutine fire &
    real(wp), intent(inout) :: sigma(3,3)
    integer, intent(in) :: printlevel
    logical, intent(out) :: fail
+   integer, intent(out), optional :: iter_needed
 
    logical :: minpr
    logical :: pr
    logical :: debug
    logical :: converged
-   logical :: linear
    integer :: iter
    integer :: nvar
    integer :: nat3
@@ -191,7 +191,6 @@ subroutine fire &
    type(TMolecule) :: molopt
 
    real(wp) :: time
-   real(wp) :: a,b,c
    real(wp) :: U(3,3), x_center(3), y_center(3), rmsdval
    real(wp) :: estart,esave
    real(wp), allocatable :: xyz0(:,:)
@@ -235,21 +234,6 @@ subroutine fire &
    if (maxstep > 0) maxcycle = maxstep
    ! deactivate microcyles (seems to be expensive with only small gains)
 
-   ! open the logfile, the log is bound to unit 942, so we cannot use newunit
-   ! and have to hope that nobody else is currently occupying this identifier
-   opt%ilog = ilog
-   if (mol%npbc > 0) then
-      opt%ftype = fileType%vasp
-   else
-      opt%ftype = fileType%xyz
-   endif
-   !call open_file(opt%ilog,'xtbopt.log','w')
-   ! write starting structure to log
-   if (opt%ilog.ne.-1) then
-      call writeMolecule(mol, opt%ilog,format=opt%ftype, energy=energy, &
-         & gnorm=norm2(gradient))
-   endif
-
    ! get memory
    nat3 = 3*mol%n
    nvar = nat3
@@ -268,6 +252,21 @@ subroutine fire &
    pr    = opt%printlevel > 1
    debug = opt%printlevel > 2
 
+   ! open the logfile, the log is bound to unit 942, so we cannot use newunit
+   ! and have to hope that nobody else is currently occupying this identifier
+   opt%ilog = ilog
+   if (mol%npbc > 0) then
+      opt%ftype = fileType%vasp
+   else
+      opt%ftype = fileType%xyz
+   endif
+   !call open_file(opt%ilog,'xtbopt.log','w')
+   ! write starting structure to log
+   if (opt%ilog.ne.-1) then
+      call writeMolecule(mol, opt%ilog,format=opt%ftype, energy=energy, &
+         & gnorm=norm2(gradient), number=iter)
+   endif
+
    ! initial velocities
    velocities = -opt%time_step * gradient/opt%mass
    if (optcell) then
@@ -275,9 +274,6 @@ subroutine fire &
       call sigma_to_latgrad(sigma,inv_lat,lat_gradient)
       lat_velocities = -opt%lat_time_step * lat_gradient/opt%lat_mass
    endif
-
-   call axis(mol%n,mol%at,mol%xyz,a,b,c)
-   linear = c.lt.1.0e-10_wp
 
    ! print a nice summary with all settings and thresholds of FIRE
    if(pr)then
@@ -323,7 +319,7 @@ subroutine fire &
          ! exact fixing
          call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,-1,pmode,1)
       else
-         if (.not.linear) &
+         if (.not.mol%linear) &
          ! normal
          call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1) 
       endif
@@ -378,6 +374,10 @@ subroutine fire &
    ! save optimized geometry
    call mol%copy(molopt)
 
+   if (present(iter_needed)) then
+      iter_needed = iter
+   end if
+
    ! we cannot be sure that the geometry was written in the last optimization
    ! step due to the logstep > 1, so we append the last structure to the optlog
    if (mod(iter-1,opt%logstep).ne.0 .and. opt%ilog.ne.-1) then
@@ -395,7 +395,7 @@ end subroutine fire
 !  approximate normal coordinate rational function optimizer (L-ANCopt)
 subroutine l_ancopt &
       &   (env,ilog,mol,chk,calc, &
-      &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail)
+      &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail, iter_needed)
 
    use xtb_mctc_convert
    use xtb_mctc_lapack, only : lapack_syev
@@ -416,7 +416,7 @@ subroutine l_ancopt &
    use xtb_axis
    use xtb_hessian
    use xtb_lsrmsd
-   use xtb_detrotra, only : detrotra4
+   use xtb_detrotra, only : detrotra
 
    use xtb_gfnff_fraghess
 
@@ -447,6 +447,7 @@ subroutine l_ancopt &
    real(wp), intent(inout) :: sigma(3,3)
    integer, intent(in) :: printlevel
    logical, intent(out) :: fail
+   integer, intent(out), optional :: iter_needed
 
    logical :: minpr
    logical :: pr
@@ -460,7 +461,6 @@ subroutine l_ancopt &
 
    type(TMolecule) :: molopt
 
-   real(wp) :: a,b,c
    real(wp) :: U(3,3), x_center(3), y_center(3), rmsdval
    real(wp) :: estart,esave
    real(wp), allocatable :: xyzopt(:,:)
@@ -529,20 +529,6 @@ subroutine l_ancopt &
       end select
    end if
 
-   ! open the logfile, the log is bound to unit 942, so we cannot use newunit
-   ! and have to hope that nobody else is currently occupying this identifier
-   opt%ilog = ilog
-   if (mol%npbc > 0) then
-      opt%ftype = fileType%vasp
-   else
-      opt%ftype = fileType%xyz
-   endif
-   !call open_file(opt%ilog,'xtbopt.log','w')
-   if (opt%ilog.ne.-1) then
-      call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
-         & gnorm=norm2(gradient))
-   endif
-
    ! get memory, allocate single and double precision arrays separately
    nat3 = 3*mol%n
    allocate( pmode(nat3,1), hessp(nat3*(nat3+1)/2), trafo(nat3,nat3), &
@@ -563,21 +549,32 @@ subroutine l_ancopt &
       opt%hlow=min(opt%hlow,0.05_wp)
    end if   
 
-   call axis(mol%n,mol%at,mol%xyz,a,b,c)
-   linear = c.lt.1.0e-10_wp
+   linear = mol%linear
 
-   ! different DOF in case of frag hess
+   ! open the logfile, the log is bound to unit 942, so we cannot use newunit
+   ! and have to hope that nobody else is currently occupying this identifier
+   opt%ilog = ilog
+   if (mol%npbc > 0) then
+      opt%ftype = fileType%vasp
+   else
+      opt%ftype = fileType%xyz
+   endif
+   !call open_file(opt%ilog,'xtbopt.log','w')
+   if (opt%ilog.ne.-1) then
+      call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
+         & gnorm=norm2(gradient), number=iter)
+   endif
+
+   ! determine degrees of freedom
    nat3 = 3 * mol%n
-   if (fragmented_hessian) then
+   if (fixset%n > 0) then ! exact fixing
+      nvar = nat3 - 3*fixset%n - 3
+      if (nvar <= 0) nvar = 1
+   else if (fragmented_hessian) then
       nvar = nat3
    else
       nvar = nat3 - 6
-      if(linear) nvar = nat3 - 5
-
-      if(fixset%n.gt.0) then ! exact fixing
-         nvar=nat3-3*fixset%n-3
-         if(nvar.le.0) nvar=1
-      endif
+      if (linear) nvar = nat3 - 5
    end if
 
    allocate( hdiag(nvar), source = 0.0_wp )
@@ -644,7 +641,7 @@ subroutine l_ancopt &
       if (calc%topo%nsystem.gt.1) then
          write(env%unit,'(" * fragmented diagonalization...",1x,i0,1x,"fragments")') calc%topo%nsystem
          call frag_hess_diag(mol%n,hess,eig,calc%topo%ispinsyst, &
-            & calc%topo%nspinsyst,calc%topo%nsystem)
+            & calc%topo%nspinsyst,calc%topo%nsystem,fixset%n == 0)
        else if (calc%topo%nsystem.eq.1) then
           lwork  = 1 + 6*nat3 + 2*nat3**2
           allocate(aux(lwork))
@@ -665,7 +662,7 @@ subroutine l_ancopt &
    end select
 
    if (.not. fragmented_hessian) then
-      call detrotra4(linear,mol,hess,eig)
+      call detrotra(linear, mol%n, mol%xyz, hess, eig)
    end if
 
    select type(calc)
@@ -773,12 +770,16 @@ subroutine l_ancopt &
    ! save optimized geometry
    mol = molopt
 
+   if (present(iter_needed)) then
+      iter_needed = iter
+   end if
+
    if (profile) call timer%measure(7,"optimization log")
    ! we cannot be sure that the geometry was written in the last optimization
    ! step due to the logstep > 1, so we append the last structure to the optlog
    if (mod(iter,opt%logstep).ne.1.and.opt%ilog.ne.-1) then
       call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
-         & gnorm=norm2(gradient))
+         & gnorm=norm2(gradient), number=iter)
    end if
    !call close_file(opt%ilog)
    if (profile) call timer%measure(7)
@@ -1080,7 +1081,7 @@ subroutine lbfgs_relax &
       if (opt%ilog.ne.-1) then
          if (mod(icycle,opt%logstep).eq.1.or.opt%logstep.eq.1) then
             call writeMolecule(mol, opt%ilog,format=opt%ftype,energy=res%e_total, &
-               & gnorm=res%gnorm)
+               & gnorm=res%gnorm, number=iter)
          end if
       endif
       !call wrlog(mol%n,xyz,attyp,energy,gnorm,.false.)
@@ -1404,7 +1405,7 @@ subroutine inertial_relax &
       logthis = opt%ilog.ne.-1 .and. mod(istep-1,opt%logstep).eq.0
       if (logthis) then
          call writeMolecule(mol, opt%ilog,format=opt%ftype,energy=res%e_total, &
-            & gnorm=res%gnorm)
+            & gnorm=res%gnorm, number=iter)
       endif
 
       ! check for convergence of the energy change

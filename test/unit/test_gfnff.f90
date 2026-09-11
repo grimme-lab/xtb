@@ -30,6 +30,7 @@ subroutine collect_gfnff(testsuite)
 
    testsuite = [ &
       new_unittest("sp", test_gfnff_sp), &
+      new_unittest("harmonic", test_gfnff_harmonic), &
       new_unittest("hb", test_gfnff_hb), &
       new_unittest("gbsa", test_gfnff_gbsa), &
       new_unittest("mindless", test_gfnff_mindless_basic), &
@@ -130,6 +131,55 @@ subroutine test_gfnff_sp(error)
    call mol%deallocate
 
 end subroutine test_gfnff_sp
+
+
+subroutine test_gfnff_harmonic(error)
+   use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule
+   use xtb_type_restart, only : TRestart
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   use xtb_gfnff_param, only : gffVersion
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TGFFCalculator) :: calc
+   type(scc_results) :: res
+   real(wp), parameter :: thr = 1000*epsilon(1.0_wp)
+   real(wp) :: energy, hl_gap, sigma(3, 3), gradient(3, 3)
+   logical :: exitRun
+
+   call init(env)
+   call getMolecule(mol, "h2o")
+   call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false., &
+      & gffVersion%harmonic2020)
+
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (exitRun) return
+
+   ! Harmonic GFN-FF stores its bond list in the neighbor data.
+   call check_(error, calc%neigh%nbond, 2)
+   call check_(error, allocated(calc%neigh%blist))
+   call check_(error, .not.allocated(calc%topo%blist))
+
+   call calc%singlepoint(env, mol, chk, 0, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   call check_(error, ieee_is_finite(energy))
+   call check_(error, all(ieee_is_finite(gradient)))
+   call check_(error, energy, 0.00476278587765942_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.0478776130669465_wp, thr=thr)
+
+end subroutine test_gfnff_harmonic
 
 subroutine test_gfnff_hb(error)
    use xtb_mctc_accuracy, only : wp

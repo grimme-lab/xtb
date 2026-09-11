@@ -51,6 +51,7 @@ subroutine writeMolecule(self, unit, format, energy, gnorm, number)
    character(len=:), allocatable :: comment_line
    character(len=20) :: energy_line
    character(len=20) :: gnorm_line
+   character(len=20) :: number_line
    type(structure_type) :: struc
    type(error_type), allocatable :: error
    integer :: ftype
@@ -71,6 +72,11 @@ subroutine writeMolecule(self, unit, format, energy, gnorm, number)
       comment_line = comment_line // " gnorm: " // trim(adjustl(gnorm_line))
    endif
    comment_line = comment_line // " xtb: " // version
+
+   if (present(number)) then
+      write(number_line, '(i0)') number
+      comment_line = comment_line // " iter: " // trim(adjustl(number_line))
+   endif
 
    struc = self
    struc%comment = trim(comment_line)

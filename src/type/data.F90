@@ -15,10 +15,17 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 module xtb_type_data
    use xtb_mctc_accuracy, only : wp
    use xtb_type_pcem
    use xtb_iff_data, only : TIFFData
+#if WITH_TBLITE
+   use tblite_results, only : results_type
+#endif
 
    implicit none
 
@@ -88,6 +95,9 @@ module xtb_type_data
       real(wp) :: e_batm = 0.0_wp
       real(wp) :: e_ext = 0.0_wp
       type(TIFFResults), allocatable :: iff_results
+# if WITH_TBLITE
+      type(results_type) :: tblite_results
+# endif
    contains 
       procedure :: print => print_scc_results
    end type scc_results

@@ -33,8 +33,10 @@ subroutine geosum(n,ic,xyzin)
    integer i, j, nn, k, imin, jmin, iat1, iat2
    integer nm,ij,m,iat,jat, nsel
    integer nt,a,b,ia,ib,ja,jb,ii,jj,lin,linij
-   character*31  lab,lab2,angsum1 (n*150)
-   character*30  lab4,angsum2(n*150)
+   character*31  lab,lab2
+   character*31, allocatable :: angsum1(:)
+   character*30  lab4
+   character*30, allocatable :: angsum2(:)
    character*50  lab3
    character*21  lab21
 
@@ -43,7 +45,8 @@ subroutine geosum(n,ic,xyzin)
 
    nn=100*100
    allocate(x(n),y(n),z(n),rmin(nn),rmax(nn),dev(nn),av(nn),&
-      &         rlist(n,150),bondlist(n,150),nbond(n),nty(nn))
+      &         rlist(n,150),bondlist(n,150),nbond(n),nty(nn),&
+      &         angsum1(n*150),angsum2(n*150))
 
    x(1:n)=xyzin(1,1:n)
    y(1:n)=xyzin(2,1:n)

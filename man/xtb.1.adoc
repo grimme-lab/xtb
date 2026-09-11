@@ -71,6 +71,7 @@ OPTIONS
 
 *-u, --uhf* 'INT'::
     specify number of unpaired electrons as 'INT', overrides `.UHF` file and `xcontrol` option
+    (default: 0 (singlet) for even electron number, 1 (doublet) for odd electron number)
 
 *--gfn* 'INT'::
     specify parametrisation of GFN-xTB (default = 2)
@@ -100,6 +101,10 @@ OPTIONS
     `low` can be 'gfn2', 'gfn1', or 'gfnff'.
     The inner region is given as comma-separated indices directly in the commandline
     or in a file with each index on a separate line.
+
+*--efield* 'REAL,REAL,REAL'::
+    static electric field in Cartesian coordinates, overrides `.EFIELD` file,
+    works only via tblite for the xTB Hamiltonians, or with GFN-FF and PTB.
 
 *--etemp, --temp* 'REAL'::
     electronic temperature for SCC (default = 300K)
@@ -135,6 +140,18 @@ OPTIONS
     'methanol', 'n-hexane' (only GFN2-xTB), 'THF' and 'toluene'.
     The solvent input is not case-sensitive.
     The Gsolv reference state can be chosen as 'reference', 'bar1M', or 'gsolv' (default).
+
+*--gbe* 'SOLVENT/EPSILON'::
+    generalized Born for finite epsilon (GBe) solvation model (tblite required),
+    includes only the electrostatic solvation contribution (no SASA model),
+    available solvents are all solvents that are available for alpb.
+    Additionally, the dielectric constant can be set manually.
+
+*--gb* 'SOLVENT/EPSILON'::
+    generalized Born (GB) solvation model (tblite required),
+    includes only the electrostatic solvation contribution (no SASA model),
+    available solvents are all solvents that are available for alpb.
+    Additionally, the dielectric constant can be set manually.
 
 *--cosmo* 'SOLVENT/EPSILON'::
     domain decomposition conductor-like screening model (ddCOSMO)
@@ -179,6 +196,9 @@ OPTIONS
 
 *--fod*::
     requests FOD calculation
+
+*--cycles* 'INT'::
+    maximum number of optimization cycles
 
 RUNTYPS
 ~~~~~~~
@@ -230,6 +250,21 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 *--bhess* ['LEVEL']::
     perform a biased numerical hessian calculation on an `ancopt(3)` optimized
     geometry
+
+*--o1nh*::
+    perform the numerical hessian calculation using the ODLR approximation (O1NumHess)
+
+*--imagmin* 'REAL'::
+    magnitudes below this value (cm⁻¹) are ignored in the O1NumHess
+    imaginary frequency repair (default 5).
+
+*--imagmax* 'REAL'::
+    deepest imaginary frequency (cm⁻¹) considered in the O1NumHess
+    imaginary frequency repair (default 200).
+
+*--ithr* 'REAL'::
+    imaginary frequencies between this cutoff (cm⁻¹) and zero are treated
+    as vibrations in the RRHO calculation (default 20).
 
 *--md*::
     molecular dynamics simulation on start geometry

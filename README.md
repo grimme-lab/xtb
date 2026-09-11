@@ -11,16 +11,22 @@ This is the official repository of the `xtb` program package developed by the Gr
 <img src="./assets/logo/xtb.svg" alt="Extended Tight Binding" width="220">
 </div>
 
+## Table of Contents
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Citations](#citations)
+- [Licence](#license)
 
 ## Installation
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/grimme-lab/xtb/fortran-build.yml?branch=main)](https://github.com/grimme-lab/xtb/actions)
 
-Statically linked binaries (Intel Compiler) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest), a version for Linux (Intel 18.0.2, GLIBC 2.19) and Windows (Intel 2022) is provided.
+Statically linked binaries (Intel Compiler) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest), a version for Linux (Intel 18.0.2, GLIBC 2.19) and Windows (Intel 2022, GNU-15) is provided.
 The `xtb` program and library are packaged on conda-forge for Linux (x86\_64, aarch64, ppc64le) and MacOS (x86\_64, arm64).
 For homebrew users a custom tap is available at [grimme-lab/homebrew-qc](https://github.com/grimme-lab/homebrew-qc) providing prebuilt MacOS/x86\_64 binaries, for MacOS/arm64 binaries will be compiled on installation automatically.
 
-Bleeding edge releases (Linux only) of the latest source from this repository are available on the [continuous release tag](https://github.com/grimme-lab/xtb/releases/tag/bleed).
+Bleeding edge releases (Linux and Windows) of the latest source from this repository are available on the [continuous release tag](https://github.com/grimme-lab/xtb/releases/tag/bleed).
 
 This projects supports two build systems, meson and CMake.
 A short guide on the usage of each is given here, follow the linked instructions for a more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
@@ -150,6 +156,8 @@ features reality:
 - S. Dohm ([@thch-dohm](https://github.com/thch-dohm))
 - S. Ehlert ([@awvwgk](https://github.com/awvwgk))
 - S. Ehrlich
+- M. Friede ([@marvinfriede](https://github.com/marvinfriede))
+- T. Froitzheim ([@thfroitzheim](https://github.com/thfroitzheim))
 - I. Gerasimov ([@foxtran](https://github.com/foxtran))
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - C. Hölzer ([@hoelzerC](https://github.com/hoelzerc))
@@ -166,6 +174,7 @@ features reality:
 - P. Pracht ([@pprcht](https://github.com/pprcht))
 - F. Pultar ([@pultar](https://github.com/pultar))
 - J. Seibert ([@liljay42](https://github.com/liljay42))
+- L. M. Seidler ([@lmseidler](https://github.com/lmseidler))
 - P. Shushkov
 - S. Spicher ([@sespic](https://github.com/sespic))
 - M. Stahn ([@MtoLStoN](https://github.com/mtolston))
@@ -244,6 +253,10 @@ for SPH calculations refer to:
 for ONIOM refer to:
 - C. Plett, A. Katbashev, S. Ehlert, S. Grimme, M. Bursch, *Phys. Chem. Chem. Phys.*, **2023**, 25, 17860-17868.
   DOI: [10.1039/D3CP02178E](https://doi.org/10.1039/D3CP02178E)
+
+for O1NumHess refer to:
+- B. Wang, S. Luo, Z. Wang, W. Liu, *J. Chem. Theory Comput.* **2025**, 21, 10893-10909.
+  DOI: 10.1021/acs.jctc.5c01354
 
 All references are available in [bibtex format](./assets/references.bib).
 

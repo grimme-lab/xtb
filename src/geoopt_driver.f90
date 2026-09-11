@@ -22,7 +22,7 @@ contains
 !> more info: https://xtb-docs.readthedocs.io/en/latest/optimization.html 
 subroutine geometry_optimization &
       &   (env,mol,wfn,calc,egap,et,maxiter,maxcycle_in,etot,g,sigma, &
-      &    tight,pr,initial_sp,fail)
+      &    tight,pr,initial_sp,fail, iter_needed)
 
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
@@ -64,6 +64,9 @@ subroutine geometry_optimization &
    
    !> max number of optimization cycles
    integer, intent(in)    :: maxcycle_in
+
+   !> number of iterations needed
+   integer, intent(out), optional :: iter_needed
    
    !> total energy
    real(wp),intent(inout) :: etot
@@ -146,13 +149,13 @@ subroutine geometry_optimization &
    case(p_engine_rf) ! ANCopt !
       call ancopt &
          &(env,ilog,mol,wfn,calc, &
-         & egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
+         & egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail, iter_needed)
       final_sp = .true. ! required since ANCopt might perform an untracked displacement 
    
    case(p_engine_lbfgs)
       call l_ancopt & ! L-ANCopt !
          &(env,ilog,mol,wfn,calc, &
-         & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
+         & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail, iter_needed)
    case(p_engine_pbc_lbfgs)
      ! get number of unique species; used in precond_lindh
      !call get_identity(mol%nid, mol%id, mol%at)
@@ -162,11 +165,11 @@ subroutine geometry_optimization &
      ! create new Limited-memory BFGS optimizer 
      call new_lbfgs_optimizer(lbfgs_opt, env, opt_input, filter)
      ! run optimization
-     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, printlevel, fail)
+     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, printlevel, fail, iter_needed)
    case(p_engine_inertial)
       call fire & ! FIRE !
          &(env,ilog,mol,wfn,calc, &
-         & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
+         & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail, iter_needed)
    
    end select
   

@@ -106,6 +106,9 @@ module xtb_setparam
       
       !> inner region charge
       integer  :: innerchrg
+
+      !> explicit charges (inner:outer)
+      logical :: fixed_chrgs= .false.
       
       !> cut high order(>1) covalent bonds
       logical :: ignore_topo = .false.
@@ -116,8 +119,11 @@ module xtb_setparam
       !> dummy execution to check inner region geo and chrg
       logical :: cut_inner = .false.
 
-      !> explicite charges (inner:outer)
-      logical :: fixed_chrgs= .false.
+      !> explicit spin (inner:outer)
+      logical :: fixed_spin = .false.
+
+      !> inner region spin
+      integer :: innerspin
       
       !> mute external output (ORCA,TURBOMOLE)
       logical :: silent = .false.
@@ -337,6 +343,12 @@ module xtb_setparam
    real(wp) :: step_hess = 0.005_wp
    ! Scaling factor for the hessian elements
    real(wp) :: scale_hess = 1.0_wp
+   ! Use O1NumHess for Hessian
+   logical :: o1numhess = .false.
+   ! frequencies below this value are treated as numerical noise
+   real(wp) :: imagmin_hess = -5.0_wp
+   ! frequencies below this value are left to the regular Hessian path
+   real(wp) :: imagmax_hess = -200.0_wp
 
 !  switch on gbsa for solvent if second argument is a valid solvent name
    type(TSolvInput) :: solvInput
@@ -502,8 +514,11 @@ module xtb_setparam
    logical  :: fit = .false. ! write fit data in scf.f
    logical  :: tsopt = .false.
    logical  :: mdrtrconstr = .false. ! not used
-!  initialize at each start the RNG if .false.
+!  legacy request for a repeatable random-number sequence
    logical  :: samerand = .false.
+!  user-facing scalar and its initialization state for the Fortran RNG
+   integer  :: randseed = 0
+   logical  :: randseed_set = .false.
 !  just check the input, don't do calculations
    logical  :: define = .false.
 !  printlevel for the main program
@@ -532,22 +547,38 @@ module xtb_setparam
 contains
 
 
+!> Initialize the random-number generator from a scalar seed
 subroutine initrand
+   use, intrinsic :: iso_fortran_env, only : int64
    implicit none
-   integer :: i,j
-   integer,allocatable :: iseed(:)
-   integer :: imagic = 41
-   if (set%samerand) then
-      call random_seed(size=j)
-      allocate(iseed(j), source = imagic)
-      do i = 1, j
-         iseed(i) = iseed(i)+j
-      enddo
-      call random_seed(put=iseed)
-      deallocate(iseed)
-   else
-      call random_seed()
+   integer :: i, nseed
+   integer, allocatable :: seed_vector(:)
+   integer(int64) :: state
+   integer(int64), parameter :: seed_modulus = 2147483647_int64
+   integer(int64), parameter :: seed_multiplier = 48271_int64
+
+   call random_seed(size=nseed)
+   allocate(seed_vector(nseed))
+
+   if (.not.set%randseed_set) then
+      if (set%samerand) then
+         set%randseed = 41
+      else
+         call random_seed()
+         call random_seed(get=seed_vector)
+         ! Select a scalar that can be printed and replayed through `$seed`.
+         set%randseed = int(modulo(int(seed_vector(1), int64), seed_modulus - 1_int64))
+      endif
+      set%randseed_set = .true.
    endif
+
+   ! Expand the scalar seed with a Park--Miller recurrence.
+   state = modulo(int(set%randseed, int64), seed_modulus - 1_int64) + 1_int64
+   do i = 1, size(seed_vector)
+      state = modulo(seed_multiplier*state, seed_modulus)
+      seed_vector(i) = int(state)
+   enddo
+   call random_seed(put=seed_vector)
 end subroutine initrand
 
 function get_namespace(string) result(name)

@@ -1,6 +1,7 @@
 ! This file is part of xtb.
 !
 ! Copyright (C) 2017-2021 Stefan Grimme
+! Copyright (C) 2026 Leopold M. Seidler
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -50,8 +51,6 @@ subroutine numhess( &
    use xtb_fixparam
    use xtb_metadynamic
 
-   use xtb_axis, only : axis
-
    use xtb_ptb_calculator, only: TPTBCalculator, newPTBcalculator
 
    implicit none
@@ -86,7 +85,7 @@ subroutine numhess( &
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
-   integer  :: nread,kend,lowmode
+   integer  :: nread,kend,lowmode,nzero
    integer  :: nonfrozh
    integer  :: fixmode
    integer, allocatable :: nb(:,:)
@@ -107,11 +106,13 @@ subroutine numhess( &
    real(wp),allocatable :: aux (:)
    real(wp),allocatable :: isqm(:)
    real(wp),allocatable :: gl  (:,:)
-   real(wp),allocatable :: xyzsave(:,:)
    real(wp),allocatable :: pold(:)
    real(wp),allocatable :: dipd(:,:), dalphadr(:,:), dalphadq(:,:)
    real(wp),allocatable :: amass_au(:), amass_amu(:)
    real(wp) :: asq, gamsq
+
+   ! final residual error in approximating gradients using odlr hessian
+   real(wp) :: final_err
 
    type(TMolecule) :: tmol
 
@@ -127,7 +128,7 @@ subroutine numhess( &
    res%n3true = n3-3*freezeset%n
 
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
-      & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), amass_amu(n3), &
+      & gl(3,mol%n),isqm(n3),dipd(3,n3), amass_amu(n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
       & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass_au(n3), h_dummy(n3,n3), izero(n3))
 
@@ -137,11 +138,6 @@ subroutine numhess( &
    end if
 
    rd=.false.
-   xyzsave = mol%xyz
-
-   step=0.0001_wp
-   call rotmol(mol%n,mol%xyz,step,2.*step,3.*step)
-
    ! step length
    step=set%step_hess
    if(set%extcode.eq.5) step=step*2.0_wp ! MOPAC is not very accurate
@@ -172,9 +168,7 @@ subroutine numhess( &
       write(env%unit, '(a)')
    end if
 
-   res%linear=.false.
-   call axis(mol%n,mol%at,mol%xyz,aa,bb,cc)
-   if(cc.lt.1.d-10) res%linear=.true.
+   res%linear = mol%linear
    step2=0.5_wp/step
    calc%accuracy=set%accu_hess ! set SCC accuracy for numerical Hessian !
 
@@ -185,7 +179,21 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
-   if(freezeset%n.gt.0) then
+   if (set%o1numhess) then
+      h = 0.0_wp
+      dipd = 0.0_wp
+      pold = 0.0_wp
+      indx = [(i, i = 1, mol%n)]
+      if (set%elprop == p_elprop_alpha) then
+         call calc%hessian(env, mol, chk0, indx, step, h, dipd, dalphadr, &
+            & odlr=.true., final_err=final_err)
+      else
+         call calc%hessian(env, mol, chk0, indx, step, h, dipd, odlr=.true., final_err=final_err)
+      end if
+      call env%check(exitRun)
+      if (exitRun) return
+      write(env%unit, '(A,1X,ES12.4)') "Error norm for predicted gradient (ODLR Hessian):", final_err
+   else if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
       ! the real ones
@@ -212,7 +220,6 @@ subroutine numhess( &
       dipd = 0.0_wp
       pold = 0.0_wp
       call calc%hessian(env, mol, chk0, indx(:nonfrozh), step, h, dipd)
-
    else
 !! ------------------------------------------------------------------------
 !  normal case
@@ -411,6 +418,7 @@ subroutine numhess( &
       write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
    endif
    k=0
+   izero=[(i, i=1,n3)]
    do i=1,n3
       ! Eigenvalues in atomic units, convert to wavenumbers
       res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))
@@ -419,6 +427,7 @@ subroutine numhess( &
          izero(k)=i
       endif
    enddo
+   nzero=k
 
    ! scale frequencies
    if (set%runtyp.eq.p_run_bhess) then
@@ -437,9 +446,9 @@ subroutine numhess( &
    end if
 
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
+   h = 0.0_wp
+   isqm = 0.0_wp
    if (mol%n > 1) then
-      h = 0.0_wp
-      isqm = 0.0_wp
       kend=0
       if (freezeset%n == 0) then
          kend=6
@@ -449,6 +458,10 @@ subroutine numhess( &
                izero(i)=i
             enddo
             res%freq(1:kend)=0
+         else if (nzero < kend) then
+            call env%error('Too few rot/trans modes found, hessian is unusable', &
+               & source)
+            return
          endif
          do k=1,kend
             h(1:n3,k)=res%hess(1:n3,izero(k))
@@ -461,7 +474,8 @@ subroutine numhess( &
          ! for non-linear systems unless one fixes three atoms defines plane, 1 degree of freedom will exist, otherwise there should be 0 degrees of freedom
          ! anyway, the check here will become more complex and therefore it is not impemented
          ! NOTE: it is not necessary lowest N frequencies
-         error stop "not implemented"
+         call env%error("check for <=2 frozen atoms not implemented", source)
+         return
          ! for three atom systems we assume that the plane was constructed (or linear system is used)
       endif
       j=kend
@@ -495,33 +509,37 @@ subroutine numhess( &
             xsum = xsum + (amass_amu(ii))**2 * (res%hess(ii,i))**2
          enddo
       enddo
-      res%rmass(i)= 1.0_wp / xsum
+      if (xsum > 0.0_wp) then
+         res%rmass(i) = 1.0_wp / xsum
+      else
+         res%rmass(i) = 0.0_wp
+      end if
    enddo
 
    !--- IR intensity ---! (holds in a similar fashion also for Raman)
-   !  1. res%hess corresponds to the orthonormal eigenvectors of the mass-weighted Hessian
-   !     matrix (-> normal modes of vibration). By mass-weighting the Hessian matrix,
-   !     the normal modes are transformed into the mass-weighted space ("Q basis"), and
-   !     have the units [sqrt(mass) * length]
-   !     To obtain purely cartesian coordinates (-> transforming back into the Cartesian space),
-   !     the mass-weighted normal modes have to be divided by the square root of the mass of the respective atom.
-   !
-   !  2. res%hess(j,i) is the matrix which transforms a derivative with
-   !     respect to the j-th cartesian coordinate ("dipd") into a derivative with
-   !     respect to the i-th normal coordinate.
-   !
-   !  3. amass_au(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).
-   !
-   !  4. matmul(D x H) = U
-   !
-   !  5. D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives
-   !                                              in x, y and z direction per mode
-   !
-   ! Generally nice reads for understanding the necessity of mass-weighting:
-   ! 1) https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/
-   !         Advanced_Theoretical_Chemistry_(Simons)/
-   !         03%3A_Characteristics_of_Energy_Surfaces/3.02%3A_Normal_Modes_of_Vibration
-   ! 2) https://www.cup.uni-muenchen.de/ch/compchem/G98vib.pdf
+      !  1. res%hess corresponds to the orthonormal eigenvectors of the mass-weighted Hessian
+      !     matrix (-> normal modes of vibration). By mass-weighting the Hessian matrix,
+      !     the normal modes are transformed into the mass-weighted space ("Q basis"), and
+      !     have the units [sqrt(mass) * length]
+      !     To obtain purely cartesian coordinates (-> transforming back into the Cartesian space),
+      !     the mass-weighted normal modes have to be divided by the square root of the mass of the respective atom.
+      !
+      !  2. res%hess(j,i) is the matrix which transforms a derivative with
+      !     respect to the j-th cartesian coordinate ("dipd") into a derivative with
+      !     respect to the i-th normal coordinate.
+      !
+      !  3. amass_au(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).
+      !
+      !  4. matmul(D x H) = U
+      !
+      !  5. D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives
+      !                                              in x, y and z direction per mode
+      !
+      ! Generally nice reads for understanding the necessity of mass-weighting:
+      ! 1) https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/
+      !         Advanced_Theoretical_Chemistry_(Simons)/
+      !         03%3A_Characteristics_of_Energy_Surfaces/3.02%3A_Normal_Modes_of_Vibration
+      ! 2) https://www.cup.uni-muenchen.de/ch/compchem/G98vib.pdf
 
    do i = 1, n3
       do k = 1, 3
@@ -638,45 +656,12 @@ end subroutine numhess_rmsd
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine rotmol(n,xyz,xrot,yrot,zrot)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_constants, only: pi
-   implicit none
-   integer :: n,i
-   real(wp) :: xrot,yrot,zrot,xyz(3,n)
-   real(wp) :: ang,xo,yo
-
-   ang=xrot*pi/180.0_wp
-   do i=1,n
-      xo=xyz(2,i)
-      yo=xyz(3,i)
-      xyz(2,i)= xo*cos(ang)+yo*sin(ang)
-      xyz(3,i)=-xo*sin(ang)+yo*cos(ang)
-   enddo
-   ang=yrot*pi/180.0_wp
-   do i=1,n
-      xo=xyz(1,i)
-      yo=xyz(3,i)
-      xyz(1,i)= xo*cos(ang)+yo*sin(ang)
-      xyz(3,i)=-xo*sin(ang)+yo*cos(ang)
-   enddo
-   ang=zrot*pi/180.0_wp
-   do i=1,n
-      xo=xyz(1,i)
-      yo=xyz(2,i)
-      xyz(1,i)= xo*cos(ang)+yo*sin(ang)
-      xyz(2,i)=-xo*sin(ang)+yo*cos(ang)
-   enddo
-
-end subroutine rotmol
-
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
 subroutine distort(mol,freq,u)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_filetypes, only : generateFileName
    use xtb_type_molecule
    use xtb_io_writer, only : writeMolecule
+   use xtb_setparam, only : set
    implicit none
    type(TMolecule), intent(inout) :: mol
    real(wp) u(:,:),freq(:)
@@ -690,7 +675,7 @@ subroutine distort(mol,freq,u)
 
    n3=3*len(mol)
    ! cut-off for what is considered to be imag
-   thr=5.0
+   thr=abs(set%imagmin_hess)
 
    imag=0
    do i=1,n3

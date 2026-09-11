@@ -23,7 +23,7 @@ srcs += files(
   'generator.f90',
   'gfnff_eg.f90',
   'gfnff_ini.f90',
-  'gfnff_ini2.f90',
+  'gfnff_ini2.F90',
   'gfnff_param.f90',
   'gfnff_qm.f90',
   'gfnff_rab.f',

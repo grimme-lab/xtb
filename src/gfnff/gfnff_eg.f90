@@ -197,7 +197,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    real(wp),allocatable :: xtmp(:)
    type(tb_timer) :: timer
    real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
-   real(wp) :: dist(n,n)
+   real(wp), allocatable :: dist(:, :)
    real(wp) :: ds(3,3)
    real(wp) :: convF  !convergence factor alpha, aka ewald parameter 
    logical, allocatable :: considered_ABH(:,:,:)
@@ -249,7 +249,8 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
 
    allocate(sqrab(n*(n+1)/2),srab(n*(n+1)/2),qtmp(n),g5tmp(3,n), &
    &         eeqtmp(2,n*(n+1)/2),d3list(2,n*(n+1)/2),dcn(3,n,n),cn(n), &
-   &         dcndr(3,n,n), dcndL(3,3,n), hb_dcn(3,n,n),hb_cn(n),dhbcndL(3,3,n))
+   &         dcndr(3,n,n), dcndL(3,3,n), hb_dcn(3,n,n),hb_cn(n),dhbcndL(3,3,n), &
+   &         dist(n,n))
 
    if (pr) then   
    
@@ -399,10 +400,10 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    if (version == gffVersion%harmonic2020) then
       ebond=0
       !$omp parallel do default(none) reduction(+:ebond, g) &
-      !$omp shared(topo, param, xyz, at) private(i, iat, jat, rab, r2, r3, rn, dum)
-      do i=1,topo%nbond
-         iat=topo%blist(1,i)
-         jat=topo%blist(2,i)
+      !$omp shared(neigh, param, xyz, at) private(i, iat, jat, rab, r2, r3, rn, dum)
+      do i=1,neigh%nbond
+         iat=neigh%blist(1,i)
+         jat=neigh%blist(2,i)
          r3 =xyz(:,iat)-xyz(:,jat)
          rab=sqrt(sum(r3*r3))
          rn=0.7*(param%rcov(at(iat))+param%rcov(at(jat)))
@@ -727,7 +728,7 @@ endif
          l=topo%b3list(3,i)
          iTrk=topo%b3list(4,i)
          iTrl=topo%b3list(5,i)
-         call batmgfnff_eg(n,j,k,l,iTrk,iTrl,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,ds,param,neigh)
+         call batmgfnff_eg(n,j,k,l,iTrk,iTrl,at,xyz,topo%qa,etmp,g3tmp,ds,param,neigh)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -3345,95 +3346,105 @@ subroutine rbxgfnff_eg(n,A,B,X,iTrB,iTrX,at,xyz,q,energy,gdr,param,neigh,sigma)
 end subroutine rbxgfnff_eg
 
 !> taken from D3 ATM code
-subroutine batmgfnff_eg(n,iat,jat,kat,iTrj,iTrk,at,xyz,q,sqrab,srab,energy,g,ds,param,neigh)
-   implicit none
-   type(TGFFData), intent(in) :: param
-   type(TNeigh), intent(inout) :: neigh
-   integer, intent(in) :: iat,jat,kat,n,at(n),iTrj,iTrk
-   real*8, intent(in) :: xyz(3,n),q(n)
-   real*8, intent(out) :: energy,g(3,3),ds(3,3)
-   real*8, intent(in) :: sqrab(n*(n+1)/2)   ! squared dist
-   real*8, intent(in) :: srab (n*(n+1)/2)   ! dist
+  subroutine batmgfnff_eg(n, iat, jat, kat, iTrj, iTrk, at, xyz, q, energy, g, ds, param, neigh)
+    implicit none
+    type(TGFFData), intent(in) :: param
+    type(TNeigh), intent(in) :: neigh
+    integer, intent(in) :: iat, jat, kat, n, at(n), iTrj, iTrk
+    real(wp), intent(in) :: xyz(3,n), q(n)
+    real(wp), intent(out) :: energy, g(3,3), ds(3,3)
 
-   real*8 r2ij,r2jk,r2ik,c9,mijk,imjk,ijmk,rijk3,ang,angr9,rav3
-   real*8 rij(3),rik(3),rjk(3),ri(3),rj(3),rk(3),drij,drik,drjk,dang,ff,fi,fj,fk,fqq
-   parameter (fqq=3.0d0)
-   integer :: linij,linik,linjk,i,j,iTrDum,dm1,dm2
+    real(wp) :: r2ij, r2jk, r2ik, sr2ij, sr2jk, sr2ik, invsr2ij, invsr2jk, invsr2ik
+    real(wp) :: c9, mijk, imjk, ijmk, rijk3, ang, angr9, rav3
+    real(wp) :: rij(3), rik(3), rjk(3), ri(3), rj(3), rk(3), drij, drik, drjk, dang, ff, fi, fj, fk
+    real(wp), parameter :: fqq = 3.0_wp
+    integer :: iTrDum, dm1, dm2
 
-   fi=(1.d0-fqq*q(iat))
-   fi=min(max(fi,-4.0d0),4.0d0)
-   fj=(1.d0-fqq*q(jat))
-   fj=min(max(fj,-4.0d0),4.0d0)
-   fk=(1.d0-fqq*q(kat))
-   fk=min(max(fk,-4.0d0),4.0d0)
-   ff=fi*fj*fk ! charge term
-   c9=ff*param%zb3atm(at(iat))*param%zb3atm(at(jat))*param%zb3atm(at(kat)) ! strength of interaction
-   r2ij=NORM2(xyz(:,iat)-(xyz(:,jat)+neigh%transVec(:,iTrj)))**2
-   r2ik=NORM2(xyz(:,iat)-(xyz(:,kat)+neigh%transVec(:,iTrk)))**2
-   iTrDum=neigh%fTrSum(neigh%iTrNeg(iTrj),iTrk)
-   if(iTrDum.le.0.or.iTrDum.gt.neigh%numctr) then
-      r2jk=NORM2((xyz(:,kat)+neigh%transVec(:,iTrk))-(xyz(:,jat)+neigh%transVec(:,iTrj)))**2
-   else
-      r2jk=NORM2(xyz(:,jat)-(xyz(:,kat)+neigh%transVec(:,iTrDum)))**2
-   endif
-   mijk=-r2ij+r2jk+r2ik
-   imjk= r2ij-r2jk+r2ik
-   ijmk= r2ij+r2jk-r2ik
-   rijk3=r2ij*r2jk*r2ik
-   rav3=rijk3**1.5 ! R^9
-   ang=0.375d0*ijmk*imjk*mijk/rijk3
-   angr9=(ang +1.0d0)/rav3
-   energy=c9*angr9 ! energy
+    energy = 0.0_wp
+    g = 0.0_wp
+    ds = 0.0_wp
 
-!     derivatives of each part w.r.t. r_ij,jk,ik
-           dang=-0.375d0*(r2ij**3+r2ij**2*(r2jk+r2ik) &
-  &             +r2ij*(3.0d0*r2jk**2+2.0*r2jk*r2ik+3.0*r2ik**2) &
-  &             -5.0*(r2jk-r2ik)**2*(r2jk+r2ik)) &
-  &             /(sqrt(r2ij)*rijk3*rav3)
-           drij=-dang*c9
-           dang=-0.375d0*(r2jk**3+r2jk**2*(r2ik+r2ij) &
-  &             +r2jk*(3.0d0*r2ik**2+2.0*r2ik*r2ij+3.0*r2ij**2) &
-  &             -5.0*(r2ik-r2ij)**2*(r2ik+r2ij)) &
-  &             /(sqrt(r2jk)*rijk3*rav3)
-           drjk=-dang*c9
-           dang=-0.375d0*(r2ik**3+r2ik**2*(r2jk+r2ij) &
-  &             +r2ik*(3.0d0*r2jk**2+2.0*r2jk*r2ij+3.0*r2ij**2) &
-  &             -5.0*(r2jk-r2ij)**2*(r2jk+r2ij)) &
-  &             /(sqrt(r2ik)*rijk3*rav3)
-           drik=-dang*c9
+    fi = (1.0_wp - fqq * q(iat))
+    fi = min(max(fi, -4.0_wp), 4.0_wp)
+    fj = (1.0_wp - fqq * q(jat))
+    fj = min(max(fj, -4.0_wp), 4.0_wp)
+    fk = (1.0_wp - fqq * q(kat))
+    fk = min(max(fk, -4.0_wp), 4.0_wp)
+    ff = fi * fj * fk ! charge term
+    c9 = ff * param%zb3atm(at(iat)) * param%zb3atm(at(jat)) * param%zb3atm(at(kat)) ! strength of interaction
+    r2ij = sum((xyz(1:3, iat) - (xyz(1:3, jat) + neigh%transVec(1:3, iTrj)))**2)
+    r2ik = sum((xyz(1:3, iat) - (xyz(1:3, kat) + neigh%transVec(1:3, iTrk)))**2)
+    iTrDum = neigh%fTrSum(neigh%iTrNeg(iTrj), iTrk)
+    if (iTrDum <= 0 .or. iTrDum > neigh%numctr) then
+      r2jk = sum(((xyz(:, kat) + neigh%transVec(:, iTrk)) &
+                - (xyz(:, jat) + neigh%transVec(:, iTrj)))**2)
+    else
+      r2jk = sum((xyz(:, jat) - (xyz(:, kat) + neigh%transVec(:, iTrDum)))**2)
+    end if
+    sr2ij = sqrt(r2ij)
+    sr2ik = sqrt(r2ik)
+    sr2jk = sqrt(r2jk)
+    invsr2ij = 1._wp / sr2ij
+    invsr2ik = 1._wp / sr2ik
+    invsr2jk = 1._wp / sr2jk
+    mijk = -r2ij + r2jk + r2ik
+    imjk = r2ij - r2jk + r2ik
+    ijmk = r2ij + r2jk - r2ik
+    rijk3 = r2ij * r2jk * r2ik
+    rav3 = rijk3 * sr2ij * sr2jk * sr2ik ! R^9
+    ang = 0.375_wp * ijmk * imjk * mijk / rijk3
+    angr9 = (ang + 1.0_wp) / rav3
+    energy = c9 * angr9 ! energy
 
-   rij=xyz(:,jat)-xyz(:,iat)+neigh%transVec(:,iTrj)
-   rik=xyz(:,kat)-xyz(:,iat)+neigh%transVec(:,iTrk)
-   if(iTrDum.le.0.or.iTrDum.gt.neigh%numctr) then
-      rjk=(xyz(:,kat)+neigh%transVec(:,iTrk))-(xyz(:,jat)+neigh%transVec(:,iTrj))
-   else
-      rjk=xyz(:,kat)-xyz(:,jat)+neigh%transVec(:,iTrDum)
-   endif
-   g(:,1  )=         drij*rij/sqrt(r2ij)
-   g(:,1  )=g(:,1  )+drik*rik/sqrt(r2ik)
-   g(:,2  )=         drjk*rjk/sqrt(r2jk)
-   g(:,2  )=g(:,2  )-drij*rij/sqrt(r2ij)
-   g(:,3  )=        -drik*rik/sqrt(r2ik)
-   g(:,3  )=g(:,3  )-drjk*rjk/sqrt(r2jk)
+    ! derivatives of each part w.r.t. r_ij,jk,ik
+    dang = -0.375_wp * (r2ij**3 + r2ij**2 * (r2jk + r2ik) &
+        & + r2ij * (3.0_wp * r2jk**2 + 2.0_wp * r2jk * r2ik + 3.0_wp * r2ik**2) &
+        & - 5.0_wp * (r2jk - r2ik)**2 * (r2jk + r2ik)) &
+        & / (sr2ij * rijk3 * rav3)
+    drij = -dang * c9
+    dang = -0.375_wp * (r2jk**3 + r2jk**2 * (r2ik + r2ij) &
+        & + r2jk * (3.0_wp * r2ik**2 + 2.0_wp * r2ik * r2ij + 3.0_wp * r2ij**2) &
+        & - 5.0_wp * (r2ik - r2ij)**2 * (r2ik + r2ij)) &
+        & / (sr2jk * rijk3 * rav3)
+    drjk = -dang * c9
+    dang = -0.375_wp * (r2ik**3 + r2ik**2 * (r2jk + r2ij) &
+        & + r2ik * (3.0_wp * r2jk**2 + 2.0_wp * r2jk * r2ij + 3.0_wp * r2ij**2) &
+        & - 5.0_wp * (r2jk - r2ij)**2 * (r2jk + r2ij)) &
+        & / (sr2ik * rijk3 * rav3)
+    drik = -dang * c9
 
-   if(neigh%nTrans.ne.1) then
-     ri = xyz(:,iat)
-     rj = xyz(:,jat)+neigh%transVec(:,iTrj)
-     rk = xyz(:,kat)+neigh%transVec(:,iTrk)
-     do dm1=1, 3                            
-       do dm2=dm1,3                        
-         ds(dm1,dm2) =    (drij*rij(dm2)/sqrt(r2ij))*ri(dm1)  & ! i derivatives
-                      & + (drik*rik(dm2)/sqrt(r2ik))*ri(dm1)  &
-                      & + (drjk*rjk(dm2)/sqrt(r2jk))*rj(dm1)  & ! j derivatives
-                      & - (drij*rij(dm2)/sqrt(r2ij))*rj(dm1)  &
-                      & - (drik*rik(dm2)/sqrt(r2ik))*rk(dm1)  & ! k derivatives
-                      & - (drjk*rjk(dm2)/sqrt(r2jk))*rk(dm1) 
-         ds(dm2,dm1) = ds(dm1,dm2)     
-       enddo                                 
-     enddo                                   
-   endif
+    rij = xyz(:, jat) - xyz(:, iat) + neigh%transVec(:, iTrj)
+    rik = xyz(:, kat) - xyz(:, iat) + neigh%transVec(:, iTrk)
+    if (iTrDum <= 0 .or. iTrDum > neigh%numctr) then
+      rjk = (xyz(:, kat) + neigh%transVec(:, iTrk)) - (xyz(:, jat) + neigh%transVec(:, iTrj))
+    else
+      rjk = xyz(:, kat) - xyz(:, jat) + neigh%transVec(:, iTrDum)
+    end if
+    g(:, 1) = drij * rij * invsr2ij
+    g(:, 1) = g(:, 1) + drik * rik * invsr2ik
+    g(:, 2) = drjk * rjk * invsr2jk
+    g(:, 2) = g(:, 2) - drij * rij * invsr2ij
+    g(:, 3) = -drik * rik * invsr2ik
+    g(:, 3) = g(:, 3) - drjk * rjk * invsr2jk
 
-end subroutine batmgfnff_eg
+    if (neigh%nTrans /= 1) then
+      ri = xyz(:, iat)
+      rj = xyz(:, jat) + neigh%transVec(:, iTrj)
+      rk = xyz(:, kat) + neigh%transVec(:, iTrk)
+      do dm1 = 1, 3
+        do dm2 = dm1, 3
+          ds(dm1, dm2) = (drij * rij(dm2) * invsr2ij) * ri(dm1) & ! i derivatives
+              & + (drik * rik(dm2) * invsr2ik) * ri(dm1) &
+              & + (drjk * rjk(dm2) * invsr2jk) * rj(dm1) & ! j derivatives
+              & - (drij * rij(dm2) * invsr2ij) * rj(dm1) &
+              & - (drik * rik(dm2) * invsr2ik) * rk(dm1) & ! k derivatives
+              & - (drjk * rjk(dm2) * invsr2jk) * rk(dm1)
+          ds(dm2, dm1) = ds(dm1, dm2)
+        end do
+      end do
+    end if
+
+  end subroutine batmgfnff_eg
 
 !> torsion term for rotation around triple bonded carbon
 subroutine sTors_eg(m, n, xyz, topo, energy, dg)
@@ -3705,14 +3716,24 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
 
    integer :: iat, jat, ati, atj, ij, img
    real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den
+   real(wp), allocatable :: cn_omp(:), dcndr_omp(:, :, :), dcndL_omp(:, :, :)
 
    cn = 0.0_wp
    dcndr = 0.0_wp
    dcndL = 0.0_wp
 
-   !$omp parallel do default(none) private(den) shared(enscale, rcov, en)&
-   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, neighlist, neighs) &
-   !$omp private(ij, img, jat, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+   !$omp parallel default(none) shared(enscale, rcov, en, mol, kcn, neighlist, &
+   !$omp& neighs, cn, dcndr, dcndL) private(den, ij, img, jat, ati, atj, r2, &
+   !$omp& rij, r1, rc, countf, countd, stress, cn_omp, dcndr_omp, dcndL_omp)
+
+   allocate(cn_omp, mold=cn)
+   allocate(dcndr_omp, mold=dcndr)
+   allocate(dcndL_omp, mold=dcndL)
+   cn_omp = 0.0_wp
+   dcndr_omp = 0.0_wp
+   dcndL_omp = 0.0_wp
+
+   !$omp do
    do iat = 1, mol%n
       ati = mol%at(iat)
       do ij = 1, neighs(iat)
@@ -3734,28 +3755,37 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
          countf = den * cfunc(kcn, r1, rc)
          countd = den * dfunc(kcn, r1, rc) * rij/r1
 
-         cn(iat) = cn(iat) + countf
+         cn_omp(iat) = cn_omp(iat) + countf
          if (iat /= jat) then
-            cn(jat) = cn(jat) + countf
+            cn_omp(jat) = cn_omp(jat) + countf
          endif
 
-         dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
-         dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
-         dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
-         dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+         dcndr_omp(:, iat, iat) = dcndr_omp(:, iat, iat) + countd
+         dcndr_omp(:, jat, jat) = dcndr_omp(:, jat, jat) - countd
+         dcndr_omp(:, iat, jat) = dcndr_omp(:, iat, jat) + countd
+         dcndr_omp(:, jat, iat) = dcndr_omp(:, jat, iat) - countd
 
          stress(:, 1) = countd(1) * rij
          stress(:, 2) = countd(2) * rij
          stress(:, 3) = countd(3) * rij
 
-         dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+         dcndL_omp(:, :, iat) = dcndL_omp(:, :, iat) + stress
          if (iat /= jat) then
-            dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+            dcndL_omp(:, :, jat) = dcndL_omp(:, :, jat) + stress
          endif
 
       enddo
    enddo
-   !$omp end parallel do
+   !$omp end do nowait
+
+   !$omp critical(gfnff_cn_neighs)
+   cn = cn + cn_omp
+   dcndr = dcndr + dcndr_omp
+   dcndL = dcndL + dcndL_omp
+   !$omp end critical(gfnff_cn_neighs)
+
+   deallocate(cn_omp, dcndr_omp, dcndL_omp)
+   !$omp end parallel
 
 end subroutine ncoordNeighs
 
@@ -3866,14 +3896,25 @@ subroutine ncoordLatP(mol, ntrans, trans, cutoff, kcn, cfunc, dfunc, enscale, &
 
    integer :: iat, jat, ati, atj, itr 
    real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den, cutoff2
+   real(wp), allocatable :: cn_omp(:), dcndr_omp(:, :, :), dcndL_omp(:, :, :)
 
    cn = 0.0_wp
    dcndr = 0.0_wp
    dcndL = 0.0_wp
    cutoff2 = cutoff**2
-   !$omp parallel do default(none) private(den) shared(enscale, rcov, en)&
-   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, trans, cutoff2, ntrans) &
-   !$omp private(jat, itr, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+
+   !$omp parallel default(none) shared(enscale, rcov, en, mol, kcn, trans, &
+   !$omp& cutoff2, ntrans, cn, dcndr, dcndL) private(den, jat, itr, ati, atj, &
+   !$omp& r2, rij, r1, rc, countf, countd, stress, cn_omp, dcndr_omp, dcndL_omp)
+
+   allocate(cn_omp, mold=cn)
+   allocate(dcndr_omp, mold=dcndr)
+   allocate(dcndL_omp, mold=dcndL)
+   cn_omp = 0.0_wp
+   dcndr_omp = 0.0_wp
+   dcndL_omp = 0.0_wp
+
+   !$omp do
    do iat = 1, mol%n
       ati = mol%at(iat)
       do jat = 1, iat
@@ -3896,29 +3937,37 @@ subroutine ncoordLatP(mol, ntrans, trans, cutoff, kcn, cfunc, dfunc, enscale, &
             countf = den * cfunc(kcn, r1, rc)
             countd = den * dfunc(kcn, r1, rc) * rij/r1
 
-            cn(iat) = cn(iat) + countf
+            cn_omp(iat) = cn_omp(iat) + countf
             if (iat.ne.jat.or.itr.ne.1) then
-               cn(jat) = cn(jat) + countf
+               cn_omp(jat) = cn_omp(jat) + countf
             end if
 
-            dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
-            dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
-            dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
-            dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+            dcndr_omp(:, iat, iat) = dcndr_omp(:, iat, iat) + countd
+            dcndr_omp(:, jat, jat) = dcndr_omp(:, jat, jat) - countd
+            dcndr_omp(:, iat, jat) = dcndr_omp(:, iat, jat) + countd
+            dcndr_omp(:, jat, iat) = dcndr_omp(:, jat, iat) - countd
 
             stress(:, 1) = countd(1) * rij
             stress(:, 2) = countd(2) * rij
             stress(:, 3) = countd(3) * rij
 
-            dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+            dcndL_omp(:, :, iat) = dcndL_omp(:, :, iat) + stress
             if (iat.ne.jat.or.itr.ne.1) then
-               dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+               dcndL_omp(:, :, jat) = dcndL_omp(:, :, jat) + stress
             end if
          end do
      end do
    end do
+   !$omp end do nowait
 
-   !$omp end parallel do
+   !$omp critical(gfnff_cn_latp)
+   cn = cn + cn_omp
+   dcndr = dcndr + dcndr_omp
+   dcndL = dcndL + dcndL_omp
+   !$omp end critical(gfnff_cn_latp)
+
+   deallocate(cn_omp, dcndr_omp, dcndL_omp)
+   !$omp end parallel
 
 end subroutine ncoordLatP
 
@@ -4266,8 +4315,8 @@ subroutine get_amat_3d(mol, topo, alpha, rTrans, gTrans, amat)
    vol = mol%volume ! abs(matdet_3x3(mol%lattice))
    
    !$omp parallel do default(none) schedule(runtime) &
-   !$omp reduction(+:amat) shared(mol, topo, rTrans, gTrans, alpha, vol) &
-   !$omp private(iat, jat, gam, wsw, vec, dtmp, rtmp)
+   !$omp shared(mol, topo, rTrans, gTrans, alpha, vol, amat) &
+   !$omp private(iat, jat, img, gam, wsw, vec, dtmp, rtmp)
    do iat = 1, mol%n
       !izp = mol%id(iat)
       do jat = 1, iat-1
@@ -4369,6 +4418,7 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
    real(wp) :: vol, gam, wsw, vec(3), dG(3), dS(3, 3)
    real(wp) :: dGd(3), dSd(3, 3), dGr(3), dSr(3, 3)
    real(wp), parameter :: zero(3) = 0.0_wp
+   real(wp), allocatable :: atrace_omp(:, :), dadL_omp(:, :, :)
 
    atrace(:, :) = 0.0_wp
    dadr(:, :, :) = 0.0_wp
@@ -4376,11 +4426,17 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
 
    vol = mol%volume ! abs(matdet_3x3(mol%lattice))
 
-   !$omp parallel do default(none) schedule(runtime) &
-   !$omp reduction(+:atrace, dadr, dadL) &
-   !$omp shared(mol, topo, alpha, vol, rTrans, gTrans, qvec) &
+   !$omp parallel default(none) shared(mol, topo, alpha, vol, rTrans, gTrans, &
+   !$omp& qvec, atrace, dadr, dadL) &
    !$omp private(iat, jat, img, gam, wsw, vec, dG, dS, &
-   !$omp& dGr, dSr, dGd, dSd)
+   !$omp& dGr, dSr, dGd, dSd, atrace_omp, dadL_omp)
+
+   allocate(atrace_omp, mold=atrace)
+   allocate(dadL_omp, mold=dadL)
+   atrace_omp = 0.0_wp
+   dadL_omp = 0.0_wp
+
+   !$omp do schedule(runtime)
    do iat = 1, mol%n
       !izp = mol%id(iat)
       do jat = 1, iat-1
@@ -4399,12 +4455,12 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
             dG = dG + (dGd + dGr) * wsw
             dS = dS + (dSd + dSr) * wsw
          end do
-         atrace(:, iat) = +dG*qvec(jat) + atrace(:, iat)
-         atrace(:, jat) = -dG*qvec(iat) + atrace(:, jat)
+         atrace_omp(:, iat) = +dG*qvec(jat) + atrace_omp(:, iat)
+         atrace_omp(:, jat) = -dG*qvec(iat) + atrace_omp(:, jat)
          dadr(:, iat, jat) = +dG*qvec(iat) + dadr(:, iat, jat)
          dadr(:, jat, iat) = -dG*qvec(jat) + dadr(:, jat, iat)
-         dadL(:, :, jat) = +dS*qvec(iat) + dadL(:, :, jat)
-         dadL(:, :, iat) = +dS*qvec(jat) + dadL(:, :, iat)
+         dadL_omp(:, :, jat) = +dS*qvec(iat) + dadL_omp(:, :, jat)
+         dadL_omp(:, :, iat) = +dS*qvec(jat) + dadL_omp(:, :, iat)
       end do
 
       dS(:, :) = 0.0_wp
@@ -4416,9 +4472,17 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
          call get_damat_rec_3d(vec, vol, alpha, gTrans, dGr, dSr)
          dS = dS + (dSd + dSr) * wsw
       end do
-      dadL(:, :, iat) = +dS*qvec(iat) + dadL(:, :, iat)
+      dadL_omp(:, :, iat) = +dS*qvec(iat) + dadL_omp(:, :, iat)
    end do
-   !$omp end parallel do
+   !$omp end do nowait
+
+   !$omp critical(gfnff_damat)
+   atrace = atrace + atrace_omp
+   dadL = dadL + dadL_omp
+   !$omp end critical(gfnff_damat)
+
+   deallocate(atrace_omp, dadL_omp)
+   !$omp end parallel
 
 end subroutine get_damat_3d
 

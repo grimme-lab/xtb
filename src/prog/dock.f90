@@ -722,6 +722,7 @@ contains
       write (iunit, '(10x,a,":",6x,F16.1)') 'charge of molecule B       ', molB%chrg
       write (iunit, '(10x,a,":",6x,i16)') 'spin of molecule A         ', molA%uhf
       write (iunit, '(10x,a,":",6x,i16)') 'spin of molecule B         ', molB%uhf
+      write (iunit, '(10x,a,":",6x,i16)') 'random seed                ', set%randseed
       call random_number(dum5)
       write (iunit, '(10x,a,":",6x,f16.14)') 'first test random number   ', dum5
       if (set%veryverbose) then
@@ -920,6 +921,7 @@ contains
                maxconstr = maxconstr + ncount; constraint_xyz = .true.
             case ('dock'); call rdblock_docking(env, set_docking, line, id, copy, err, ncount)
             case default ! unknown keyword -> ignore, we don't raise them
+               if (index(line(2:), 'seed') .eq. 1) call set_seed(env, line(7:))
 !           get a new line
                call mirror_line(id, copy, line, err)
             end select
