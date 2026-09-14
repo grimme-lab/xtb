@@ -1,7 +1,7 @@
 module xtb_zmat_bmatrix
    use xtb_mctc_accuracy, only : wp
-   !-------------------------------------------------------------------------
-   ! Z-matrix internal coordinates and numerical Wilson B-matrix.
+   use xtb_bmatrix, only : bmat_bond, bmat_angle, bmat_linbend, bmat_torsion
+   ! Z-matrix internal coordinates and analytic Wilson B-matrix.
    !
    ! Handles all molecular topologies:
    !   - diatomics
@@ -48,9 +48,8 @@ module xtb_zmat_bmatrix
    !     if LINBEND:      q(qoff(i)+2) = beta_1 (in-plane  Decius bend) [rad]
    !                      q(qoff(i)+3) = beta_2 (out-of-plane Decius bend) [rad]
    !
-   ! The B-matrix is computed by central finite differences with a default
-   ! step of 1e-3 Angstrom (adjustable via optional argument).  Dihedral
-   ! differences are wrapped to (-pi, pi] to handle the 0/2pi discontinuity.
+   ! The B-matrix is assembled analytically from xtb_bmatrix row functions
+   ! (bmat_bond, bmat_angle, bmat_linbend, bmat_torsion).
    !
    ! Units throughout: bond lengths in Angstrom, angles in radians.
    ! Compliance constants from the companion xtb_compliance module are
@@ -61,8 +60,7 @@ module xtb_zmat_bmatrix
    !   COORD_BOND, COORD_ANGLE, COORD_DIHEDRAL, COORD_LINBEND  (parameters)
    !   setup_zmat(xyz, n, at, na, nb, nc, ctype, e1f, e2f, qoff, nint)
    !   cartesian_to_int(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, q)
-   !   compute_bmatrix(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, B, step)
-   !   is_linear(xyz, n)   -- global linearity check (utility)
+   !   compute_bmatrix(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, B)
    !-------------------------------------------------------------------------
    implicit none
    private
@@ -382,8 +380,9 @@ contains
             tol = 0.2617994d0
             call bangle_val(xyz, j, k, l, angl)
             l_used = l
-            if (angl > pi-tol .or. angl < tol) &
+            if (angl > pi-tol .or. angl < tol) then
                l_used = find_dihedral_atom(xyz, i, j, k, l, tol)
+            end if
             q(o+3) = dihed(xyz, i, j, k, l_used) * DEGREE
 
          case (COORD_LINBEND)
@@ -402,89 +401,93 @@ contains
    end subroutine cartesian_to_int
 
 
-   !==========================================================================
-   ! COMPUTE_BMATRIX
-   !   Numerical central-difference Wilson B-matrix, shape (nint, 3n).
-   !   The perpendicular frames are held fixed (from setup_zmat) so that
-   !   LINBEND finite differences are well-defined.
-   !==========================================================================
-   subroutine compute_bmatrix(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, B, step_in)
+   !> Analytic Wilson B-matrix, shape (nint, 3n), from xtb_bmatrix rows.
+   !>
+   !> Row layout matches setup_zmat: for atom i, row qoff(i)+1 is the bond
+   !> i--na(i); ANGLE adds qoff(i)+2, DIHEDRAL adds qoff(i)+2/+3, LINBEND
+   !> adds the two Decius linear bends at qoff(i)+2/+3.
+   subroutine compute_bmatrix(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, B)
       integer, intent(in)           :: n, nint
       real(wp), intent(in)           :: xyz(3,n)
       integer, intent(in)           :: na(n), nb(n), nc(n), ctype(n), qoff(n)
       real(wp), intent(in)           :: e1f(3,n), e2f(3,n)
       real(wp), intent(out)          :: B(:,:)
-      real(wp), intent(in), optional :: step_in
 
-      integer :: i, ii, iii
-      real(wp) :: step
-      real(wp) :: xyz_w(3,n), qp(nint), qm(nint)
+      integer :: i, j, k, l, l_used, o
+      real(wp) :: vec_i(3), vec_k(3), brow(6), b9(9), tol, angl
+      real(wp) :: tors_xyz(3, 4), bt(3, 4)
+      real(wp) :: bb(2, 9)
 
-      step  = 1d-3
-      if (present(step_in)) step = step_in
-
-      B     = 0d0
-      xyz_w = xyz
-      iii   = 0
-
-      do i = 1, n
-         do ii = 1, 3
-            iii = iii + 1
-
-            xyz_w(ii,i) = xyz_w(ii,i) + step
-            call cartesian_to_int(xyz_w,n,na,nb,nc,ctype,e1f,e2f,qoff,nint,qp)
-
-            xyz_w(ii,i) = xyz_w(ii,i) - 2d0*step
-            call cartesian_to_int(xyz_w,n,na,nb,nc,ctype,e1f,e2f,qoff,nint,qm)
-
-            xyz_w(ii,i) = xyz_w(ii,i) + step
-
-            ! Raw finite differences
-            B(:,iii) = (qp - qm) / (2d0*step)
-
-            ! (dihedral wrapping done in wrap_dihedral_rows after loop)
-
-         end do
-      end do
-
-      ! Redo dihedral wrapping cleanly (the inline above has a units error)
-      ! Recompute properly: dihedral column wrapping
-      call wrap_dihedral_rows(B, n, nint, ctype, qoff, step)
-
-   end subroutine compute_bmatrix
-
-
-   !==========================================================================
-   ! PRIVATE helpers
-   !==========================================================================
-
-   !--------------------------------------------------------------------------
-   ! Wrap dihedral rows of B to correct for 2pi discontinuity.
-   ! The raw finite difference (qp-qm)/(2h) is wrong if qp-qm ~ 2pi.
-   ! We recompute: dq/(2h) where dq is wrapped to (-pi,pi].
-   ! This needs the original qp,qm — but we only have B=dq/(2h).
-   ! Equivalently: if |B(row,col)| * 2h > pi, wrap B by +-pi/h.
-   !--------------------------------------------------------------------------
-   subroutine wrap_dihedral_rows(B, n, nint, ctype, qoff, step)
-      integer, intent(in)    :: n, nint
-      real(wp), intent(inout) :: B(nint,3*n)
-      integer, intent(in)    :: ctype(n), qoff(n)
-      real(wp), intent(in)    :: step
-      integer :: i, col, row
-      real(wp) :: dq
+      B = 0d0
 
       do i = 2, n
-         if (ctype(i) /= COORD_DIHEDRAL) cycle
-         row = qoff(i) + 3   ! dihedral is 3rd entry for this atom
-         do col = 1, 3*n
-            dq = B(row,col) * 2d0*step   ! recover original dq
-            if (dq >  pi) dq = dq - two_pi
-            if (dq < -pi) dq = dq + two_pi
-            B(row,col) = dq / (2d0*step)
-         end do
+         o = qoff(i)   ! 0-based offset => B row o+1 is the bond
+         j = na(i)
+         k = nb(i)
+         l = nc(i)
+
+         ! Bond row i--j: atoms [i, j]
+         vec_i = xyz(:, i) - xyz(:, j)
+         brow = bmat_bond(vec_i)
+         B(o+1, 3*(i-1)+1 : 3*i) = brow(1:3)
+         B(o+1, 3*(j-1)+1 : 3*j) = brow(4:6)
+
+         select case (ctype(i))
+
+         case (COORD_BOND)
+            ! nothing more
+
+         case (COORD_ANGLE)
+            ! Angle i-j-k: atoms [i, j(centre), k]
+            vec_k = xyz(:, k) - xyz(:, j)
+            b9 = bmat_angle(vec_i, vec_k)
+            B(o+2, 3*(i-1)+1 : 3*i) = b9(1:3)
+            B(o+2, 3*(j-1)+1 : 3*j) = b9(4:6)
+            B(o+2, 3*(k-1)+1 : 3*k) = b9(7:9)
+
+         case (COORD_DIHEDRAL)
+            ! Angle row as above, then torsion row i-j-k-l.
+            vec_k = xyz(:, k) - xyz(:, j)
+            b9 = bmat_angle(vec_i, vec_k)
+            B(o+2, 3*(i-1)+1 : 3*i) = b9(1:3)
+            B(o+2, 3*(j-1)+1 : 3*j) = b9(4:6)
+            B(o+2, 3*(k-1)+1 : 3*k) = b9(7:9)
+            ! Dihedral reference: mirror cartesian_to_int's l fallback so
+            ! the B row and the printed q value refer to the same coordinate
+            tol = 0.2617994d0
+            call bangle_val(xyz, j, k, l, angl)
+            l_used = l
+            if (angl > pi-tol .or. angl < tol) then
+               l_used = find_dihedral_atom(xyz, i, j, k, l, tol)
+            end if
+            ! The signed dihedral of bmat_torsion is the NEGATIVE of the
+            ! 0..2pi dihedral in dihed()/cartesian_to_int (verified by FD
+            ! parity against the printed q), so negate the row.
+            tors_xyz(:, 1) = xyz(:, i)
+            tors_xyz(:, 2) = xyz(:, j)
+            tors_xyz(:, 3) = xyz(:, k)
+            tors_xyz(:, 4) = xyz(:, l_used)
+            bt = bmat_torsion(tors_xyz)
+            B(o+3, 3*(i-1)+1 : 3*i) = -bt(:, 1)
+            B(o+3, 3*(j-1)+1 : 3*j) = -bt(:, 2)
+            B(o+3, 3*(k-1)+1 : 3*k) = -bt(:, 3)
+            B(o+3, 3*(l_used-1)+1 : 3*l_used) = -bt(:, 4)
+
+         case (COORD_LINBEND)
+            ! Two Decius linear bends at centre j: atoms [i, j(centre), k]
+            vec_k = xyz(:, k) - xyz(:, j)
+            bb = bmat_linbend(vec_i, vec_k)
+            B(o+2, 3*(i-1)+1 : 3*i) = bb(1, 1:3)
+            B(o+2, 3*(j-1)+1 : 3*j) = bb(1, 4:6)
+            B(o+2, 3*(k-1)+1 : 3*k) = bb(1, 7:9)
+            B(o+3, 3*(i-1)+1 : 3*i) = bb(2, 1:3)
+            B(o+3, 3*(j-1)+1 : 3*j) = bb(2, 4:6)
+            B(o+3, 3*(k-1)+1 : 3*k) = bb(2, 7:9)
+
+         end select
       end do
 
-   end subroutine wrap_dihedral_rows
+   end subroutine compute_bmatrix
 
 
    pure function dist(xyz, i, j) result(r)
