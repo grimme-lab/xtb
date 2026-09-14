@@ -60,7 +60,7 @@ contains
       allocate(na(n), nb(n), nc(n), ctype(n), qoff(n), e1f(3,n), e2f(3,n))
       call setup_zmat(xyz, n, at, na, nb, nc, ctype, e1f, e2f, qoff, nint)
       allocate(bmat(nint, 3*n), compl(nint, nint))
-      call compute_bmatrix(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, bmat, 5d-3) ! numerical deriv. step
+      call compute_bmatrix(xyz, n, na, nb, nc, ctype, e1f, e2f, qoff, nint, bmat)
       call compute_compliance(unit, hess, bmat, n, nint, compl, istat)
       if (istat /= 0) return
       call print_compl(unit, n, at, xyz, mass, na, nb, nc, ctype, e1f, e2f, qoff, nint, compl)
