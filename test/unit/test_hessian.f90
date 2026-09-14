@@ -52,7 +52,8 @@ subroutine collect_hessian(testsuite)
       new_unittest("gfn2_o1numhess", test_o1numhess_gfn2), &
       new_unittest("linear_h2o_gfn1_o1numhess", test_o1numhess_linear_h2o_gfn1), &
       new_unittest("linear_h2o_gfn2_o1numhess", test_o1numhess_linear_h2o_gfn2), &
-      new_unittest("compliance", test_compliance) &
+      new_unittest("compliance", test_compliance), &
+      new_unittest("compliance_water", test_compliance_water) &
       ]
 
 end subroutine collect_hessian
@@ -541,7 +542,7 @@ subroutine test_compliance(error)
       end do
    end do
 
-   call compute_compliance(0, hessian, bmat, nat, nint, compliance, stat)
+   call compute_compliance(0, hessian, bmat, xyz, nat, nint, compliance, stat)
 
    call check(error, stat, 0)
    call check(error, bmat(1, 1), -1.0_wp, thr=thr)
@@ -550,7 +551,7 @@ subroutine test_compliance(error)
 
    redundant_bmat(1, :) = bmat(1, :)
    redundant_bmat(2, :) = bmat(1, :)
-   call compute_compliance(0, hessian, redundant_bmat, nat, 2, redundant_compliance, stat)
+   call compute_compliance(0, hessian, redundant_bmat, xyz, nat, 2, redundant_compliance, stat)
 
    call check(error, stat, 0)
    call check(error, redundant_compliance(1, 1), 1.0_wp/force_constant, thr=thr)
@@ -559,5 +560,74 @@ subroutine test_compliance(error)
    call check(error, redundant_compliance(2, 2), 1.0_wp/force_constant, thr=thr)
 
 end subroutine test_compliance
+
+subroutine test_compliance_water(error)
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 3
+   integer, parameter :: ndim = 3*nat
+   real(wp), parameter :: step = 1.0e-6_wp
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
+      & 0.00000000000000_wp,    1.45674735348811_wp,   -0.88650486059828_wp, &
+      &-0.00000000000000_wp,   -1.45674735383357_wp,   -0.88650486086986_wp],&
+      & shape(xyz))
+   real(wp), parameter :: thr = 1.0e-9_wp
+   !> GFN1 compliance constants of water, in (E_h/Bohr^2)^{-1}:
+   !> the two OH bonds are symmetry equivalent, so C(1,1) == C(2,2)
+   real(wp), parameter :: ref(3, 3) = reshape([&
+      &  2.0182216653802367_wp,  3.9636125866625911e-02_wp, -3.8477798708995936e-01_wp, &
+      &  3.9636125866625911e-02_wp,  2.0182216740353143_wp, -3.8477799078068681e-01_wp, &
+      & -3.8477798708995936e-01_wp, -3.8477799078068681e-01_wp,  8.3550016117392669_wp], &
+      & shape(ref))
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
+
+   integer :: i, j, nint, stat
+   integer :: na(nat), nb(nat), nc(nat), ctype(nat), qoff(nat)
+   integer, allocatable :: list(:)
+   real(wp) :: e1f(3, nat), e2f(3, nat)
+   real(wp) :: energy, sigma(3, 3), hl_gap
+   real(wp), allocatable :: gradient(:, :), dipgrad(:, :), hessian(:, :)
+   real(wp), allocatable :: bmat(:, :), compliance(:, :)
+
+   call init(env)
+   call init(mol, sym, xyz)
+
+   allocate(gradient(3, nat), dipgrad(3, ndim), hessian(ndim, ndim))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, chk)
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   dipgrad = 0.0_wp
+   hessian = 0.0_wp
+   list = [(i, i = 1, nat)]
+   call calc%hessian(env, mol, chk, list, step, hessian, dipgrad)
+
+   call setup_zmat(xyz, nat, mol%at, na, nb, nc, ctype, e1f, e2f, qoff, nint)
+   call check(error, nint, 3)
+   if (allocated(error)) return
+
+   allocate(bmat(nint, ndim), compliance(nint, nint))
+   call compute_bmatrix(xyz, nat, na, nb, nc, ctype, e1f, e2f, qoff, nint, bmat)
+   call compute_compliance(0, hessian, bmat, xyz, nat, nint, compliance, stat)
+   call check(error, stat, 0)
+   if (allocated(error)) return
+
+   do i = 1, nint
+      do j = 1, nint
+         call check(error, compliance(i, j), ref(i, j), thr=thr)
+      end do
+   end do
+
+end subroutine test_compliance_water
 
 end module test_hessian
