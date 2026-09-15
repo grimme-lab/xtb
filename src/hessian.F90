@@ -21,7 +21,7 @@ module xtb_hessian
    use xtb_freq_io, only : rdhess, wrhess, writeHessianOut, &
       & write_tm_vibspectrum, g98fake, g98fake2, rddipd
    use xtb_freq_project, only : trproj
-   use xtb_compliance_driver, only : compliance_driver
+   use xtb_compliance, only : compliance_driver
    implicit none
    private
 
