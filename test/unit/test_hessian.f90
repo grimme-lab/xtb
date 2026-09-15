@@ -38,7 +38,7 @@ module test_hessian
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
    use xtb_compliance, only : compute_compliance
-   use xtb_zmat, only : TZMatrix, init, COORD_LINBEND
+   use xtb_zmat_type, only : TZMatrix, init, COORD_LINBEND
    implicit none
    private
 

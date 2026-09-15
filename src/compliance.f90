@@ -55,7 +55,7 @@ module xtb_compliance
    use xtb_mctc_math, only : crossProd
    use xtb_mctc_convert, only : autoamu
    use xtb_mctc_symbols, only : toSymbol
-   use xtb_zmat, only : TZMatrix, init, COORD_ANGLE, COORD_DIHEDRAL, &
+   use xtb_zmat_type, only : TZMatrix, init, COORD_ANGLE, COORD_DIHEDRAL, &
       & COORD_LINBEND
    implicit none
    private

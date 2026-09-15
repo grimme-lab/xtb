@@ -22,7 +22,7 @@
 !> frames of linear centres are determined once from the reference geometry
 !> by init and stored in a TZMatrix; values and bmatrix then evaluate the
 !> coordinate vector q and its gradient at any geometry.
-module xtb_zmat
+module xtb_zmat_type
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi
    use xtb_mctc_math, only : crossProd
@@ -549,4 +549,4 @@ pure function best_nb(xyz, i, na_i) result(k)
    end if
 end function best_nb
 
-end module xtb_zmat
+end module xtb_zmat_type

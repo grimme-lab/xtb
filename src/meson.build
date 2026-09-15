@@ -23,6 +23,7 @@ subdir('docking')
 subdir('extern')
 subdir('freq')
 subdir('gfnff')
+subdir('internals')
 subdir('io')
 subdir('iff')
 subdir('main')
@@ -159,6 +160,5 @@ srcs += files(
   'wrmodef.f90',
   'wrmo.f90',
   'xhelp.f90',
-  'zmat.f90',
   'zmatpr.f90',
 )
