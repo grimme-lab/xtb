@@ -17,5 +17,6 @@
 
 srcs += files(
   'graph.f90',
+  'redundant.f90',
   'zmat.f90',
 )

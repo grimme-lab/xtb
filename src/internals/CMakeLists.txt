@@ -19,6 +19,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/graph.f90"
+  "${dir}/redundant.f90"
   "${dir}/zmat.f90"
 )
 
