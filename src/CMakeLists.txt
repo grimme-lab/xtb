@@ -23,6 +23,7 @@ add_subdirectory("docking")
 add_subdirectory("extern")
 add_subdirectory("freq")
 add_subdirectory("gfnff")
+add_subdirectory("internals")
 add_subdirectory("io")
 add_subdirectory("iff")
 add_subdirectory("main")
@@ -167,7 +168,6 @@ list(APPEND srcs
   "${dir}/wrmodef.f90"
   "${dir}/wrmo.f90"
   "${dir}/xhelp.f90"
-  "${dir}/zmat.f90"
   "${dir}/zmatpr.f90"
 )
 
