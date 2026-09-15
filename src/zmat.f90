@@ -77,9 +77,9 @@ module xtb_zmat
       real(wp), allocatable :: e1(:, :), e2(:, :)
    contains
       !> Internal coordinate values at a geometry, q(self%nint)
-      procedure :: values => zmat_values
+      procedure :: get_coords => zmat_values
       !> Analytic Wilson B matrix at a geometry, bmat(self%nint, 3*self%n)
-      procedure :: bmatrix => zmat_bmatrix
+      procedure :: get_bmatrix => zmat_bmatrix
    end type TZMatrix
 
    !> Build the TZMatrix of a reference geometry

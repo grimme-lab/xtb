@@ -95,7 +95,7 @@ subroutine compliance_driver(unit, n, at, xyz, hess, mass)
 
    call init(zmat, n, at, xyz)
    allocate(bmat(zmat%nint, 3*n), compl(zmat%nint, zmat%nint))
-   call zmat%bmatrix(xyz, bmat)
+   call zmat%get_bmatrix(xyz, bmat)
    call compute_compliance(unit, hess, bmat, xyz, n, zmat%nint, compl, istat)
    if (istat /= 0) return
    call print_compl(unit, n, at, xyz, mass, zmat, compl)
@@ -141,7 +141,7 @@ subroutine print_compl(unit, n, at, xyz, mass, zmat, C)
    !     sqrt(1556.89/1.66054e-27) / (2*pi*2.99792e10) = 5140.49 cm^-1
    real(wp), parameter :: fac = 5140.4869_wp ! cm^-1, mu must be in amu
 
-   call zmat%values(xyz, q)
+   call zmat%get_coords(xyz, q)
 
    write(unit, *)
    write(unit, *) "units: Hartree, Bohr, radian"
