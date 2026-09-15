@@ -281,24 +281,29 @@ jobs:
               - {compiler: intel, version: '2025.2'}
       env:
          APT_PACKAGES: >-
+            intel-oneapi-compiler-fortran-${{ matrix.toolchain.version }}
+            intel-oneapi-compiler-dpcpp-cpp-${{ matrix.toolchain.version }}
             intel-oneapi-mkl-${{ matrix.toolchain.version }} intel-oneapi-mkl-devel-${{ matrix.toolchain.version }}
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
-         - name: Setup Fortran
-           uses: fortran-lang/setup-fortran@v1
-           with:
-            compiler: ${{ matrix.toolchain.compiler }}
-            version: ${{ matrix.toolchain.version }}
          - name: Setup Python
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
          - run: pip3 install cmake ninja --user
-         - name: Install Intel MKL
+         - name: Add Intel repository
            if: contains(matrix.os, 'ubuntu')
            run: |
-            sudo apt-get install ${APT_PACKAGES}
+            wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+            sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+            rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+            echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+            sudo apt-get update
+         - name: Install Intel oneAPI toolchain
+           if: contains(matrix.os, 'ubuntu')
+           run: |
+            sudo apt-get install -y ${APT_PACKAGES}
             source /opt/intel/oneapi/setvars.sh --force
             printenv >> $GITHUB_ENV
          - name: Configure cmake build
