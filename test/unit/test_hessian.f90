@@ -569,7 +569,7 @@ subroutine test_compliance(error)
    if (allocated(error)) return
 
    allocate(bmat(zmat%nint, ndim), compliance(zmat%nint, zmat%nint), hessian(ndim, ndim))
-   call zmat%bmatrix(xyz, bmat)
+   call zmat%get_bmatrix(xyz, bmat)
 
    do i = 1, ndim
       do j = 1, ndim
@@ -655,7 +655,7 @@ subroutine test_compliance_water(error)
    if (allocated(error)) return
 
    allocate(bmat(zmat%nint, ndim), compliance(zmat%nint, zmat%nint))
-   call zmat%bmatrix(xyz, bmat)
+   call zmat%get_bmatrix(xyz, bmat)
    call compute_compliance(0, hessian, bmat, xyz, nat, zmat%nint, compliance, stat)
    call check(error, stat, 0)
    if (allocated(error)) return
@@ -698,15 +698,15 @@ subroutine test_zmat_bmatrix_fd(error)
    if (allocated(error)) return
 
    allocate(bmat(zmat%nint, 3*nat), qr(zmat%nint), ql(zmat%nint))
-   call zmat%bmatrix(xyz, bmat)
+   call zmat%get_bmatrix(xyz, bmat)
 
    do i = 1, nat
       do ic = 1, 3
          ii = 3 * (i - 1) + ic
          coord = xyz; coord(ic, i) = coord(ic, i) + step
-         call zmat%values(coord, qr)
+         call zmat%get_coords(coord, qr)
          coord = xyz; coord(ic, i) = coord(ic, i) - step
-         call zmat%values(coord, ql)
+         call zmat%get_coords(coord, ql)
          do k = 1, zmat%nint
             ! ketene is planar, so both dihedrals sit exactly on the +-pi branch
             ! cut where the representative jumps by 2*pi although the coordinate
