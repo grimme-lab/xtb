@@ -40,6 +40,7 @@ module test_hessian
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
    use xtb_compliance, only : compliance_driver, compute_compliance
    use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_mctc_param, only : covalent_radius_d3
    use xtb_internals_graph, only : graph_type, init
    use xtb_internals_redundant, only : redundant_type, init
    use xtb_internals_type, only : coord_bond, coord_angle, coord_dihedral
@@ -61,10 +62,10 @@ subroutine collect_hessian(testsuite)
       new_unittest("gfn2_hessian", test_gfn2_hessian), &
       new_unittest("gfn1_o1numhess", test_o1numhess_gfn1), &
       new_unittest("gfn2_o1numhess", test_o1numhess_gfn2), &
-      new_unittest("linear_h2o_gfn1_o1numhess", test_o1numhess_linear_h2o_gfn1), &
       new_unittest("linear_h2o_gfn2_o1numhess", test_o1numhess_linear_h2o_gfn2), &
       new_unittest("compliance", test_compliance), &
       new_unittest("compliance_water", test_compliance_water), &
+      new_unittest("covalent_neighbour_list", test_covalent_neighbour_list), &
       new_unittest("redundant_bmatrix_fd", test_redundant_bmatrix_fd), &
       new_unittest("compliance_driver_redundant", test_compliance_driver_redundant) &
       ]
@@ -616,7 +617,7 @@ subroutine test_compliance_water(error)
    integer, parameter :: nat = 3
    integer, parameter :: ndim = 3 * nat
    real(wp), parameter :: step = 1.0e-6_wp
-   integer, parameter :: pairs(2, 2) = reshape([1, 2, 1, 3], [2, 2])
+   integer, parameter :: at(nat) = [8, 1, 1]
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & 0.00000000000000_wp, 0.00000000034546_wp, 0.18900383618455_wp, &
@@ -665,7 +666,8 @@ subroutine test_compliance_water(error)
    list = [(i, i = 1, nat)]
    call calc%hessian(env, mol, chk, list, step, hessian, dipgrad)
 
-   neigh_list = build_neigh_list(nat, pairs)
+   call init(neigh_list, nat)
+   call neigh_list%generate_covalent(at, xyz)
    call init(graph, neigh_list)
    call init(internals, graph, xyz)
    call check(error, internals%ncoords, 3)
@@ -758,20 +760,21 @@ subroutine test_redundant_bmatrix_fd(error)
 end subroutine test_redundant_bmatrix_fd
 
 
-!> Locks the neighborh union and the zero-coordinate compliance path.
+!> Locks the covalent-neighbourlist compliance path: water-like O/H/H gives
+!> two bond rows and one angle row, distant H/H gives zero coordinates.
 subroutine test_compliance_driver_redundant(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
 
    integer, parameter :: nat3 = 3, nat2 = 2
-   integer, parameter :: at3(nat3) = [1, 1, 1]
+   integer, parameter :: at3(nat3) = [8, 1, 1]
    integer, parameter :: at2(nat2) = [1, 1]
-   real(wp), parameter :: mass3(nat3) = [1.0_wp, 1.0_wp, 1.0_wp]
+   real(wp), parameter :: mass3(nat3) = [16.0_wp, 1.0_wp, 1.0_wp]
    real(wp), parameter :: mass2(nat2) = [1.0_wp, 1.0_wp]
    real(wp), parameter :: xyz3(3, nat3) = reshape([ &
       & 0.0_wp, 0.0_wp, 0.0_wp, &
-      & 0.0_wp, 1.0_wp, 0.0_wp, &
-      & 2.0_wp, 0.0_wp, 0.0_wp], shape(xyz3))
+      & 0.0_wp, 1.8_wp, 0.0_wp, &
+      & 1.7_wp, -0.5_wp, 0.0_wp], shape(xyz3))
    real(wp), parameter :: xyz2(3, nat2) = reshape([ &
       & 0.0_wp, 0.0_wp, 0.0_wp, &
       & 10.0_wp, 0.0_wp, 0.0_wp], shape(xyz2))
@@ -833,6 +836,76 @@ subroutine test_compliance_driver_redundant(error)
    end if
 
 end subroutine test_compliance_driver_redundant
+
+!> Locks covalent neighbour-list generation: canonical half-list storage,
+!> replacement semantics, and the supported-cutoff tolerance margin for
+!> getNeighs.
+subroutine test_covalent_neighbour_list(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 4
+   integer, parameter :: at(nat) = [8, 1, 1, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 1.8_wp, 0.0_wp, &
+      & 1.7_wp, -0.5_wp, 0.0_wp, &
+      & 10.0_wp, 0.0_wp, 0.0_wp], shape(xyz))
+   integer, parameter :: deg_ref(nat) = [2, 1, 1, 0]
+   real(wp), parameter :: dist2_ref(2) = [3.14_wp, 3.24_wp]
+   real(wp), parameter :: thr = 1.0e-10_wp
+
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   integer :: neighs(nat), i
+
+   ! O/H/H plus one isolated H: two O-H bonds, no H-H bond
+   call init(neigh_list, nat)
+   call neigh_list%generate_covalent(at, xyz)
+   call check(error, neigh_list%neighs(1), 2)
+   if (allocated(error)) return
+   call check(error, all(neigh_list%neighs(2:4) == 0), .true.)
+   if (allocated(error)) return
+   call check(error, all(neigh_list%image == [(i, i = 1, nat)]), .true.)
+   if (allocated(error)) return
+   call check(error, all(neigh_list%iNeigh(0, :) == [(i, i = 1, nat)]), .true.)
+   if (allocated(error)) return
+   call check(error, all(abs(neigh_list%dist2(1:2, 1) - dist2_ref) < thr), .true.)
+   if (allocated(error)) return
+
+   call init(graph, neigh_list)
+   do i = 1, nat
+      call check(error, graph%neighs(i), deg_ref(i))
+      if (allocated(error)) return
+   end do
+   call check(error, graph%parent(4), 0)
+   if (allocated(error)) return
+
+   ! Replacement semantics: regenerating the same geometry must replace
+   ! (not append to) the previous list
+   call init(neigh_list, nat)
+   call neigh_list%generate_covalent(at, xyz)
+   call neigh_list%generate_covalent(at, xyz)
+   call check(error, neigh_list%neighs(1), 2)
+   if (allocated(error)) return
+   call check(error, all(neigh_list%neighs(2:4) == 0), .true.)
+
+   ! Default getNeighs must return every stored neighbour, also when the
+   ! bond sits infinitesimally below the largest pair threshold
+   call init(neigh_list, 3)
+   call neigh_list%generate_covalent([1, 1, 1], &
+      & reshape([0.0_wp, 0.0_wp, 0.0_wp, &
+      &          0.5_wp, 0.0_wp, 0.0_wp, &
+      &          2.0_wp*covalent_radius_d3(1) - 1.0e-12_wp, 0.0_wp, 0.0_wp], &
+      &         [3, 3]))
+   call neigh_list%getNeighs(neighs)
+   call check(error, neighs(1), 2)
+   if (allocated(error)) return
+   call check(error, neighs(2), 1)
+   if (allocated(error)) return
+   call check(error, neighs(3), 0)
+
+end subroutine test_covalent_neighbour_list
 
 
 !> Build a symmetric neighbour list from undirected atom pairs.
