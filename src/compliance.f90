@@ -18,8 +18,8 @@
 !> Compliance matrix driver.
 !>
 !> Coordinates: the redundant internal coordinates of the molecular graph,
-!> built from the reference geometry.  Bonds come from the covalent-radius
-!> inference of neighborh, folded into an undirected adjacency; the graph and
+!> built from the reference geometry.  Bonds come from a covalent-radius
+!> neighbour list (TNeighbourList%generate_covalent); the graph and
 !> the coordinate set are built by xtb_internals_graph and
 !> xtb_internals_redundant.  The set holds simple bond stretches, valence
 !> angles and dihedrals.  xtb_bmatrix::get_bmatrix supplies the Wilson B
@@ -57,7 +57,7 @@ module xtb_compliance
    use xtb_mctc_math, only : crossProd
    use xtb_mctc_convert, only : autoamu
    use xtb_mctc_symbols, only : toSymbol
-   use xtb_type_neighbourlist, only : TNeighbourList, init, resizeNeigh
+   use xtb_type_neighbourlist, only : TNeighbourList, init
    use xtb_internals_graph, only : graph_type, init
    use xtb_internals_type, only : internal_coords_set_type, coord_bond, &
       & coord_angle, coord_dihedral
@@ -86,9 +86,7 @@ subroutine compliance_driver(unit, n, at, xyz, hess, mass)
    !> Atomic masses in atomic mass units, dimension (n).
    real(wp), intent(in) :: mass(n)
 
-   integer :: i, j, k, istat, max_degree
-   integer :: nb(20, n)
-   logical :: bonded(n, n)
+   integer :: istat
    type(TNeighbourList) :: neigh_list
    type(graph_type) :: graph
    type(redundant_type) :: internals
@@ -103,49 +101,8 @@ subroutine compliance_driver(unit, n, at, xyz, hess, mass)
    write(unit, *)
    write(unit, *) "Ref.: K. Brandhorst, J. Grunenberg, Chem. Soc. Rev. 37 (2008), 1558."
 
-   ! neighborh expands the list of an atom without any neighbour by lowering
-   ! its cutoff, so its entries depend on atom numbering.  Fold every returned
-   ! pair into an undirected adjacency before building the graph.
-   call neighborh(n, at, xyz, nb)
-   bonded = .false.
-   do i = 1, n
-      do k = 1, nb(20, i)
-         j = nb(k, i)
-         if (j < 1 .or. j > n .or. j == i) cycle
-         bonded(i, j) = .true.
-         bonded(j, i) = .true.
-      end do
-   end do
-
-   max_degree = 0
    call init(neigh_list, n)
-   neigh_list%iNeigh = 0
-   neigh_list%dist2 = 0.0_wp
-   neigh_list%weight = 0.0_wp
-   do i = 1, n
-      neigh_list%neighs(i) = 0
-   end do
-   do i = 1, n
-      k = count(bonded(:, i))
-      neigh_list%neighs(i) = k
-      max_degree = max(max_degree, k)
-   end do
-   if (max_degree > ubound(neigh_list%iNeigh, 1)) then
-      call resizeNeigh(max_degree, neigh_list%iNeigh, neigh_list%dist2, &
-         & neigh_list%weight)
-   end if
-   do i = 1, n
-      neigh_list%image(i) = i
-   end do
-   do i = 1, n
-      k = 0
-      do j = 1, n
-         if (.not. bonded(j, i)) cycle
-         k = k + 1
-         neigh_list%iNeigh(k, i) = j
-      end do
-   end do
-
+   call neigh_list%generate_covalent(at, xyz)
    call init(graph, neigh_list)
    call init(internals, graph, xyz)
 

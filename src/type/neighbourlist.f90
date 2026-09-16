@@ -23,6 +23,7 @@ module xtb_type_neighbourlist
    use xtb_mctc_search, only : bisectSearch
    use xtb_mctc_sort, only : indexHeapSort
    use xtb_mctc_thresholds, only : tolSameDist2, minNeighDist2
+   use xtb_mctc_param, only : covalent_radius_d3
    use xtb_type_environment, only : TEnvironment
    implicit none
    private
@@ -62,6 +63,8 @@ module xtb_type_neighbourlist
 
       !> Generate neighbour list
       procedure :: generate
+      !> Generate neighbour list from covalent radii (nonperiodic)
+      procedure :: generate_covalent
 
       !> Update neighbour list
       procedure :: update
@@ -143,6 +146,70 @@ subroutine generate(self, env, coords0, cutoff, latPoint, symmetric)
    call self%sort
 
 end subroutine generate
+
+
+
+!> Generate neighbour list from covalent radii (nonperiodic).
+subroutine generate_covalent(self, at, coords0)
+   !> Instance of the neighbour list
+   class(TNeighbourList), intent(inout) :: self
+   !> Atomic numbers
+   integer, intent(in) :: at(:)
+   !> Coordinates of the atoms in the central cell
+   real(wp), intent(in) :: coords0(:, :)
+
+   ! Number of atoms in the central cell
+   integer :: nAtom
+
+   ! Capacity of the neighbour related arrays
+   integer :: mNeigh
+
+   integer :: iAt, jAt
+   real(wp) :: r2, dist2
+
+   nAtom = size(at)
+
+   ! Reset the list to the canonical central-cell half-list
+   self%neighs(:) = 0
+   self%iNeigh(:, :) = 0
+   self%dist2(:, :) = 0.0_wp
+   self%weight(:, :) = 0.0_wp
+   do iAt = 1, nAtom
+      self%image(iAt) = iAt
+      self%trans(iAt) = 1
+      self%coords(:, iAt) = coords0(:, iAt)
+      self%iNeigh(0, iAt) = iAt
+      self%weight(0, iAt) = 1.0_wp
+   end do
+
+   mNeigh = ubound(self%iNeigh, dim=1)
+
+   do iAt = 1, nAtom
+      do jAt = iAt + 1, nAtom
+         r2 = (covalent_radius_d3(at(iAt)) + covalent_radius_d3(at(jAt)))**2
+         dist2 = sum((coords0(:, jAt) - coords0(:, iAt))**2)
+         if (dist2 >= r2) cycle
+
+         self%neighs(iAt) = self%neighs(iAt) + 1
+         if (self%neighs(iAt) > mNeigh) then
+            mNeigh = 2*mNeigh
+            call resizeNeigh(mNeigh, self%iNeigh, self%dist2, self%weight)
+         end if
+         self%iNeigh(self%neighs(iAt), iAt) = jAt
+         self%dist2(self%neighs(iAt), iAt) = dist2
+         self%weight(self%neighs(iAt), iAt) = 1.0_wp
+      end do
+   end do
+   if (maxval(self%neighs) == 0) then
+      self%cutoff = 0.0_wp
+   else
+      self%cutoff = sqrt((2.0_wp*maxval(covalent_radius_d3(at)))**2 &
+         & + 2*tolSameDist2)
+   end if
+
+   call self%sort
+
+end subroutine generate_covalent
 
 
 !> Generate neighbour list in serial
