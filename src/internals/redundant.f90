@@ -25,37 +25,26 @@ module xtb_internals_redundant
    use xtb_mctc_math, only : crossProd
    use xtb_basic_geo, only : bangl
    use xtb_internals_graph, only : graph_type
+   use xtb_internals_type, only : internal_coords_set_type, coord_bond, &
+      & coord_angle, coord_dihedral
    implicit none
    private
 
    public :: redundant_type, init
 
-   !> Bond coordinate kind, one coordinate per edge
-   integer, parameter :: coord_bond = 1
-   !> Angle coordinate kind, one coordinate per pair of neighbours of a centre
-   integer, parameter :: coord_angle = 2
-   !> Dihedral coordinate kind, one coordinate per pair of outer bonds of an edge
-   integer, parameter :: coord_dihedral = 3
-
-   !> Redundant internal coordinates of a system.
-   type :: redundant_type
+   !> Redundant internal coordinates of a system. The coordinate definitions
+   !> are the inherited ones, the counts and the reference values are the
+   !> redundant set's own state.
+   type, extends(internal_coords_set_type) :: redundant_type
 
       !> Number of atoms in the system
       integer :: n = 0
 
-      !> Number of coordinates, the length of q and the row count of B
-      integer :: nint = 0
-
-      !> Number of bonds, angles and dihedrals, nint = nbond + nangle + ndihedral
+      !> Number of bonds, angles and dihedrals, ncoords = nbond + nangle + ndihedral
       integer :: nbond = 0, nangle = 0, ndihedral = 0
 
-      !> Atoms of each coordinate, coord(:, ic) = [i, j, k, l] with zero for
-      !> atoms the coordinate kind does not use: a bond is [i, j, 0, 0], an
-      !> angle [i, j, k, 0] with j the centre, a dihedral [i, j, k, l]
-      integer, allocatable :: coord(:, :)
-
-      !> Coordinate values at the reference geometry, q(self%nint): lengths in
-      !> bohr, angles and dihedrals in radians
+      !> Coordinate values at the reference geometry, q(self%ncoords): lengths
+      !> in bohr, angles and dihedrals in radians
       real(wp), allocatable :: q(:)
 
    end type redundant_type
@@ -112,8 +101,8 @@ pure subroutine new_redundant(self, graph, xyz)
       end do
    end do
 
-   self%nint = self%nbond + self%nangle + self%ndihedral
-   allocate(self%coord(4, self%nint), source = 0)
+   self%ncoords = self%nbond + self%nangle + self%ndihedral
+   allocate(self%kind(self%ncoords), self%atoms(4, self%ncoords), source = 0)
 
    ! fill bonds, then angles, then dihedrals
    ia = 0
@@ -122,8 +111,9 @@ pure subroutine new_redundant(self, graph, xyz)
          j = graph%i_neigh(k, i)
          if (j < i) cycle
          ia = ia + 1
-         self%coord(1, ia) = i
-         self%coord(2, ia) = j
+         self%kind(ia) = coord_bond
+         self%atoms(1, ia) = i
+         self%atoms(2, ia) = j
       end do
    end do
 
@@ -132,9 +122,10 @@ pure subroutine new_redundant(self, graph, xyz)
       do a = 1, ndeg - 1
          do b = a + 1, ndeg
             ia = ia + 1
-            self%coord(1, ia) = graph%i_neigh(a, i)
-            self%coord(2, ia) = i
-            self%coord(3, ia) = graph%i_neigh(b, i)
+            self%kind(ia) = coord_angle
+            self%atoms(1, ia) = graph%i_neigh(a, i)
+            self%atoms(2, ia) = i
+            self%atoms(3, ia) = graph%i_neigh(b, i)
          end do
       end do
    end do
@@ -149,29 +140,30 @@ pure subroutine new_redundant(self, graph, xyz)
                la = graph%i_neigh(b, j)
                if (la == i .or. la == graph%i_neigh(a, i)) cycle
                ia = ia + 1
-               self%coord(1, ia) = graph%i_neigh(a, i)
-               self%coord(2, ia) = i
-               self%coord(3, ia) = j
-               self%coord(4, ia) = la
+               self%kind(ia) = coord_dihedral
+               self%atoms(1, ia) = graph%i_neigh(a, i)
+               self%atoms(2, ia) = i
+               self%atoms(3, ia) = j
+               self%atoms(4, ia) = la
             end do
          end do
       end do
    end do
 
    ! every coordinate of the set was written
-   if (ia /= self%nint) error stop "redundant: coordinate count mismatch"
+   if (ia /= self%ncoords) error stop "redundant: coordinate count mismatch"
 
    ! evaluate the coordinate values at the reference geometry
-   allocate(self%q(self%nint), source = 0.0_wp)
+   allocate(self%q(self%ncoords), source = 0.0_wp)
    do ia = 1, self%nbond
-      self%q(ia) = dist(xyz, self%coord(1, ia), self%coord(2, ia))
+      self%q(ia) = dist(xyz, self%atoms(1, ia), self%atoms(2, ia))
    end do
    do ia = self%nbond + 1, self%nbond + self%nangle
-      call bangl(xyz, self%coord(1, ia), self%coord(2, ia), self%coord(3, ia), self%q(ia))
+      call bangl(xyz, self%atoms(1, ia), self%atoms(2, ia), self%atoms(3, ia), self%q(ia))
    end do
-   do ia = self%nbond + self%nangle + 1, self%nint
-      self%q(ia) = dihedral_value(xyz(:, self%coord(1, ia)), xyz(:, self%coord(2, ia)), &
-         & xyz(:, self%coord(3, ia)), xyz(:, self%coord(4, ia)))
+   do ia = self%nbond + self%nangle + 1, self%ncoords
+      self%q(ia) = dihedral_value(xyz(:, self%atoms(1, ia)), xyz(:, self%atoms(2, ia)), &
+         & xyz(:, self%atoms(3, ia)), xyz(:, self%atoms(4, ia)))
    end do
 
 end subroutine new_redundant

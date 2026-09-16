@@ -17,11 +17,13 @@
 
 !> Compliance matrix driver.
 !>
-!> Coordinates: xtb_zmat::TZMatrix, built from the reference geometry by
-!> init(zmat, n, at, xyz).  BFS connectivity from covalent radii (Alvarez
-!> 2008), automatic angle/dihedral reference atoms, Decius linear-bend pairs
-!> measured along the fixed perpendicular frames stored at build time.
-!> zmat%bmatrix supplies the Wilson B matrix.
+!> Coordinates: the redundant internal coordinates of the molecular graph,
+!> built from the reference geometry.  Bonds come from the covalent-radius
+!> inference of neighborh, folded into an undirected adjacency; the graph and
+!> the coordinate set are built by xtb_internals_graph and
+!> xtb_internals_redundant.  The set holds simple bond stretches, valence
+!> angles and dihedrals.  xtb_bmatrix::get_bmatrix supplies the Wilson B
+!> matrix.
 !>
 !> C = B H^+ B^T, H projected out of translations and rotations first;
 !> handles redundant coordinate sets (symmetric tops etc.).
@@ -38,10 +40,10 @@
 !> Works for any nint and any coordinate set (diatomic, linear, mixed,
 !> general, redundant).  nint is passed explicitly -- no hardcoded 3N-6.
 !>
-!> Output: bonds -> angles -> dihedrals -> linear bends, each with C_ii,
-!> 1/C_ii and the local mode frequency.  The full matrix is dumped to
-!> compliance.dat: diagonal C_ii, 1/C_ii and the top-20 off-diagonal
-!> couplings per coordinate, sorted by |C_ij| descending.
+!> Output: bonds -> angles -> dihedrals, each with C_ii, 1/C_ii and the
+!> local mode frequency.  The full matrix is dumped to compliance.dat:
+!> diagonal C_ii, 1/C_ii and the top-20 off-diagonal couplings per
+!> coordinate, sorted by |C_ij| descending.
 !>
 !> Units: C in Bohr^2/Hartree, 1/C in Eh/a0^2, 1 Eh/a0^2 = 15.570 N/cm.
 !>
@@ -55,8 +57,12 @@ module xtb_compliance
    use xtb_mctc_math, only : crossProd
    use xtb_mctc_convert, only : autoamu
    use xtb_mctc_symbols, only : toSymbol
-   use xtb_zmat_type, only : TZMatrix, init, COORD_ANGLE, COORD_DIHEDRAL, &
-      & COORD_LINBEND
+   use xtb_type_neighbourlist, only : TNeighbourList, init, resizeNeigh
+   use xtb_internals_graph, only : graph_type, init
+   use xtb_internals_type, only : internal_coords_set_type, coord_bond, &
+      & coord_angle, coord_dihedral
+   use xtb_internals_redundant, only : redundant_type, init
+   use xtb_bmatrix, only : get_bmatrix
    implicit none
    private
 
@@ -64,8 +70,8 @@ module xtb_compliance
 
 contains
 
-!> Print compliance constants (bonds, angles, dihedrals, linear bends) for the
-!> reference geometry and dump the full matrix to compliance.dat.
+!> Print compliance constants (bonds, angles, dihedrals) for the reference
+!> geometry and dump the full matrix to compliance.dat.
 subroutine compliance_driver(unit, n, at, xyz, hess, mass)
    !> Formatted output unit.
    integer, intent(in) :: unit
@@ -80,8 +86,12 @@ subroutine compliance_driver(unit, n, at, xyz, hess, mass)
    !> Atomic masses in atomic mass units, dimension (n).
    real(wp), intent(in) :: mass(n)
 
-   integer :: istat
-   type(TZMatrix) :: zmat
+   integer :: i, j, k, istat, max_degree
+   integer :: nb(20, n)
+   logical :: bonded(n, n)
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals
    real(wp), allocatable :: bmat(:, :), compl(:, :)
 
    write(unit, *)
@@ -93,39 +103,82 @@ subroutine compliance_driver(unit, n, at, xyz, hess, mass)
    write(unit, *)
    write(unit, *) "Ref.: K. Brandhorst, J. Grunenberg, Chem. Soc. Rev. 37 (2008), 1558."
 
-   call init(zmat, n, at, xyz)
-   allocate(bmat(zmat%nint, 3*n), compl(zmat%nint, zmat%nint))
-   call zmat%get_bmatrix(xyz, bmat)
-   call compute_compliance(unit, hess, bmat, xyz, n, zmat%nint, compl, istat)
+   ! neighborh expands the list of an atom without any neighbour by lowering
+   ! its cutoff, so its entries depend on atom numbering.  Fold every returned
+   ! pair into an undirected adjacency before building the graph.
+   call neighborh(n, at, xyz, nb)
+   bonded = .false.
+   do i = 1, n
+      do k = 1, nb(20, i)
+         j = nb(k, i)
+         if (j < 1 .or. j > n .or. j == i) cycle
+         bonded(i, j) = .true.
+         bonded(j, i) = .true.
+      end do
+   end do
+
+   max_degree = 0
+   call init(neigh_list, n)
+   neigh_list%iNeigh = 0
+   neigh_list%dist2 = 0.0_wp
+   neigh_list%weight = 0.0_wp
+   do i = 1, n
+      neigh_list%neighs(i) = 0
+   end do
+   do i = 1, n
+      k = count(bonded(:, i))
+      neigh_list%neighs(i) = k
+      max_degree = max(max_degree, k)
+   end do
+   if (max_degree > ubound(neigh_list%iNeigh, 1)) then
+      call resizeNeigh(max_degree, neigh_list%iNeigh, neigh_list%dist2, &
+         & neigh_list%weight)
+   end if
+   do i = 1, n
+      neigh_list%image(i) = i
+   end do
+   do i = 1, n
+      k = 0
+      do j = 1, n
+         if (.not. bonded(j, i)) cycle
+         k = k + 1
+         neigh_list%iNeigh(k, i) = j
+      end do
+   end do
+
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+
+   allocate(bmat(internals%ncoords, 3*n), compl(internals%ncoords, internals%ncoords))
+   call get_bmatrix(internals, xyz, bmat)
+   call compute_compliance(unit, hess, bmat, xyz, n, internals%ncoords, compl, istat)
    if (istat /= 0) return
-   call print_compl(unit, n, at, xyz, mass, zmat, compl)
+   call print_compl(unit, n, at, mass, internals, compl)
 
 end subroutine compliance_driver
 
 
 !> Print diagonal elements of the compliance matrix in the order of bonds,
-!> angles, dihedrals, and linear bends.
+!> angles, and dihedrals.
 !>
 !> Also calls write_compliance_dat to write the full matrix to a file.
-subroutine print_compl(unit, n, at, xyz, mass, zmat, C)
-   !> Z-matrix container with the internal-coordinate definitions.
-   type(TZMatrix), intent(in) :: zmat
+subroutine print_compl(unit, n, at, mass, internals, C)
+   !> Redundant coordinate set with the definitions and the reference values.
+   type(redundant_type), intent(in) :: internals
    !> Formatted output unit.
    integer, intent(in) :: unit
    !> Number of atoms.
    integer, intent(in) :: n
    !> Atomic numbers, dimension (n).
    integer, intent(in) :: at(n)
-   !> Cartesian coordinates in Bohr, dimension (3, n).
-   real(wp), intent(in) :: xyz(3, n)
    !> Atomic masses in atomic mass units, dimension (n).
    real(wp), intent(in) :: mass(n)
-   !> Compliance matrix, dimension (nint, nint), in Bohr^2/Hartree.
-   real(wp), intent(in) :: C(zmat%nint, zmat%nint)
+   !> Compliance matrix, dimension (ncoords, ncoords), in Bohr^2/Hartree.
+   real(wp), intent(in) :: C(internals%ncoords, internals%ncoords)
 
-   integer :: i, o, k
-   integer :: idx_ord(zmat%nint)
-   real(wp) :: q(zmat%nint), cc, mu, freq
+   integer :: ic, k, a1, a2
+   integer :: idx_ord(internals%ncoords)
+   real(wp) :: cc, mu, freq
    character(20) :: s
    ! local mode frequency: nu_a = fac * sqrt(k_a[a.u.] / mu[a.u.])
    !   k_a = 1/C_ii  in Eh/a0^2
@@ -140,8 +193,6 @@ subroutine print_compl(unit, n, at, xyz, mass, zmat, C)
    !     1 amu   = 1.66054e-27 kg
    !     sqrt(1556.89/1.66054e-27) / (2*pi*2.99792e10) = 5140.49 cm^-1
    real(wp), parameter :: fac = 5140.4869_wp ! cm^-1, mu must be in amu
-
-   call zmat%get_coords(xyz, q)
 
    write(unit, *)
    write(unit, *) "units: Hartree, Bohr, radian"
@@ -158,57 +209,44 @@ subroutine print_compl(unit, n, at, xyz, mass, zmat, C)
    write(unit, "(a)") &
       "     type                atoms                   coord value" // &
       "       C       1/C    nu_loc/cm-1"
-   do i = 2, n
-      k = k + 1;  o = zmat%qoff(i);  idx_ord(k) = o + 1
-      cc = C(o+1, o+1);  s = "bond stretch"
-      mu = mass(i) * mass(zmat%na(i)) / (mass(i) + mass(zmat%na(i))) * autoamu
+   do ic = 1, internals%ncoords
+      if (internals%kind(ic) /= coord_bond) cycle
+      k = k + 1;  idx_ord(k) = ic
+      cc = C(ic, ic);  s = "bond stretch"
+      a1 = internals%atoms(1, ic);  a2 = internals%atoms(2, ic)
+      mu = mass(a1) * mass(a2) / (mass(a1) + mass(a2)) * autoamu
       freq = fac * sqrt(1.0_wp/(mu*cc))
       write(unit, "(i4,1x,a14,2(a2,i3,3x),16x,4f10.2)") &
-         k, s, toSymbol(at(i)), i, toSymbol(at(zmat%na(i))), zmat%na(i), &
-         q(o+1), cc, 1.0_wp / cc, freq
+         k, s, toSymbol(at(a1)), a1, toSymbol(at(a2)), a2, &
+         internals%q(ic), cc, 1.0_wp / cc, freq
    end do
 
    ! 2) valence angles
-   do i = 2, n
-      if (zmat%ctype(i)/=COORD_ANGLE .and. zmat%ctype(i)/=COORD_DIHEDRAL) cycle
-      k = k + 1;  o = zmat%qoff(i);  idx_ord(k) = o + 2
-      cc = C(o+2, o+2);  s = "angle"
+   do ic = 1, internals%ncoords
+      if (internals%kind(ic) /= coord_angle) cycle
+      k = k + 1;  idx_ord(k) = ic
+      cc = C(ic, ic);  s = "angle"
       write(unit, "(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)") &
-         k, s, toSymbol(at(i)), i, toSymbol(at(zmat%na(i))), zmat%na(i), &
-         toSymbol(at(zmat%nb(i))), zmat%nb(i), &
-         q(o+2), cc, 1.0_wp / cc
+         k, s, toSymbol(at(internals%atoms(1, ic))), internals%atoms(1, ic), &
+         toSymbol(at(internals%atoms(2, ic))), internals%atoms(2, ic), &
+         toSymbol(at(internals%atoms(3, ic))), internals%atoms(3, ic), &
+         internals%q(ic), cc, 1.0_wp / cc
    end do
 
    ! 3) dihedrals
-   do i = 2, n
-      if (zmat%ctype(i)/=COORD_DIHEDRAL) cycle
-      k = k + 1;  o = zmat%qoff(i);  idx_ord(k) = o + 3
-      cc = C(o+3, o+3);  s = "dihedral"
+   do ic = 1, internals%ncoords
+      if (internals%kind(ic) /= coord_dihedral) cycle
+      k = k + 1;  idx_ord(k) = ic
+      cc = C(ic, ic);  s = "dihedral"
       write(unit, "(i4,1x,a14,4(a2,i3,3x),3f10.4)") &
-         k, s, toSymbol(at(i)), i, toSymbol(at(zmat%na(i))), zmat%na(i), &
-         toSymbol(at(zmat%nb(i))), zmat%nb(i), toSymbol(at(zmat%nc(i))), zmat%nc(i), &
-         q(o+3), cc, 1.0_wp / cc
+         k, s, toSymbol(at(internals%atoms(1, ic))), internals%atoms(1, ic), &
+         toSymbol(at(internals%atoms(2, ic))), internals%atoms(2, ic), &
+         toSymbol(at(internals%atoms(3, ic))), internals%atoms(3, ic), &
+         toSymbol(at(internals%atoms(4, ic))), internals%atoms(4, ic), &
+         internals%q(ic), cc, 1.0_wp / cc
    end do
 
-   ! 4) linear bending coordinates
-   do i = 2, n
-      if (zmat%ctype(i)/=COORD_LINBEND) cycle
-      o = zmat%qoff(i)
-      k = k + 1;  idx_ord(k) = o + 2
-      cc = C(o+2, o+2);  s = "lin.bend(e1)"
-      write(unit, "(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)") &
-         k, s, toSymbol(at(zmat%nb(i))), zmat%nb(i), &
-         toSymbol(at(zmat%na(i))), zmat%na(i), toSymbol(at(i)), i, &
-         q(o+2), cc, 1.0_wp / cc
-      k = k + 1;  idx_ord(k) = o + 3
-      cc = C(o+3, o+3);  s = "lin.bend(e2)"
-      write(unit, "(i4,1x,a14,3(a2,i3,3x),8x,3f10.4)") &
-         k, s, toSymbol(at(zmat%nb(i))), zmat%nb(i), &
-         toSymbol(at(zmat%na(i))), zmat%na(i), toSymbol(at(i)), i, &
-         q(o+3), cc, 1.0_wp / cc
-   end do
-
-   call write_compliance_dat(unit, n, at, zmat, C, idx_ord, k)
+   call write_compliance_dat(unit, n, at, internals, C, idx_ord, k)
 
 end subroutine print_compl
 
@@ -217,9 +255,9 @@ end subroutine print_compl
 !>
 !> For each coordinate it outputs the diagonal element C_ii, its inverse 1/C_ii,
 !> and the top NCOUP off-diagonal couplings |C_ij| sorted in descending order.
-subroutine write_compliance_dat(unit, n, at, zmat, C, idx_ord, ncoord)
-   !> Z-matrix container with the internal-coordinate definitions.
-   type(TZMatrix), intent(in) :: zmat
+subroutine write_compliance_dat(unit, n, at, internals, C, idx_ord, ncoord)
+   !> Internal-coordinate definitions.
+   class(internal_coords_set_type), intent(in) :: internals
    !> Formatted output unit.
    integer, intent(in) :: unit
    !> Number of atoms.
@@ -228,8 +266,8 @@ subroutine write_compliance_dat(unit, n, at, zmat, C, idx_ord, ncoord)
    integer, intent(in) :: ncoord
    !> Atomic numbers, dimension (n).
    integer, intent(in) :: at(n)
-   !> Compliance matrix, dimension (nint, nint), in Bohr^2/Hartree.
-   real(wp), intent(in) :: C(zmat%nint, zmat%nint)
+   !> Compliance matrix, dimension (ncoords, ncoords), in Bohr^2/Hartree.
+   real(wp), intent(in) :: C(internals%ncoords, internals%ncoords)
    !> Coordinate order used for the printed table, dimension (ncoord).
    integer, intent(in) :: idx_ord(ncoord)
 
@@ -241,7 +279,7 @@ subroutine write_compliance_dat(unit, n, at, zmat, C, idx_ord, ncoord)
    character(20) :: lbl(ncoord)
 
    ! Build labels in the same order as the printed coordinates.
-   call build_labels(n, at, zmat, ncoord, lbl)
+   call build_labels(n, at, internals, ncoord, lbl)
 
    open(newunit=iunit, file="compliance.dat", status="replace")
 
@@ -312,11 +350,11 @@ subroutine write_compliance_dat(unit, n, at, zmat, C, idx_ord, ncoord)
 end subroutine write_compliance_dat
 
 
-!> Build human-readable labels for the internal coordinates, in the order bonds,
-!> angles, dihedrals, then linear bends.
-subroutine build_labels(n, at, zmat, ncoord, lbl)
-   !> Z-matrix container with the internal-coordinate definitions.
-   type(TZMatrix), intent(in) :: zmat
+!> Build human-readable labels for the internal coordinates, in the order
+!> bonds, angles, dihedrals.
+subroutine build_labels(n, at, internals, ncoord, lbl)
+   !> Internal-coordinate definitions.
+   class(internal_coords_set_type), intent(in) :: internals
    !> Number of atoms.
    integer, intent(in) :: n
    !> Number of internal coordinates.
@@ -326,44 +364,36 @@ subroutine build_labels(n, at, zmat, ncoord, lbl)
    !> Coordinate labels, dimension (ncoord), truncated to 20 characters.
    character(20), intent(out) :: lbl(ncoord)
 
-   integer :: i, k
+   integer :: ic, k
    character(80) :: buf
 
    k = 0;  lbl = "??"
 
-   do i = 2, n ! bonds
+   do ic = 1, internals%ncoords ! bonds
+      if (internals%kind(ic) /= coord_bond) cycle
       k = k + 1
       write(buf, "(a,a2,i0,a,a2,i0)") &
-         "bond ", toSymbol(at(i)), i, "-", toSymbol(at(zmat%na(i))), zmat%na(i)
+         "bond ", toSymbol(at(internals%atoms(1, ic))), internals%atoms(1, ic), &
+         "-", toSymbol(at(internals%atoms(2, ic))), internals%atoms(2, ic)
       lbl(k) = buf(1:20)
    end do
-   do i = 2, n ! angles
-      if (zmat%ctype(i)/=COORD_ANGLE .and. zmat%ctype(i)/=COORD_DIHEDRAL) cycle
+   do ic = 1, internals%ncoords ! angles
+      if (internals%kind(ic) /= coord_angle) cycle
       k = k + 1
       write(buf, "(a,a2,i0,a,a2,i0,a,a2,i0)") &
-         "ang ", toSymbol(at(i)), i, "-", toSymbol(at(zmat%na(i))), zmat%na(i), &
-         "-", toSymbol(at(zmat%nb(i))), zmat%nb(i)
+         "ang ", toSymbol(at(internals%atoms(1, ic))), internals%atoms(1, ic), &
+         "-", toSymbol(at(internals%atoms(2, ic))), internals%atoms(2, ic), &
+         "-", toSymbol(at(internals%atoms(3, ic))), internals%atoms(3, ic)
       lbl(k) = buf(1:20)
    end do
-   do i = 2, n ! dihedrals
-      if (zmat%ctype(i)/=COORD_DIHEDRAL) cycle
+   do ic = 1, internals%ncoords ! dihedrals
+      if (internals%kind(ic) /= coord_dihedral) cycle
       k = k + 1
       write(buf, "(a,a2,i0,a,a2,i0,a,a2,i0,a,a2,i0)") &
-         "dih ", toSymbol(at(i)), i, "-", toSymbol(at(zmat%na(i))), zmat%na(i), "-", &
-         toSymbol(at(zmat%nb(i))), zmat%nb(i), "-", toSymbol(at(zmat%nc(i))), zmat%nc(i)
-      lbl(k) = buf(1:20)
-   end do
-   do i = 2, n ! linear bends
-      if (zmat%ctype(i)/=COORD_LINBEND) cycle
-      k = k + 1
-      write(buf, "(a,a2,i0,a,a2,i0,a,a2,i0)") &
-         "lb1 ", toSymbol(at(zmat%nb(i))), zmat%nb(i), "-", &
-         toSymbol(at(zmat%na(i))), zmat%na(i), "-", toSymbol(at(i)), i
-      lbl(k) = buf(1:20)
-      k = k + 1
-      write(buf, "(a,a2,i0,a,a2,i0,a,a2,i0)") &
-         "lb2 ", toSymbol(at(zmat%nb(i))), zmat%nb(i), "-", &
-         toSymbol(at(zmat%na(i))), zmat%na(i), "-", toSymbol(at(i)), i
+         "dih ", toSymbol(at(internals%atoms(1, ic))), internals%atoms(1, ic), &
+         "-", toSymbol(at(internals%atoms(2, ic))), internals%atoms(2, ic), &
+         "-", toSymbol(at(internals%atoms(3, ic))), internals%atoms(3, ic), &
+         "-", toSymbol(at(internals%atoms(4, ic))), internals%atoms(4, ic)
       lbl(k) = buf(1:20)
    end do
 
@@ -399,7 +429,12 @@ subroutine compute_compliance(unit, H, B, xyz, natoms, nint, C, stat)
    real(wp), allocatable :: Hp(:, :), Q(:, :), W(:), Z(:, :), ZD(:, :), &
       & T1(:, :), T2(:, :), work(:)
 
-   stat = 0; ndim = 3 * natoms
+   stat = 0
+   if (nint == 0) then
+      C = 0.0_wp
+      return
+   end if
+   ndim = 3 * natoms
    allocate(Hp(ndim, ndim), Q(ndim, 6), W(ndim), Z(nint, ndim), &
       & ZD(nint, ndim), T1(ndim, 6), T2(6, ndim))
 
