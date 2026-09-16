@@ -16,12 +16,13 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Hessian, compliance and Z-matrix behaviour locks
+!> Hessian, compliance and redundant-internal behaviour locks
 !>
 !> Numerical and O1NumHess (ODLR) Hessians of water are pinned against reference
 !> tables and against their eigenvalue spectra, the GFN1 compliance constants of
-!> water are pinned as a reference matrix, and the analytic Z-matrix B-matrix of
-!> ketene is validated against central finite differences.
+!> water are pinned as a reference matrix, and the analytic B-matrix of a
+!> non-collinear redundant coordinate set is validated against central finite
+!> differences.
 module test_hessian
    use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
    use xtb_mctc_accuracy, only : wp
@@ -37,8 +38,12 @@ module test_hessian
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
-   use xtb_compliance, only : compute_compliance
-   use xtb_zmat_type, only : TZMatrix, init, COORD_LINBEND
+   use xtb_compliance, only : compliance_driver, compute_compliance
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_internals_graph, only : graph_type, init
+   use xtb_internals_redundant, only : redundant_type, init
+   use xtb_internals_type, only : coord_bond, coord_angle, coord_dihedral
+   use xtb_bmatrix, only : get_bmatrix
    implicit none
    private
 
@@ -60,7 +65,8 @@ subroutine collect_hessian(testsuite)
       new_unittest("linear_h2o_gfn2_o1numhess", test_o1numhess_linear_h2o_gfn2), &
       new_unittest("compliance", test_compliance), &
       new_unittest("compliance_water", test_compliance_water), &
-      new_unittest("zmatrix_bmatrix_fd", test_zmat_bmatrix_fd) &
+      new_unittest("redundant_bmatrix_fd", test_redundant_bmatrix_fd), &
+      new_unittest("compliance_driver_redundant", test_compliance_driver_redundant) &
       ]
 
 end subroutine collect_hessian
@@ -554,22 +560,27 @@ subroutine test_compliance(error)
    integer, parameter :: ndim = 3 * nat
    real(wp), parameter :: force_constant = 2.0_wp
    real(wp), parameter :: thr = 1.0e-10_wp
-   integer, parameter :: at(nat) = [1, 1]
+   integer, parameter :: pairs(2, 1) = reshape([1, 2], [2, 1])
    real(wp), parameter :: xyz(3, nat) = reshape([ &
       & 0.0_wp, 0.0_wp, 0.0_wp, &
       & 2.0_wp, 0.0_wp, 0.0_wp], shape(xyz))
 
-   type(TZMatrix) :: zmat
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals
    integer :: i, j, stat
    real(wp), allocatable :: bmat(:, :), compliance(:, :), hessian(:, :)
    real(wp) :: redundant_bmat(2, ndim), redundant_compliance(2, 2)
 
-   call init(zmat, nat, at, xyz)
-   call check(error, zmat%nint, 1)
+   neigh_list = build_neigh_list(nat, pairs)
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+   call check(error, internals%ncoords, 1)
    if (allocated(error)) return
 
-   allocate(bmat(zmat%nint, ndim), compliance(zmat%nint, zmat%nint), hessian(ndim, ndim))
-   call zmat%get_bmatrix(xyz, bmat)
+   allocate(bmat(internals%ncoords, ndim), compliance(internals%ncoords, internals%ncoords), &
+      & hessian(ndim, ndim))
+   call get_bmatrix(internals, xyz, bmat)
 
    do i = 1, ndim
       do j = 1, ndim
@@ -577,7 +588,7 @@ subroutine test_compliance(error)
       end do
    end do
 
-   call compute_compliance(0, hessian, bmat, xyz, nat, zmat%nint, compliance, stat)
+   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, stat)
 
    call check(error, stat, 0)
    call check(error, bmat(1, 1), -1.0_wp, thr=thr)
@@ -605,6 +616,7 @@ subroutine test_compliance_water(error)
    integer, parameter :: nat = 3
    integer, parameter :: ndim = 3 * nat
    real(wp), parameter :: step = 1.0e-6_wp
+   integer, parameter :: pairs(2, 2) = reshape([1, 2, 1, 3], [2, 2])
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & 0.00000000000000_wp, 0.00000000034546_wp, 0.18900383618455_wp, &
@@ -612,7 +624,8 @@ subroutine test_compliance_water(error)
       &-0.00000000000000_wp, -1.45674735383357_wp, -0.88650486086986_wp], &
       & shape(xyz))
    real(wp), parameter :: thr = 1.0e-9_wp
-   !> GFN1 compliance constants of water, in (E_h/Bohr^2)^{-1}:
+   !> GFN1 compliance constants of water, in (E_h/Bohr^2)^{-1}, in the
+   !> redundant ordering bond(1,2), bond(1,3), angle(2,1,3):
    !> the two OH bonds are symmetry equivalent, so C(1,1) == C(2,2)
    real(wp), parameter :: ref(3, 3) = reshape([&
       &  2.0182216653802367_wp, 3.9636125866625911e-02_wp, -3.8477798708995936e-01_wp, &
@@ -626,7 +639,9 @@ subroutine test_compliance_water(error)
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
-   type(TZMatrix) :: zmat
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals
    integer :: i, j, stat
    integer, allocatable :: list(:)
    real(wp) :: energy, sigma(3, 3), hl_gap
@@ -650,74 +665,200 @@ subroutine test_compliance_water(error)
    list = [(i, i = 1, nat)]
    call calc%hessian(env, mol, chk, list, step, hessian, dipgrad)
 
-   call init(zmat, nat, mol%at, xyz)
-   call check(error, zmat%nint, 3)
+   neigh_list = build_neigh_list(nat, pairs)
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+   call check(error, internals%ncoords, 3)
    if (allocated(error)) return
 
-   allocate(bmat(zmat%nint, ndim), compliance(zmat%nint, zmat%nint))
-   call zmat%get_bmatrix(xyz, bmat)
-   call compute_compliance(0, hessian, bmat, xyz, nat, zmat%nint, compliance, stat)
+   allocate(bmat(internals%ncoords, ndim), compliance(internals%ncoords, internals%ncoords))
+   call get_bmatrix(internals, xyz, bmat)
+   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, stat)
    call check(error, stat, 0)
    if (allocated(error)) return
 
-   do i = 1, zmat%nint
-      do j = 1, zmat%nint
+   do i = 1, internals%ncoords
+      do j = 1, internals%ncoords
          call check(error, compliance(i, j), ref(i, j), thr=thr)
       end do
    end do
 
 end subroutine test_compliance_water
 
-!> Pins the analytic Z-matrix B-matrix of ketene against central finite
-!> differences of the internal coordinates, including the dihedral branch cut.
-subroutine test_zmat_bmatrix_fd(error)
+!> Pins a redundant-coordinate B-matrix against central finite differences.
+subroutine test_redundant_bmatrix_fd(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
 
-   integer, parameter :: nat = 5
-   integer, parameter :: at(nat) = [6, 6, 8, 1, 1]
-   !> ketene, Bohr: the C=C=O centre is linear, the two CH atoms give dihedrals
+   integer, parameter :: nat = 4
+   integer, parameter :: ncoord = 6
+   integer, parameter :: pairs(2, 3) = reshape([1, 2, 2, 3, 3, 4], [2, 3])
+   integer, parameter :: expected_kind(ncoord) = [ &
+      & coord_bond, coord_bond, coord_bond, coord_angle, coord_angle, coord_dihedral]
+   integer, parameter :: expected_atoms(4, ncoord) = reshape([ &
+      & 1, 2, 0, 0, &
+      & 2, 3, 0, 0, &
+      & 3, 4, 0, 0, &
+      & 1, 2, 3, 0, &
+      & 2, 3, 4, 0, &
+      & 1, 2, 3, 4], [4, ncoord])
    real(wp), parameter :: xyz(3, nat) = reshape([ &
-      &  0.000_wp, 0.000_wp, 0.000_wp, &
-      &  2.483_wp, 0.000_wp, 0.000_wp, &
-      &  4.681_wp, 0.000_wp, 0.000_wp, &
-      & -0.995_wp, 1.788_wp, 0.000_wp, &
-      & -0.995_wp, -1.788_wp, 0.000_wp], shape(xyz))
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 1.5_wp, 0.0_wp, 0.0_wp, &
+      & 2.5_wp, 1.0_wp, 0.0_wp, &
+      & 3.0_wp, 1.0_wp, 1.0_wp], shape(xyz))
    real(wp), parameter :: step = 1.0e-6_wp
    real(wp), parameter :: thr = 1.0e-6_wp
 
-   type(TZMatrix) :: zmat
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals, right, left
    real(wp) :: coord(3, nat), dq
-   real(wp), allocatable :: bmat(:, :), qr(:), ql(:)
+   real(wp), allocatable :: bmat(:, :)
    integer :: i, ic, ii, k
 
-   call init(zmat, nat, at, xyz)
-   call check(error, zmat%nint, 10)
-   if (allocated(error)) return
-   call check(error, count(zmat%ctype == COORD_LINBEND), 1)
+   neigh_list = build_neigh_list(nat, pairs)
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+   call check(error, internals%ncoords, ncoord)
    if (allocated(error)) return
 
-   allocate(bmat(zmat%nint, 3*nat), qr(zmat%nint), ql(zmat%nint))
-   call zmat%get_bmatrix(xyz, bmat)
+   do k = 1, ncoord
+      call check(error, internals%kind(k), expected_kind(k))
+      if (allocated(error)) return
+      do i = 1, 4
+         call check(error, internals%atoms(i, k), expected_atoms(i, k))
+         if (allocated(error)) return
+      end do
+   end do
+
+   allocate(bmat(ncoord, 3*nat))
+   call get_bmatrix(internals, xyz, bmat)
 
    do i = 1, nat
       do ic = 1, 3
          ii = 3 * (i - 1) + ic
-         coord = xyz; coord(ic, i) = coord(ic, i) + step
-         call zmat%get_coords(coord, qr)
-         coord = xyz; coord(ic, i) = coord(ic, i) - step
-         call zmat%get_coords(coord, ql)
-         do k = 1, zmat%nint
-            ! ketene is planar, so both dihedrals sit exactly on the +-pi branch
-            ! cut where the representative jumps by 2*pi although the coordinate
-            ! is smooth: difference along the shortest arc
-            dq = modulo(qr(k) - ql(k) + pi, 2.0_wp*pi) - pi
+         coord = xyz
+         coord(ic, i) = coord(ic, i) + step
+         call init(right, graph, coord)
+         coord = xyz
+         coord(ic, i) = coord(ic, i) - step
+         call init(left, graph, coord)
+         do k = 1, ncoord
+            dq = right%q(k) - left%q(k)
+            if (internals%kind(k) == coord_dihedral) then
+               dq = modulo(dq + pi, 2.0_wp*pi) - pi
+            end if
             call check(error, bmat(k, ii), 0.5_wp*dq/step, thr=thr)
             if (allocated(error)) return
          end do
       end do
    end do
 
-end subroutine test_zmat_bmatrix_fd
+end subroutine test_redundant_bmatrix_fd
+
+
+!> Locks the neighborh union and the zero-coordinate compliance path.
+subroutine test_compliance_driver_redundant(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat3 = 3, nat2 = 2
+   integer, parameter :: at3(nat3) = [1, 1, 1]
+   integer, parameter :: at2(nat2) = [1, 1]
+   real(wp), parameter :: mass3(nat3) = [1.0_wp, 1.0_wp, 1.0_wp]
+   real(wp), parameter :: mass2(nat2) = [1.0_wp, 1.0_wp]
+   real(wp), parameter :: xyz3(3, nat3) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 1.0_wp, 0.0_wp, &
+      & 2.0_wp, 0.0_wp, 0.0_wp], shape(xyz3))
+   real(wp), parameter :: xyz2(3, nat2) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 10.0_wp, 0.0_wp, 0.0_wp], shape(xyz2))
+
+   real(wp) :: hess3(3*nat3, 3*nat3), hess2(3*nat2, 3*nat2)
+   integer :: unit, dat_unit, i, ios, nbond, nangle, nrows
+   logical :: zero_report
+   character(256) :: line
+
+   hess3 = 0.0_wp
+   do i = 1, 3*nat3
+      hess3(i, i) = 1.0_wp
+   end do
+   open(newunit=unit, status="scratch", action="readwrite")
+   call compliance_driver(unit, nat3, at3, xyz3, hess3, mass3)
+   rewind(unit)
+   nbond = 0
+   nangle = 0
+   do
+      read(unit, "(a)", iostat=ios) line
+      if (ios /= 0) exit
+      if (index(line, "bond stretch") > 0) nbond = nbond + 1
+      if (index(line, "angle") > 0) nangle = nangle + 1
+   end do
+   close(unit)
+   open(newunit=dat_unit, file="compliance.dat", status="old")
+   close(dat_unit, status="delete")
+
+   call check(error, nbond, 2)
+   if (allocated(error)) return
+   call check(error, nangle, 1)
+   if (allocated(error)) return
+
+   hess2 = 0.0_wp
+   do i = 1, 3*nat2
+      hess2(i, i) = 1.0_wp
+   end do
+   open(newunit=unit, status="scratch", action="readwrite")
+   call compliance_driver(unit, nat2, at2, xyz2, hess2, mass2)
+   rewind(unit)
+   nrows = 0
+   zero_report = .false.
+   do
+      read(unit, "(a)", iostat=ios) line
+      if (ios /= 0) exit
+      if (index(line, "bond stretch") > 0) nrows = nrows + 1
+      if (index(line, "angle") > 0) nrows = nrows + 1
+      if (index(line, "dihedral") > 0) nrows = nrows + 1
+      if (index(line, "0 coordinates") > 0) zero_report = .true.
+   end do
+   close(unit)
+   open(newunit=dat_unit, file="compliance.dat", status="old")
+   close(dat_unit, status="delete")
+
+   call check(error, nrows, 0)
+   if (allocated(error)) return
+   if (.not. zero_report) then
+      call test_failed(error, "Zero-coordinate compliance report was not completed")
+   end if
+
+end subroutine test_compliance_driver_redundant
+
+
+!> Build a symmetric neighbour list from undirected atom pairs.
+function build_neigh_list(nat, pairs) result(neigh_list)
+   !> Number of atoms.
+   integer, intent(in) :: nat
+   !> Undirected atom pairs, dimension (2, number of pairs).
+   integer, intent(in) :: pairs(:, :)
+   !> Neighbour list with both adjacency columns filled.
+   type(TNeighbourList) :: neigh_list
+
+   integer :: i, j, k
+
+   call init(neigh_list, nat)
+   neigh_list%neighs = 0
+   neigh_list%iNeigh = 0
+   neigh_list%image = [(i, i = 1, nat)]
+   do k = 1, size(pairs, 2)
+      i = pairs(1, k)
+      j = pairs(2, k)
+      neigh_list%neighs(i) = neigh_list%neighs(i) + 1
+      neigh_list%iNeigh(neigh_list%neighs(i), i) = j
+      neigh_list%neighs(j) = neigh_list%neighs(j) + 1
+      neigh_list%iNeigh(neigh_list%neighs(j), j) = i
+   end do
+
+end function build_neigh_list
 
 end module test_hessian

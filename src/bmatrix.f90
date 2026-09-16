@@ -16,17 +16,20 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Wilson B rows for internal coordinates and Cartesian Hessian accumulation
-!> helpers shared by the Z-matrix and the model Hessians.
+!> helpers shared by internal-coordinate sets and the model Hessians.
 module xtb_bmatrix
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi
    use xtb_mctc_math, only : crossProd
+   use xtb_internals_type, only : internal_coords_set_type, coord_bond, &
+      & coord_angle, coord_dihedral
    implicit none
 
    private
    public :: bmat_bond, bmat_angle, bmat_linbend, linbend_frame, &
       & bmat_torsion, bmat_outofplane, oop_angle
    public :: bmat_accum_packed, bmat_accum_dense, bmat_accum_pairblock_packed
+   public :: get_bmatrix
 
    character(len=*), parameter :: source = "xtb_bmatrix"
 
@@ -313,6 +316,44 @@ pure function oop_angle(xyz) result(theta)
 
    theta = bend_angle(c14) - 0.5_wp * pi
 end function oop_angle
+
+!> Assemble the Wilson B matrix for an internal-coordinate set.
+pure subroutine get_bmatrix(internals, xyz, bmat)
+   !> Internal-coordinate definitions.
+   class(internal_coords_set_type), intent(in) :: internals
+   !> Cartesian coordinates, dimension (3, number of atoms).
+   real(wp), intent(in) :: xyz(:, :)
+   !> Wilson B matrix, dimension (internals%ncoords, 3*number of atoms).
+   real(wp), intent(out) :: bmat(:, :)
+
+   integer :: ic, ia, atom, ncoord
+   real(wp) :: brow(12)
+
+   bmat = 0.0_wp
+   do ic = 1, internals%ncoords
+      select case (internals%kind(ic))
+      case (coord_bond)
+         ncoord = 2
+         brow(1:6) = bmat_bond(xyz(:, internals%atoms(1, ic)) &
+            & - xyz(:, internals%atoms(2, ic)))
+      case (coord_angle)
+         ncoord = 3
+         brow(1:9) = bmat_angle( &
+            & xyz(:, internals%atoms(1, ic)) - xyz(:, internals%atoms(2, ic)), &
+            & xyz(:, internals%atoms(3, ic)) - xyz(:, internals%atoms(2, ic)))
+      case (coord_dihedral)
+         ncoord = 4
+         brow = reshape(bmat_torsion(xyz(:, internals%atoms(:, ic))), [12])
+      case default
+         error stop "bmatrix: unknown internal coordinate kind"
+      end select
+
+      do ia = 1, ncoord
+         atom = internals%atoms(ia, ic)
+         bmat(ic, 3*atom-2:3*atom) = brow(3*ia-2:3*ia)
+      end do
+   end do
+end subroutine get_bmatrix
 
 !> Stretch B row for a 2-atom fragment (private helper).
 !>
