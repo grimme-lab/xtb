@@ -23,6 +23,7 @@ module xtb_modelhessian_lindh
    use xtb_param_model_hessian, only : TLindhParameters, &
       & lindh_d2_parameters, lindh_parameters
    use xtb_modelhessian_shared, only : itabrow, fk_vdw
+   use xtb_type_setvar, only : modhess_setvar
    implicit none(type, external)
    private
 
@@ -37,7 +38,29 @@ module xtb_modelhessian_lindh
    type, public, extends(TLindhModelHessianBase) :: TLindhD2ModelHessian
    end type TLindhD2ModelHessian
 
+   public :: newLindhModelHessian, newLindhD2ModelHessian
+
 contains
+!> Create a Lindh 2007 model Hessian
+function newLindhModelHessian(modh) result(model_hessian)
+   !> Model Hessian configuration
+   type(modhess_setvar), intent(in) :: modh
+
+   type(TLindhModelHessian) :: model_hessian
+
+   call model_hessian%init(modh)
+end function newLindhModelHessian
+
+!> Create a Lindh-D2 model Hessian
+function newLindhD2ModelHessian(modh) result(model_hessian)
+   !> Model Hessian configuration
+   type(modhess_setvar), intent(in) :: modh
+
+   type(TLindhD2ModelHessian) :: model_hessian
+
+   call model_hessian%init(modh)
+end function newLindhD2ModelHessian
+
 
 !> Evaluate the selected Lindh pair-distance decay factor
 pure function pair_factor(self, at_i, at_j, r2, dispersion_scale, outofplane) &

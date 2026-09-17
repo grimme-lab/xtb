@@ -30,8 +30,9 @@ module test_model_hessian
    use xtb_type_molecule, only : TMolecule
    use xtb_modelhessian_eeq, only : add_eeq_hessian
    use xtb_modelhessian_type, only : TModelHessian
-   use xtb_modelhessian_lindh, only : TLindhModelHessian, TLindhD2ModelHessian
-   use xtb_modelhessian_swart, only : TSwartModelHessian
+   use xtb_modelhessian_lindh, only : newLindhModelHessian, &
+      & newLindhD2ModelHessian
+   use xtb_modelhessian_swart, only : newSwartModelHessian
    use xtb_type_param, only : chrg_parameter
    use xtb_type_setvar, only : modhess_setvar
    use xtb_test_molstock, only : getMolecule
@@ -130,23 +131,24 @@ subroutine compute_mh_packed(mol, variant, modh, hess_packed)
    call init(env)
    n3 = 3 * mol%n
    allocate(hess_packed(n3*(n3 + 1)/2))
-   call new_model_hessian(variant, model_hessian)
-   call model_hessian%compute(env, mol%xyz, mol%n, hess_packed, mol%at, modh)
+   call new_model_hessian(variant, modh, model_hessian)
+   call model_hessian%compute(env, mol%xyz, mol%n, hess_packed, mol%at)
 end subroutine compute_mh_packed
 
 
 !> Allocate model Hessian implementation for a test variant
-subroutine new_model_hessian(variant, model_hessian)
+subroutine new_model_hessian(variant, modh, model_hessian)
    integer, intent(in) :: variant
+   type(modhess_setvar), intent(in) :: modh
    class(TModelHessian), allocatable, intent(out) :: model_hessian
 
    select case (variant)
    case(VAR_LINDH_D2)
-      allocate(TLindhD2ModelHessian :: model_hessian)
+      allocate(model_hessian, source=newLindhD2ModelHessian(modh))
    case(VAR_LINDH)
-      allocate(TLindhModelHessian :: model_hessian)
+      allocate(model_hessian, source=newLindhModelHessian(modh))
    case(VAR_SWART)
-      allocate(TSwartModelHessian :: model_hessian)
+      allocate(model_hessian, source=newSwartModelHessian(modh))
    case default
       error stop "Unknown model Hessian variant"
    end select
@@ -169,9 +171,9 @@ subroutine test_model_hessian_dense(error)
    allocate(hess_packed(n3*(n3 + 1)/2), hess_dense(n3, n3))
 
    do variant = VAR_LINDH_D2, VAR_SWART
-      call new_model_hessian(variant, model_hessian)
-      call model_hessian%compute(env, mol%xyz, mol%n, hess_packed, mol%at, default_modh())
-      call model_hessian%compute(env, mol%xyz, mol%n, hess_dense, mol%at, default_modh())
+      call new_model_hessian(variant, default_modh(), model_hessian)
+      call model_hessian%compute(env, mol%xyz, mol%n, hess_packed, mol%at)
+      call model_hessian%compute(env, mol%xyz, mol%n, hess_dense, mol%at)
 
       ij = 0
       do i = 1, n3
@@ -209,11 +211,12 @@ subroutine test_model_hessian_charge(error)
    call add_eeq_hessian(env, mol%n, mol%at, mol%xyz, 0.0_wp, chrgeq, 0.1_wp, contribution)
 
    do variant = VAR_LINDH_D2, VAR_SWART
-      call new_model_hessian(variant, model_hessian)
       modh = default_modh()
-      call model_hessian%compute(env, mol%xyz, mol%n, base, mol%at, modh)
+      call new_model_hessian(variant, modh, model_hessian)
+      call model_hessian%compute(env, mol%xyz, mol%n, base, mol%at)
       modh%kq = 0.1_wp
-      call model_hessian%compute(env, mol%xyz, mol%n, charged, mol%at, modh)
+      call new_model_hessian(variant, modh, model_hessian)
+      call model_hessian%compute(env, mol%xyz, mol%n, charged, mol%at)
 
       do i = 1, size(base)
          call check(error, charged(i), base(i) + contribution(i), &
@@ -319,8 +322,8 @@ subroutine test_gff_h2o(error)
    n3 = 3 * mol%n
    allocate(hessian(n3*(n3 + 1)/2))
    modh = default_modh()
-   model_hessian = newGFFModelHessian(calc%param, calc%topo, calc%neigh)
-   call model_hessian%compute(env, mol%xyz, mol%n, hessian, mol%at, modh)
+   model_hessian = newGFFModelHessian(calc%param, calc%topo, calc%neigh, modh)
+   call model_hessian%compute(env, mol%xyz, mol%n, hessian, mol%at)
    call compare(error, ref_gff_h2o, hessian)
 end subroutine test_gff_h2o
 
