@@ -17,6 +17,14 @@
 
 !> Common interface for model Hessian implementations
 module xtb_modelhessian_type
+   ! TODO:
+   ! Could cut modelhessian module down further by using bmatrix and internal
+   ! coordinate infra more extensively. Coordinate traversal is different from
+   ! generic redundant internals and model specific, so needs special constructors.
+   ! Coordinates may then be assigned model-specific force constants,
+   ! and passed to xtb_bmatrix for shared Wilson B-row construction and
+   ! accumulation of k B^T B. Pairwise Cartesian terms such as dispersion and
+   ! charge contributions remain separate.
    use xtb_mctc_accuracy, only : wp
    use xtb_type_environment, only : TEnvironment
    implicit none(type, external)
