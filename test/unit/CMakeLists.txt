@@ -22,6 +22,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 set(
   tests
   "atomlist"
+  "bmatrix"
   "coordinationnumber"
   "coulomb"
   "dftd3"
@@ -37,6 +38,7 @@ set(
   "iff"
   "latticepoint"
   "molecule"
+  "model-hessian"
   "oniom"
   "optimizer"
   "dipro"
@@ -94,8 +96,8 @@ foreach(t IN LISTS tests)
   add_test("${PROJECT_NAME}/${t}" "${PROJECT_NAME}-tester" "${t}")
   set_tests_properties(
     "${PROJECT_NAME}/${t}"
-    PROPERTIES
-    ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
+  PROPERTIES
+  ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR}"
   )
 endforeach()
 # add PTB explicitly since it is not part of the tests list
@@ -103,7 +105,7 @@ add_test("${PROJECT_NAME}/ptb" "${PROJECT_NAME}-tester" "ptb")
 set_tests_properties(
   "${PROJECT_NAME}/ptb"
   PROPERTIES
-  ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
+  ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR}"
 )
 
 # xtb 
@@ -124,6 +126,8 @@ add_test("xtb/GFN0-xTB" ${XTB-EXE} --coffee --gfn 0 --strict --norestart --names
 add_test("xtb/GFN1-xTB" ${XTB-EXE} --coffee --gfn 1 --strict --norestart --namespace test4)
 add_test("xtb/GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --norestart --namespace test5)
 add_test("xtb/GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
+add_test("xtb/GFN2-FF/xcontrol" ${XTB-EXE} --coffee --strict --norestart --namespace test7
+  --input "${PROJECT_SOURCE_DIR}/test/inputs/gfnff.inp")
 
 set_tests_properties(
   "xtb/Singlepoint"
@@ -132,6 +136,7 @@ set_tests_properties(
   "xtb/GFN1-xTB"
   "xtb/GFN2-xTB/GBSA"
   "xtb/GFN2-FF"
+  "xtb/GFN2-FF/xcontrol"
   PROPERTIES
   ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
 )

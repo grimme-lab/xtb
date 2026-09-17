@@ -28,7 +28,7 @@ module xtb_gfnff_setup
 
 contains
 
-subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efield,version)
+subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efield,version,print_setup)
   use xtb_restart
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule, only : TMolecule
@@ -44,6 +44,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
   integer,intent(in) :: version
   logical,intent(in) :: restart
   logical,intent(in) :: verbose
+  logical,intent(in), optional :: print_setup
   real(wp),intent(in) :: accuracy
   real(wp),intent(in) :: efield(3)
   type(TMolecule)  :: mol
@@ -52,8 +53,12 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
   logical            :: ex
   logical            :: success
   logical :: exitRun
+  logical :: do_print
 
-  call gfnff_input(env, mol, topo, neigh)
+  do_print = .true.
+  if (present(print_setup)) do_print = print_setup
+
+  call gfnff_input(env, mol, topo, neigh, print_setup=do_print)
   call env%check(exitRun)
   if (exitRun) then
      call env%error("Failed to prepare topology from geometry input", source)
@@ -65,7 +70,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
   if (restart) then
      call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo,neigh)
      if (success) then
-        write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
+        if (do_print) write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
         return
      else
         call env%warning("Could not read topology file.", source)
@@ -74,7 +79,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
      end if
   end if
 
-  call gfnff_ini(env,verbose,ini,mol,gen,param,topo,neigh,efield,accuracy)
+  call gfnff_ini(env,verbose,ini,mol,gen,param,topo,neigh,efield,accuracy,print_setup=do_print)
 
   call env%check(exitRun)
   if (exitRun) then
@@ -88,7 +93,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
 
 end subroutine gfnff_setup
 
-subroutine gfnff_input(env, mol, topo, neigh)
+subroutine gfnff_input(env, mol, topo, neigh, print_setup)
   use xtb_mctc_accuracy, only : wp
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule
@@ -100,6 +105,7 @@ subroutine gfnff_input(env, mol, topo, neigh)
   type(TNeigh), intent(inout) :: neigh
   type(TEnvironment), intent(inout) :: env
   type(TGFFTopology), intent(inout) :: topo
+  logical, intent(in), optional :: print_setup
   ! Stack
   integer           :: i,j,k
   integer           :: ni
@@ -121,6 +127,10 @@ subroutine gfnff_input(env, mol, topo, neigh)
   character(len=*), parameter :: source = 'gfnff_input'
   ! IO Error
   integer :: err
+  logical :: do_print
+
+  do_print = .true.
+  if (present(print_setup)) do_print = print_setup
 
   if (.not.allocated(topo%qfrag))    allocate( topo%qfrag(mol%n), source = 0.0d0 )
   if (.not.allocated(topo%fraglist)) allocate( topo%fraglist(mol%n), source = 0 )
@@ -148,7 +158,7 @@ subroutine gfnff_input(env, mol, topo, neigh)
       topo%qpdb(iatom) = mol%pdb(iatom)%charge
     end do
     if (abs(mol%chrg - sum(topo%qfrag(1:topo%nfrag))) < sqrt(epsilon(1.0_wp))) then
-       write(env%unit,'(10x,"charge from pdb residues: ",i0)') &
+       if (do_print) write(env%unit,'(10x,"charge from pdb residues: ",i0)') &
           & nint(sum(topo%qfrag(1:topo%nfrag)))
     else
        ! ignore fragment charges if they are not consistent with the total charge
@@ -221,7 +231,7 @@ subroutine gfnff_input(env, mol, topo, neigh)
       call readline(atmp,floats,s,ns,nf)
       topo%qfrag(1:nf)=floats(1:nf)
       if (abs(mol%chrg - sum(topo%qfrag(1:nf))) < sqrt(epsilon(1.0_wp))) then
-         write(env%unit,'(10x,"charge from .CHRG file: ",i0)') &
+         if (do_print) write(env%unit,'(10x,"charge from .CHRG file: ",i0)') &
             & nint(sum(topo%qfrag(1:nf)))
       else
          ! ignore fragment charges if they are not consistent with the total charge

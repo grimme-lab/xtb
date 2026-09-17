@@ -27,6 +27,7 @@ subdir('io')
 subdir('iff')
 subdir('main')
 subdir('mctc')
+subdir('model_hessian')
 subdir('param')
 subdir('prog')
 subdir('ptb')
@@ -46,6 +47,7 @@ srcs += files(
   'bfgs.f90',
   'bias_path.f90',
   'blowsy.f90',
+  'bmatrix.f90',
   'broyden.f90',
   'charge_model.f90',
   'coffee.f90',
@@ -94,7 +96,6 @@ srcs += files(
   'intmodes.f90',
   'intpack.f90',
   'lidep.f90',
-  'lindh.f90',
   'lin.f90',
   'lin_mod.f90',
   'local.f90',
@@ -106,8 +107,8 @@ srcs += files(
   'mdoptim.f90',
   'metadynamic.f90',
   'modef.f90',
-  'model_hessian.f90',
   'neighbor.f90',
+  'o1numhess.f90',
   'onetri.f90',
   'oniom.f90',
   'optimizer.f90',

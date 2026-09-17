@@ -44,7 +44,6 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
    integer(i8) :: iver8,idum8,n8,nshell8,nel8,nopen8
    integer :: ich ! file handle
    integer :: err
-   logical :: exist
 
    success = .false.
    call open_binary(ich,fname,'r')
@@ -59,21 +58,23 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
          if (nopen8.ne.int(wfx%nopen,i8).and.verbose) &
             &  call env%warning('Multiplicity missmatch in restart file.', source)
          if ((n8.eq.int(wfx%n,i8)).and.(nshell8.eq.int(wfx%nshell,i8))) then
-            success = .true.
-            read(ich) wfx%qsh
-            if (verbose) &
-            write(stdout,'("q/qsh data taken from xtbrestart")')
-            if ((gfn_method.gt.1).and.(iver8.gt.1)) then
+            read(ich,iostat=err) wfx%qsh
+            if (err.eq.0 .and. gfn_method.gt.1 .and. iver8.gt.1) then
 !              read dipole and qpole CAMM
-               read(ich) wfx%dipm
-               read(ich) wfx%qp
+               read(ich,iostat=err) wfx%dipm
+               if (err.eq.0) read(ich,iostat=err) wfx%qp
+            end if
+            if (err.eq.0) then
+               success = .true.
                if (verbose) &
+               write(stdout,'("q/qsh data taken from xtbrestart")')
+               if (gfn_method.gt.1 .and. verbose) &
                write(stdout,'("CAMM data taken from xtbrestart")')
+            else if (verbose) then
+               call env%warning('Could not read restart data.', source)
             endif
-         else
-            if (verbose) &
+         else if (verbose) then
             call env%warning('Dimension missmatch in restart file.', source)
-            success = .false.
          endif
       else
          if (verbose) &

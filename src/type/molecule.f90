@@ -100,6 +100,9 @@ module xtb_type_molecule
       !> Coordination number
       real(wp),allocatable :: cn(:)
 
+      !> Linear molecule flag; recomputed by mol%update from unit-mass inertia.
+      logical :: linear = .false.
+
       !> Cell parameters
       real(wp) :: cellpar(6) = 0.0_wp
 
@@ -198,8 +201,10 @@ subroutine copyMolecule(self,mol0)
    class(TMolecule), intent(out) :: self
    type(TMolecule), intent(in) :: mol0
 
-      Call init(self, mol0%at, mol0%sym, mol0%xyz, mol0%chrg, mol0%uhf, &
+   call self%deallocate()
+   Call init(self, mol0%at, mol0%sym, mol0%xyz, mol0%chrg, mol0%uhf, &
            & mol0%lattice, mol0%pbc)
+   self%ftype = mol0%ftype
 end subroutine copyMolecule
 
 !> Constructor for the molecular structure type
@@ -505,6 +510,7 @@ end subroutine deallocate_molecule
 subroutine update(self)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
+   use xtb_axis, only : is_linear
 
    implicit none
    class(TMolecule),intent(inout) :: self  
@@ -520,6 +526,8 @@ subroutine update(self)
    endif
    
    call self%calculate_distances
+
+   self%linear = is_linear(self%xyz)
 
 end subroutine update
 

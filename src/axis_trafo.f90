@@ -17,7 +17,45 @@
 
 module xtb_axis
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_math, only : eigval3x3
 contains
+
+  !> Check if molecule is linear using unit-mass moments of inertia.
+  pure function is_linear(xyz) result(linear)
+      implicit none
+      real(wp), intent(in) :: xyz(:, :)
+      logical :: linear
+
+      integer :: i, k, n
+      real(wp) :: center(3), vec(3), inertia(3, 3), moments(3)
+      real(wp), parameter :: linthr_bohr2 = 1.0e-4_wp
+
+      n = size(xyz, 2)
+      if (n == 1) then
+         linear = .true.
+         return
+      end if
+      inertia = 0.0_wp
+      center = sum(xyz, dim=2)/real(n, wp)
+      do i = 1, n
+         vec = xyz(:, i) - center
+         do k = 1, 3
+            inertia(k, k) = inertia(k, k) + dot_product(vec, vec)
+         end do
+         inertia(1, 1) = inertia(1, 1) - vec(1)*vec(1)
+         inertia(2, 2) = inertia(2, 2) - vec(2)*vec(2)
+         inertia(3, 3) = inertia(3, 3) - vec(3)*vec(3)
+         inertia(1, 2) = inertia(1, 2) - vec(1)*vec(2)
+         inertia(2, 3) = inertia(2, 3) - vec(2)*vec(3)
+         inertia(1, 3) = inertia(1, 3) - vec(1)*vec(3)
+      end do
+      inertia(2, 1) = inertia(1, 2)
+      inertia(3, 2) = inertia(2, 3)
+      inertia(3, 1) = inertia(1, 3)
+      call eigval3x3(inertia, moments)
+      linear = any(moments < linthr_bohr2)
+   end function is_linear
+
   subroutine axis(numat,nat,xyz,aa,bb,cc)
     use xtb_splitparam
     implicit integer (i-n)

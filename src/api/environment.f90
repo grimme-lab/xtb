@@ -176,7 +176,7 @@ subroutine releaseOutput_api(venv) &
       call c_f_pointer(venv, env)
       call checkGlobalEnv
 
-      if (.not.any(env%ptr%unit /= [-1, stdout, stderr])) then
+      if (.not.any(env%ptr%unit == [-1, stdout, stderr])) then
          close(unit=env%ptr%unit, iostat=stat, iomsg=message)
          if (stat /= 0) then
             call env%ptr%error(trim(message), source)

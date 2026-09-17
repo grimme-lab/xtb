@@ -17,7 +17,7 @@
 
 module xtb_iff_ifflmo
    use xtb_docking_param
-   use xtb_axis, only: axisvec
+   use xtb_axis, only: axisvec, is_linear
    use xtb_splitparam, only: atmass
    use mctcpar_atomic_masses
    use xtb_setmod
@@ -88,7 +88,7 @@ contains
       integer :: i, j, ii, ia1, imin, ind(n), ltmp(10*n), nlp, npi, nsig, ia2, ia3
       real(wp) :: ex, ey, ez, rmin, f, norm(n), lpcharge, dip(3), cnfac, di, ff, rr1
       real(wp) :: d2,alp,p6pi,p6sig,r1,r2,qq,dex,c1,c2,ex1,ey1,ez1,rr,rr2
-      real(wp) :: r0_free, ctmp(4, 10*n), prxs(3, 3), aa, bb, cc, vtmp(3), vnew(3)
+      real(wp) :: r0_free, ctmp(4, 10*n), prxs(3, 3), aa, bb, cc_dummy, vtmp(3), vnew(3)
       real(wp) :: s1, s2
       logical :: sigbond, pibond
 
@@ -272,13 +272,12 @@ contains
 ! done after positioning of the charge centers (most importantly the LPs)
       aa = 0.0d0
       bb = 0.0d0
-      cc = 0.0d0
       prxs = 0.0d0
       atmass = atomic_mass(at)
       !Both yield the same result (delete axisvec2 here)
-      call axisvec(n, at, xyz, aa, bb, cc, prxs)
+      call axisvec(n, at, xyz, aa, bb, cc_dummy, prxs)
 
-      if (cc .lt. 1.d-8) then  ! check, whether molecule is linear
+      if (is_linear(xyz)) then  ! check, whether molecule is linear
          do j = 1, i
             if (lmoatom(1, j, mol) .le. 1) cycle
             vtmp = 0.0d0
