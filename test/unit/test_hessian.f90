@@ -161,12 +161,14 @@ subroutine test_gfn1_hessian(error)
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)
          call check(error, dipgrad(j, i), dipgrad_ref(j, i), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
    do i = 1, size(hessian_ref, 2)
       do j = 1, size(hessian_ref, 1)
          call check(error, hessian(j, i), hessian_ref(j, i), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
@@ -262,12 +264,14 @@ subroutine test_gfn2_hessian(error)
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)
          call check(error, dipgrad(j, i), dipgrad_ref(j, i), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
    do i = 1, size(hessian_ref, 2)
       do j = 1, size(hessian_ref, 1)
          call check(error, hessian(j, i), hessian_ref(j, i), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
@@ -334,7 +338,7 @@ subroutine test_o1numhess_gfn1(error)
    call newXTBCalculator(env, mol, calc, method=1, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
 
-   allocate(hessian(N, N), dipgrad_dummy(3, N))
+   allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
 
    if (any(abs(hessian - hessian_ref) > thr1)) then
@@ -349,6 +353,7 @@ subroutine test_o1numhess_gfn1(error)
       do i = 1, N
          print "(*(F21.14))", hessian_ref(i, :)
       end do
+      return
    end if
 
    if (abs(final_err - final_err_ref) > thr2) then
@@ -421,7 +426,7 @@ subroutine test_o1numhess_gfn2(error)
    call newXTBCalculator(env, mol, calc, method=2, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
 
-   allocate(hessian(N, N), dipgrad_dummy(3, N))
+   allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
 
    if (any(abs(hessian - hessian_ref) > thr1)) then
@@ -436,6 +441,7 @@ subroutine test_o1numhess_gfn2(error)
       do i = 1, N
          print "(*(F21.14))", hessian_ref(i, :)
       end do
+      return
    end if
 
    if (abs(final_err - final_err_ref) > thr2) then
@@ -478,24 +484,29 @@ subroutine test_o1numhess_linear_h2o_gfn1(error)
    call newXTBCalculator(env, mol, calc, method=1, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
 
-   allocate(hessian(N, N), dipgrad_dummy(3, N))
+   allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
    allocate(freq(N))
    lwork = 1 + 6 * N + 2 * N**2
    allocate(aux(lwork))
    call dsyev("V", "U", N, hessian, N, freq, aux, lwork, info)
+   call check(error, info, 0)
+   if (allocated(error)) return
    if (count(abs(freq) < 1.0e-4_wp) /= 3) then
       call test_failed(error, "Linear H2O should have exactly three ~0 freqs")
+      return
    end if
 
    if (count(freq < -1.0e-10_wp) /= 2) then
       call test_failed(error, "Linear H2O should have exactly two negative freqs")
+      return
    end if
 
    ! freqs around -0.16
    if (freq(1) > -0.16_wp .or. freq(2) > -0.16_wp) then
       call test_failed(error, "First two freqs should be negative")
       print *, freq
+      return
    end if
 end subroutine test_o1numhess_linear_h2o_gfn1
 
@@ -530,24 +541,29 @@ subroutine test_o1numhess_linear_h2o_gfn2(error)
    call newXTBCalculator(env, mol, calc, method=2, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
 
-   allocate(hessian(N, N), dipgrad_dummy(3, N))
+   allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
    allocate(freq(N))
    lwork = 1 + 6 * N + 2 * N**2
    allocate(aux(lwork))
    call dsyev("V", "U", N, hessian, N, freq, aux, lwork, info)
+   call check(error, info, 0)
+   if (allocated(error)) return
 
    if (count(abs(freq) < 1.0e-4_wp) /= 3) then
       call test_failed(error, "Linear H2O should have exactly three ~0 freqs")
+      return
    end if
 
    if (count(freq < -1.0e-10_wp) /= 2) then
       call test_failed(error, "Linear H2O should have exactly two negative freqs")
+      return
    end if
 
    ! freqs around -0.3
    if (freq(1) > -0.3_wp .or. freq(2) > -0.3_wp) then
       call test_failed(error, "First two freqs should be negative")
+      return
    end if
 end subroutine test_o1numhess_linear_h2o_gfn2
 
@@ -592,18 +608,26 @@ subroutine test_compliance(error)
    call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, stat)
 
    call check(error, stat, 0)
+   if (allocated(error)) return
    call check(error, bmat(1, 1), -1.0_wp, thr=thr)
+   if (allocated(error)) return
    call check(error, bmat(1, 4), 1.0_wp, thr=thr)
+   if (allocated(error)) return
    call check(error, compliance(1, 1), 1.0_wp/force_constant, thr=thr)
+   if (allocated(error)) return
 
    redundant_bmat(1, :) = bmat(1, :)
    redundant_bmat(2, :) = bmat(1, :)
    call compute_compliance(0, hessian, redundant_bmat, xyz, nat, 2, redundant_compliance, stat)
 
    call check(error, stat, 0)
+   if (allocated(error)) return
    call check(error, redundant_compliance(1, 1), 1.0_wp/force_constant, thr=thr)
+   if (allocated(error)) return
    call check(error, redundant_compliance(1, 2), 1.0_wp/force_constant, thr=thr)
+   if (allocated(error)) return
    call check(error, redundant_compliance(2, 1), 1.0_wp/force_constant, thr=thr)
+   if (allocated(error)) return
    call check(error, redundant_compliance(2, 2), 1.0_wp/force_constant, thr=thr)
 
 end subroutine test_compliance
@@ -789,7 +813,9 @@ subroutine test_compliance_driver_redundant(error)
    do i = 1, 3*nat3
       hess3(i, i) = 1.0_wp
    end do
-   open(newunit=unit, status="scratch", action="readwrite")
+   open(newunit=unit, status="scratch", action="readwrite", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
    call compliance_driver(unit, nat3, at3, xyz3, hess3, mass3)
    rewind(unit)
    nbond = 0
@@ -801,8 +827,12 @@ subroutine test_compliance_driver_redundant(error)
       if (index(line, "angle") > 0) nangle = nangle + 1
    end do
    close(unit)
-   open(newunit=dat_unit, file="compliance.dat", status="old")
-   close(dat_unit, status="delete")
+   open(newunit=dat_unit, file="compliance.dat", status="old", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
+   close(dat_unit, status="delete", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
 
    call check(error, nbond, 2)
    if (allocated(error)) return
@@ -813,7 +843,9 @@ subroutine test_compliance_driver_redundant(error)
    do i = 1, 3*nat2
       hess2(i, i) = 1.0_wp
    end do
-   open(newunit=unit, status="scratch", action="readwrite")
+   open(newunit=unit, status="scratch", action="readwrite", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
    call compliance_driver(unit, nat2, at2, xyz2, hess2, mass2)
    rewind(unit)
    nrows = 0
@@ -827,8 +859,12 @@ subroutine test_compliance_driver_redundant(error)
       if (index(line, "0 coordinates") > 0) zero_report = .true.
    end do
    close(unit)
-   open(newunit=dat_unit, file="compliance.dat", status="old")
-   close(dat_unit, status="delete")
+   open(newunit=dat_unit, file="compliance.dat", status="old", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
+   close(dat_unit, status="delete", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
 
    call check(error, nrows, 0)
    if (allocated(error)) return
@@ -890,6 +926,7 @@ subroutine test_covalent_neighbour_list(error)
    call check(error, neigh_list%neighs(1), 2)
    if (allocated(error)) return
    call check(error, all(neigh_list%neighs(2:4) == 0), .true.)
+   if (allocated(error)) return
 
    ! Default getNeighs must return every stored neighbour, also when the
    ! bond sits infinitesimally below the largest pair threshold
