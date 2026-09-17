@@ -280,7 +280,8 @@ subroutine write_compliance_dat(unit, n, at, internals, C, idx_ord, ncoord)
       ! insertion sort descending
       do p = 2, nc_act
          tmp_r = aval(p);  tmp_i = jsort(p);  q = p - 1
-         do while (q >= 1 .and. aval(q) < tmp_r)
+         do while (q >= 1)
+            if (aval(q) >= tmp_r) exit
             aval(q+1) = aval(q);  jsort(q+1) = jsort(q);  q = q - 1
          end do
          aval(q+1) = tmp_r;  jsort(q+1) = tmp_i
