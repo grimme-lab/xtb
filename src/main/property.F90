@@ -837,7 +837,7 @@ module xtb_propertyoutput
       integer, intent(in) :: iunit
       integer, intent(in) :: n
       integer, intent(in) :: at(n)
-      character(len=*), intent(in) :: sym(n)
+      character(len=*), intent(in) :: sym(:)
       real(wp), intent(in) :: xyz(3, n)
       real(wp), intent(in) :: z(n)
       integer, intent(in) :: nao
@@ -884,7 +884,7 @@ module xtb_propertyoutput
       integer, intent(in) :: iunit
       integer, intent(in) :: n
       integer, intent(in) :: at(n)
-      character(len=*), intent(in) :: sym(n)
+      character(len=*), intent(in) :: sym(:)
       real(wp), intent(in) :: wbo(n, n)
       real(wp), intent(in) :: thr
 
@@ -1080,7 +1080,7 @@ module xtb_propertyoutput
       integer, intent(in) :: iunit
       integer, intent(in) :: n
       integer, intent(in) :: at(n)
-      character(len=*), intent(in) :: sym(n)
+      character(len=*), intent(in) :: sym(:)
       real(wp), intent(in) :: xyz(3, n)
       real(wp), intent(in) :: q(n)
       real(wp), intent(in) :: wf
@@ -1178,7 +1178,7 @@ module xtb_propertyoutput
       integer, intent(in) :: iunit       ! STDOUT
       integer, intent(in) :: n           ! number of atoms
       integer, intent(in) :: at(n)       ! atom types
-      character(len=*), intent(in) :: sym(n) ! atom symbols
+      character(len=*), intent(in) :: sym(:) ! atom symbols
       integer, intent(in) :: nao         ! number of spherical atomic orbitals
       real(wp), intent(in) :: focca(nao)  ! fractional occupation numbers (alpha)
       real(wp), intent(in) :: foccb(nao)  ! fractional occupation numbers (beta)
@@ -1217,7 +1217,7 @@ module xtb_propertyoutput
       integer, intent(in) :: ifile       ! file handle for printout of FOD population
       integer, intent(in) :: n           ! number of atoms
       integer, intent(in) :: at(n)       ! atom types
-      character(len=*), intent(in) :: sym(n)  ! atom symbols
+      character(len=*), intent(in) :: sym(:)  ! atom symbols
       integer, intent(in) :: nao         ! number of spherical atomic orbitals
       real(wp), intent(in) :: S(nao, nao)  ! overlap matrix
       real(wp), intent(in) :: C(nao, nao)  ! eigenvector/orbitals
