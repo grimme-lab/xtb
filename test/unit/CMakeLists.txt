@@ -40,6 +40,7 @@ set(
   "molecule"
   "model-hessian"
   "oniom"
+  "optimizer"
   "dipro"
   "pbc-tools"
   "peeq"

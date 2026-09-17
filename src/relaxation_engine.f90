@@ -214,6 +214,11 @@ subroutine fire &
    !  timer for profiling (only for printlevel > 1)
    type(tb_timer) :: timer
 
+   ! initialize outputs before the single-atom early return
+   iter = 0
+   fail = .false.
+   if (present(iter_needed)) iter_needed = iter
+
    ! its an atom, we are done here
    if (mol%n.eq.1) return
    ! setup the timer for a profiling run
@@ -245,7 +250,6 @@ subroutine fire &
    allocate( velocities(3,mol%n), pmode(nvar,1), hessp(nat3*(nat3+1)/2), &
       &      xyzopt(3,mol%n), source = 0.0_wp )
    ! set defaults
-   iter = 0
    converged = .false.
    optcell = mol%npbc > 0
    minpr = opt%printlevel > 0
@@ -496,6 +500,11 @@ subroutine l_ancopt &
    !  timer for profiling (only for printlevel > 1)
    type(tb_timer) :: timer
 
+   ! initialize outputs before the single-atom early return
+   iter = 0
+   fail = .false.
+   if (present(iter_needed)) iter_needed = iter
+
    ! its an atom, we are done here
    if (mol%n.eq.1) return
    ! setup the timer for a profiling run
@@ -536,7 +545,6 @@ subroutine l_ancopt &
       &      source = 0.0_wp )
    allocate( hess(nat3,nat3), eig(nat3), source = 0.0_sp )
    ! set defaults
-   iter = 0
    converged = .false.
    minpr = opt%printlevel > 0
    pr    = opt%printlevel > 1
