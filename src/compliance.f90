@@ -437,7 +437,7 @@ subroutine compute_compliance(unit, H, B, xyz, natoms, nint, C, stat)
    call dgemm("N", "T", ndim, ndim, 6, -1.0_wp, T1, ndim, Q, ndim, 1.0_wp, Hp, ndim)
    call dgemm("T", "N", 6, ndim, ndim, 1.0_wp, Q, ndim, Hp, ndim, 0.0_wp, T2, 6)
    call dgemm("N", "N", ndim, ndim, 6, -1.0_wp, Q, ndim, T2, 6, 1.0_wp, Hp, ndim)
-   call symmetrise(Hp, ndim)
+   Hp = 0.5_wp * (Hp + transpose(Hp))
 
    ! Hp = V W V^T, overwriting Hp with V
    lwork = -1; allocate(work(1))
@@ -471,24 +471,6 @@ subroutine compute_compliance(unit, H, B, xyz, natoms, nint, C, stat)
    deallocate(Hp, Q, W, Z, ZD, T1, T2, work)
 
 end subroutine compute_compliance
-
-
-!> Average the two triangles; mirroring one of them would turn rounding
-!> noise into a symmetric perturbation.
-subroutine symmetrise(A, n)
-   !> Order of the matrix.
-   integer, intent(in) :: n
-   !> Square matrix to symmetrise in place, dimension (n, n).
-   real(wp), intent(inout) :: A(n, n)
-
-   integer :: i, j
-   do i = 1, n
-      do j = i + 1, n
-         A(j, i) = 0.5_wp * (A(i, j) + A(j, i))
-         A(i, j) = A(j, i)
-      end do
-   end do
-end subroutine symmetrise
 
 
 end module xtb_compliance
