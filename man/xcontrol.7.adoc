@@ -237,8 +237,8 @@ $gbsa
 
 $gfn
 ~~~~
-*method*='int'::
-    version of the GFN Hamiltonian
+*method*='int'|'ff'::
+    version of the GFN Hamiltonian; use 'ff' for GFN-FF
 
 *dispscale*='real'::
     Scale dispersion energy of GFN-FF

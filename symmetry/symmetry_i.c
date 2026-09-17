@@ -114,7 +114,7 @@ int *                  NormalAxesCounts      = NULL ;
 int *                  ImproperAxesCounts    = NULL ;
 int                    BadOptimization       = 0 ;
 char *                 SymmetryCode          = "" ;
-char                   MaxRotAxis[2]         = "" ;
+char                   MaxRotAxis[12]        = "" ;   /* "C" + any int + NUL */
 /*
  *    Statistics
  */
@@ -1678,18 +1678,13 @@ void
 report_symmetry_elements_brief_Conly( void )
 {
         int          i ;
-        char *       symmetry_code = calloc( 1, 10*(PlanesCount+NormalAxesCount+ImproperAxesCount+InversionCentersCount+2) ) ;
-        char         buf[ 100 ] ;
 
-if( symmetry_code == NULL ){
-    fprintf( stderr, "Unable to allocate memory for symmetry ID code in report_symmetry_elements_brief()\n" ) ;
-    exit( EXIT_FAILURE ) ;
-    }
 if( PlanesCount + NormalAxesCount + ImproperAxesCount + InversionCentersCount == 0 )
     printf( "Molecule still has no symmetry elements...\n" ) ;
 else {
+    /* the loop descends, so the first axis found is the highest-order one */
     for( i = MaxAxisOrder ; i >= 2 ; i-- ){
-        if( NormalAxesCounts[i] >= 1 ){ sprintf( buf, "C%d ", i ) ; strcat( MaxRotAxis, buf ) ; }
+        if( NormalAxesCounts[i] >= 1 ){ snprintf( MaxRotAxis, sizeof(MaxRotAxis), "C%d", i ) ; break ; }
         }
     }
 }
@@ -1782,7 +1777,7 @@ void schoenflies(int natoms, int* attype, double* coord, char* symbol, double* p
  BadOptimization       = 0 ;
  SymmetryCode          = "" ;
 // *MaxRotAxis         = "" ;
- strncpy(MaxRotAxis, "", 2);
+ MaxRotAxis[0] = '\0';
 //       /*
 //       *    Statistics
 //       */
@@ -1846,7 +1841,8 @@ StatAccept            = 0 ;
          strcpy(symbol,"C1");
       }
       else {
-         strcpy(symbol,MaxRotAxis);
+         /* symbol is 6 bytes on the Fortran side, see get_schoenflies */
+         snprintf(symbol,6,"%s",MaxRotAxis);
       }
     }
     }

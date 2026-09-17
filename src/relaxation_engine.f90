@@ -182,7 +182,6 @@ subroutine fire &
    logical :: pr
    logical :: debug
    logical :: converged
-   logical :: linear
    integer :: iter
    integer :: nvar
    integer :: nat3
@@ -192,7 +191,6 @@ subroutine fire &
    type(TMolecule) :: molopt
 
    real(wp) :: time
-   real(wp) :: a,b,c
    real(wp) :: U(3,3), x_center(3), y_center(3), rmsdval
    real(wp) :: estart,esave
    real(wp), allocatable :: xyz0(:,:)
@@ -281,9 +279,6 @@ subroutine fire &
       lat_velocities = -opt%lat_time_step * lat_gradient/opt%lat_mass
    endif
 
-   call axis(mol%n,mol%at,mol%xyz,a,b,c)
-   linear = c.lt.1.0e-10_wp
-
    ! print a nice summary with all settings and thresholds of FIRE
    if(pr)then
       write(env%unit,'(a)') &
@@ -313,7 +308,7 @@ subroutine fire &
 
    estart = energy
    thisstep = opt%micro_cycle
-   molopt = mol
+   call molopt%copy(mol)
 
    if (.not.pr.and.minpr) write(env%unit,'(a6,a14,a16,a16,a15,a6)') &
       &          "cycle", "energy", "change", "gnorm", "step", "conv?"
@@ -328,7 +323,7 @@ subroutine fire &
          ! exact fixing
          call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,-1,pmode,1)
       else
-         if (.not.linear) &
+         if (.not.mol%linear) &
          ! normal
          call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1) 
       endif
@@ -381,7 +376,7 @@ subroutine fire &
    endif
 
    ! save optimized geometry
-   mol = molopt
+   call mol%copy(molopt)
 
    if (present(iter_needed)) then
       iter_needed = iter
@@ -470,7 +465,6 @@ subroutine l_ancopt &
 
    type(TMolecule) :: molopt
 
-   real(wp) :: a,b,c
    real(wp) :: U(3,3), x_center(3), y_center(3), rmsdval
    real(wp) :: estart,esave
    real(wp), allocatable :: xyzopt(:,:)
@@ -563,8 +557,7 @@ subroutine l_ancopt &
       opt%hlow=min(opt%hlow,0.05_wp)
    end if   
 
-   call axis(mol%n,mol%at,mol%xyz,a,b,c)
-   linear = c.lt.1.0e-10_wp
+   linear = mol%linear
 
    ! open the logfile, the log is bound to unit 942, so we cannot use newunit
    ! and have to hope that nobody else is currently occupying this identifier

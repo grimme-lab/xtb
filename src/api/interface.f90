@@ -31,7 +31,7 @@ module xtb_api_interface
    implicit none
    private
 
-   public :: singlepoint_api
+   public :: singlepoint_api, cpcmx_calc_api, hessian_api
 
 
 contains
