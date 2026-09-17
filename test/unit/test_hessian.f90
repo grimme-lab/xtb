@@ -608,15 +608,15 @@ subroutine test_compliance(error)
 
 end subroutine test_compliance
 
-!> Pins the GFN1 compliance constants of water against the reference matrix
-!> below.
+!> Pins the GFN1 compliance constants of water at the default Hessian step
+!> against the reference matrix below.
 subroutine test_compliance_water(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
 
    integer, parameter :: nat = 3
    integer, parameter :: ndim = 3 * nat
-   real(wp), parameter :: step = 1.0e-6_wp
+   real(wp), parameter :: step = 5.0e-3_wp
    integer, parameter :: at(nat) = [8, 1, 1]
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
@@ -624,14 +624,14 @@ subroutine test_compliance_water(error)
       & 0.00000000000000_wp, 1.45674735348811_wp, -0.88650486059828_wp, &
       &-0.00000000000000_wp, -1.45674735383357_wp, -0.88650486086986_wp], &
       & shape(xyz))
-   real(wp), parameter :: thr = 1.0e-9_wp
+   real(wp), parameter :: thr = 1.0e-10_wp
    !> GFN1 compliance constants of water, in (E_h/Bohr^2)^{-1}, in the
    !> redundant ordering bond(1,2), bond(1,3), angle(2,1,3):
    !> the two OH bonds are symmetry equivalent, so C(1,1) == C(2,2)
    real(wp), parameter :: ref(3, 3) = reshape([&
-      &  2.0182216653802367_wp, 3.9636125866625911e-02_wp, -3.8477798708995936e-01_wp, &
-      &  3.9636125866625911e-02_wp, 2.0182216740353143_wp, -3.8477799078068681e-01_wp, &
-      & -3.8477798708995936e-01_wp, -3.8477799078068681e-01_wp, 8.3550016117392669_wp], &
+      &  2.0178418553745141_wp, 3.9503596809836755e-02_wp, -3.8479905242132134e-01_wp, &
+      &  3.9503596809836755e-02_wp, 2.0178418632138921_wp, -3.8479905539794468e-01_wp, &
+      & -3.8479905242132134e-01_wp, -3.8479905539794468e-01_wp, 8.3576726095245473_wp], &
       & shape(ref))
 
    type(TMolecule) :: mol
@@ -682,6 +682,7 @@ subroutine test_compliance_water(error)
    do i = 1, internals%ncoords
       do j = 1, internals%ncoords
          call check(error, compliance(i, j), ref(i, j), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
