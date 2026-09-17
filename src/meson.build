@@ -23,6 +23,7 @@ subdir('docking')
 subdir('extern')
 subdir('freq')
 subdir('gfnff')
+subdir('internals')
 subdir('io')
 subdir('iff')
 subdir('main')
@@ -51,6 +52,7 @@ srcs += files(
   'broyden.f90',
   'charge_model.f90',
   'coffee.f90',
+  'compliance.f90',
   'constrain_param.f90',
   'constrain_pot.f90',
   'constr.f90',

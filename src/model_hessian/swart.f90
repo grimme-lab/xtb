@@ -22,6 +22,7 @@ module xtb_modelhessian_swart
    use xtb_mctc_param, only : covalent_radius_2009
    use xtb_modelhessian_internal, only : TInternalModelHessianBase
    use xtb_modelhessian_shared, only : fk_vdw
+   use xtb_type_setvar, only : modhess_setvar
    implicit none(type, external)
    private
 
@@ -30,7 +31,19 @@ module xtb_modelhessian_swart
       procedure :: pair_factor
    end type TSwartModelHessian
 
+   public :: newSwartModelHessian
+
 contains
+!> Create a Swart model Hessian
+function newSwartModelHessian(modh) result(model_hessian)
+   !> Model Hessian configuration
+   type(modhess_setvar), intent(in) :: modh
+
+   type(TSwartModelHessian) :: model_hessian
+
+   call model_hessian%init(modh)
+end function newSwartModelHessian
+
 
 !> Evaluate the Swart pair-distance decay factor
 pure function pair_factor(self, at_i, at_j, r2, dispersion_scale, outofplane) &

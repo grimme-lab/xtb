@@ -16,11 +16,19 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+!> Hessian, compliance and redundant-internal behaviour locks
+!>
+!> Numerical and O1NumHess (ODLR) Hessians of water are pinned against reference
+!> tables and against their eigenvalue spectra, the GFN1 compliance constants of
+!> water are pinned as a reference matrix, and the analytic B-matrix of a
+!> non-collinear redundant coordinate set is validated against central finite
+!> differences.
 module test_hessian
    use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_mctc_convert, only : autoaa
+   use xtb_mctc_constants, only : pi
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_restart
@@ -30,11 +38,17 @@ module test_hessian
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
+   use xtb_compliance, only : compliance_driver, compute_compliance
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_mctc_param, only : covalent_radius_d3
+   use xtb_internals_graph, only : graph_type, init
+   use xtb_internals_redundant, only : redundant_type, init
+   use xtb_internals_type, only : coord_bond, coord_angle, coord_dihedral
+   use xtb_bmatrix, only : get_bmatrix
    implicit none
    private
 
    public :: collect_hessian
-
 
 contains
 
@@ -48,61 +62,69 @@ subroutine collect_hessian(testsuite)
       new_unittest("gfn2_hessian", test_gfn2_hessian), &
       new_unittest("gfn1_o1numhess", test_o1numhess_gfn1), &
       new_unittest("gfn2_o1numhess", test_o1numhess_gfn2), &
-      new_unittest("linear_h2o_gfn1_o1numhess", test_o1numhess_linear_h2o_gfn1), &
-      new_unittest("linear_h2o_gfn2_o1numhess", test_o1numhess_linear_h2o_gfn2) &
+      new_unittest("linear_h2o_gfn2_o1numhess", test_o1numhess_linear_h2o_gfn2), &
+      new_unittest("compliance", test_compliance), &
+      new_unittest("compliance_water", test_compliance_water), &
+      new_unittest("covalent_neighbour_list", test_covalent_neighbour_list), &
+      new_unittest("redundant_bmatrix_fd", test_redundant_bmatrix_fd), &
+      new_unittest("compliance_driver_redundant", test_compliance_driver_redundant) &
       ]
 
 end subroutine collect_hessian
 
+!> Pins the GFN1 numerical Hessian and dipole gradient of water against the
+!> reference tables below.
 subroutine test_gfn1_hessian(error)
+   !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+
    integer, parameter :: nat = 3
-   real(wp),parameter :: thr = 1.0e-7_wp
+   real(wp), parameter :: thr = 1.0e-7_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
-      & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
-      & 0.00000000000000_wp,    1.45674735348811_wp,   -0.88650486059828_wp, &
-      &-0.00000000000000_wp,   -1.45674735383357_wp,   -0.88650486086986_wp],&
+      & 0.00000000000000_wp, 0.00000000034546_wp, 0.18900383618455_wp, &
+      & 0.00000000000000_wp, 1.45674735348811_wp, -0.88650486059828_wp, &
+      &-0.00000000000000_wp, -1.45674735383357_wp, -0.88650486086986_wp], &
       & shape(xyz))
    real(wp), parameter :: dipgrad_ref(3, 3*nat) = reshape([ &
-      & -1.013452580143500E+00_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
+      & -1.013452580143500E+00_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
       &  3.527708416572683E-11_wp, -0.580105714422270E+00_wp, -4.440892098500626E-10_wp, &
       &  1.640601522247707E-11_wp, -1.577916091825909E-09_wp, -0.719923066050399E+00_wp, &
-      &  0.506726290141942E+00_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  5.168504173660994E-11_wp,  0.290827888051893E+00_wp,  7.276368407804767E-02_wp, &
-      & -3.527728552279606E-11_wp,  0.159475763089199E+00_wp,  0.359943068684032E+00_wp, &
-      &  0.506726290062044E+00_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  0.000000000000000E+00_wp,  0.290827888619521E+00_wp, -7.276368707564984E-02_wp, &
-      &  0.000000000000000E+00_wp, -0.159475761295180E+00_wp,  0.359943068239943E+00_wp],&
+      &  0.506726290141942E+00_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  5.168504173660994E-11_wp, 0.290827888051893E+00_wp, 7.276368407804767E-02_wp, &
+      & -3.527728552279606E-11_wp, 0.159475763089199E+00_wp, 0.359943068684032E+00_wp, &
+      &  0.506726290062044E+00_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  0.000000000000000E+00_wp, 0.290827888619521E+00_wp, -7.276368707564984E-02_wp, &
+      &  0.000000000000000E+00_wp, -0.159475761295180E+00_wp, 0.359943068239943E+00_wp], &
       &  shape(dipgrad_ref))
    real(wp), parameter :: hessian_ref(3*nat, 3*nat) = reshape([ &
-      &  9.642724315151719E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      & -4.821349241627352E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      & -4.821375073522908E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      & -5.183734810089242E-12_wp,  0.654328674106580E+00_wp, -8.411850317864566E-10_wp, &
-      &  4.912366132678069E-12_wp, -0.327164337503372E+00_wp,  0.241508066094075E+00_wp, &
+      &  9.642724315151719E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      & -4.821349241627352E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      & -4.821375073522908E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      & -5.183734810089242E-12_wp, 0.654328674106580E+00_wp, -8.411850317864566E-10_wp, &
+      &  4.912366132678069E-12_wp, -0.327164337503372E+00_wp, 0.241508066094075E+00_wp, &
       &  2.713686774111726E-13_wp, -0.327164336592530E+00_wp, -0.241508065247398E+00_wp, &
-      &  1.269389491007523E-11_wp, -1.003642487147619E-09_wp,  0.396956797942315E+00_wp, &
-      & -1.357110357831859E-11_wp,  0.193314810701155E+00_wp, -0.198478399246260E+00_wp, &
+      &  1.269389491007523E-11_wp, -1.003642487147619E-09_wp, 0.396956797942315E+00_wp, &
+      & -1.357110357831859E-11_wp, 0.193314810701155E+00_wp, -0.198478399246260E+00_wp, &
       &  8.772086682433594E-13_wp, -0.193314809690279E+00_wp, -0.198478398680934E+00_wp, &
-      & -4.821349763250659E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  4.418957886905253E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  4.023918763456385E-06_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  7.510234345234422E-12_wp, -0.327069271103985E+00_wp,  0.193419608180277E+00_wp, &
-      & -8.658575901216439E-12_wp,  0.348666988822030E+00_wp, -0.217428743767287E+00_wp, &
-      &  1.148341555982017E-12_wp, -2.159771772581407E-02_wp,  2.400913557787203E-02_wp, &
-      &  5.183777743453684E-12_wp,  0.241435744915371E+00_wp, -0.198481745303595E+00_wp, &
-      & -4.912396810694304E-12_wp, -0.217376911834996E+00_wp,  0.188386308225154E+00_wp, &
-      & -2.713809327593799E-13_wp, -2.405883307999757E-02_wp,  1.009543707641887E-02_wp, &
-      & -4.821379744720639E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  4.023966094020255E-06_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  4.418983135319131E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
+      & -4.821349763250659E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  4.418957886905253E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  4.023918763456385E-06_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  7.510234345234422E-12_wp, -0.327069271103985E+00_wp, 0.193419608180277E+00_wp, &
+      & -8.658575901216439E-12_wp, 0.348666988822030E+00_wp, -0.217428743767287E+00_wp, &
+      &  1.148341555982017E-12_wp, -2.159771772581407E-02_wp, 2.400913557787203E-02_wp, &
+      &  5.183777743453684E-12_wp, 0.241435744915371E+00_wp, -0.198481745303595E+00_wp, &
+      & -4.912396810694304E-12_wp, -0.217376911834996E+00_wp, 0.188386308225154E+00_wp, &
+      & -2.713809327593799E-13_wp, -2.405883307999757E-02_wp, 1.009543707641887E-02_wp, &
+      & -4.821379744720639E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  4.023966094020255E-06_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  4.418983135319131E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
       &  0.000000000000000E+00_wp, -0.327069270111905E+00_wp, -0.193419606975667E+00_wp, &
       &  0.000000000000000E+00_wp, -2.159771757181671E-02_wp, -2.400913565342059E-02_wp, &
-      &  0.000000000000000E+00_wp,  0.348666987689540E+00_wp,  0.217428742639103E+00_wp, &
+      &  0.000000000000000E+00_wp, 0.348666987689540E+00_wp, 0.217428742639103E+00_wp, &
       &  0.000000000000000E+00_wp, -0.241435744067920E+00_wp, -0.198481744759780E+00_wp, &
-      &  0.000000000000000E+00_wp,  2.405883312826490E-02_wp,  1.009543692497955E-02_wp, &
-      &  0.000000000000000E+00_wp,  0.217376910941702E+00_wp,  0.188386307847977E+00_wp],&
+      &  0.000000000000000E+00_wp, 2.405883312826490E-02_wp, 1.009543692497955E-02_wp, &
+      &  0.000000000000000E+00_wp, 0.217376910941702E+00_wp, 0.188386307847977E+00_wp], &
       &  shape(hessian_ref))
    real(wp), parameter :: step = 1.0e-6_wp
 
@@ -112,16 +134,16 @@ subroutine test_gfn1_hessian(error)
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
-   integer :: i,j
+   integer :: i, j
    real(wp) :: energy, sigma(3, 3)
    real(wp) :: hl_gap
-   real(wp),allocatable :: gradient(:,:), dipgrad(:,:), hessian(:,:)
+   real(wp), allocatable :: gradient(:, :), dipgrad(:, :), hessian(:, :)
    integer, allocatable :: list(:)
 
    call init(env)
    call init(mol, sym, xyz)
 
-   allocate(gradient(3,mol%n), dipgrad(3,3*mol%n), hessian(3*mol%n,3*mol%n))
+   allocate(gradient(3, mol%n), dipgrad(3, 3*mol%n), hessian(3*mol%n, 3*mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
 
@@ -139,66 +161,72 @@ subroutine test_gfn1_hessian(error)
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)
          call check(error, dipgrad(j, i), dipgrad_ref(j, i), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
    do i = 1, size(hessian_ref, 2)
       do j = 1, size(hessian_ref, 1)
          call check(error, hessian(j, i), hessian_ref(j, i), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
 end subroutine test_gfn1_hessian
 
+!> Pins the GFN2 numerical Hessian and dipole gradient of water against the
+!> reference tables below.
 subroutine test_gfn2_hessian(error)
+   !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+
    integer, parameter :: nat = 3
-   real(wp),parameter :: thr = 1.0e-7_wp
+   real(wp), parameter :: thr = 1.0e-7_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
-      & 0.00000000000000_wp,   -0.00000000077760_wp,    0.18829790750029_wp, &
-      & 0.00000000000000_wp,    1.45987612440076_wp,   -0.88615189669760_wp, &
-      &-0.00000000000000_wp,   -1.45987612362316_wp,   -0.88615189608629_wp],&
+      & 0.00000000000000_wp, -0.00000000077760_wp, 0.18829790750029_wp, &
+      & 0.00000000000000_wp, 1.45987612440076_wp, -0.88615189669760_wp, &
+      &-0.00000000000000_wp, -1.45987612362316_wp, -0.88615189608629_wp], &
       & shape(xyz))
    real(wp), parameter :: dipgrad_ref(3, 3*nat) = reshape([ &
-      & -0.811313733750829E+00_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
+      & -0.811313733750829E+00_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
       & -3.379448427312665E-11_wp, -0.412116147045635E+00_wp, -2.220446049250313E-09_wp, &
-      & -1.688661825390276E-11_wp,  1.035790186933606E-09_wp, -0.483878709767183E+00_wp, &     
-      &  0.405648009573818E+00_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  7.146633102892883E-11_wp,  0.205575204598719E+00_wp,  9.503822501200077E-02_wp, &
-      & -1.829769461273858E-14_wp,  0.148069825228005E+00_wp,  0.243425242296702E+00_wp, &     
-      &  0.405648009946286E+00_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      & -4.559890805138046E-14_wp,  0.205575207063050E+00_wp, -9.503822462342271E-02_wp, &
-      &  3.356458019834560E-11_wp, -0.148069829195679E+00_wp,  0.243425244239592E+00_wp],&
+      & -1.688661825390276E-11_wp, 1.035790186933606E-09_wp, -0.483878709767183E+00_wp, &
+      &  0.405648009573818E+00_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  7.146633102892883E-11_wp, 0.205575204598719E+00_wp, 9.503822501200077E-02_wp, &
+      & -1.829769461273858E-14_wp, 0.148069825228005E+00_wp, 0.243425242296702E+00_wp, &
+      &  0.405648009946286E+00_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      & -4.559890805138046E-14_wp, 0.205575207063050E+00_wp, -9.503822462342271E-02_wp, &
+      &  3.356458019834560E-11_wp, -0.148069829195679E+00_wp, 0.243425244239592E+00_wp], &
       &  shape(dipgrad_ref))
    real(wp), parameter :: hessian_ref(3*nat, 3*nat) = reshape([ &
-      & -1.939596096290860E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  9.697686009794110E-06_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  9.698274953126006E-06_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      & -1.978173339857878E-11_wp,  0.612198809002427E+00_wp,  2.697691516787698E-09_wp, &
-      &  2.481358892927353E-11_wp, -0.306099403183025E+00_wp,  0.225852148702132E+00_wp, &
+      & -1.939596096290860E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  9.697686009794110E-06_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  9.698274953126006E-06_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      & -1.978173339857878E-11_wp, 0.612198809002427E+00_wp, 2.697691516787698E-09_wp, &
+      &  2.481358892927353E-11_wp, -0.306099403183025E+00_wp, 0.225852148702132E+00_wp, &
       & -5.031855530694753E-12_wp, -0.306099405820178E+00_wp, -0.225852151393925E+00_wp, &
-      & -1.024802643153815E-11_wp,  2.163320452807998E-09_wp,  0.399810948644134E+00_wp, &
-      &  1.255439924419533E-11_wp,  0.184154284413794E+00_wp, -0.199905473616475E+00_wp, &
+      & -1.024802643153815E-11_wp, 2.163320452807998E-09_wp, 0.399810948644134E+00_wp, &
+      &  1.255439924419533E-11_wp, 0.184154284413794E+00_wp, -0.199905473616475E+00_wp, &
       & -2.306372812657182E-12_wp, -0.184154286575537E+00_wp, -0.199905475030756E+00_wp, &
-      & -6.559552217481455E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  5.182604735260440E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  1.376947482221124E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  3.321776245993920E-11_wp, -0.305714839568990E+00_wp,  0.183399699337614E+00_wp, &
-      & -3.597681672480956E-11_wp,  0.339222824678649E+00_wp, -0.204443891042213E+00_wp, &
-      &  2.759054264870358E-12_wp, -3.350798510798255E-02_wp,  2.104419170521866E-02_wp, &
-      & -2.747668766007676E-13_wp,  0.225612945682292E+00_wp, -0.199989952327133E+00_wp, &
-      &  2.050024431283972E-13_wp, -0.204892631012658E+00_wp,  0.183497773686177E+00_wp, &
-      &  6.976443347237028E-14_wp, -2.072031467084191E-02_wp,  1.649217862695682E-02_wp, &
-      & -6.559491291679194E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  1.376944591474809E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
-      &  5.182546700204432E-05_wp,  0.000000000000000E+00_wp,  0.000000000000000E+00_wp, &
+      & -6.559552217481455E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  5.182604735260440E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  1.376947482221124E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  3.321776245993920E-11_wp, -0.305714839568990E+00_wp, 0.183399699337614E+00_wp, &
+      & -3.597681672480956E-11_wp, 0.339222824678649E+00_wp, -0.204443891042213E+00_wp, &
+      &  2.759054264870358E-12_wp, -3.350798510798255E-02_wp, 2.104419170521866E-02_wp, &
+      & -2.747668766007676E-13_wp, 0.225612945682292E+00_wp, -0.199989952327133E+00_wp, &
+      &  2.050024431283972E-13_wp, -0.204892631012658E+00_wp, 0.183497773686177E+00_wp, &
+      &  6.976443347237028E-14_wp, -2.072031467084191E-02_wp, 1.649217862695682E-02_wp, &
+      & -6.559491291679194E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  1.376944591474809E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
+      &  5.182546700204432E-05_wp, 0.000000000000000E+00_wp, 0.000000000000000E+00_wp, &
       & -2.703865614441994E-13_wp, -0.305714842513751E+00_wp, -0.183399702402830E+00_wp, &
       &  2.719647608323040E-13_wp, -3.350798515432542E-02_wp, -2.104419150402123E-02_wp, &
-      & -1.578199388104547E-15_wp,  0.339222827661363E+00_wp,  0.204443893905696E+00_wp, &
+      & -1.578199388104547E-15_wp, 0.339222827661363E+00_wp, 0.204443893905696E+00_wp, &
       &  2.029210950346453E-11_wp, -0.225612948054816E+00_wp, -0.199989953443651E+00_wp, &
-      & -2.499966571670633E-11_wp,  2.072031476318205E-02_wp,  1.649217857736473E-02_wp, &
-      &  4.707556213241799E-12_wp,  0.204892633286792E+00_wp,  0.183497774863884E+00_wp],&
+      & -2.499966571670633E-11_wp, 2.072031476318205E-02_wp, 1.649217857736473E-02_wp, &
+      &  4.707556213241799E-12_wp, 0.204892633286792E+00_wp, 0.183497774863884E+00_wp], &
       &  shape(hessian_ref))
 
    real(wp), parameter :: step = 1.0e-6_wp
@@ -209,16 +237,16 @@ subroutine test_gfn2_hessian(error)
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
-   integer :: i,j
+   integer :: i, j
    real(wp) :: energy, sigma(3, 3)
    real(wp) :: hl_gap
-   real(wp),allocatable :: gradient(:,:), dipgrad(:,:), hessian(:,:)
+   real(wp), allocatable :: gradient(:, :), dipgrad(:, :), hessian(:, :)
    integer, allocatable :: list(:)
 
    call init(env)
    call init(mol, sym, xyz)
 
-   allocate(gradient(3,mol%n), dipgrad(3,3*mol%n), hessian(3*mol%n,3*mol%n))
+   allocate(gradient(3, mol%n), dipgrad(3, 3*mol%n), hessian(3*mol%n, 3*mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
 
@@ -236,55 +264,61 @@ subroutine test_gfn2_hessian(error)
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)
          call check(error, dipgrad(j, i), dipgrad_ref(j, i), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
    do i = 1, size(hessian_ref, 2)
       do j = 1, size(hessian_ref, 1)
          call check(error, hessian(j, i), hessian_ref(j, i), thr=thr)
+         if (allocated(error)) return
       end do
    end do
 
 end subroutine test_gfn2_hessian
 
+!> Pins the GFN1 O1NumHess (ODLR) Hessian of water and its final error
+!> estimate against the reference values below.
 subroutine test_o1numhess_gfn1(error)
+   !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+
    integer, parameter :: nat = 3
-   real(wp),parameter :: thr1 = 1.4901161193847656e-08_wp, thr2 = 1.4901161193847656e-08_wp
+   real(wp), parameter :: thr1 = 1.4901161193847656e-08_wp, thr2 = 1.4901161193847656e-08_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
-      & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
-      & 0.00000000000000_wp,    1.45674735348811_wp,   -0.88650486059828_wp, &
-      &-0.00000000000000_wp,   -1.45674735383357_wp,   -0.88650486086986_wp],&
+      & 0.00000000000000_wp, 0.00000000034546_wp, 0.18900383618455_wp, &
+      & 0.00000000000000_wp, 1.45674735348811_wp, -0.88650486059828_wp, &
+      &-0.00000000000000_wp, -1.45674735383357_wp, -0.88650486086986_wp], &
       & shape(xyz))
    real(wp), parameter :: hessian_ref(9, 9) = reshape([&
-      & 9.642722735617289E-05_wp,  2.150578923697825E-12_wp,  1.071019141435998E-12_wp, &
-      &-4.821347480851584E-05_wp, -4.062528712426575E-12_wp,  2.583698911064602E-13_wp, &
-      &-4.821375254766774E-05_wp,  1.911949788728749E-12_wp, -1.329389032542458E-12_wp, &
-      & 2.150578923697825E-12_wp,  6.543135697355346E-01_wp, -7.229475687954884E-07_wp, &
-      &-1.642628093963891E-12_wp, -3.271571836987667E-01_wp,  2.415028515059434E-01_wp, &
+      & 9.642722735617289E-05_wp, 2.150578923697825E-12_wp, 1.071019141435998E-12_wp, &
+      &-4.821347480851584E-05_wp, -4.062528712426575E-12_wp, 2.583698911064602E-13_wp, &
+      &-4.821375254766774E-05_wp, 1.911949788728749E-12_wp, -1.329389032542458E-12_wp, &
+      & 2.150578923697825E-12_wp, 6.543135697355346E-01_wp, -7.229475687954884E-07_wp, &
+      &-1.642628093963891E-12_wp, -3.271571836987667E-01_wp, 2.415028515059434E-01_wp, &
       &-5.079508297339344E-13_wp, -3.271563860451477E-01_wp, -2.415021285496890E-01_wp, &
-      & 1.071019141435998E-12_wp, -7.229475687954884E-07_wp,  3.970231512770018E-01_wp, &
-      &-6.195795301597118E-13_wp,  1.934311885548390E-01_wp, -1.985118423833666E-01_wp, &
+      & 1.071019141435998E-12_wp, -7.229475687954884E-07_wp, 3.970231512770018E-01_wp, &
+      &-6.195795301597118E-13_wp, 1.934311885548390E-01_wp, -1.985118423833666E-01_wp, &
       &-4.514396112762865E-13_wp, -1.934304656060189E-01_wp, -1.985113088943410E-01_wp, &
       &-4.821347480851584E-05_wp, -1.642628093963891E-12_wp, -6.195795301597118E-13_wp, &
-      & 4.418955528562922E-05_wp,  3.506229450266824E-12_wp, -2.965819713964842E-13_wp, &
-      & 4.023919522892954E-06_wp, -1.863601356302934E-12_wp,  9.161615015561960E-13_wp, &
-      &-4.062528712426575E-12_wp, -3.271571836987667E-01_wp,  1.934311885548390E-01_wp, &
-      & 3.506229450266824E-12_wp,  3.487436663442405E-01_wp, -2.174669866056496E-01_wp, &
-      & 5.562992621597500E-13_wp, -2.158648263991621E-02_wp,  2.403579804767703E-02_wp, &
-      & 2.583698911064602E-13_wp,  2.415028515059434E-01_wp, -1.985118423833666E-01_wp, &
-      &-2.965819713964842E-13_wp, -2.174669866056496E-01_wp,  1.884261289483365E-01_wp, &
-      & 3.821208029002418E-14_wp, -2.403586490401287E-02_wp,  1.008571343858931E-02_wp, &
+      & 4.418955528562922E-05_wp, 3.506229450266824E-12_wp, -2.965819713964842E-13_wp, &
+      & 4.023919522892954E-06_wp, -1.863601356302934E-12_wp, 9.161615015561960E-13_wp, &
+      &-4.062528712426575E-12_wp, -3.271571836987667E-01_wp, 1.934311885548390E-01_wp, &
+      & 3.506229450266824E-12_wp, 3.487436663442405E-01_wp, -2.174669866056496E-01_wp, &
+      & 5.562992621597500E-13_wp, -2.158648263991621E-02_wp, 2.403579804767703E-02_wp, &
+      & 2.583698911064602E-13_wp, 2.415028515059434E-01_wp, -1.985118423833666E-01_wp, &
+      &-2.965819713964842E-13_wp, -2.174669866056496E-01_wp, 1.884261289483365E-01_wp, &
+      & 3.821208029002418E-14_wp, -2.403586490401287E-02_wp, 1.008571343858931E-02_wp, &
       &-4.821375254766774E-05_wp, -5.079508297339344E-13_wp, -4.514396112762865E-13_wp, &
-      & 4.023919522892954E-06_wp,  5.562992621597500E-13_wp,  3.821208029002418E-14_wp, &
-      & 4.418983302477912E-05_wp, -4.834843242581555E-14_wp,  4.132275309862622E-13_wp, &
+      & 4.023919522892954E-06_wp, 5.562992621597500E-13_wp, 3.821208029002418E-14_wp, &
+      & 4.418983302477912E-05_wp, -4.834843242581555E-14_wp, 4.132275309862622E-13_wp, &
       & 1.911949788728749E-12_wp, -3.271563860451477E-01_wp, -1.934304656060189E-01_wp, &
       &-1.863601356302934E-12_wp, -2.158648263991621E-02_wp, -2.403586490401287E-02_wp, &
-      &-4.834843242581555E-14_wp,  3.487428686878863E-01_wp,  2.174663305044797E-01_wp, &
+      &-4.834843242581555E-14_wp, 3.487428686878863E-01_wp, 2.174663305044797E-01_wp, &
       &-1.329389032542458E-12_wp, -2.415021285496890E-01_wp, -1.985113088943410E-01_wp, &
-      & 9.161615015561960E-13_wp,  2.403579804767703E-02_wp,  1.008571343858931E-02_wp, &
-      & 4.132275309862622E-13_wp,  2.174663305044797E-01_wp,  1.884255954528983E-01_wp],&
+      & 9.161615015561960E-13_wp, 2.403579804767703E-02_wp, 1.008571343858931E-02_wp, &
+      & 4.132275309862622E-13_wp, 2.174663305044797E-01_wp, 1.884255954528983E-01_wp], &
       & shape(hessian_ref))
    real(wp), parameter :: final_err_ref = 1.53703515069416350E-06_wp
    real(wp), parameter :: step = 1.0e-6_wp
@@ -304,7 +338,7 @@ subroutine test_o1numhess_gfn1(error)
    call newXTBCalculator(env, mol, calc, method=1, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
 
-   allocate(hessian(N, N), dipgrad_dummy(3, N))
+   allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
 
    if (any(abs(hessian - hessian_ref) > thr1)) then
@@ -312,62 +346,67 @@ subroutine test_o1numhess_gfn1(error)
 
       print *, "--- hessian ---"
       do i = 1, N
-         print '(*(F21.14))', hessian(i, :)
+         print "(*(F21.14))", hessian(i, :)
       end do
 
       print *, "--- Ref. hessian ---"
       do i = 1, N
-         print '(*(F21.14))', hessian_ref(i, :)
+         print "(*(F21.14))", hessian_ref(i, :)
       end do
+      return
    end if
 
-    if (abs(final_err - final_err_ref) > thr2) then
-       call test_failed(error, "Final error does not match")
-       print *, "--- Final error ---"
-       print '(*(F21.14))', final_err
-       print *, "--- Ref. final error ---"
-       print '(*(F21.14))', final_err_ref
-    end if
- end subroutine test_o1numhess_gfn1
+   if (abs(final_err - final_err_ref) > thr2) then
+      call test_failed(error, "Final error does not match")
+      print *, "--- Final error ---"
+      print "(*(F21.14))", final_err
+      print *, "--- Ref. final error ---"
+      print "(*(F21.14))", final_err_ref
+   end if
+end subroutine test_o1numhess_gfn1
 
+!> Pins the GFN2 O1NumHess (ODLR) Hessian of water and its final error
+!> estimate against the reference values below.
 subroutine test_o1numhess_gfn2(error)
+   !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+
    integer, parameter :: nat = 3
-   real(wp),parameter :: thr1 = 1.4901161193847656e-08_wp, thr2 = 1.4901161193847656e-08_wp
+   real(wp), parameter :: thr1 = 1.4901161193847656e-08_wp, thr2 = 1.4901161193847656e-08_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
-      & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
-      & 0.00000000000000_wp,    1.45674735348811_wp,   -0.88650486059828_wp, &
-      &-0.00000000000000_wp,   -1.45674735383357_wp,   -0.88650486086986_wp],&
+      & 0.00000000000000_wp, 0.00000000034546_wp, 0.18900383618455_wp, &
+      & 0.00000000000000_wp, 1.45674735348811_wp, -0.88650486059828_wp, &
+      &-0.00000000000000_wp, -1.45674735383357_wp, -0.88650486086986_wp], &
       & shape(xyz))
    real(wp), parameter :: hessian_ref(9, 9) = reshape([&
-      &-7.853049280457453E-04_wp,  1.955977244785751E-12_wp,  1.247080264997499E-12_wp, &
-      & 3.926525943422639E-04_wp, -1.210600324495050E-12_wp,  9.850364921710785E-14_wp, &
+      &-7.853049280457453E-04_wp, 1.955977244785751E-12_wp, 1.247080264997499E-12_wp, &
+      & 3.926525943422639E-04_wp, -1.210600324495050E-12_wp, 9.850364921710785E-14_wp, &
       & 3.926523337034877E-04_wp, -7.453769202907016E-13_wp, -1.345583914214606E-12_wp, &
-      & 1.955977244785751E-12_wp,  6.131511844074383E-01_wp, -7.530713906089167E-07_wp, &
-      &-4.508671918596937E-13_wp, -3.065760101726123E-01_wp,  2.266333722977527E-01_wp, &
+      & 1.955977244785751E-12_wp, 6.131511844074383E-01_wp, -7.530713906089167E-07_wp, &
+      &-4.508671918596937E-13_wp, -3.065760101726123E-01_wp, 2.266333722977527E-01_wp, &
       &-1.505110052926058E-12_wp, -3.065751742284646E-01_wp, -2.266326192307660E-01_wp, &
-      & 1.247080264997499E-12_wp, -7.530713906089167E-07_wp,  4.009666360184508E-01_wp, &
-      &-8.063227290784491E-13_wp,  1.851054221071441E-01_wp, -2.004835959201852E-01_wp, &
+      & 1.247080264997499E-12_wp, -7.530713906089167E-07_wp, 4.009666360184508E-01_wp, &
+      &-8.063227290784491E-13_wp, 1.851054221071441E-01_wp, -2.004835959201852E-01_wp, &
       &-4.407575359190495E-13_wp, -1.851046690338150E-01_wp, -2.004830401052821E-01_wp, &
       & 3.926525943422639E-04_wp, -4.508671918596937E-13_wp, -8.063227290784491E-13_wp, &
-      &-5.034357727917302E-04_wp,  9.315986645004943E-13_wp,  2.367249284567081E-13_wp, &
-      & 1.107831784494622E-04_wp, -4.807314726408010E-13_wp,  5.695978006217410E-13_wp, &
-      &-1.210600324495050E-12_wp, -3.065760101726123E-01_wp,  1.851054221071441E-01_wp, &
-      & 9.315986645004943E-13_wp,  3.407104032218639E-01_wp, -2.058693632980307E-01_wp, &
-      & 2.790016599945554E-13_wp, -3.413439305260558E-02_wp,  2.076394119763031E-02_wp, &
-      & 9.850364921710785E-14_wp,  2.266333722977527E-01_wp, -2.004835959201852E-01_wp, &
-      & 2.367249284567081E-13_wp, -2.058693632980307E-01_wp,  1.835957853733738E-01_wp, &
-      &-3.352285776738158E-13_wp, -2.076400899834286E-02_wp,  1.688781054869399E-02_wp, &
+      &-5.034357727917302E-04_wp, 9.315986645004943E-13_wp, 2.367249284567081E-13_wp, &
+      & 1.107831784494622E-04_wp, -4.807314726408010E-13_wp, 5.695978006217410E-13_wp, &
+      &-1.210600324495050E-12_wp, -3.065760101726123E-01_wp, 1.851054221071441E-01_wp, &
+      & 9.315986645004943E-13_wp, 3.407104032218639E-01_wp, -2.058693632980307E-01_wp, &
+      & 2.790016599945554E-13_wp, -3.413439305260558E-02_wp, 2.076394119763031E-02_wp, &
+      & 9.850364921710785E-14_wp, 2.266333722977527E-01_wp, -2.004835959201852E-01_wp, &
+      & 2.367249284567081E-13_wp, -2.058693632980307E-01_wp, 1.835957853733738E-01_wp, &
+      &-3.352285776738158E-13_wp, -2.076400899834286E-02_wp, 1.688781054869399E-02_wp, &
       & 3.926523337034877E-04_wp, -1.505110052926058E-12_wp, -4.407575359190495E-13_wp, &
-      & 1.107831784494622E-04_wp,  2.790016599945554E-13_wp, -3.352285776738158E-13_wp, &
-      &-5.034355121529521E-04_wp,  1.226108392931502E-12_wp,  7.759861135928650E-13_wp, &
+      & 1.107831784494622E-04_wp, 2.790016599945554E-13_wp, -3.352285776738158E-13_wp, &
+      &-5.034355121529521E-04_wp, 1.226108392931502E-12_wp, 7.759861135928650E-13_wp, &
       &-7.453769202907016E-13_wp, -3.065751742284646E-01_wp, -1.851046690338150E-01_wp, &
       &-4.807314726408010E-13_wp, -3.413439305260558E-02_wp, -2.076400899834286E-02_wp, &
-      & 1.226108392931502E-12_wp,  3.407095672780631E-01_wp,  2.058686780298182E-01_wp, &
+      & 1.226108392931502E-12_wp, 3.407095672780631E-01_wp, 2.058686780298182E-01_wp, &
       &-1.345583914214606E-12_wp, -2.266326192307660E-01_wp, -2.004830401052821E-01_wp, &
-      & 5.695978006217410E-13_wp,  2.076394119763031E-02_wp,  1.688781054869399E-02_wp, &
-      & 7.759861135928650E-13_wp,  2.058686780298182E-01_wp,  1.835952295617220E-01_wp],&
+      & 5.695978006217410E-13_wp, 2.076394119763031E-02_wp, 1.688781054869399E-02_wp, &
+      & 7.759861135928650E-13_wp, 2.058686780298182E-01_wp, 1.835952295617220E-01_wp], &
       & shape(hessian_ref))
    real(wp), parameter :: final_err_ref = 1.27700129644838372E-06_wp
    real(wp), parameter :: step = 1.0e-6_wp
@@ -387,7 +426,7 @@ subroutine test_o1numhess_gfn2(error)
    call newXTBCalculator(env, mol, calc, method=2, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
 
-   allocate(hessian(N, N), dipgrad_dummy(3, N))
+   allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
 
    if (any(abs(hessian - hessian_ref) > thr1)) then
@@ -395,33 +434,38 @@ subroutine test_o1numhess_gfn2(error)
 
       print *, "--- hessian ---"
       do i = 1, N
-         print '(*(F21.14))', hessian(i, :) 
+         print "(*(F21.14))", hessian(i, :)
       end do
 
       print *, "--- Ref. hessian ---"
       do i = 1, N
-         print '(*(F21.14))', hessian_ref(i, :) 
+         print "(*(F21.14))", hessian_ref(i, :)
       end do
+      return
    end if
 
    if (abs(final_err - final_err_ref) > thr2) then
       call test_failed(error, "Final error does not match")
       print *, "--- Final error ---"
-      print '(*(F21.14))', final_err
+      print "(*(F21.14))", final_err
       print *, "--- Ref. final error ---"
-      print '(*(F21.14))', final_err_ref
+      print "(*(F21.14))", final_err_ref
    end if
 end subroutine test_o1numhess_gfn2
 
+!> Pins the GFN1 O1NumHess Hessian of linear water through its eigenvalue
+!> spectrum: three near-zero and two negative frequencies around -0.16.
 subroutine test_o1numhess_linear_h2o_gfn1(error)
+   !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+
    integer, parameter :: nat = 3
-   real(wp),parameter :: thr1 = 1.0e-9_wp, thr2 = 1.0e-5_wp
+   real(wp), parameter :: thr1 = 1.0e-9_wp, thr2 = 1.0e-5_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
-      & 0.00000000000000_wp,  0.00000000000000_wp,  0.00000000000000_wp, &
-      & 0.00000000000000_wp,  0.00000000000000_wp, -1.81075448577205_wp, &
-      & 0.00000000000000_wp,  0.00000000000000_wp,  1.81075448676713_wp],&
+      & 0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, -1.81075448577205_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 1.81075448676713_wp], &
       & shape(xyz))
    real(wp), parameter :: step = 1.0e-6_wp
 
@@ -440,36 +484,45 @@ subroutine test_o1numhess_linear_h2o_gfn1(error)
    call newXTBCalculator(env, mol, calc, method=1, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
 
-   allocate(hessian(N, N), dipgrad_dummy(3, N))
+   allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
    allocate(freq(N))
-   lwork  = 1 + 6*N + 2*N**2
+   lwork = 1 + 6 * N + 2 * N**2
    allocate(aux(lwork))
-   call dsyev ('V', 'U', N, hessian, N, freq, aux, lwork, info)
+   call dsyev("V", "U", N, hessian, N, freq, aux, lwork, info)
+   call check(error, info, 0)
+   if (allocated(error)) return
    if (count(abs(freq) < 1.0e-4_wp) /= 3) then
       call test_failed(error, "Linear H2O should have exactly three ~0 freqs")
+      return
    end if
 
    if (count(freq < -1.0e-10_wp) /= 2) then
       call test_failed(error, "Linear H2O should have exactly two negative freqs")
+      return
    end if
 
    ! freqs around -0.16
    if (freq(1) > -0.16_wp .or. freq(2) > -0.16_wp) then
       call test_failed(error, "First two freqs should be negative")
       print *, freq
+      return
    end if
 end subroutine test_o1numhess_linear_h2o_gfn1
 
+!> Pins the GFN2 O1NumHess Hessian of linear water through its eigenvalue
+!> spectrum: three near-zero and two negative frequencies around -0.3.
 subroutine test_o1numhess_linear_h2o_gfn2(error)
+   !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+
    integer, parameter :: nat = 3
-   real(wp),parameter :: thr1 = 1.0e-9_wp, thr2 = 1.0e-5_wp
+   real(wp), parameter :: thr1 = 1.0e-9_wp, thr2 = 1.0e-5_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
-      & 0.00000000000000_wp,  0.00000000000000_wp,  0.00000000000000_wp, &
-      & 0.00000000000000_wp,  0.00000000000000_wp, -1.81075448577205_wp, &
-      & 0.00000000000000_wp,  0.00000000000000_wp,  1.81075448676713_wp],&
+      & 0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, -1.81075448577205_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 1.81075448676713_wp], &
       & shape(xyz))
    real(wp), parameter :: step = 1.0e-6_wp
 
@@ -488,25 +541,435 @@ subroutine test_o1numhess_linear_h2o_gfn2(error)
    call newXTBCalculator(env, mol, calc, method=2, accuracy=1.0e-8_wp)
    call newWavefunction(env, mol, calc, chk)
 
-   allocate(hessian(N, N), dipgrad_dummy(3, N))
+   allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
    allocate(freq(N))
-   lwork  = 1 + 6*N + 2*N**2
+   lwork = 1 + 6 * N + 2 * N**2
    allocate(aux(lwork))
-   call dsyev ('V', 'U', N, hessian, N, freq, aux, lwork, info)
+   call dsyev("V", "U", N, hessian, N, freq, aux, lwork, info)
+   call check(error, info, 0)
+   if (allocated(error)) return
 
    if (count(abs(freq) < 1.0e-4_wp) /= 3) then
       call test_failed(error, "Linear H2O should have exactly three ~0 freqs")
+      return
    end if
 
    if (count(freq < -1.0e-10_wp) /= 2) then
       call test_failed(error, "Linear H2O should have exactly two negative freqs")
+      return
    end if
 
    ! freqs around -0.3
    if (freq(1) > -0.3_wp .or. freq(2) > -0.3_wp) then
       call test_failed(error, "First two freqs should be negative")
+      return
    end if
 end subroutine test_o1numhess_linear_h2o_gfn2
+
+!> Pins the compliance constants of a two-atom harmonic model against their
+!> analytic values, including the redundant B-matrix with duplicated rows.
+subroutine test_compliance(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 2
+   integer, parameter :: ndim = 3 * nat
+   real(wp), parameter :: force_constant = 2.0_wp
+   real(wp), parameter :: thr = 1.0e-10_wp
+   integer, parameter :: pairs(2, 1) = reshape([1, 2], [2, 1])
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 2.0_wp, 0.0_wp, 0.0_wp], shape(xyz))
+
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals
+   integer :: i, j, stat
+   real(wp), allocatable :: bmat(:, :), compliance(:, :), hessian(:, :)
+   real(wp) :: redundant_bmat(2, ndim), redundant_compliance(2, 2)
+
+   neigh_list = build_neigh_list(nat, pairs)
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+   call check(error, internals%ncoords, 1)
+   if (allocated(error)) return
+
+   allocate(bmat(internals%ncoords, ndim), compliance(internals%ncoords, internals%ncoords), &
+      & hessian(ndim, ndim))
+   call get_bmatrix(internals, xyz, bmat)
+
+   do i = 1, ndim
+      do j = 1, ndim
+         hessian(i, j) = force_constant * bmat(1, i) * bmat(1, j)
+      end do
+   end do
+
+   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, stat)
+
+   call check(error, stat, 0)
+   if (allocated(error)) return
+   call check(error, bmat(1, 1), -1.0_wp, thr=thr)
+   if (allocated(error)) return
+   call check(error, bmat(1, 4), 1.0_wp, thr=thr)
+   if (allocated(error)) return
+   call check(error, compliance(1, 1), 1.0_wp/force_constant, thr=thr)
+   if (allocated(error)) return
+
+   redundant_bmat(1, :) = bmat(1, :)
+   redundant_bmat(2, :) = bmat(1, :)
+   call compute_compliance(0, hessian, redundant_bmat, xyz, nat, 2, redundant_compliance, stat)
+
+   call check(error, stat, 0)
+   if (allocated(error)) return
+   call check(error, redundant_compliance(1, 1), 1.0_wp/force_constant, thr=thr)
+   if (allocated(error)) return
+   call check(error, redundant_compliance(1, 2), 1.0_wp/force_constant, thr=thr)
+   if (allocated(error)) return
+   call check(error, redundant_compliance(2, 1), 1.0_wp/force_constant, thr=thr)
+   if (allocated(error)) return
+   call check(error, redundant_compliance(2, 2), 1.0_wp/force_constant, thr=thr)
+
+end subroutine test_compliance
+
+!> Pins the GFN1 compliance constants of water at the default Hessian step
+!> against the reference matrix below.
+subroutine test_compliance_water(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 3
+   integer, parameter :: ndim = 3 * nat
+   real(wp), parameter :: step = 5.0e-3_wp
+   integer, parameter :: at(nat) = [8, 1, 1]
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp, 0.00000000034546_wp, 0.18900383618455_wp, &
+      & 0.00000000000000_wp, 1.45674735348811_wp, -0.88650486059828_wp, &
+      &-0.00000000000000_wp, -1.45674735383357_wp, -0.88650486086986_wp], &
+      & shape(xyz))
+   real(wp), parameter :: thr = 1.0e-10_wp
+   !> GFN1 compliance constants of water, in (E_h/Bohr^2)^{-1}, in the
+   !> redundant ordering bond(1,2), bond(1,3), angle(2,1,3):
+   !> the two OH bonds are symmetry equivalent, so C(1,1) == C(2,2)
+   real(wp), parameter :: ref(3, 3) = reshape([&
+      &  2.0178418553745141_wp, 3.9503596809836755e-02_wp, -3.8479905242132134e-01_wp, &
+      &  3.9503596809836755e-02_wp, 2.0178418632138921_wp, -3.8479905539794468e-01_wp, &
+      & -3.8479905242132134e-01_wp, -3.8479905539794468e-01_wp, 8.3576726095245473_wp], &
+      & shape(ref))
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
+
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals
+   integer :: i, j, stat
+   integer, allocatable :: list(:)
+   real(wp) :: energy, sigma(3, 3), hl_gap
+   real(wp), allocatable :: gradient(:, :), dipgrad(:, :), hessian(:, :)
+   real(wp), allocatable :: bmat(:, :), compliance(:, :)
+
+   call init(env)
+   call init(mol, sym, xyz)
+
+   allocate(gradient(3, nat), dipgrad(3, ndim), hessian(ndim, ndim))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, chk)
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   dipgrad = 0.0_wp
+   hessian = 0.0_wp
+   list = [(i, i = 1, nat)]
+   call calc%hessian(env, mol, chk, list, step, hessian, dipgrad)
+
+   call init(neigh_list, nat)
+   call neigh_list%generate_covalent(at, xyz)
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+   call check(error, internals%ncoords, 3)
+   if (allocated(error)) return
+
+   allocate(bmat(internals%ncoords, ndim), compliance(internals%ncoords, internals%ncoords))
+   call get_bmatrix(internals, xyz, bmat)
+   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, stat)
+   call check(error, stat, 0)
+   if (allocated(error)) return
+
+   do i = 1, internals%ncoords
+      do j = 1, internals%ncoords
+         call check(error, compliance(i, j), ref(i, j), thr=thr)
+         if (allocated(error)) return
+      end do
+   end do
+
+end subroutine test_compliance_water
+
+!> Pins a redundant-coordinate B-matrix against central finite differences.
+subroutine test_redundant_bmatrix_fd(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 4
+   integer, parameter :: ncoord = 6
+   integer, parameter :: pairs(2, 3) = reshape([1, 2, 2, 3, 3, 4], [2, 3])
+   integer, parameter :: expected_kind(ncoord) = [ &
+      & coord_bond, coord_bond, coord_bond, coord_angle, coord_angle, coord_dihedral]
+   integer, parameter :: expected_atoms(4, ncoord) = reshape([ &
+      & 1, 2, 0, 0, &
+      & 2, 3, 0, 0, &
+      & 3, 4, 0, 0, &
+      & 1, 2, 3, 0, &
+      & 2, 3, 4, 0, &
+      & 1, 2, 3, 4], [4, ncoord])
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 1.5_wp, 0.0_wp, 0.0_wp, &
+      & 2.5_wp, 1.0_wp, 0.0_wp, &
+      & 3.0_wp, 1.0_wp, 1.0_wp], shape(xyz))
+   real(wp), parameter :: step = 1.0e-6_wp
+   real(wp), parameter :: thr = 1.0e-6_wp
+
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals, right, left
+   real(wp) :: coord(3, nat), dq
+   real(wp), allocatable :: bmat(:, :)
+   integer :: i, ic, ii, k
+
+   neigh_list = build_neigh_list(nat, pairs)
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+   call check(error, internals%ncoords, ncoord)
+   if (allocated(error)) return
+
+   do k = 1, ncoord
+      call check(error, internals%kind(k), expected_kind(k))
+      if (allocated(error)) return
+      do i = 1, 4
+         call check(error, internals%atoms(i, k), expected_atoms(i, k))
+         if (allocated(error)) return
+      end do
+   end do
+
+   allocate(bmat(ncoord, 3*nat))
+   call get_bmatrix(internals, xyz, bmat)
+
+   do i = 1, nat
+      do ic = 1, 3
+         ii = 3 * (i - 1) + ic
+         coord = xyz
+         coord(ic, i) = coord(ic, i) + step
+         call init(right, graph, coord)
+         coord = xyz
+         coord(ic, i) = coord(ic, i) - step
+         call init(left, graph, coord)
+         do k = 1, ncoord
+            dq = right%q(k) - left%q(k)
+            if (internals%kind(k) == coord_dihedral) then
+               dq = modulo(dq + pi, 2.0_wp*pi) - pi
+            end if
+            call check(error, bmat(k, ii), 0.5_wp*dq/step, thr=thr)
+            if (allocated(error)) return
+         end do
+      end do
+   end do
+
+end subroutine test_redundant_bmatrix_fd
+
+
+!> Locks the covalent-neighbourlist compliance path: water-like O/H/H gives
+!> two bond rows and one angle row, distant H/H gives zero coordinates.
+subroutine test_compliance_driver_redundant(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat3 = 3, nat2 = 2
+   integer, parameter :: at3(nat3) = [8, 1, 1]
+   integer, parameter :: at2(nat2) = [1, 1]
+   real(wp), parameter :: mass3(nat3) = [16.0_wp, 1.0_wp, 1.0_wp]
+   real(wp), parameter :: mass2(nat2) = [1.0_wp, 1.0_wp]
+   real(wp), parameter :: xyz3(3, nat3) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 1.8_wp, 0.0_wp, &
+      & 1.7_wp, -0.5_wp, 0.0_wp], shape(xyz3))
+   real(wp), parameter :: xyz2(3, nat2) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 10.0_wp, 0.0_wp, 0.0_wp], shape(xyz2))
+
+   real(wp) :: hess3(3*nat3, 3*nat3), hess2(3*nat2, 3*nat2)
+   integer :: unit, dat_unit, i, ios, nbond, nangle, nrows
+   logical :: zero_report
+   character(256) :: line
+
+   hess3 = 0.0_wp
+   do i = 1, 3*nat3
+      hess3(i, i) = 1.0_wp
+   end do
+   open(newunit=unit, status="scratch", action="readwrite", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
+   call compliance_driver(unit, nat3, at3, xyz3, hess3, mass3)
+   rewind(unit)
+   nbond = 0
+   nangle = 0
+   do
+      read(unit, "(a)", iostat=ios) line
+      if (ios /= 0) exit
+      if (index(line, "bond stretch") > 0) nbond = nbond + 1
+      if (index(line, "angle") > 0) nangle = nangle + 1
+   end do
+   close(unit)
+   open(newunit=dat_unit, file="compliance.dat", status="old", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
+   close(dat_unit, status="delete", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
+
+   call check(error, nbond, 2)
+   if (allocated(error)) return
+   call check(error, nangle, 1)
+   if (allocated(error)) return
+
+   hess2 = 0.0_wp
+   do i = 1, 3*nat2
+      hess2(i, i) = 1.0_wp
+   end do
+   open(newunit=unit, status="scratch", action="readwrite", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
+   call compliance_driver(unit, nat2, at2, xyz2, hess2, mass2)
+   rewind(unit)
+   nrows = 0
+   zero_report = .false.
+   do
+      read(unit, "(a)", iostat=ios) line
+      if (ios /= 0) exit
+      if (index(line, "bond stretch") > 0) nrows = nrows + 1
+      if (index(line, "angle") > 0) nrows = nrows + 1
+      if (index(line, "dihedral") > 0) nrows = nrows + 1
+      if (index(line, "0 coordinates") > 0) zero_report = .true.
+   end do
+   close(unit)
+   open(newunit=dat_unit, file="compliance.dat", status="old", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
+   close(dat_unit, status="delete", iostat=ios)
+   call check(error, ios, 0)
+   if (allocated(error)) return
+
+   call check(error, nrows, 0)
+   if (allocated(error)) return
+   if (.not. zero_report) then
+      call test_failed(error, "Zero-coordinate compliance report was not completed")
+   end if
+
+end subroutine test_compliance_driver_redundant
+
+!> Locks covalent neighbour-list generation: canonical half-list storage,
+!> replacement semantics, and the supported-cutoff tolerance margin for
+!> getNeighs.
+subroutine test_covalent_neighbour_list(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 4
+   integer, parameter :: at(nat) = [8, 1, 1, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 1.8_wp, 0.0_wp, &
+      & 1.7_wp, -0.5_wp, 0.0_wp, &
+      & 10.0_wp, 0.0_wp, 0.0_wp], shape(xyz))
+   integer, parameter :: deg_ref(nat) = [2, 1, 1, 0]
+   real(wp), parameter :: dist2_ref(2) = [3.14_wp, 3.24_wp]
+   real(wp), parameter :: thr = 1.0e-10_wp
+
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   integer :: neighs(nat), i
+
+   ! O/H/H plus one isolated H: two O-H bonds, no H-H bond
+   call init(neigh_list, nat)
+   call neigh_list%generate_covalent(at, xyz)
+   call check(error, neigh_list%neighs(1), 2)
+   if (allocated(error)) return
+   call check(error, all(neigh_list%neighs(2:4) == 0), .true.)
+   if (allocated(error)) return
+   call check(error, all(neigh_list%image == [(i, i = 1, nat)]), .true.)
+   if (allocated(error)) return
+   call check(error, all(neigh_list%iNeigh(0, :) == [(i, i = 1, nat)]), .true.)
+   if (allocated(error)) return
+   call check(error, all(abs(neigh_list%dist2(1:2, 1) - dist2_ref) < thr), .true.)
+   if (allocated(error)) return
+
+   call init(graph, neigh_list)
+   do i = 1, nat
+      call check(error, graph%neighs(i), deg_ref(i))
+      if (allocated(error)) return
+   end do
+   call check(error, graph%parent(4), 0)
+   if (allocated(error)) return
+
+   ! Replacement semantics: regenerating the same geometry must replace
+   ! (not append to) the previous list
+   call init(neigh_list, nat)
+   call neigh_list%generate_covalent(at, xyz)
+   call neigh_list%generate_covalent(at, xyz)
+   call check(error, neigh_list%neighs(1), 2)
+   if (allocated(error)) return
+   call check(error, all(neigh_list%neighs(2:4) == 0), .true.)
+   if (allocated(error)) return
+
+   ! Default getNeighs must return every stored neighbour, also when the
+   ! bond sits infinitesimally below the largest pair threshold
+   call init(neigh_list, 3)
+   call neigh_list%generate_covalent([1, 1, 1], &
+      & reshape([0.0_wp, 0.0_wp, 0.0_wp, &
+      &          0.5_wp, 0.0_wp, 0.0_wp, &
+      &          2.0_wp*covalent_radius_d3(1) - 1.0e-12_wp, 0.0_wp, 0.0_wp], &
+      &         [3, 3]))
+   call neigh_list%getNeighs(neighs(:3))
+   call check(error, neighs(1), 2)
+   if (allocated(error)) return
+   call check(error, neighs(2), 1)
+   if (allocated(error)) return
+   call check(error, neighs(3), 0)
+
+end subroutine test_covalent_neighbour_list
+
+
+!> Build a symmetric neighbour list from undirected atom pairs.
+function build_neigh_list(nat, pairs) result(neigh_list)
+   !> Number of atoms.
+   integer, intent(in) :: nat
+   !> Undirected atom pairs, dimension (2, number of pairs).
+   integer, intent(in) :: pairs(:, :)
+   !> Neighbour list with both adjacency columns filled.
+   type(TNeighbourList) :: neigh_list
+
+   integer :: i, j, k
+
+   call init(neigh_list, nat)
+   neigh_list%neighs = 0
+   neigh_list%iNeigh = 0
+   neigh_list%image = [(i, i = 1, nat)]
+   do k = 1, size(pairs, 2)
+      i = pairs(1, k)
+      j = pairs(2, k)
+      neigh_list%neighs(i) = neigh_list%neighs(i) + 1
+      neigh_list%iNeigh(neigh_list%neighs(i), i) = j
+      neigh_list%neighs(j) = neigh_list%neighs(j) + 1
+      neigh_list%iNeigh(neigh_list%neighs(j), j) = i
+   end do
+
+end function build_neigh_list
 
 end module test_hessian
