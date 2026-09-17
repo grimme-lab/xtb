@@ -32,6 +32,7 @@ module xtb_modelhessian_gff
       & distance_threshold => gff_distance_threshold
    use xtb_modelhessian_type, only : TModelHessian
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_setvar, only : modhess_setvar
    implicit none(type, external)
    private
 
@@ -41,17 +42,10 @@ module xtb_modelhessian_gff
       type(TGFFData), pointer :: param => null()
       type(TGFFTopology), pointer :: topo => null()
       type(TNeigh), pointer :: neigh => null()
+      real(wp) :: s6
+      logical :: do_bend, do_torsion
    contains
-      !> Add GFN-FF bond, Coulomb, and dispersion contributions
-      procedure :: stretch
-      !> Add GFN-FF angle-bending contributions
-      procedure :: bend
-      !> Add GFN-FF torsional contributions
-      procedure :: torsion
-      !> GFN-FF has no separate out-of-plane term
-      procedure :: outofplane
-      !> GFN-FF charge terms are folded into the pair term
-      procedure :: add_charge
+      procedure, public :: compute_packed
    end type TGFFModelHessian
 
    public :: newGFFModelHessian
@@ -59,26 +53,50 @@ module xtb_modelhessian_gff
 contains
 
 !> Create a GFN-FF model Hessian bound to calculator-owned data
-function newGFFModelHessian(param, topo, neigh) result(model_hessian)
+function newGFFModelHessian(param, topo, neigh, modh) result(model_hessian)
    !> GFN-FF parameters
    type(TGFFData), intent(in), target :: param
    !> Molecular GFN-FF topology
    type(TGFFTopology), intent(in), target :: topo
    !> GFN-FF neighbor list
    type(TNeigh), intent(in), target :: neigh
+   !> Model Hessian configuration
+   type(modhess_setvar), intent(in) :: modh
 
    type(TGFFModelHessian) :: model_hessian
 
    model_hessian%param => param
    model_hessian%topo => topo
    model_hessian%neigh => neigh
+   model_hessian%s6 = modh%s6
+   model_hessian%do_bend = modh%kf /= 0.0_wp
+   model_hessian%do_torsion = modh%kt /= 0.0_wp
 end function newGFFModelHessian
 
+!> Compute a packed GFN-FF model Hessian
+subroutine compute_packed(self, env, xyz, n, hess, at)
+   !> GFN-FF model Hessian holding parameters, topology, and neighbour list
+   class(TGFFModelHessian), intent(in) :: self
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+   !> Number of atoms
+   integer, intent(in) :: n
+   !> Cartesian coordinates
+   real(wp), intent(in) :: xyz(3, n)
+   !> Packed lower-triangle Hessian
+   real(wp), intent(out) :: hess((3*n)*(3*n + 1)/2)
+   !> Atomic numbers
+   integer, intent(in) :: at(n)
+
+   hess = 0.0_wp
+   call stretch(self, xyz, n, hess, at)
+   if (self%do_bend) call bend(self, xyz, n, hess, at)
+   if (self%do_torsion) call torsion(self, xyz, n, hess, at)
+end subroutine compute_packed
+
+
 !> Add GFN-FF bond, Coulomb, and dispersion contributions
-!>
-!> `kr`, `kd`, and `rcut` are mandated by the `TModelHessian` interface but
-!> unused by this implementation.
-subroutine stretch(self, xyz, n, hess, at, kr, kd, s6, lcutoff, rcut)
+subroutine stretch(self, xyz, n, hess, at)
    !> GFN-FF model Hessian holding parameters, topology, and neighbour list
    class(TGFFModelHessian), intent(in) :: self
    !> Number of atoms
@@ -89,16 +107,6 @@ subroutine stretch(self, xyz, n, hess, at, kr, kd, s6, lcutoff, rcut)
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
    !> Atomic numbers
    integer, intent(in) :: at(n)
-   !> Stretching force constant (unused, interface-mandated)
-   real(wp), intent(in) :: kr
-   !> Distance-dependent scaling factor (unused, interface-mandated)
-   real(wp), intent(in) :: kd
-   !> Dispersion scaling factor
-   real(wp), intent(in) :: s6
-   !> Pair cutoff mask, reset to `.false.` by this routine
-   logical, intent(inout) :: lcutoff(n, n)
-   !> Distance cutoff (unused, interface-mandated)
-   real(wp), intent(in) :: rcut
 
    integer :: ibond, i, j, ir, jr
    integer :: mapped_at(n)
@@ -106,7 +114,6 @@ subroutine stretch(self, xyz, n, hess, at, kr, kd, s6, lcutoff, rcut)
    real(wp) :: pair_hessian(3, 3)
 
    mapped_at = gff_atomic_number(at)
-   lcutoff = .false.
 
    do ibond = 1, self%neigh%nbond
       i = self%neigh%blist(1, ibond)
@@ -124,7 +131,7 @@ subroutine stretch(self, xyz, n, hess, at, kr, kd, s6, lcutoff, rcut)
          vec = xyz(:, i) - xyz(:, j)
          r2 = dot_product(vec, vec)
          if (r2 > 1600.0_wp) cycle
-         cdisp = -s6 * sqrt(c6(mapped_at(i))*c6(mapped_at(j)))
+         cdisp = -self%s6 * sqrt(c6(mapped_at(i))*c6(mapped_at(j)))
          qq = 2.0_wp * self%topo%qa(i) * self%topo%qa(j)
          r0_squared = self%param%d3r0(pair_index(at(i), at(j)))
          call get_pair_hessian(vec, qq, cdisp, r0_squared, pair_hessian)
@@ -134,10 +141,7 @@ subroutine stretch(self, xyz, n, hess, at, kr, kd, s6, lcutoff, rcut)
 end subroutine stretch
 
 !> Add GFN-FF angle-bending contributions
-!>
-!> `force_constant`, `kd`, and `lcutoff` are mandated by the
-!> `TModelHessian` interface but unused by this implementation.
-subroutine bend(self, xyz, n, hess, at, force_constant, kd, lcutoff)
+subroutine bend(self, xyz, n, hess, at)
    !> GFN-FF model Hessian holding parameters, topology, and neighbour list
    class(TGFFModelHessian), intent(in) :: self
    !> Number of atoms
@@ -148,12 +152,6 @@ subroutine bend(self, xyz, n, hess, at, force_constant, kd, lcutoff)
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
    !> Atomic numbers
    integer, intent(in) :: at(n)
-   !> Internal-coordinate force constant (unused, interface-mandated)
-   real(wp), intent(in) :: force_constant
-   !> Distance-dependent scaling factor (unused, interface-mandated)
-   real(wp), intent(in) :: kd
-   !> Pair cutoff mask (unused, interface-mandated)
-   logical, intent(in) :: lcutoff(n, n)
 
    integer :: iangl, i, j, m, ir, jr, mr
    integer :: mapped_at(n)
@@ -203,10 +201,7 @@ subroutine bend(self, xyz, n, hess, at, force_constant, kd, lcutoff)
 end subroutine bend
 
 !> Add GFN-FF torsional contributions
-!>
-!> `force_constant`, `kd`, and `lcutoff` are mandated by the
-!> `TModelHessian` interface but unused by this implementation.
-subroutine torsion(self, xyz, n, hess, at, force_constant, kd, lcutoff)
+subroutine torsion(self, xyz, n, hess, at)
    !> GFN-FF model Hessian holding parameters, topology, and neighbour list
    class(TGFFModelHessian), intent(in) :: self
    !> Number of atoms
@@ -217,12 +212,6 @@ subroutine torsion(self, xyz, n, hess, at, force_constant, kd, lcutoff)
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
    !> Atomic numbers
    integer, intent(in) :: at(n)
-   !> Internal-coordinate force constant (unused, interface-mandated)
-   real(wp), intent(in) :: force_constant
-   !> Distance-dependent scaling factor (unused, interface-mandated)
-   real(wp), intent(in) :: kd
-   !> Pair cutoff mask (unused, interface-mandated)
-   logical, intent(in) :: lcutoff(n, n)
 
    integer :: itors, i, j, k, l, ir, jr, kr, lr
    integer :: mapped_at(n)
@@ -253,50 +242,6 @@ subroutine torsion(self, xyz, n, hess, at, force_constant, kd, lcutoff)
       call bmat_accum_packed(n, hess, [i, j, k, l], brow12, tij)
    end do
 end subroutine torsion
-
-!> Add GFN-FF out-of-plane contributions
-!>
-!> GFN-FF has no separate out-of-plane model-Hessian term; every argument is
-!> mandated by the `TModelHessian` interface and unused here.
-subroutine outofplane(self, xyz, n, hess, at, force_constant, kd, lcutoff)
-   !> GFN-FF model Hessian (unused, interface-mandated)
-   class(TGFFModelHessian), intent(in) :: self
-   !> Number of atoms (unused, interface-mandated)
-   integer, intent(in) :: n
-   !> Cartesian coordinates (unused, interface-mandated)
-   real(wp), intent(in) :: xyz(3, n)
-   !> Packed lower-triangle Hessian (unused, interface-mandated)
-   real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
-   !> Atomic numbers (unused, interface-mandated)
-   integer, intent(in) :: at(n)
-   !> Internal-coordinate force constant (unused, interface-mandated)
-   real(wp), intent(in) :: force_constant
-   !> Distance-dependent scaling factor (unused, interface-mandated)
-   real(wp), intent(in) :: kd
-   !> Pair cutoff mask (unused, interface-mandated)
-   logical, intent(in) :: lcutoff(n, n)
-end subroutine outofplane
-
-!> Add GFN-FF charge contributions
-!>
-!> GFN-FF folds charge dependence into the pair term; every argument is
-!> mandated by the `TModelHessian` interface and unused here.
-subroutine add_charge(self, env, xyz, n, hess, at, kq)
-   !> GFN-FF model Hessian (unused, interface-mandated)
-   class(TGFFModelHessian), intent(in) :: self
-   !> Calculation environment (unused, interface-mandated)
-   type(TEnvironment), intent(inout) :: env
-   !> Number of atoms (unused, interface-mandated)
-   integer, intent(in) :: n
-   !> Cartesian coordinates (unused, interface-mandated)
-   real(wp), intent(in) :: xyz(3, n)
-   !> Packed lower-triangle Hessian (unused, interface-mandated)
-   real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
-   !> Atomic numbers (unused, interface-mandated)
-   integer, intent(in) :: at(n)
-   !> Charge-dependent force constant (unused, interface-mandated)
-   real(wp), intent(in) :: kq
-end subroutine add_charge
 
 !> Map heavy elements to the legacy GFN-FF model-Hessian C6 table
 pure elemental function gff_atomic_number(at) result(mapped_at)

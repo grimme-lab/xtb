@@ -1225,8 +1225,9 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    use xtb_type_setvar
    use xtb_modelhessian_gff, only : newGFFModelHessian
    use xtb_modelhessian_type, only : TModelHessian
-   use xtb_modelhessian_lindh, only : TLindhModelHessian, TLindhD2ModelHessian
-   use xtb_modelhessian_swart, only : TSwartModelHessian
+   use xtb_modelhessian_lindh, only : newLindhModelHessian, &
+      & newLindhD2ModelHessian
+   use xtb_modelhessian_swart, only : newSwartModelHessian
    use xtb_setparam
    use xtb_type_calculator
    use xtb_gfnff_calculator
@@ -1273,16 +1274,16 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
          return
       case(p_modh_old)
          if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (1995)"
-         allocate(TLindhD2ModelHessian :: model_hessian)
+         allocate(model_hessian, source=newLindhD2ModelHessian(modh))
       case(p_modh_lindh_d2)
          if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
-         allocate(TLindhD2ModelHessian :: model_hessian)
+         allocate(model_hessian, source=newLindhD2ModelHessian(modh))
       case(p_modh_lindh)
          if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (2007)"
-         allocate(TLindhModelHessian :: model_hessian)
+         allocate(model_hessian, source=newLindhModelHessian(modh))
       case(p_modh_swart)
          if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
-         allocate(TSwartModelHessian :: model_hessian)
+         allocate(model_hessian, source=newSwartModelHessian(modh))
       end select
    type is(TGFFCalculator) ! GFN-FF case
       select case(modh%model)
@@ -1292,21 +1293,21 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
       case(p_modh_old, p_modh_gff)
          if (pr) write(env%unit,'(a)') "Using GFN-FF Model Hessian"
          allocate(model_hessian, source=newGFFModelHessian( &
-            & calc%param, calc%topo, calc%neigh))
+            & calc%param, calc%topo, calc%neigh, modh))
       case(p_modh_lindh_d2)
          if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
-         allocate(TLindhD2ModelHessian :: model_hessian)
+         allocate(model_hessian, source=newLindhD2ModelHessian(modh))
       case(p_modh_lindh)
          if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (2007)"
-         allocate(TLindhModelHessian :: model_hessian)
+         allocate(model_hessian, source=newLindhModelHessian(modh))
       case(p_modh_swart)
          if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
-         allocate(TSwartModelHessian :: model_hessian)
+         allocate(model_hessian, source=newSwartModelHessian(modh))
       end select
    end select
 
    if (allocated(model_hessian)) then
-      call model_hessian%compute(env, xyz, natoms, Hess, chg, modh)
+      call model_hessian%compute(env, xyz, natoms, Hess, chg)
    end if
 
 !  constraints

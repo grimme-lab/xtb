@@ -31,18 +31,23 @@ module xtb_modelhessian_internal
    use xtb_modelhessian_type, only : TModelHessian
    use xtb_type_param, only : chrg_parameter
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_setvar, only : modhess_setvar
    implicit none(type, external)
    private
 
    !> Base for model Hessians defined by redundant internal coordinates
    type, public, abstract, extends(TModelHessian) :: TInternalModelHessianBase
+      private
+      real(wp) :: kr, kf, kt, ko, kd, kq, rcut, s6
    contains
-      procedure :: stretch
-      procedure :: bend
-      procedure :: torsion
-      procedure :: outofplane
-      procedure :: add_charge
-      procedure(pair_factor_interface), deferred :: pair_factor
+      procedure, public :: init => init_internal_model_hessian
+      procedure, public :: compute_packed
+      procedure, private :: stretch
+      procedure, private :: bend
+      procedure, private :: torsion
+      procedure, private :: outofplane
+      procedure, private :: add_charge
+      procedure(pair_factor_interface), deferred, public :: pair_factor
    end type TInternalModelHessianBase
 
    abstract interface
@@ -65,6 +70,60 @@ module xtb_modelhessian_internal
    end interface
 
 contains
+
+!> Copy model-Hessian configuration into an internal-coordinate model
+subroutine init_internal_model_hessian(self, modh)
+   !> Model Hessian implementation
+   class(TInternalModelHessianBase), intent(inout) :: self
+   !> Model Hessian configuration
+   type(modhess_setvar), intent(in) :: modh
+
+   self%kr = modh%kr
+   self%kf = modh%kf
+   self%kt = modh%kt
+   self%ko = modh%ko
+   self%kd = modh%kd
+   self%kq = modh%kq
+   self%rcut = modh%rcut
+   self%s6 = modh%s6
+end subroutine init_internal_model_hessian
+
+!> Compute a packed internal-coordinate model Hessian
+subroutine compute_packed(self, env, xyz, n, hess, at)
+   !> Model Hessian implementation
+   class(TInternalModelHessianBase), intent(in) :: self
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+   !> Number of atoms
+   integer, intent(in) :: n
+   !> Cartesian coordinates
+   real(wp), intent(in) :: xyz(3, n)
+   !> Packed lower-triangle Hessian
+   real(wp), intent(out) :: hess((3*n)*(3*n + 1)/2)
+   !> Atomic numbers
+   integer, intent(in) :: at(n)
+
+   real(wp) :: kd
+   logical, allocatable :: lcutoff(:, :)
+
+   hess = 0.0_wp
+   allocate(lcutoff(n, n), source=.false.)
+
+   kd = self%kd / self%kr
+   call self%stretch(xyz, n, hess, at, self%kr, kd, self%s6, lcutoff, self%rcut)
+   if (self%kf /= 0.0_wp) then
+      call self%bend(xyz, n, hess, at, self%kf, kd, lcutoff)
+   end if
+   if (self%kt /= 0.0_wp) then
+      call self%torsion(xyz, n, hess, at, self%kt, kd, lcutoff)
+   end if
+   if (self%ko /= 0.0_wp) then
+      call self%outofplane(xyz, n, hess, at, self%ko, kd, lcutoff)
+   end if
+   if (self%kq /= 0.0_wp) then
+      call self%add_charge(env, xyz, n, hess, at, self%kq)
+   end if
+end subroutine compute_packed
 
 !> Add bond-stretching and D2 contributions
 pure subroutine stretch(self, xyz, n, hess, at, kr, kd, s6, lcutoff, rcut)
