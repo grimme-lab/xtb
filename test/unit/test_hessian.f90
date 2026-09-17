@@ -899,7 +899,7 @@ subroutine test_covalent_neighbour_list(error)
       &          0.5_wp, 0.0_wp, 0.0_wp, &
       &          2.0_wp*covalent_radius_d3(1) - 1.0e-12_wp, 0.0_wp, 0.0_wp], &
       &         [3, 3]))
-   call neigh_list%getNeighs(neighs)
+   call neigh_list%getNeighs(neighs(:3))
    call check(error, neighs(1), 2)
    if (allocated(error)) return
    call check(error, neighs(2), 1)
