@@ -335,10 +335,10 @@ install(
 
 # -- Targets file
 # -- This makes the project importable from the build directory
-export(
-   EXPORT "${PROJECT_NAME}-targets"
-   FILE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-targets.cmake"
-)
+# export(
+#    EXPORT "${PROJECT_NAME}-targets"
+#    FILE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-targets.cmake"
+# )
 
 # -- This makes the project importable from the install directory
 install(
