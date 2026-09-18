@@ -158,7 +158,6 @@ subroutine print_geosum(iunit,n,at,sym,xyz)
    allocate( bond(n,n), source = 0 )
    call ncoord_erf(n,at,xyz,cn,900.0_wp)
    call approx_bonds(n,at,xyz,cn,bond,0.0537_wp)
-   !call get_bonds(n,at,xyz,bond)
 
    if (set%pr_moments.or.set%pr_distances.or.set%pr_angles.or.set%pr_torsions) then
       call generic_header(iunit,"Geometry Summary",49,10)
@@ -503,40 +502,6 @@ subroutine calc_torsions(n,at,xyz,bond,maxtrsn,ntrsn,trsn,it)
    ntrsn = m
 
 end subroutine calc_torsions
-
-subroutine get_bonds(n,at,xyz,bond)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_param, only: rad => covalent_radius_2009
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: xyz(3,n)
-   integer, intent(out) :: bond(n,n)
-
-   integer  :: i,j,k
-   real(wp) :: r,f,r0
-
-   bond = 0
-
-   do i = 1, n
-      f = 1.3_wp
-      k = 0
-      do while(k.eq.0 .and. f.lt.1.5_wp)
-         do j = 1, i-1
-            r = sqrt(sum((xyz(:,j)-xyz(:,i))**2))
-            r0 = rad(at(i))+rad(at(j))
-            if (r.lt.f*r0) then
-               k = k+1
-               bond(j,i) = 1
-               bond(i,j) = 1
-            endif
-         enddo
-         f = f*1.1_wp
-      enddo
-      bond(i,i) = k
-   enddo
-
-end subroutine get_bonds
 
 subroutine print_moments(iunit,n,atmass,xyz)
    use xtb_mctc_accuracy, only : wp
