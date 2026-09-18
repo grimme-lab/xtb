@@ -353,6 +353,8 @@ end subroutine constrain_all_bonds
 subroutine constrain_all_angles(n,at,xyz)
    use xtb_mctc_constants
    use xtb_mctc_param
+   use xtb_approxrab
+   use xtb_disp_ncoord
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -362,10 +364,13 @@ subroutine constrain_all_angles(n,at,xyz)
    integer  :: ioffset
    real(wp) :: phi
    integer, allocatable :: bond(:,:)
+   real(wp),allocatable :: cn(:)
    real(wp),parameter   :: thr = 0.2_wp
 
+   allocate( cn(n), source = 0.0_wp )
    allocate( bond(n,n), source = 0 )
-   call get_bonds(n,at,xyz,bond)
+   call ncoord_erf(n,at,xyz,cn,900.0_wp)
+   call approx_bonds(n,at,xyz,cn,bond,0.0537_wp)
 
    do i = 1, n
       if (bond(i,i).lt.2) cycle
@@ -393,6 +398,8 @@ end subroutine constrain_all_angles
 subroutine constrain_all_torsions(n,at,xyz)
    use xtb_mctc_constants
    use xtb_mctc_param
+   use xtb_approxrab
+   use xtb_disp_ncoord
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -402,11 +409,14 @@ subroutine constrain_all_torsions(n,at,xyz)
    integer  :: ioffset
    real(wp) :: phi,thijk,thjkl
    integer, allocatable :: bond(:,:)
+   real(wp),allocatable :: cn(:)
    real(wp),parameter   :: thr = 0.2_wp
    real(wp),external    :: valijkl
 
+   allocate( cn(n), source = 0.0_wp )
    allocate( bond(n,n), source = 0 )
-   call get_bonds(n,at,xyz,bond)
+   call ncoord_erf(n,at,xyz,cn,900.0_wp)
+   call approx_bonds(n,at,xyz,cn,bond,0.0537_wp)
 
    do i = 1, n
       if (bond(i,i).lt.2) cycle

@@ -87,11 +87,11 @@ NOTE: This data group refers to constraining the gradient by appling
 *all torsions*='bool'::
     generate potentials to constrain the angles of all torsions
 *elements*: 'symbol'|'number',...::
-    constrains all elements of the same type, the atom type is determined
-    by the ordinal number or the element symbol
+    add every atom of the listed element(s), given by element symbol or
+    ordinal number, to the atom position constraint described under *atoms*.
 *atoms*: 'list',...::
-     constrains the atom positions of all atoms in 'list'. Needs at
-     least two atoms since potential is applied on all atoms in 'list'.
+    constrain the selected atoms by applying a harmonic potential to every
+    pairwise distance between them.
 *distance*: 'i','j',auto|'real'::
     constrain the distance between atom 'i' and 'j' to the actual 
     length (auto) or the value 'real', which has to be given in
