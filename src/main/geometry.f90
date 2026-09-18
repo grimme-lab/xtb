@@ -522,7 +522,8 @@ subroutine get_bonds(n,at,xyz,bond)
       f = 1.3_wp
       k = 0
       do while(k.eq.0 .and. f.lt.1.5_wp)
-         do j = 1, i-1
+         do j = 1, n
+            if (i.eq.j) cycle
             r = sqrt(sum((xyz(:,j)-xyz(:,i))**2))
             r0 = rad(at(i))+rad(at(j))
             if (r.lt.f*r0) then
