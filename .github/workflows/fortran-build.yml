@@ -3,6 +3,31 @@ on: [push, pull_request]
 env:
    BUILD_DIR: _build
 jobs:
+   source-dist:
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout code
+           uses: actions/checkout@v4
+         - name: Setup Python
+           uses: actions/setup-python@v5
+           with:
+            python-version: 3.x
+         - name: Install LAPACK
+           run: sudo apt-get install liblapack-dev
+         - name: Install Meson
+           run: pip install meson==1.7.0 ninja
+         - name: Create source distribution
+           run: |
+            meson setup ${{ env.BUILD_DIR }} -Dlapack=netlib --wrap-mode=forcefallback
+            meson dist -C ${{ env.BUILD_DIR }} --no-tests --include-subprojects
+            mv ${{ env.BUILD_DIR }}/meson-dist/xtb-*.tar.xz .
+         - name: Upload source distribution
+           uses: actions/upload-artifact@v4
+           with:
+            name: xtb-source
+            path: ./xtb-*.tar.xz
+            retention-days: 5
+
    gcc-meson-build:
       runs-on: ${{ matrix.os }}
       strategy:
@@ -257,15 +282,15 @@ jobs:
          - name: Install package
            run: |
             meson install -C ${{ env.BUILD_DIR }} --no-rebuild
-            tar cJvf xtb-bleed.tar.xz xtb-bleed
+            tar cJvf xtb-bleed-linux-x86_64.tar.xz xtb-bleed
            env:
             DESTDIR: ${{ env.PWD }}/xtb-bleed
          - name: Upload binary
            if: github.event_name == 'push'
            uses: actions/upload-artifact@v4
            with:
-            name: xtb-bleed.tar.xz
-            path: xtb-bleed.tar.xz
+            name: xtb-bleed-linux-x86_64.tar.xz
+            path: xtb-bleed-linux-x86_64.tar.xz
 
    intel-ifx-cmake-build:
       runs-on: ${{ matrix.os }}
@@ -455,12 +480,14 @@ jobs:
       if: github.event_name == 'push'
       runs-on: ubuntu-latest
       needs:
+         - source-dist
          - intel-meson-build
          - mingw-meson-static-build
       env:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          RELEASE_TAG: bleed
-         OUTPUT_INTEL: xtb-bleed.tar.xz
+         OUTPUT_SOURCE: xtb-bleed.tar.xz
+         OUTPUT_LINUX: xtb-bleed-linux-x86_64.tar.xz
          OUTPUT_WINDOWS: xtb-bleed-windows.zip
       steps:
          - uses: actions/checkout@v4
@@ -499,18 +526,29 @@ jobs:
            uses: actions/download-artifact@v4.1.7
            with:
             path: ${{ github.workspace }}
+         - name: Prepare source distribution
+           run: cp xtb-source/xtb-*.tar.xz "${{ env.OUTPUT_SOURCE }}"
          - name: Create SHA256 checksums
            run: |
-            sha256sum "${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}" > "${{ env.OUTPUT_INTEL }}.sha256"
+            sha256sum "${{ env.OUTPUT_SOURCE }}" > "${{ env.OUTPUT_SOURCE }}.sha256"
+            sha256sum "${{ env.OUTPUT_LINUX }}/${{ env.OUTPUT_LINUX }}" > "${{ env.OUTPUT_LINUX }}.sha256"
             sha256sum "${{ env.OUTPUT_WINDOWS }}/${{ env.OUTPUT_WINDOWS }}" > "${{ env.OUTPUT_WINDOWS }}.sha256"
-         - name: Add Linux Intel to release tag
+         - name: Add source distribution to release tag
            run: >
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace
-            --name ${{ env.OUTPUT_INTEL }} --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}
-         - name: Add Linux Intel SHA256 checksums to release tag
+            --name ${{ env.OUTPUT_SOURCE }} --file ${{ env.OUTPUT_SOURCE }}
+         - name: Add source distribution SHA256 checksum to release tag
            run: >
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace
-            --name "${{ env.OUTPUT_INTEL }}.sha256" --file ${{ env.OUTPUT_INTEL }}.sha256
+            --name "${{ env.OUTPUT_SOURCE }}.sha256" --file ${{ env.OUTPUT_SOURCE }}.sha256
+         - name: Add Linux x86_64 to release tag
+           run: >
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
+            --name ${{ env.OUTPUT_LINUX }} --file ${{ env.OUTPUT_LINUX }}/${{ env.OUTPUT_LINUX }}
+         - name: Add Linux x86_64 SHA256 checksum to release tag
+           run: >
+            github-release upload --tag ${{ env.RELEASE_TAG }} --replace
+            --name "${{ env.OUTPUT_LINUX }}.sha256" --file ${{ env.OUTPUT_LINUX }}.sha256
          - name: Add Windows GNU to release tag
            run: >
             github-release upload --tag ${{ env.RELEASE_TAG }} --replace
