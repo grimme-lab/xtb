@@ -90,9 +90,11 @@ subroutine initDEigenSolver(self, env, bmat)
    real(dp), intent(in) :: bmat(:, :)
 #ifdef USE_CUSOLVER
    integer :: istat, lwork
-   ! dummy is only a dummy argument used to query the workspace size needed
-   ! for cuSolverDnDsygvd -- it is okay to pass an empty array to cuSolverDnDsygvd_bufferSize
-   real(dp) :: dummy(:) 
+   ! dummy is only used to query the workspace size needed for cuSolverDnDsygvd;
+   ! the array contents are not dereferenced by the bufferSize query, a size-1
+   ! placeholder is sufficient. (Was previously declared `real(dp) :: dummy(:)`,
+   ! which is not valid Fortran for a local variable and broke the GPU build.)
+   real(dp) :: dummy(1)
 #endif
 
    self%n = size(bmat, 1)

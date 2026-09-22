@@ -22,6 +22,13 @@ module xtb_scc_core
    use xtb_mctc_lapack, only : lapack_sygvd
    use xtb_mctc_blas, only : blas_gemm, mctc_symv, mctc_gemm
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
+   use xtb_gpu_runtime, only : gpu_use, gpu_solve, gpu_density
+   use xtb_gpu_runtime, only : gpu_build_h1, gpu_mpopsh
+   use xtb_gpu_runtime, only : gpu_scf_open, gpu_scf_solve, gpu_scf_finish
+   use xtb_gpu_runtime, only : gpu_scf_get_vectors, gpu_scf_close
+   use xtb_gpu_runtime, only : gpu_aes_open, gpu_aes_close
+   use xtb_gpu_runtime, only : gpu_aes_setvsdq, gpu_aes_aniso, gpu_aes_mmompop
+   use xtb_gpu_runtime, only : gpu_aes_buildh1
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    use xtb_xtb_data
@@ -33,6 +40,7 @@ module xtb_scc_core
    private
 
    public :: build_h0, scc, electro, solve, solve4
+   public :: TScfBatchState
    public :: fermismear, occ, occu, dmat, get_unrestricted_wiberg
    public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
    public :: iniqshell, setzshell
@@ -40,6 +48,45 @@ module xtb_scc_core
 
 
    integer, private, parameter :: mmm(20)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
+
+   !> Persistent state for one self-consistent GFN1/GFN2 calculation.
+   !>
+   !> Keeping this data in an explicit object is the prerequisite for advancing
+   !> several molecules one iteration at a time in a lockstep batch.  The
+   !> traditional `scc` entry point owns one instance and remains behaviorally
+   !> unchanged; the Phase-2 batch driver will own an array of these states.
+   type :: TScfBatchState
+      integer :: nbr = 0
+      integer :: iter = 0
+      integer :: thisiter = 0
+      real(wp) :: damp = 0.0_wp
+      real(wp) :: omegap = 0.0_wp
+      real(wp) :: eold = 0.0_wp
+      real(wp) :: ga = 0.0_wp
+      real(wp) :: gb = 0.0_wp
+      real(wp) :: rmsq = 0.0_wp
+      real(wp) :: nfoda = 0.0_wp
+      real(wp) :: nfodb = 0.0_wp
+      logical :: fulldiag = .false.
+      logical :: lastdiag = .false.
+      logical :: converged = .false.
+      logical :: econverged = .false.
+      logical :: qconverged = .false.
+      logical :: active = .false.
+      real(wp), allocatable :: vs(:)
+      real(wp), allocatable :: vd(:, :)
+      real(wp), allocatable :: vq(:, :)
+      real(wp), allocatable :: atomicShift(:)
+      real(wp), allocatable :: df(:, :)
+      real(wp), allocatable :: u(:, :)
+      real(wp), allocatable :: a(:, :)
+      real(wp), allocatable :: q_in(:)
+      real(wp), allocatable :: dq(:)
+      real(wp), allocatable :: qlast_in(:)
+      real(wp), allocatable :: dqlast(:)
+      real(wp), allocatable :: omega(:)
+      real(wp), allocatable :: S_factorized(:, :)
+   end type TScfBatchState
 
 
 contains
@@ -267,6 +314,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        minpr,pr, &
       &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
+   use, intrinsic :: iso_fortran_env, only : int64
    use xtb_mctc_lapack_trf, only : mctc_potrf
 
    use xtb_disp_dftd4,  only: disppot,edisp_scc
@@ -320,9 +368,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !  anisotropic electrostatic
    type(TxTBMultipole), intent(in), optional :: aes
    real(wp),intent(in)    :: xyz(3,n)
-   real(wp), allocatable :: vs(:)
-   real(wp), allocatable :: vd(:, :)
-   real(wp), allocatable :: vq(:, :)
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
    class(TSolvation), allocatable, intent(inout) :: solvation
@@ -337,7 +382,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical, intent(in)    :: pcem
    real(wp),intent(inout) :: shellShift(nshell)
    real(wp),intent(inout) :: externShift(nshell)
-   real(wp), allocatable :: atomicShift(:)
 !! ------------------------------------------------------------------------
 !  Fermi-smearing
    real(wp),intent(in)    :: et
@@ -348,23 +392,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !  Convergence accelerators, a simple damping as well as a Broyden mixing
 !  are available. The Broyden mixing is used by default seems reliable.
    real(wp),intent(in)    :: damp0
-   real(wp)               :: damp
 !  Broyden
-   integer                :: nbr
    logical, intent(in)    :: broy
    real(wp),intent(inout) :: broydamp
-   real(wp)               :: omegap
-   real(wp),allocatable   :: df(:,:)
-   real(wp),allocatable   :: u(:,:)
-   real(wp),allocatable   :: a(:,:)
-   real(wp),allocatable   :: q_in(:)
-   real(wp),allocatable   :: dq(:)
-   real(wp),allocatable   :: qlast_in(:)
-   real(wp),allocatable   :: dqlast(:)
-   real(wp),allocatable   :: omega(:)
-!! ------------------------------------------------------------------------
-!  Factorized overlap to avoid multiple factorizations
-   real(wp), allocatable :: S_factorized(:,:)
 !! ------------------------------------------------------------------------
 !  results of the SCC iterator
    real(wp),intent(out)   :: eel
@@ -396,42 +426,104 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer  :: ishell,jshell
    real(wp) :: t8,t9
    real(wp) :: eh1,dum,tgb
-   real(wp) :: eold
-   real(wp) :: ga,gb
-   real(wp) :: rmsq
-   real(wp) :: nfoda,nfodb
-   logical  :: fulldiag
-   logical  :: lastdiag
-   integer  :: iter
-   integer  :: thisiter
-   logical  :: converged
-   logical  :: econverged
-   logical  :: qconverged
+   logical  :: step_done
+   logical  :: gpu_ok
+   logical  :: gpu_session_ok    ! resident GPU SCF session opened successfully
+   logical  :: gpu_aes_ok        ! resident GPU AES context opened (GFN2)
+   logical  :: solved_on_gpu     ! this iteration's diagonalization ran on GPU
+   integer :: iter_driver
+   type(TScfBatchState) :: state
+   ! per-iter AES profiling (env XTB_AES_TRACE); wall-time accumulators
+   real(wp) :: taes_pot, taes_h1, taes_mom, taes_ele
+   integer(int64) :: aesc0, aesc1, aescr
+   character(len=8) :: aes_env
+   integer :: aes_len, aes_stat
 
-   allocate(S_factorized(ndim, ndim), source = 0.0_wp )
-   S_factorized = S
-   call mctc_potrf(env, S_factorized)
-
-   converged = .false.
-   lastdiag = .false.
-   ! number of iterations for this iterator
-   thisiter = maxiter - jter
-
-   damp = damp0
-   if (present(aes)) then
-      nbr = nshell + 9*n
-      allocate(vs(n), vd(3, n), vq(6, n))
-   else
-      nbr = nshell
-   end if
-!  broyden data storage and init
-   allocate( df(thisiter,nbr),u(thisiter,nbr),a(thisiter,thisiter), &
-   &         dq(nbr),dqlast(nbr),qlast_in(nbr),omega(thisiter), &
-   &         q_in(nbr),atomicShift(n), source = 0.0_wp )
+   gpu_session_ok = .false.
+   gpu_aes_ok = .false.
+   taes_pot = 0.0_wp; taes_h1 = 0.0_wp; taes_mom = 0.0_wp; taes_ele = 0.0_wp
+   call scc_init()
 
 !! ------------------------------------------------------------------------
 !  Iteration entry point
-   scc_iterator: do iter = 1, thisiter
+   scc_iterator: do iter_driver = 1, state%thisiter
+      state%iter = iter_driver
+      call scc_step(step_done)
+      if (fail) return
+      if (step_done) exit scc_iterator
+   enddo scc_iterator
+
+   call scc_final()
+
+contains
+
+subroutine scc_init()
+   allocate(state%S_factorized(ndim, ndim), source = 0.0_wp )
+   state%S_factorized = S
+   call mctc_potrf(env, state%S_factorized)
+
+   state%converged = .false.
+   state%lastdiag = .false.
+   state%active = .true.
+   ! number of iterations for this iterator
+   state%thisiter = maxiter - jter
+
+   state%damp = damp0
+   if (present(aes)) then
+      state%nbr = nshell + 9*n
+      allocate(state%vs(n), state%vd(3, n), state%vq(6, n))
+   else
+      state%nbr = nshell
+      allocate(state%vs(0), state%vd(0, 0), state%vq(0, 0))
+   end if
+!  broyden data storage and init
+   allocate(state%df(state%thisiter,state%nbr), &
+   &        state%u(state%thisiter,state%nbr), &
+   &        state%a(state%thisiter,state%thisiter), &
+   &        state%dq(state%nbr),state%dqlast(state%nbr), &
+   &        state%qlast_in(state%nbr),state%omega(state%thisiter), &
+   &        state%q_in(state%nbr),state%atomicShift(n), source = 0.0_wp )
+
+   ! Open a resident GPU SCF session: S (+ GFN1 H0/matlist/ao2sh) stay on the
+   ! device for the whole SCF; per iteration only small vectors cross PCIe.
+   if (gpu_use) then
+      call gpu_scf_open(ndim, nshell, nmat, .not.present(aes), &
+         & H0, S, matlist, ao2sh, gpu_session_ok)
+   end if
+   ! Open the resident GPU AES context (GFN2). OPT-IN via XTB_GPU_AES=1: at pocket
+   ! scale (hundreds of atoms) the 8-thread CPU AES is faster, because the AES
+   ! routines are memory/atomic-bound (mmompop atomicAdd contention, buildH1 H
+   ! round-trip) rather than compute-bound. Default keeps AES on the CPU while the
+   ! gradient and diagonalization stay on the GPU. The bit-exact GPU path remains
+   ! available for very large systems / weak CPUs (and is validated by the gate).
+   if (gpu_use .and. present(aes)) then
+      call get_environment_variable("XTB_GPU_AES", aes_env, aes_len, aes_stat)
+      if (aes_stat == 0 .and. aes_len > 0 .and. aes_env(1:1) /= '0') then
+         call gpu_aes_open(n, size(aes%dipKernel), ndim, nmat, ndp, nqp, nshell, &
+            & at, xyz, aes%gab3, aes%gab5, aes%dipKernel, aes%quadKernel, &
+            & S, dpint, qpint, H0, aoat2, ao2sh, matlist, mdlst, mqlst, gpu_aes_ok)
+      end if
+   end if
+end subroutine scc_init
+
+subroutine scc_step(done)
+   logical, intent(out) :: done
+
+   done = .false.
+   associate( &
+   & vs => state%vs, vd => state%vd, vq => state%vq, &
+   & atomicShift => state%atomicShift, nbr => state%nbr, &
+   & damp => state%damp, omegap => state%omegap, &
+   & df => state%df, u => state%u, a => state%a, &
+   & q_in => state%q_in, dq => state%dq, &
+   & qlast_in => state%qlast_in, dqlast => state%dqlast, &
+   & omega => state%omega, S_factorized => state%S_factorized, &
+   & eold => state%eold, ga => state%ga, gb => state%gb, &
+   & rmsq => state%rmsq, nfoda => state%nfoda, nfodb => state%nfodb, &
+   & fulldiag => state%fulldiag, lastdiag => state%lastdiag, &
+   & iter => state%iter, thisiter => state%thisiter, &
+   & converged => state%converged, &
+   & econverged => state%econverged, qconverged => state%qconverged)
 
    ! set up ES potential
    atomicShift(:) = 0.0_wp
@@ -439,7 +531,11 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    call ies%addShift(q, qsh, atomicShift, shellShift)
    ! compute potential intermediates
    if (present(aes)) then
-      call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
+      call system_clock(aesc0, aescr)
+      gpu_ok = .false.
+      if (gpu_aes_ok) call gpu_aes_setvsdq(q,dipm,qp,vs,vd,vq,gpu_ok)
+      if (.not.gpu_ok) call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
+      call system_clock(aesc1); taes_pot = taes_pot + real(aesc1-aesc0,wp)/real(aescr,wp)
    end if
    ! Solvation contributions
    if (allocated(solvation)) then
@@ -453,18 +549,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    ! expand all atomic potentials to shell resolved potentials
    call addToShellShift(ash, atomicShift, shellShift)
 
-   ! build the charge dependent Hamiltonian
-   if (present(aes)) then
-      call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
-         & H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
-   else
-      call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
-         & shellShift,aoat2,ao2sh)
-   end if
-
    ! ------------------------------------------------------------------------
-   ! solve HC=SCemo(X,P are scratch/store)
-   ! solution is in H(=C)/emo
+   ! build the charge dependent Hamiltonian and solve HC=SCemo.
+   ! solution is in H(=C)/emo (GPU session keeps C resident on the device).
    ! ------------------------------------------------------------------------
    fulldiag=.false.
    if(iter.lt.startpdiag) fulldiag=.true.
@@ -472,7 +559,32 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
-   call solver%fact_solve(env, H, S_factorized, emo)
+   solved_on_gpu = .false.
+   if (present(aes)) then
+      ! GFN2: anisotropic H1 is built (GPU or host), then diagonalized (GPU or CPU)
+      call system_clock(aesc0, aescr)
+      gpu_ok = .false.
+      if (gpu_aes_ok) call gpu_aes_buildh1(shellShift,vs,vd,vq,H,gpu_ok)
+      if (.not.gpu_ok) &
+         & call buildIsoAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
+         & H,H0,S,shellShift,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+      call system_clock(aesc1); taes_h1 = taes_h1 + real(aesc1-aesc0,wp)/real(aescr,wp)
+      if (gpu_session_ok) then
+         call gpu_scf_solve(ndim, nshell, H, shellShift, autoev, emo, solved_on_gpu)
+      end if
+      if (.not.solved_on_gpu) call solver%fact_solve(env, H, S_factorized, emo)
+   else
+      ! GFN1: with a session the isotropic H1 is built on-device from resident
+      ! H0/S/shift; otherwise build on the host and diagonalize on the CPU.
+      if (gpu_session_ok) then
+         call gpu_scf_solve(ndim, nshell, H, shellShift, autoev, emo, solved_on_gpu)
+      end if
+      if (.not.solved_on_gpu) then
+         call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
+            & shellShift,aoat2,ao2sh)
+         call solver%fact_solve(env, H, S_factorized, emo)
+      end if
+   end if
    call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
@@ -509,11 +621,20 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       call gfn2broyden_save(n,k,nbr,dipm,qp,q_in)
    end if
 
-   ! density matrix
-   call dmat(ndim,focc,H,P)
-
-   ! new q
-   call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
+   ! density matrix + shell-Mulliken charges
+   if (solved_on_gpu) then
+      ! eigenvectors are resident on the device; form P and qsh there, copying
+      ! back only P (host electro() needs it) and qsh.
+      call gpu_scf_finish(ndim, nshell, focc, P, qsh, gpu_ok)
+      if (.not.gpu_ok) then
+         call env%error("GPU SCF density/charges failed", source)
+         fail = .true.
+         return
+      end if
+   else
+      call dmat(ndim,focc,H,P)
+      call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
+   end if
    qsh = zsh - qsh
 
    ! qat from qsh
@@ -523,9 +644,17 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    call electro(n,at,ndim,nshell,ies,H0,P,q,qsh,ees,eel)
    ! multipole electrostatic
    if (present(aes)) then
-      call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+      call system_clock(aesc0, aescr)
+      gpu_ok = .false.
+      if (gpu_aes_ok) call gpu_aes_mmompop(p,dipm,qp,gpu_ok)
+      if (.not.gpu_ok) call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+      call system_clock(aesc1); taes_mom = taes_mom + real(aesc1-aesc0,wp)/real(aescr,wp)
       ! evaluate energy
-      call aniso_electro(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,eaes,epol)
+      call system_clock(aesc0, aescr)
+      gpu_ok = .false.
+      if (gpu_aes_ok) call gpu_aes_aniso(q,dipm,qp,eaes,epol,gpu_ok)
+      if (.not.gpu_ok) call aniso_electro(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,eaes,epol)
+      call system_clock(aesc1); taes_ele = taes_ele + real(aesc1-aesc0,wp)/real(aescr,wp)
       eel=eel+eaes+epol
    end if
 
@@ -627,15 +756,35 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !! ------------------------------------------------------------------------
    if (econverged.and.qconverged) then
       converged = .true.
-      if (lastdiag) exit scc_iterator
+      if (lastdiag) then
+         done = .true.
+         return
+      end if
       lastdiag = .true.
    endif
 !! ------------------------------------------------------------------------
 
-   enddo scc_iterator
+   end associate
+end subroutine scc_step
 
-   jter = jter + min(iter,thisiter)
-   fail = .not.converged
+subroutine scc_final()
+   ! Bring the converged eigenvectors back to the host (the gradient's
+   ! energy-weighted density needs C), then release the resident session.
+   if (gpu_session_ok) then
+      if (solved_on_gpu) call gpu_scf_get_vectors(ndim, H, gpu_ok)
+      call gpu_scf_close()
+   end if
+   if (gpu_aes_ok) call gpu_aes_close()
+   jter = jter + min(state%iter,state%thisiter)
+   fail = .not.state%converged
+   state%active = .false.
+   if (present(aes)) then
+      call get_environment_variable("XTB_AES_TRACE", aes_env, aes_len, aes_stat)
+      if (aes_stat == 0) write(*,'(a,4(f8.3,a))') &
+         & " [aes-prof] setvsdq ", taes_pot, "s  buildH1 ", taes_h1, &
+         & "s  mmompop ", taes_mom, "s  aniso_electro ", taes_ele, "s"
+   end if
+end subroutine scc_final
 
 end subroutine scc
 
