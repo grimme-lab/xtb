@@ -21,17 +21,21 @@
 !> which atoms they involve; the values of the coordinates are not part of
 !> it. Concrete sets extend this type and add their own state.
 module xtb_internals_type
+   use xtb_mctc_accuracy, only : wp
    implicit none
    private
 
-   public :: internal_coords_set_type, coord_bond, coord_angle, coord_dihedral
+   public :: internal_coords_set_type, coord_bond, coord_angle, coord_dihedral, &
+      & coord_linbend
 
    !> Bond coordinate kind, one coordinate per edge
    integer, parameter :: coord_bond = 1
-   !> Angle coordinate kind, one coordinate per pair of neighbours of a centre
+   !> Ordinary-angle coordinate kind, one coordinate per nonlinear neighbour pair
    integer, parameter :: coord_angle = 2
    !> Dihedral coordinate kind, one coordinate per pair of outer bonds of an edge
    integer, parameter :: coord_dihedral = 3
+   !> Linear-bend coordinate kind, two fixed-frame coordinates per linear angle
+   integer, parameter :: coord_linbend = 4
 
    !> Definition of a set of internal coordinates
    type :: internal_coords_set_type
@@ -44,9 +48,13 @@ module xtb_internals_type
 
       !> Atoms of each coordinate, allocated as atoms(4, self%ncoords).
       !> atoms(:, ic) = [i, j, 0, 0] for a bond, [i, j, k, 0] for an angle
-      !> with j the centre and [i, j, k, l] for a dihedral, with zero for
-      !> the atoms the coordinate kind does not use
+      !> or linear bend with j the centre, and [i, j, k, l] for a dihedral,
+      !> with zero for the atoms the coordinate kind does not use
       integer, allocatable :: atoms(:, :)
+
+      !> Fixed unit direction of each linear bend, allocated as
+      !> frame(3, self%ncoords), zero for all other coordinate kinds
+      real(wp), allocatable :: frame(:, :)
 
    end type internal_coords_set_type
 

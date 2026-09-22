@@ -25,6 +25,7 @@
 !> differences.
 module test_hessian
    use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
+   use mctc_env, only : mctc_error_type => error_type
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_mctc_convert, only : autoaa
@@ -43,8 +44,9 @@ module test_hessian
    use xtb_mctc_param, only : covalent_radius_d3
    use xtb_internals_graph, only : graph_type, init
    use xtb_internals_redundant, only : redundant_type, init
-   use xtb_internals_type, only : coord_bond, coord_angle, coord_dihedral
+   use xtb_internals_type, only : coord_bond, coord_angle, coord_dihedral, coord_linbend
    use xtb_bmatrix, only : get_bmatrix
+   use xtb_o1numhess, only : lr_loop
    implicit none
    private
 
@@ -62,15 +64,47 @@ subroutine collect_hessian(testsuite)
       new_unittest("gfn2_hessian", test_gfn2_hessian), &
       new_unittest("gfn1_o1numhess", test_o1numhess_gfn1), &
       new_unittest("gfn2_o1numhess", test_o1numhess_gfn2), &
+      new_unittest("linear_h2o_gfn1_o1numhess", test_o1numhess_linear_h2o_gfn1), &
       new_unittest("linear_h2o_gfn2_o1numhess", test_o1numhess_linear_h2o_gfn2), &
+      new_unittest("rectangular_lr_loop", test_rectangular_lr_loop), &
       new_unittest("compliance", test_compliance), &
       new_unittest("compliance_water", test_compliance_water), &
       new_unittest("covalent_neighbour_list", test_covalent_neighbour_list), &
       new_unittest("redundant_bmatrix_fd", test_redundant_bmatrix_fd), &
+      new_unittest("linear_chain_compliance", test_linear_chain_compliance), &
+      new_unittest("near_linear_bmatrix_fd", test_near_linear_bmatrix_fd), &
       new_unittest("compliance_driver_redundant", test_compliance_driver_redundant) &
       ]
 
 end subroutine collect_hessian
+
+!> A rectangular displacement set must produce a symmetric correction without
+!> overrunning the GEMM workspace; final_err must describe the returned matrix.
+subroutine test_rectangular_lr_loop(error)
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: scale = 1.0e-4_wp
+   real(wp), parameter :: displdir(2, 1) = reshape([1.0_wp, 0.0_wp], [2, 1])
+   type(TEnvironment) :: env
+   real(wp) :: gradient(2, 1), hessian(2, 2), final_err, residual
+
+   call init(env)
+   gradient(:, 1) = [scale, 2.0_wp*scale]
+   hessian = 0.0_wp
+   call lr_loop(env, 1, gradient, hessian, displdir, final_err)
+
+   call check(error, hessian(1, 1)/scale, 1.0_wp, thr=1.0e-4_wp)
+   if (allocated(error)) return
+   call check(error, hessian(2, 1)/scale, 2.0_wp, thr=1.0e-4_wp)
+   if (allocated(error)) return
+   call check(error, hessian(1, 2), hessian(2, 1), thr=scale*1.0e-12_wp)
+   if (allocated(error)) return
+   call check(error, hessian(2, 2), 0.0_wp, thr=scale*1.0e-12_wp)
+   if (allocated(error)) return
+
+   residual = norm2(gradient - matmul(hessian, displdir))/norm2(gradient)
+   call check(error, final_err, residual, thr=1.0e-14_wp)
+end subroutine test_rectangular_lr_loop
 
 !> Pins the GFN1 numerical Hessian and dipole gradient of water against the
 !> reference tables below.
@@ -572,6 +606,7 @@ end subroutine test_o1numhess_linear_h2o_gfn2
 subroutine test_compliance(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+   type(mctc_error_type), allocatable :: mctc_error
 
    integer, parameter :: nat = 2
    integer, parameter :: ndim = 3 * nat
@@ -585,7 +620,7 @@ subroutine test_compliance(error)
    type(TNeighbourList) :: neigh_list
    type(graph_type) :: graph
    type(redundant_type) :: internals
-   integer :: i, j, stat
+   integer :: i, j
    real(wp), allocatable :: bmat(:, :), compliance(:, :), hessian(:, :)
    real(wp) :: redundant_bmat(2, ndim), redundant_compliance(2, 2)
 
@@ -605,10 +640,11 @@ subroutine test_compliance(error)
       end do
    end do
 
-   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, stat)
-
-   call check(error, stat, 0)
-   if (allocated(error)) return
+   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, mctc_error)
+   if (allocated(mctc_error)) then
+      call test_failed(error, mctc_error%message)
+      return
+   end if
    call check(error, bmat(1, 1), -1.0_wp, thr=thr)
    if (allocated(error)) return
    call check(error, bmat(1, 4), 1.0_wp, thr=thr)
@@ -618,10 +654,11 @@ subroutine test_compliance(error)
 
    redundant_bmat(1, :) = bmat(1, :)
    redundant_bmat(2, :) = bmat(1, :)
-   call compute_compliance(0, hessian, redundant_bmat, xyz, nat, 2, redundant_compliance, stat)
-
-   call check(error, stat, 0)
-   if (allocated(error)) return
+   call compute_compliance(0, hessian, redundant_bmat, xyz, nat, 2, redundant_compliance, mctc_error)
+   if (allocated(mctc_error)) then
+      call test_failed(error, mctc_error%message)
+      return
+   end if
    call check(error, redundant_compliance(1, 1), 1.0_wp/force_constant, thr=thr)
    if (allocated(error)) return
    call check(error, redundant_compliance(1, 2), 1.0_wp/force_constant, thr=thr)
@@ -637,6 +674,7 @@ end subroutine test_compliance
 subroutine test_compliance_water(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+   type(mctc_error_type), allocatable :: mctc_error
 
    integer, parameter :: nat = 3
    integer, parameter :: ndim = 3 * nat
@@ -667,7 +705,7 @@ subroutine test_compliance_water(error)
    type(TNeighbourList) :: neigh_list
    type(graph_type) :: graph
    type(redundant_type) :: internals
-   integer :: i, j, stat
+   integer :: i, j
    integer, allocatable :: list(:)
    real(wp) :: energy, sigma(3, 3), hl_gap
    real(wp), allocatable :: gradient(:, :), dipgrad(:, :), hessian(:, :)
@@ -699,9 +737,11 @@ subroutine test_compliance_water(error)
 
    allocate(bmat(internals%ncoords, ndim), compliance(internals%ncoords, internals%ncoords))
    call get_bmatrix(internals, xyz, bmat)
-   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, stat)
-   call check(error, stat, 0)
-   if (allocated(error)) return
+   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, mctc_error)
+   if (allocated(mctc_error)) then
+      call test_failed(error, mctc_error%message)
+      return
+   end if
 
    do i = 1, internals%ncoords
       do j = 1, internals%ncoords
@@ -784,12 +824,151 @@ subroutine test_redundant_bmatrix_fd(error)
 
 end subroutine test_redundant_bmatrix_fd
 
+!> A straight four-atom chain has three stretches and both transverse bend
+!> directions at each centre, but no defined torsion.
+subroutine test_linear_chain_compliance(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+   type(mctc_error_type), allocatable :: mctc_error
+
+   integer, parameter :: nat = 4
+   integer, parameter :: ndim = 3 * nat
+   integer, parameter :: ncoord = 7
+   integer, parameter :: pairs(2, 3) = reshape([1, 2, 2, 3, 3, 4], [2, 3])
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 1.0_wp, 0.0_wp, 0.0_wp, &
+      & 2.0_wp, 0.0_wp, 0.0_wp, &
+      & 3.0_wp, 0.0_wp, 0.0_wp], shape(xyz))
+   real(wp), parameter :: thr = 1.0e-9_wp
+
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals
+   integer :: i, j
+   real(wp) :: expected_bmat(ncoord, ndim), hessian(ndim, ndim)
+   real(wp), allocatable :: bmat(:, :), compliance(:, :)
+
+   neigh_list = build_neigh_list(nat, pairs)
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+   call check(error, internals%ncoords, ncoord)
+   if (allocated(error)) return
+   call check(error, internals%ndihedral, 0)
+   if (allocated(error)) return
+   do i = 1, 3
+      call check(error, internals%kind(i), coord_bond)
+      if (allocated(error)) return
+   end do
+   do i = 4, ncoord
+      call check(error, internals%kind(i), coord_linbend)
+      if (allocated(error)) return
+   end do
+
+   expected_bmat = 0.0_wp
+   do i = 1, 3
+      expected_bmat(i, 3*(i - 1) + 1) = -1.0_wp
+      expected_bmat(i, 3*i + 1) = 1.0_wp
+   end do
+   expected_bmat(4, [3, 6, 9]) = [1.0_wp, -2.0_wp, 1.0_wp]
+   expected_bmat(5, [2, 5, 8]) = [1.0_wp, -2.0_wp, 1.0_wp]
+   expected_bmat(6, [6, 9, 12]) = [1.0_wp, -2.0_wp, 1.0_wp]
+   expected_bmat(7, [5, 8, 11]) = [1.0_wp, -2.0_wp, 1.0_wp]
+   hessian = matmul(transpose(expected_bmat), expected_bmat)
+
+   allocate(bmat(ncoord, ndim), compliance(ncoord, ncoord))
+   call get_bmatrix(internals, xyz, bmat)
+   call compute_compliance(0, hessian, bmat, xyz, nat, ncoord, compliance, mctc_error)
+   if (allocated(mctc_error)) then
+      call test_failed(error, mctc_error%message)
+      return
+   end if
+   do i = 1, ncoord
+      do j = 1, ncoord
+         if (i == j) then
+            call check(error, compliance(i, j), 1.0_wp, thr=thr)
+         else
+            call check(error, compliance(i, j), 0.0_wp, thr=thr)
+         end if
+         if (allocated(error)) return
+      end do
+   end do
+
+end subroutine test_linear_chain_compliance
+
+
+!> Near-linear coordinates use the reference frame even when their B rows are
+!> evaluated at a displaced geometry.
+subroutine test_near_linear_bmatrix_fd(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 3
+   integer, parameter :: ncoord = 4
+   integer, parameter :: pairs(2, 2) = reshape([1, 2, 2, 3], [2, 2])
+   real(wp), parameter :: step = 1.0e-6_wp
+   real(wp), parameter :: thr = 1.0e-7_wp
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & -1.0_wp, 0.0_wp, 0.0_wp, &
+      &  0.0_wp, 0.0_wp, 0.0_wp, &
+      &  cos(pi/180.0_wp), sin(pi/180.0_wp), 0.0_wp], shape(xyz))
+
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals
+   real(wp) :: coord(3, nat), right(3, nat), left(3, nat)
+   real(wp) :: v1(3), v2(3), qref, qright, qleft
+   real(wp), allocatable :: bmat(:, :)
+   integer :: i, ic, ii, k
+
+   neigh_list = build_neigh_list(nat, pairs)
+   call init(graph, neigh_list)
+   call init(internals, graph, xyz)
+   call check(error, internals%ncoords, ncoord)
+   if (allocated(error)) return
+   do k = 3, 4
+      call check(error, internals%kind(k), coord_linbend)
+      if (allocated(error)) return
+      v1 = xyz(:, 1) - xyz(:, 2)
+      v2 = xyz(:, 3) - xyz(:, 2)
+      qref = dot_product(internals%frame(:, k), v1/norm2(v1) + v2/norm2(v2))
+      call check(error, internals%q(k), qref, thr=thr)
+      if (allocated(error)) return
+   end do
+
+   coord = xyz
+   coord(2, 1) = coord(2, 1) + 0.02_wp
+   allocate(bmat(ncoord, 3*nat))
+   call get_bmatrix(internals, coord, bmat)
+   do i = 1, nat
+      do ic = 1, 3
+         ii = 3 * (i - 1) + ic
+         right = coord
+         right(ic, i) = right(ic, i) + step
+         left = coord
+         left(ic, i) = left(ic, i) - step
+         do k = 3, 4
+            v1 = right(:, 1) - right(:, 2)
+            v2 = right(:, 3) - right(:, 2)
+            qright = dot_product(internals%frame(:, k), v1/norm2(v1) + v2/norm2(v2))
+            v1 = left(:, 1) - left(:, 2)
+            v2 = left(:, 3) - left(:, 2)
+            qleft = dot_product(internals%frame(:, k), v1/norm2(v1) + v2/norm2(v2))
+            call check(error, bmat(k, ii), 0.5_wp*(qright - qleft)/step, thr=thr)
+            if (allocated(error)) return
+         end do
+      end do
+   end do
+
+end subroutine test_near_linear_bmatrix_fd
+
 
 !> Locks the covalent-neighbourlist compliance path: water-like O/H/H gives
 !> two bond rows and one angle row, distant H/H gives zero coordinates.
 subroutine test_compliance_driver_redundant(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
+   type(mctc_error_type), allocatable :: mctc_error
 
    integer, parameter :: nat3 = 3, nat2 = 2
    integer, parameter :: at3(nat3) = [8, 1, 1]
@@ -804,6 +983,7 @@ subroutine test_compliance_driver_redundant(error)
       & 0.0_wp, 0.0_wp, 0.0_wp, &
       & 10.0_wp, 0.0_wp, 0.0_wp], shape(xyz2))
 
+   type(TMolecule) :: mol3, mol2
    real(wp) :: hess3(3*nat3, 3*nat3), hess2(3*nat2, 3*nat2)
    integer :: unit, dat_unit, i, ios, nbond, nangle, nrows
    logical :: zero_report
@@ -816,7 +996,13 @@ subroutine test_compliance_driver_redundant(error)
    open(newunit=unit, status="scratch", action="readwrite", iostat=ios)
    call check(error, ios, 0)
    if (allocated(error)) return
-   call compliance_driver(unit, nat3, at3, xyz3, hess3, mass3)
+   call init(mol3, at3, xyz3)
+   mol3%atmass = mass3
+   call compliance_driver(unit, mol3, hess3, mctc_error)
+   if (allocated(mctc_error)) then
+      call test_failed(error, mctc_error%message)
+      return
+   end if
    rewind(unit)
    nbond = 0
    nangle = 0
@@ -846,7 +1032,13 @@ subroutine test_compliance_driver_redundant(error)
    open(newunit=unit, status="scratch", action="readwrite", iostat=ios)
    call check(error, ios, 0)
    if (allocated(error)) return
-   call compliance_driver(unit, nat2, at2, xyz2, hess2, mass2)
+   call init(mol2, at2, xyz2)
+   mol2%atmass = mass2
+   call compliance_driver(unit, mol2, hess2, mctc_error)
+   if (allocated(mctc_error)) then
+      call test_failed(error, mctc_error%message)
+      return
+   end if
    rewind(unit)
    nrows = 0
    zero_report = .false.
@@ -895,6 +1087,12 @@ subroutine test_covalent_neighbour_list(error)
    type(TNeighbourList) :: neigh_list
    type(graph_type) :: graph
    integer :: neighs(nat), i
+
+   ! Empty list must have zero supported cutoff.
+   call init(neigh_list, 0)
+   call neigh_list%generate_covalent(at(:0), xyz(:, :0))
+   call check(error, neigh_list%cutoff, 0.0_wp)
+   if (allocated(error)) return
 
    ! O/H/H plus one isolated H: two O-H bonds, no H-H bond
    call init(neigh_list, nat)

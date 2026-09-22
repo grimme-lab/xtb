@@ -30,8 +30,8 @@ module test_model_hessian
    use xtb_type_molecule, only : TMolecule
    use xtb_modelhessian_eeq, only : add_eeq_hessian
    use xtb_modelhessian_type, only : TModelHessian
-   use xtb_modelhessian_lindh, only : newLindhModelHessian, &
-      & newLindhD2ModelHessian
+   use xtb_modelhessian_lindh, only : TLindhModelHessian, &
+      & newLindhModelHessian, newLindhD2ModelHessian
    use xtb_modelhessian_swart, only : newSwartModelHessian
    use xtb_type_param, only : chrg_parameter
    use xtb_type_setvar, only : modhess_setvar
@@ -73,6 +73,7 @@ subroutine collect_model_hessian(testsuite)
       ! Misc
       new_unittest("model_hessian_dense", test_model_hessian_dense), &
       new_unittest("model_hessian_charge", test_model_hessian_charge), &
+      new_unittest("lindh_bend_scale_invariance", test_lindh_bend_scale_invariance), &
       new_unittest("eeq_addition", test_eeq_addition), &
       new_unittest("gff_h2o", test_gff_h2o), &
       new_unittest("torsion_reversal_key", test_torsion_reversal_key), &
@@ -225,6 +226,55 @@ subroutine test_model_hessian_charge(error)
       end do
    end do
 end subroutine test_model_hessian_charge
+
+
+!> Near-linear bend selection is independent of uniformly scaled arm lengths
+subroutine test_lindh_bend_scale_invariance(error)
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: delta = 5.0e-8_wp
+   integer, parameter :: at(3) = 1
+   real(wp) :: xyz(3, 3), hess(45), without_bend(45), normalized(45, 2)
+   real(wp) :: scale, pair_amplitude, bend_force, bend_trace
+   type(TEnvironment) :: env
+   type(TLindhModelHessian) :: model_hessian
+   type(modhess_setvar) :: modh
+   integer :: i, diagonal
+
+   call init(env)
+   do i = 1, 2
+      scale = real(i, wp)
+      xyz = 0.0_wp
+      xyz(:, 1) = scale * [1.0_wp, 0.0_wp, 0.0_wp]
+      xyz(:, 3) = scale * [-1.0_wp, delta, 0.0_wp]
+
+      modh = default_modh()
+      modh%s6 = 0.0_wp
+      bend_force = modh%kf
+      model_hessian = newLindhModelHessian(modh)
+      call model_hessian%compute(env, xyz, 3, hess, at)
+      pair_amplitude = model_hessian%pair_factor(1, 1, scale**2, 0.0_wp, .false.) &
+         & * model_hessian%pair_factor(1, 1, scale**2*(1.0_wp + delta**2), &
+         & 0.0_wp, .false.)
+
+      modh%kf = 0.0_wp
+      model_hessian = newLindhModelHessian(modh)
+      call model_hessian%compute(env, xyz, 3, without_bend, at)
+      normalized(:, i) = (hess - without_bend) * scale**2 &
+         & / (bend_force * pair_amplitude)
+   end do
+
+   ! The old dimensional cross-product cutoff chose linear at 1 Bohr and
+   ! ordinary at 2 Bohr for this same dimensionless angle.
+   call compare(error, normalized(:, 1), normalized(:, 2))
+   if (allocated(error)) return
+
+   bend_trace = 0.0_wp
+   do diagonal = 1, 9
+      bend_trace = bend_trace + normalized(diagonal*(diagonal + 1)/2, 1)
+   end do
+   call check(error, bend_trace, 6.0_wp, thr=1.0e-6_wp)
+end subroutine test_lindh_bend_scale_invariance
 
 
 !> Check EEQ utility adds to, rather than replaces, packed Hessian values

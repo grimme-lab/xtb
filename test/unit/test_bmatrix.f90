@@ -44,6 +44,7 @@ subroutine collect_bmatrix(testsuite)
    testsuite = [ &
       new_unittest("bond-fd", test_bond_fd), &
       new_unittest("angle-fd", test_angle_fd), &
+      new_unittest("angle-near-antiparallel", test_angle_near_antiparallel), &
       new_unittest("linbend-fd", test_linbend_fd), &
       new_unittest("linbend-invariance", test_linbend_invariance), &
       new_unittest("torsion-fd", test_torsion_fd), &
@@ -131,6 +132,33 @@ subroutine test_angle_fd(error)
    end do
    call check_bmat(error, bmat, fd, thr_loose)
 end subroutine test_angle_fd
+
+!> Near-antiparallel angles retain their finite limiting row and inverse-length
+!> scaling even when rounding makes the normalized dot product exactly -1.
+subroutine test_angle_near_antiparallel(error)
+   use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: delta = 1.0e-9_wp
+   real(wp), parameter :: scale = 8.0_wp
+   real(wp), parameter :: vec1(3) = [1.0_wp, 0.0_wp, 0.0_wp]
+   real(wp), parameter :: vec2(3) = [-1.0_wp, delta, 0.0_wp]
+   real(wp), parameter :: expected(9) = [ &
+      & 0.0_wp, -1.0_wp, 0.0_wp, &
+      & 0.0_wp, 2.0_wp, 0.0_wp, &
+      & 0.0_wp, -1.0_wp, 0.0_wp]
+   real(wp) :: bmat(9), scaled_bmat(9)
+
+   bmat = bmat_angle(vec1, vec2)
+   scaled_bmat = bmat_angle(scale*vec1, scale*vec2)
+
+   call check(error, all(ieee_is_finite(bmat)))
+   if (allocated(error)) return
+   call check_bmat(error, bmat, expected, thr_loose)
+   if (allocated(error)) return
+   call check_bmat(error, scaled_bmat, expected/scale, thr_loose)
+end subroutine test_angle_near_antiparallel
 
 !> Central FD for angle B-row entry (c, k)
 function fd_angle(xyz0, c, k) result(dval)

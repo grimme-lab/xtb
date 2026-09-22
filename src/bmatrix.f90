@@ -22,7 +22,7 @@ module xtb_bmatrix
    use xtb_mctc_constants, only : pi
    use xtb_mctc_math, only : crossProd
    use xtb_internals_type, only : internal_coords_set_type, coord_bond, &
-      & coord_angle, coord_dihedral
+      & coord_angle, coord_dihedral, coord_linbend
    implicit none
 
    private
@@ -81,7 +81,7 @@ pure function bmat_angle(vec1, vec2) result(bmat)
    real(wp) :: bmat(9)
    real(wp) :: l1, l2, nvec1(3), nvec2(3)
    real(wp) :: dl(2, 6), dnvec(2, 3, 6), dinprod(9)
-   real(wp) :: dot_n1n2
+   real(wp) :: sinphi
    integer :: ii
 
    l1 = norm2(vec1)
@@ -115,8 +115,8 @@ pure function bmat_angle(vec1, vec2) result(bmat)
       dinprod(ii+6) = dot_product(dnvec(2, :, ii), nvec1)
    end do
 
-   dot_n1n2 = dot_product(nvec1, nvec2)
-   bmat = -dinprod / sqrt(max(eps_sqrt, 1.0_wp - dot_n1n2**2))
+   sinphi = norm2(crossProd(nvec1, nvec2))
+   bmat = -dinprod / max(sqrt(eps_sqrt), sinphi)
 end function bmat_angle
 
 !> Orthonormal pair of directions perpendicular to a unit axis, the fixed frame
@@ -341,6 +341,12 @@ pure subroutine get_bmatrix(internals, xyz, bmat)
          brow(1:9) = bmat_angle( &
             & xyz(:, internals%atoms(1, ic)) - xyz(:, internals%atoms(2, ic)), &
             & xyz(:, internals%atoms(3, ic)) - xyz(:, internals%atoms(2, ic)))
+      case (coord_linbend)
+         ncoord = 3
+         brow(1:9) = bmat_linbend( &
+            & xyz(:, internals%atoms(1, ic)) - xyz(:, internals%atoms(2, ic)), &
+            & xyz(:, internals%atoms(3, ic)) - xyz(:, internals%atoms(2, ic)), &
+            & internals%frame(:, ic))
       case (coord_dihedral)
          ncoord = 4
          brow = reshape(bmat_torsion(xyz(:, internals%atoms(:, ic))), [12])

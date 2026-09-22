@@ -38,15 +38,38 @@ module xtb_modelhessian_internal
    !> Base for model Hessians defined by redundant internal coordinates
    type, public, abstract, extends(TModelHessian) :: TInternalModelHessianBase
       private
-      real(wp) :: kr, kf, kt, ko, kd, kq, rcut, s6
+      !> Bond-stretching force constant
+      real(wp) :: kr
+      !> Angle-bending force constant
+      real(wp) :: kf
+      !> Torsional force constant
+      real(wp) :: kt
+      !> Out-of-plane force constant
+      real(wp) :: ko
+      !> Distance-dependent scaling factor
+      real(wp) :: kd
+      !> Charge-dependent force constant
+      real(wp) :: kq
+      !> Pair distance cutoff
+      real(wp) :: rcut
+      !> Dispersion scaling factor
+      real(wp) :: s6
    contains
+      !> Initialize model-Hessian configuration
       procedure, public :: init => init_internal_model_hessian
+      !> Compute packed model Hessian
       procedure, public :: compute_packed
+      !> Add bond-stretching contributions
       procedure, private :: stretch
+      !> Add angle-bending contributions
       procedure, private :: bend
+      !> Add torsional contributions
       procedure, private :: torsion
+      !> Add out-of-plane contributions
       procedure, private :: outofplane
+      !> Add charge-response contribution
       procedure, private :: add_charge
+      !> Evaluate pair-distance decay factor
       procedure(pair_factor_interface), deferred, public :: pair_factor
    end type TInternalModelHessianBase
 
@@ -137,8 +160,12 @@ pure subroutine stretch(self, xyz, n, hess, at, kr, kd, s6, lcutoff, rcut)
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
    !> Atomic numbers
    integer, intent(in) :: at(n)
-   !> Stretching force constant and distance/dispersion scaling factors
-   real(wp), intent(in) :: kr, kd, s6
+   !> Bond-stretching force constant
+   real(wp), intent(in) :: kr
+   !> Distance-dependent scaling factor
+   real(wp), intent(in) :: kd
+   !> Dispersion scaling factor
+   real(wp), intent(in) :: s6
    !> Pair cutoff mask updated in place
    logical, intent(inout) :: lcutoff(n, n)
    !> Distance cutoff
@@ -180,10 +207,15 @@ pure subroutine bend(self, xyz, n, hess, at, force_constant, kd, lcutoff)
    !> Pair cutoff mask
    logical, intent(in) :: lcutoff(n, n)
 
-   real(wp), parameter :: rzero = 1.0e-10_wp
+   ! Minimum arm and outer-pair length (Bohr).
+   real(wp), parameter :: arm_pair_length_tol = 1.0e-10_wp
+   ! Linear-bend sine threshold (dimensionless).
+   real(wp), parameter :: linear_sine_tol = 1.0e-10_wp
+   ! Same-ray cosine proximity threshold (dimensionless).
+   real(wp), parameter :: same_ray_cosine_tol = 1.0e-12_wp
    integer :: i, j, m
    real(wp) :: vec_ij(3), vec_mi(3), vec_mj(3), cross_vec(3)
-   real(wp) :: rmi2, rmi, rmj2, rmj, rij2, rrij, gij, rl2, rl
+   real(wp) :: rmi2, rmi, rmj2, rmj, rij2, rrij, gij
    real(wp) :: sinphi, cosphi, bmat9(9), evec1(3), evec2(3)
 
    do m = 1, n
@@ -192,30 +224,26 @@ pure subroutine bend(self, xyz, n, hess, at, force_constant, kd, lcutoff)
          vec_mi = xyz(:, i) - xyz(:, m)
          rmi2 = dot_product(vec_mi, vec_mi)
          rmi = sqrt(rmi2)
+         if (rmi <= arm_pair_length_tol) cycle
          do j = 1, i - 1
             if (j == m) cycle
             if (lcutoff(j, i) .or. lcutoff(j, m)) cycle
             vec_mj = xyz(:, j) - xyz(:, m)
             rmj2 = dot_product(vec_mj, vec_mj)
             rmj = sqrt(rmj2)
-            cosphi = dot_product(vec_mi, vec_mj) / (rmi*rmj)
-            if (abs(cosphi - 1.0_wp) < 1.0e-12_wp) cycle
+            if (rmj <= arm_pair_length_tol) cycle
             vec_ij = xyz(:, j) - xyz(:, i)
             rij2 = dot_product(vec_ij, vec_ij)
             rrij = sqrt(rij2)
+            if (rrij <= arm_pair_length_tol) cycle
+            cosphi = dot_product(vec_mi, vec_mj) / (rmi*rmj)
+            if (abs(cosphi - 1.0_wp) < same_ray_cosine_tol) cycle
             gij = force_constant &
                * self%pair_factor(at(m), at(i), rmi2, 0.5_wp*kd, .false.) &
                * self%pair_factor(at(m), at(j), rmj2, 0.5_wp*kd, .false.)
-            cross_vec = crossProd(vec_mi, vec_mj)
-            rl2 = dot_product(cross_vec, cross_vec)
-            if (rl2 < 1.0e-14_wp) then
-               rl = 0.0_wp
-            else
-               rl = sqrt(rl2)
-            end if
-            if (rmj <= rzero .or. rmi <= rzero .or. rrij <= rzero) cycle
-            sinphi = rl / (rmj*rmi)
-            if (sinphi > rzero) then
+            cross_vec = crossProd(vec_mi/rmi, vec_mj/rmj)
+            sinphi = norm2(cross_vec)
+            if (sinphi > linear_sine_tol) then
                bmat9 = bmat_angle(vec_mi, vec_mj)
                call bmat_accum_packed(n, hess, [i, m, j], bmat9, gij)
             else

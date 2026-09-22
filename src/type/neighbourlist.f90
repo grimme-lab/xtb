@@ -168,6 +168,10 @@ subroutine generate_covalent(self, at, coords0)
    real(wp) :: r2, dist2
 
    nAtom = size(at)
+   if (nAtom == 0) then
+      self%cutoff = 0.0_wp
+      return
+   end if
 
    ! Reset the list to the canonical central-cell half-list
    self%neighs(:) = 0

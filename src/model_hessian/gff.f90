@@ -299,9 +299,23 @@ end subroutine get_pair_hessian
 
 !> Evaluate a diagonal pair-Hessian element
 pure subroutine getqqxx(dx, qq, cdisp, r, r2, r3, damped_r, r0_squared, d2)
-   !> Cartesian separation component, Coulomb and dispersion pair factors,
-   !> and pair distances
-   real(wp), intent(in) :: dx, qq, cdisp, r, r2, r3, damped_r, r0_squared
+   !> Cartesian separation component
+   real(wp), intent(in) :: dx
+   !> Coulomb pair factor
+   real(wp), intent(in) :: qq
+   !> Dispersion pair factor
+   real(wp), intent(in) :: cdisp
+   !> Pair distance
+   real(wp), intent(in) :: r
+   !> Squared pair distance
+   real(wp), intent(in) :: r2
+   !> Cubed pair distance
+   real(wp), intent(in) :: r3
+   !> Damped pair distance
+   real(wp), intent(in) :: damped_r
+   !> Squared D3 reference distance
+   real(wp), intent(in) :: r0_squared
+   !> Diagonal second derivative
    real(wp), intent(out) :: d2
 
    real(wp) :: damped_r2, dx2, denominator, r6, r8
@@ -321,9 +335,24 @@ end subroutine getqqxx
 !>
 !> `r` is kept for a shared argument list with `getqqxx` and is unused here.
 pure subroutine getqqxy(dx, dy, qq, cdisp, r, r2, r3, damped_r, r0_squared, d2)
-   !> Cartesian separation components, Coulomb and dispersion pair factors,
-   !> and pair distances
-   real(wp), intent(in) :: dx, dy, qq, cdisp, r, r2, r3, damped_r, r0_squared
+   !> First Cartesian separation component
+   real(wp), intent(in) :: dx
+   !> Second Cartesian separation component
+   real(wp), intent(in) :: dy
+   !> Coulomb pair factor
+   real(wp), intent(in) :: qq
+   !> Dispersion pair factor
+   real(wp), intent(in) :: cdisp
+   !> Pair distance, unused
+   real(wp), intent(in) :: r
+   !> Squared pair distance
+   real(wp), intent(in) :: r2
+   !> Cubed pair distance
+   real(wp), intent(in) :: r3
+   !> Damped pair distance
+   real(wp), intent(in) :: damped_r
+   !> Squared D3 reference distance
+   real(wp), intent(in) :: r0_squared
    !> Mixed second derivative
    real(wp), intent(out) :: d2
 

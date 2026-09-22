@@ -37,6 +37,7 @@ module xtb_modelhessian_type
       procedure(model_hessian_packed), deferred, public :: compute_packed
       !> Compute dense symmetric Hessian
       procedure, private :: compute_dense
+      !> Compute packed or dense Hessian
       generic, public :: compute => compute_packed, compute_dense
    end type TModelHessian
 

@@ -275,7 +275,7 @@ subroutine lr_loop(env, ndispl, g, hess_out, displdir, final_err)
    ! Local variables
    real(wp), allocatable :: resid(:, :), hcorr(:, :), tmp(:, :)
    real(wp), allocatable :: gscale(:), gscaled(:, :), xscaled(:, :)
-   real(wp) :: rnorm, rnorm_prev, gnorm, relres
+   real(wp) :: rnorm, rnorm_prev, gnorm
    integer :: it, N, j
 
    N = size(g, 1)
@@ -288,10 +288,9 @@ subroutine lr_loop(env, ndispl, g, hess_out, displdir, final_err)
       xscaled(:, j) = displdir(:, j) * gscale(j)
    end do
 
-   allocate(hcorr(N, N), tmp(N, N))
+   allocate(hcorr(N, N), tmp(N, ndispl))
    gnorm = norm2(gscaled)
    rnorm_prev = huge(1.0_wp)
-   final_err = huge(1.0_wp)
 
    ! Iterative Correction Loop
    loop_lr: do it = 1, maxiter_LR
@@ -300,12 +299,6 @@ subroutine lr_loop(env, ndispl, g, hess_out, displdir, final_err)
       resid = gscaled(:, :ndispl) - tmp
 
       rnorm = norm2(resid)
-      if (gnorm > 0.0_wp) then
-         relres = rnorm / gnorm
-      else
-         relres = rnorm
-      end if
-      final_err = relres
 
       if (rnorm < thresh_LR) then
          exit loop_lr
@@ -319,6 +312,16 @@ subroutine lr_loop(env, ndispl, g, hess_out, displdir, final_err)
       hess_out = hess_out + hcorr
 
    end do loop_lr
+
+   call mctc_gemm(hess_out, xscaled(:, :ndispl), tmp)
+   rnorm = norm2(gscaled(:, :ndispl) - tmp)
+   if (gnorm > 0.0_wp) then
+      final_err = rnorm / gnorm
+   else if (rnorm == 0.0_wp) then
+      final_err = 0.0_wp
+   else
+      final_err = huge(1.0_wp)
+   end if
 
    if (it > maxiter_LR) then
       call env%warning("LR loop failed to converge", source)
