@@ -24,6 +24,7 @@ module xtb_scc_core
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
+   use xtb_solv_gbsa, only : TBorn
    use xtb_xtb_data
    use xtb_xtb_coulomb
    use xtb_xtb_dispersion
@@ -319,7 +320,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !! ------------------------------------------------------------------------
 !  anisotropic electrostatic
    type(TxTBMultipole), intent(in), optional :: aes
-   real(wp),intent(in)    :: xyz(3,n)
+   real(wp),intent(in)   :: xyz(3,n)
    real(wp), allocatable :: vs(:)
    real(wp), allocatable :: vd(:, :)
    real(wp), allocatable :: vq(:, :)
@@ -407,6 +408,11 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: converged
    logical  :: econverged
    logical  :: qconverged
+   ! Response correction
+   integer, parameter :: maxnewton = 3
+   integer :: nnewton
+   logical :: use_newton, newton_ok
+   real(wp), allocatable :: newton_step(:), newton_base(:)
 
    allocate(S_factorized(ndim, ndim), source = 0.0_wp )
    S_factorized = S
@@ -417,6 +423,18 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    ! number of iterations for this iterator
    thisiter = maxiter - jter
 
+   ! Setup response solver to accelerate SCC when qconv is tiny.
+   nnewton = 0
+   use_newton = qconv <= 1.0e-5_wp
+   if (allocated(solvation)) then
+      select type(solvation)
+      type is (TBorn)
+         use_newton = use_newton .or. solvation%alpbet > 0.0_wp
+      class default
+         use_newton = .false.
+      end select
+   end if
+
    damp = damp0
    if (present(aes)) then
       nbr = nshell + 9*n
@@ -425,6 +443,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       nbr = nshell
    end if
 !  broyden data storage and init
+   allocate(newton_step(nbr), newton_base(nbr))
    allocate( df(thisiter,nbr),u(thisiter,nbr),a(thisiter,thisiter), &
    &         dq(nbr),dqlast(nbr),qlast_in(nbr),omega(thisiter), &
    &         q_in(nbr),atomicShift(n), source = 0.0_wp )
@@ -605,7 +624,30 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
       ! Broyden mixing
       omegap=0.0_wp
+
+      newton_ok = .false.
+      newton_base(:nbr) = q_in(:nbr)
+      if (use_newton .and. nnewton < maxnewton .and. rmsq < 1.0e-3_wp .and. .not.qconverged) then
+         call scc_coupled_newton(env, minpr, &
+                                 n, nbr, nshell, nmat, ndp, nqp, &
+                                 q_in, dq, &
+                                 et, &
+                                 focc, focca, foccb, &
+                                 emo, &
+                                 newton_step(:nbr), newton_ok, ies, aes, solvation, &
+                                 xyz, H, S, &
+                                 dpint, qpint, &
+                                 matlist, mdlst, mqlst, &
+                                 at, ash, aoat2, ao2sh)
+      end if
+
       call broyden(nbr,q_in,qlast_in,dq,dqlast,iter,thisiter,broydamp,omega,df,u,a)
+
+      if (newton_ok) then
+         q_in = newton_base(:nbr) + newton_step(:nbr)
+         nnewton = nnewton + 1
+      end if
+
       qsh(1:nshell)=q_in(1:nshell)
       if (present(aes)) then
          k=nshell
@@ -639,6 +681,309 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
 end subroutine scc
 
+! Solve (I - d q_out / d q_in) delta_q = scc_residual.
+subroutine scc_coupled_newton(env, minpr, &
+                              nat, nbr, nshell, nmat, ndp, nqp, &
+                              q0, residual, &
+                              et, &
+                              focc, focca, foccb, &
+                              emo, &
+                              step, ok, &
+                              ies, aes, solvation, &
+                              xyz, H, S, &
+                              dpint, qpint, &
+                              matlist, mdlst, mqlst, &
+                              at, ash, aoat2, ao2sh)
+   use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
+   use xtb_mctc_blas, only : mctc_dot, mctc_gemv
+   use xtb_mctc_constants, only : kB
+   use xtb_mctc_convert, only : autoev
+
+   type(TEnvironment), intent(inout) :: env
+   logical,  intent(in)  :: minpr
+   integer,  intent(in)  :: nat, nbr, nshell, nmat, ndp, nqp
+   real(wp), intent(in)  :: q0(:), residual(:)
+   real(wp), intent(in)  :: et
+   real(wp), intent(in)  :: focc(:), focca(:), foccb(:)
+   real(wp), intent(in)  :: emo(:)
+   real(wp), intent(out) :: step(:)
+   logical,  intent(out) :: ok
+   ! bypass variables
+   type(TxTBCoulomb),   intent(inout)              :: ies
+   type(TxTBMultipole), intent(in),    optional    :: aes
+   class(TSolvation), target, intent(inout), allocatable :: solvation
+   real(wp), intent(in)  :: xyz(:,:), H(:,:), S(:,:)
+   real(wp), intent(in)  :: dpint(:,:,:), qpint(:,:,:)
+   integer,  intent(in)  :: matlist(:,:), mdlst(:,:), mqlst(:,:)
+   integer,  intent(in)  :: at(:), ash(:), aoat2(:), ao2sh(:)
+   ! parameter
+   integer, parameter :: maxk = 20
+   ! local variables
+   real(wp) :: beta, normw0, normw, gap, tolerance, tmp
+   integer :: col, row, mo, mj, nk, nocc, ndim
+   ! dynamic memory
+   real(wp), allocatable :: v(:,:), hh(:,:), cs(:), sn(:), rhs(:), y(:), w(:)
+   real(wp), allocatable :: fdiv(:,:), fprime(:,:)
+   real(wp), allocatable :: hsp(:,:), val(:)
+
+   ok = .false.
+   step = 0.0_wp
+
+   beta = norm2(residual)
+   if (beta == 0.0_wp) return
+
+   nocc = count(focc > 1.0e-14_wp)
+   ndim = size(focc, 1)
+
+   allocate(v(nbr,maxk+1), &
+            hh(maxk+1,maxk), &
+            cs(maxk), sn(maxk), &
+            rhs(maxk+1), &
+            y(maxk), &
+            w(nbr), &
+            fdiv(ndim,nocc), &
+            fprime(ndim,2), &
+            hsp(ndim,ndim), &
+            val(maxk+1), &
+            source = 0.0_8)
+
+   if (et > 0.1_wp) then
+      fprime(:,1) = -focca * (1.0_wp - focca) / (kB*autoev*et)
+      fprime(:,2) = -foccb * (1.0_wp - foccb) / (kB*autoev*et)
+   end if
+   do mj = 1, nocc
+      do mo = 1, ndim
+         gap = emo(mo)-emo(mj)
+         if (abs(gap) > 1.0e-8_wp) then
+            fdiv(mo,mj) = (focc(mo) - focc(mj)) / gap
+         else
+            fdiv(mo,mj) = 0.5_wp * sum(fprime(mo,:) + fprime(mj,:))
+         end if
+      end do
+   end do
+
+   ! tighten inexact Newton solve near fixed point
+   tolerance = max(1.0e-4_wp, min(1.0e-2_wp, sqrt(beta))) * beta
+
+   rhs(1) = beta
+   v(:,1) = residual / beta
+
+   do col = 1, maxk
+      call scc_jvp(env, ies, aes, solvation, &
+                   nat, nbr, nshell, nmat, ndp, nqp, &
+                   q0, v(:,col), &
+                   fdiv, fprime, &
+                   et, focc, focca, foccb, emo, &
+                   xyz, H, S, &
+                   dpint, qpint, &
+                   matlist, mdlst, mqlst, &
+                   at, ash, aoat2, ao2sh, &
+                   w) ! long call
+
+      ! DGKS correction
+      normw0 = norm2(w)
+
+      call mctc_gemv(v, w, val, alpha=1.0_wp, beta=0.0_wp, trans='T')  ! val = V^T w
+      hh(1:col,col) = hh(1:col,col) + val(1:col)
+      call mctc_gemv(v, val, w, alpha=-1.0_wp, beta=1.0_wp, trans='N')  ! w = w - V val
+      normw = norm2(w)
+
+      if (normw < 0.7071_wp * normw0) then
+         call mctc_gemv(v, w, val, alpha=1.0_wp, beta=0.0_wp, trans='T')  ! val = V^T w
+         hh(1:col,col) = hh(1:col,col) + val(1:col)
+         call mctc_gemv(v, val, w, alpha=-1.0_wp, beta=1.0_wp, trans='N')  ! w = w - V val
+         normw = norm2(w)
+      end if
+
+      ! rotation
+      hh(col+1,col) = normw
+      if (normw > 1.0e-14_wp) then
+        v(:,col+1) = w / normw
+      end if
+      do row = 1, col-1
+         tmp = cs(row) * hh(row,col) + sn(row) * hh(row+1,col)
+         hh(row+1,col) = -sn(row) * hh(row,col) + cs(row) * hh(row+1,col)
+         hh(row,col) = tmp
+      end do
+      tmp = hypot(hh(col,col), hh(col+1,col))
+      if (tmp < 1.0e-14_wp) return
+
+      cs(col) = hh(col,col) / tmp
+      sn(col) = hh(col+1,col) / tmp
+      hh(col,col) = tmp
+      hh(col+1,col) = 0.0_wp
+      rhs(col+1) = -sn(col) * rhs(col)
+      rhs(col) = cs(col) * rhs(col)
+      if (abs(rhs(col+1)) < tolerance .or. normw < 1.0e-14_wp) exit
+   end do
+
+   nk = min(col, maxk)
+   if (abs(rhs(nk+1)) > tolerance) return
+   y(:nk) = rhs(:nk)
+   do row = nk, 1, -1
+      y(row) = (y(row) - dot_product(hh(row,row+1:nk), y(row+1:nk))) / hh(row,row)
+   end do
+   call mctc_gemv(v(:,:nk), y(:nk), step)
+
+   ok = all(ieee_is_finite(step)) .and. norm2(step) < 100.0_wp*beta
+   if (minpr) write(env%unit, '(a,i4,a,es10.2)') ' Newton response: ', nk, &
+      & ' products, relative residual ', abs(rhs(nk+1)) / beta
+
+end subroutine scc_coupled_newton
+
+! Apply the SCC residual Jacobian
+subroutine scc_jvp(env, ies, aes, solvation, &
+                   nat, nbr, nshell, nmat, ndp, nqp, &
+                   q0, direction, &
+                   fdiv, fprime, &
+                   et, focc, focca, foccb, emo, &
+                   xyz, H, S, &
+                   dpint, qpint, &
+                   matlist, mdlst, mqlst, &
+                   at, ash, aoat2, ao2sh, &
+                   jv)
+   use xtb_aespot, only : gfn2broyden_out, gfn2broyden_save, mmompop, setvsdq
+   use xtb_mctc_blas, only : mctc_dot, mctc_gemv
+   type(TEnvironment),  intent(inout)              :: env
+   type(TxTBCoulomb),   intent(inout)              :: ies
+   type(TxTBMultipole), intent(in),    optional    :: aes
+   class(TSolvation),   intent(inout), allocatable :: solvation
+   integer,  intent(in)  :: nat, nbr, nshell, nmat, ndp, nqp
+   real(wp), intent(in)  :: q0(:), direction(:)
+   real(wp), intent(in)  :: fdiv(:,:), fprime(:,:)
+   real(wp), intent(in)  :: et, focc(:), focca(:), foccb(:), emo(:)
+   real(wp), intent(in)  :: xyz(:,:), H(:,:), S(:,:)
+   real(wp), intent(in)  :: dpint(:,:,:), qpint(:,:,:)
+   integer, intent(in)   :: matlist(:,:), mdlst(:,:), mqlst(:,:)
+   integer, intent(in)   :: at(:), ash(:), aoat2(:), ao2sh(:)
+   real(wp), intent(out) :: jv(:)
+   ! local variables
+   integer :: nocc, nvirt, ndim
+   real(wp) :: mu, weight, gap
+   integer :: mo, mj, spin, offset
+   logical :: ov_response
+   ! dynamic memory
+   real(wp), allocatable :: dh(:,:), dm(:,:), scratch(:,:), work(:)
+   real(wp), allocatable :: qat0(:), dqat(:), ashift(:), sshift(:)
+   real(wp), allocatable :: ddip(:,:), dquad(:,:), ds(:), dd(:,:), dqq(:,:)
+   real(wp), allocatable :: hzero(:), de(:)
+
+   nocc = count(focc > 1.0e-14_wp)
+   ndim = size(focc, 1)
+   nvirt = ndim - nocc
+
+   allocate(ddip(3,nat), dquad(6,nat), &
+            ds(nat), dd(3,nat), dqq(6,nat), &
+            hzero(ndim*(ndim+1)/2), de(ndim), &
+            dh(ndim,ndim), &
+            dm(ndim,nocc), &
+            scratch(ndim,nocc), &
+            work(ndim), &
+            qat0(nat), dqat(nat), &
+            ashift(nat), sshift(nshell), &
+            source = 0.0_wp)
+
+   call qsh2qat(ash, q0(:nshell), qat0)
+   call qsh2qat(ash, direction(:nshell), dqat)
+   call mctc_symv(ies%jmat, direction(:nshell), sshift)
+   if (allocated(ies%thirdOrder%atomicGam)) then
+      ashift = 2.0_wp * ies%thirdOrder%atomicGam * qat0 * dqat
+   end if
+   if (allocated(ies%thirdOrder%shellGam)) then
+      sshift = sshift + 2.0_wp * ies%thirdOrder%shellGam * q0(:nshell) * direction(:nshell)
+   end if
+   if (allocated(solvation)) then
+      call solvation%addShift(env, dqat, direction(:nshell), ashift, sshift)
+   end if
+
+   ! TODO: include self-consistent D4 contribution
+
+   call addToShellShift(ash, ashift, sshift)
+
+   if (present(aes)) then
+      offset = nshell
+      call gfn2broyden_out(nat, offset, nbr, direction, ddip, dquad)
+      call setvsdq(aes, nat, at, xyz, dqat, ddip, dquad, aes%gab3, aes%gab5, ds, dd, dqq)
+      call buildIsoAnisotropicH1(nat, at, ndim, nshell, nmat, ndp, nqp, matlist, mdlst, mqlst, &
+                                 dh, hzero, S, sshift, dpint, qpint, ds, dd, dqq, aoat2, ao2sh)
+   else
+      call buildIsotropicH1(nat, at, ndim, nshell, nmat, matlist, dh, hzero, S, sshift, aoat2, ao2sh)
+   end if
+
+   call mctc_gemm(dh, H(:,:nocc), scratch)
+
+   ov_response = et <= 0.1_wp
+   if (ov_response) then
+      ! response at zero temperature:
+      !   dP = C_v [f_v-f_o]/(e_v-e_o) (C_v^T dH C_o) C_o^T + response_H.c.
+      call mctc_gemm(H(:,nocc+1:), scratch, dm(:nvirt,:), transa='t')
+
+      do mo = 1, nvirt
+         do mj = 1, nocc
+            gap = emo(nocc+mo) - emo(mj)
+            if (abs(gap) > 1.0e-8_wp) then
+               dm(mo,mj) = dm(mo,mj) * (focc(nocc+mo) - focc(mj)) / gap
+            else
+               dm(mo,mj) = 0.0_wp
+            end if
+         end do
+      end do
+
+      call mctc_gemm(H(:,nocc+1:), dm(:nvirt,:), scratch)
+      call mctc_gemm(scratch, H(:,:nocc), dh, transb='t')
+   else
+      ! Finite-temperature response
+      call mctc_gemm(H, scratch, dm, transa='t')
+
+      de = 0.0_wp
+      do mo = 1, ndim
+         call mctc_gemv(dh, H(:,mo), work)
+         de(mo) = mctc_dot(H(:,mo), work)
+      end do
+      do mo = 1, ndim
+         do mj = 1, nocc
+            gap = emo(mo)-emo(mj)
+            if (mo /= mj .and. abs(gap) > 1.0e-8_wp) then
+               dm(mo,mj) = dm(mo,mj) * (focca(mo)-focca(mj) + &
+                                        foccb(mo)-foccb(mj)) / gap
+            else
+               dm(mo,mj) = 0.0_wp
+            end if
+         end do
+      end do
+      dm(:nocc,:) = 0.5_wp * dm(:nocc,:)
+
+      do spin = 1, 2
+         weight = sum(fprime(:,spin))
+         if (abs(weight) < 1.0e-14_wp) cycle
+         mu = mctc_dot(fprime(:,spin), de) / weight
+         do mo = 1, nocc
+            dm(mo,mo) = dm(mo,mo) + 0.5_wp * fprime(mo,spin) * (de(mo) - mu)
+         end do
+      end do
+
+      call mctc_gemm(H, dm, scratch)
+      call mctc_gemm(scratch, H(:,:nocc), dh, transb='t')
+   end if
+
+   do mj = 1, ndim
+      dh(mj,mj) = 2.0_wp * dh(mj,mj)
+      do mo = 1, mj-1
+         dh(mo,mj) = dh(mo,mj) + dh(mj,mo)
+         dh(mj,mo) = dh(mo,mj)
+      enddo
+   enddo
+   call mpopsh(nat, ndim, nshell, ao2sh, S, dh, jv)
+   jv = -jv
+
+   if (present(aes)) then
+      call mmompop(nat, ndim, aoat2, xyz, dh, S, dpint, qpint, ddip, dquad)
+      offset = nshell
+      call gfn2broyden_save(nat, offset, nbr, ddip, dquad, jv)
+   end if
+
+   jv = direction - jv
+end subroutine scc_jvp
 
 !> H0 off-diag scaling
 subroutine h0scal(hData,il,jl,izp,jzp,valaoi,valaoj,km)
