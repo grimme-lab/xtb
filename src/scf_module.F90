@@ -302,6 +302,12 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          return
       end if
       call solvation%update(env, mol%at, mol%xyz)
+      select type(solvation)
+      type is (TBorn)
+         ! Tight charge convergence keeps ALPB/GBSA gradients independent of restart history.
+         qconv = min(qconv, 1.0e-8_wp)
+      class default
+      end select
       allocate(dcm5a(3,mol%n,mol%n))
       gborn=0._wp
       gsasa=0._wp
