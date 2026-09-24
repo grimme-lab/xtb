@@ -63,6 +63,7 @@ module xtb_compliance
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_math, only : crossProd
    use mctc_env, only : error_type, fatal_error
+   use xtb_type_environment, only : TEnvironment, init_environment => init
    use xtb_mctc_convert, only : autoamu
    use xtb_type_molecule, only : TMolecule
    use xtb_type_neighbourlist, only : TNeighbourList, init
@@ -72,7 +73,7 @@ module xtb_compliance
    use xtb_internals_redundant, only : redundant_type, init
    use xtb_bmatrix, only : get_bmatrix
    use xtb_mctc_blas, only : mctc_gemm
-   use xtb_mctc_lapack, only : lapack_syev
+   use xtb_mctc_lapack, only : mctc_syev
    implicit none
    private
 
@@ -442,13 +443,15 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
    !> Error information.
    type(error_type), allocatable, intent(out) :: error
 
-   integer :: i, j, ndim, lwork, info, nrigid, nvib, rank_h
+   integer :: i, j, ndim, nrigid, nvib, rank_h
    real(wp) :: tol_h, normq, center(3), rotation_scale
    ! Relative to the largest rotation norm, sqrt(epsilon) makes the rank test size-independent.
    real(wp), parameter :: rigid_basis_tol = sqrt(epsilon(1.0_wp))
    real(wp), allocatable :: Hp(:, :), Q(:, :), W(:), Z(:, :), ZD(:, :), &
-      & T1(:, :), T2(:, :), work(:)
-   character(len=64) :: message
+      & T1(:, :), T2(:, :)
+   type(TEnvironment) :: env
+   logical :: failed
+   character(len=:), allocatable :: message
 
    if (nint == 0) then
       C = 0.0_wp
@@ -502,16 +505,13 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
    Hp = 0.5_wp * (Hp + transpose(Hp))
 
    ! Hp = V W V^T, overwriting Hp with V
-   lwork = -1
-   allocate(work(1))
-   call lapack_syev("V", "U", ndim, Hp, ndim, W, work, lwork, info)
-   lwork = int(work(1))
-   deallocate(work)
-   allocate(work(lwork))
-   call lapack_syev("V", "U", ndim, Hp, ndim, W, work, lwork, info)
-   if (info /= 0) then
-      write(message, "(A,I0)") "compute_compliance: DSYEV(H) info=", info
-      call fatal_error(error, trim(message))
+   call init_environment(env)
+   env%unit = unit
+   call mctc_syev(env, Hp, W, jobz="V", uplo="U")
+   call env%check(failed)
+   if (failed) then
+      call env%getLog(message)
+      call fatal_error(error, message)
       return
    end if
 
@@ -533,7 +533,7 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
    end do
    call mctc_gemm(Z, ZD, C, transb="T", alpha=1.0_wp, beta=0.0_wp)
    C = 0.5_wp * (C + transpose(C))
-   deallocate(Hp, Q, W, Z, ZD, T1, T2, work)
+   deallocate(Hp, Q, W, Z, ZD, T1, T2)
 
 end subroutine compute_compliance
 
