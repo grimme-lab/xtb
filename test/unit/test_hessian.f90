@@ -25,7 +25,6 @@
 !> differences.
 module test_hessian
    use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
-   use mctc_env, only : mctc_error_type => error_type
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_mctc_convert, only : autoaa
@@ -606,7 +605,6 @@ end subroutine test_o1numhess_linear_h2o_gfn2
 subroutine test_compliance(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
-   type(mctc_error_type), allocatable :: mctc_error
 
    integer, parameter :: nat = 2
    integer, parameter :: ndim = 3 * nat
@@ -617,13 +615,17 @@ subroutine test_compliance(error)
       & 0.0_wp, 0.0_wp, 0.0_wp, &
       & 2.0_wp, 0.0_wp, 0.0_wp], shape(xyz))
 
+   type(TEnvironment) :: env
    type(TNeighbourList) :: neigh_list
    type(graph_type) :: graph
    type(redundant_type) :: internals
    integer :: i, j
+   logical :: failed
    real(wp), allocatable :: bmat(:, :), compliance(:, :), hessian(:, :)
    real(wp) :: redundant_bmat(2, ndim), redundant_compliance(2, 2)
 
+   call init(env)
+   env%unit = 0
    neigh_list = build_neigh_list(nat, pairs)
    call init(graph, neigh_list)
    call init(internals, graph, xyz)
@@ -640,9 +642,10 @@ subroutine test_compliance(error)
       end do
    end do
 
-   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, mctc_error)
-   if (allocated(mctc_error)) then
-      call test_failed(error, mctc_error%message)
+   call compute_compliance(env, hessian, bmat, xyz, nat, internals%ncoords, compliance)
+   call env%check(failed)
+   if (failed) then
+      call test_failed(error, "Compliance calculation failed")
       return
    end if
    call check(error, bmat(1, 1), -1.0_wp, thr=thr)
@@ -654,9 +657,10 @@ subroutine test_compliance(error)
 
    redundant_bmat(1, :) = bmat(1, :)
    redundant_bmat(2, :) = bmat(1, :)
-   call compute_compliance(0, hessian, redundant_bmat, xyz, nat, 2, redundant_compliance, mctc_error)
-   if (allocated(mctc_error)) then
-      call test_failed(error, mctc_error%message)
+   call compute_compliance(env, hessian, redundant_bmat, xyz, nat, 2, redundant_compliance)
+   call env%check(failed)
+   if (failed) then
+      call test_failed(error, "Compliance calculation failed")
       return
    end if
    call check(error, redundant_compliance(1, 1), 1.0_wp/force_constant, thr=thr)
@@ -674,7 +678,6 @@ end subroutine test_compliance
 subroutine test_compliance_water(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
-   type(mctc_error_type), allocatable :: mctc_error
 
    integer, parameter :: nat = 3
    integer, parameter :: ndim = 3 * nat
@@ -706,12 +709,14 @@ subroutine test_compliance_water(error)
    type(graph_type) :: graph
    type(redundant_type) :: internals
    integer :: i, j
+   logical :: failed
    integer, allocatable :: list(:)
    real(wp) :: energy, sigma(3, 3), hl_gap
    real(wp), allocatable :: gradient(:, :), dipgrad(:, :), hessian(:, :)
    real(wp), allocatable :: bmat(:, :), compliance(:, :)
 
    call init(env)
+   env%unit = 0
    call init(mol, sym, xyz)
 
    allocate(gradient(3, nat), dipgrad(3, ndim), hessian(ndim, ndim))
@@ -737,9 +742,10 @@ subroutine test_compliance_water(error)
 
    allocate(bmat(internals%ncoords, ndim), compliance(internals%ncoords, internals%ncoords))
    call get_bmatrix(internals, xyz, bmat)
-   call compute_compliance(0, hessian, bmat, xyz, nat, internals%ncoords, compliance, mctc_error)
-   if (allocated(mctc_error)) then
-      call test_failed(error, mctc_error%message)
+   call compute_compliance(env, hessian, bmat, xyz, nat, internals%ncoords, compliance)
+   call env%check(failed)
+   if (failed) then
+      call test_failed(error, "Compliance calculation failed")
       return
    end if
 
@@ -829,7 +835,6 @@ end subroutine test_redundant_bmatrix_fd
 subroutine test_linear_chain_compliance(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
-   type(mctc_error_type), allocatable :: mctc_error
 
    integer, parameter :: nat = 4
    integer, parameter :: ndim = 3 * nat
@@ -842,13 +847,17 @@ subroutine test_linear_chain_compliance(error)
       & 3.0_wp, 0.0_wp, 0.0_wp], shape(xyz))
    real(wp), parameter :: thr = 1.0e-9_wp
 
+   type(TEnvironment) :: env
    type(TNeighbourList) :: neigh_list
    type(graph_type) :: graph
    type(redundant_type) :: internals
    integer :: i, j
+   logical :: failed
    real(wp) :: expected_bmat(ncoord, ndim), hessian(ndim, ndim)
    real(wp), allocatable :: bmat(:, :), compliance(:, :)
 
+   call init(env)
+   env%unit = 0
    neigh_list = build_neigh_list(nat, pairs)
    call init(graph, neigh_list)
    call init(internals, graph, xyz)
@@ -878,9 +887,10 @@ subroutine test_linear_chain_compliance(error)
 
    allocate(bmat(ncoord, ndim), compliance(ncoord, ncoord))
    call get_bmatrix(internals, xyz, bmat)
-   call compute_compliance(0, hessian, bmat, xyz, nat, ncoord, compliance, mctc_error)
-   if (allocated(mctc_error)) then
-      call test_failed(error, mctc_error%message)
+   call compute_compliance(env, hessian, bmat, xyz, nat, ncoord, compliance)
+   call env%check(failed)
+   if (failed) then
+      call test_failed(error, "Compliance calculation failed")
       return
    end if
    do i = 1, ncoord
@@ -968,7 +978,6 @@ end subroutine test_near_linear_bmatrix_fd
 subroutine test_compliance_driver_redundant(error)
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
-   type(mctc_error_type), allocatable :: mctc_error
 
    integer, parameter :: nat3 = 3, nat2 = 2
    integer, parameter :: at3(nat3) = [8, 1, 1]
@@ -983,12 +992,14 @@ subroutine test_compliance_driver_redundant(error)
       & 0.0_wp, 0.0_wp, 0.0_wp, &
       & 10.0_wp, 0.0_wp, 0.0_wp], shape(xyz2))
 
+   type(TEnvironment) :: env
    type(TMolecule) :: mol3, mol2
    real(wp) :: hess3(3*nat3, 3*nat3), hess2(3*nat2, 3*nat2)
    integer :: unit, dat_unit, i, ios, nbond, nangle, nrows
-   logical :: zero_report
+   logical :: failed, zero_report
    character(256) :: line
 
+   call init(env)
    hess3 = 0.0_wp
    do i = 1, 3*nat3
       hess3(i, i) = 1.0_wp
@@ -998,9 +1009,11 @@ subroutine test_compliance_driver_redundant(error)
    if (allocated(error)) return
    call init(mol3, at3, xyz3)
    mol3%atmass = mass3
-   call compliance_driver(unit, mol3, hess3, mctc_error)
-   if (allocated(mctc_error)) then
-      call test_failed(error, mctc_error%message)
+   env%unit = unit
+   call compliance_driver(env, mol3, hess3)
+   call env%check(failed)
+   if (failed) then
+      call test_failed(error, "Compliance calculation failed")
       return
    end if
    rewind(unit)
@@ -1034,9 +1047,11 @@ subroutine test_compliance_driver_redundant(error)
    if (allocated(error)) return
    call init(mol2, at2, xyz2)
    mol2%atmass = mass2
-   call compliance_driver(unit, mol2, hess2, mctc_error)
-   if (allocated(mctc_error)) then
-      call test_failed(error, mctc_error%message)
+   env%unit = unit
+   call compliance_driver(env, mol2, hess2)
+   call env%check(failed)
+   if (failed) then
+      call test_failed(error, "Compliance calculation failed")
       return
    end if
    rewind(unit)

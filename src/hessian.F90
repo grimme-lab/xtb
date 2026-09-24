@@ -33,7 +33,6 @@ contains
 subroutine numhess( &
       & env,mol,chk0,calc, &
       & egap,et,maxiter,etot,gr,sr,res)
-   use mctc_env, only : error_type
    use xtb_mctc_accuracy, only : wp
 !$ use omp_lib
 
@@ -79,7 +78,6 @@ subroutine numhess( &
    real(wp),intent(inout) :: gr(3,mol%n)
    real(wp),intent(inout) :: sr(3,3)
    type(freq_results),intent(out) :: res
-   type(error_type), allocatable :: error
 
    type(TRestart) :: chk
    type(scc_results) :: sccr,sccl
@@ -331,11 +329,9 @@ subroutine numhess( &
    endif
 
    if (mol%n > 1 .and. freezeset%n == 0 .and. .not. set%periodic) then
-      call compliance_driver(env%unit, mol, res%hess, error)
-      if (allocated(error)) then
-         call env%error(error%message, source)
-         return
-      end if
+      call compliance_driver(env, mol, res%hess)
+      call env%check(exitRun)
+      if (exitRun) return
    end if
 
    if (set%pr_dftbp_hessian_out) then

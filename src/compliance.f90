@@ -62,8 +62,7 @@ module xtb_compliance
    use, intrinsic :: ieee_arithmetic, only : ieee_positive_inf, ieee_value
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_math, only : crossProd
-   use mctc_env, only : error_type, fatal_error
-   use xtb_type_environment, only : TEnvironment, init_environment => init
+   use xtb_type_environment, only : TEnvironment
    use xtb_mctc_convert, only : autoamu
    use xtb_type_molecule, only : TMolecule
    use xtb_type_neighbourlist, only : TNeighbourList, init
@@ -84,29 +83,28 @@ contains
 !> Print compliance constants (bonds, angular rows, dihedrals) for the reference
 !> geometry and dump the full matrix to compliance.dat.  Near-linear bends are
 !> represented by two consecutive components in a fixed reference frame.
-subroutine compliance_driver(unit, mol, hess, error)
+subroutine compliance_driver(env, mol, hess)
+   !> Calculation environment carrying output unit and error state.
+   type(TEnvironment), intent(inout) :: env
    !> Molecular structure containing atom count, numbers, geometry, and masses.
    type(TMolecule), intent(in) :: mol
-   !> Formatted output unit.
-   integer, intent(in) :: unit
    !> Cartesian Hessian in Hartree/Bohr^2, dimension (3*mol%n, 3*mol%n).
    real(wp), intent(in) :: hess(3*mol%n, 3*mol%n)
-   !> Error information.
-   type(error_type), allocatable, intent(out) :: error
 
    type(TNeighbourList) :: neigh_list
    type(graph_type) :: graph
    type(redundant_type) :: internals
    real(wp), allocatable :: bmat(:, :), compl(:, :)
+   logical :: failed
 
-   write(unit, *)
-   write(unit, *) "             ======================================="
-   write(unit, *) "             |                                     |"
-   write(unit, *) "             |       compliance constants          |"
-   write(unit, *) "             |                                     |"
-   write(unit, *) "             ======================================="
-   write(unit, *)
-   write(unit, *) "Ref.: K. Brandhorst, J. Grunenberg, Chem. Soc. Rev. 37 (2008), 1558."
+   write(env%unit, *)
+   write(env%unit, *) "             ======================================="
+   write(env%unit, *) "             |                                     |"
+   write(env%unit, *) "             |       compliance constants          |"
+   write(env%unit, *) "             |                                     |"
+   write(env%unit, *) "             ======================================="
+   write(env%unit, *)
+   write(env%unit, *) "Ref.: K. Brandhorst, J. Grunenberg, Chem. Soc. Rev. 37 (2008), 1558."
 
    call init(neigh_list, mol%n)
    call neigh_list%generate_covalent(mol%at, mol%xyz)
@@ -115,9 +113,10 @@ subroutine compliance_driver(unit, mol, hess, error)
 
    allocate(bmat(internals%ncoords, 3*mol%n), compl(internals%ncoords, internals%ncoords))
    call get_bmatrix(internals, mol%xyz, bmat)
-   call compute_compliance(unit, hess, bmat, mol%xyz, mol%n, internals%ncoords, compl, error)
-   if (allocated(error)) return
-   call print_compl(unit, mol, internals, compl)
+   call compute_compliance(env, hess, bmat, mol%xyz, mol%n, internals%ncoords, compl)
+   call env%check(failed)
+   if (failed) return
+   call print_compl(env%unit, mol, internals, compl)
 
 end subroutine compliance_driver
 
@@ -425,9 +424,9 @@ end function reciprocal
 !> Fixed-frame near-linear bend pairs may contain rigid-rotation components;
 !> projection through H^+ removes those components, so one paired row can have
 !> zero response without implying a missing physical bend.
-subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
-   !> Formatted output unit for the rank diagnostic.
-   integer, intent(in) :: unit
+subroutine compute_compliance(env, H, B, xyz, nat, nint, C)
+   !> Calculation environment carrying output unit and error state.
+   type(TEnvironment), intent(inout) :: env
    !> Number of atoms.
    integer, intent(in) :: nat
    !> Number of internal coordinates, passed explicitly -- no hardcoded 3N-6.
@@ -440,8 +439,6 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
    real(wp), intent(in) :: xyz(3, nat)
    !> Compliance matrix, dimension (nint, nint), in Bohr^2/Hartree.
    real(wp), intent(out) :: C(nint, nint)
-   !> Error information.
-   type(error_type), allocatable, intent(out) :: error
 
    integer :: i, j, ndim, nrigid, nvib, rank_h
    real(wp) :: tol_h, normq, center(3), rotation_scale
@@ -449,9 +446,7 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
    real(wp), parameter :: rigid_basis_tol = sqrt(epsilon(1.0_wp))
    real(wp), allocatable :: Hp(:, :), Q(:, :), W(:), Z(:, :), ZD(:, :), &
       & T1(:, :), T2(:, :)
-   type(TEnvironment) :: env
    logical :: failed
-   character(len=:), allocatable :: message
 
    if (nint == 0) then
       C = 0.0_wp
@@ -505,15 +500,9 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
    Hp = 0.5_wp * (Hp + transpose(Hp))
 
    ! Hp = V W V^T, overwriting Hp with V
-   call init_environment(env)
-   env%unit = unit
    call mctc_syev(env, Hp, W, jobz="V", uplo="U")
    call env%check(failed)
-   if (failed) then
-      call env%getLog(message)
-      call fatal_error(error, message)
-      return
-   end if
+   if (failed) return
 
    ! Z = B V
    ! ZD = Z D, with D(i,i) = 1/W(i) for retained modes and zero otherwise
@@ -522,7 +511,7 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
    tol_h = real(ndim, wp) * epsilon(1.0_wp) * maxval(abs(W))
    rank_h = count(abs(W) > tol_h)
    if (rank_h /= nvib) then
-      write(unit, "(A,I0,A,I0)") &
+      write(env%unit, "(A,I0,A,I0)") &
          & "  Note: Hessian rank=", rank_h, " /= 3N-rigid=", nvib
    end if
    call mctc_gemm(B, Hp, Z, alpha=1.0_wp, beta=0.0_wp)
