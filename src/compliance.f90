@@ -71,7 +71,7 @@ module xtb_compliance
       & coord_angle, coord_linbend, coord_dihedral
    use xtb_internals_redundant, only : redundant_type, init
    use xtb_bmatrix, only : get_bmatrix
-   use xtb_mctc_blas, only : blas_gemm
+   use xtb_mctc_blas, only : mctc_gemm
    use xtb_mctc_lapack, only : lapack_syev
    implicit none
    private
@@ -495,10 +495,10 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
    Hp = 0.5_wp * (H + transpose(H))
 
    ! Hp = (1 - Q Q^T) Hp (1 - Q Q^T)
-   call blas_gemm("N", "N", ndim, 6, ndim, 1.0_wp, Hp, ndim, Q, ndim, 0.0_wp, T1, ndim)
-   call blas_gemm("N", "T", ndim, ndim, 6, -1.0_wp, T1, ndim, Q, ndim, 1.0_wp, Hp, ndim)
-   call blas_gemm("T", "N", 6, ndim, ndim, 1.0_wp, Q, ndim, Hp, ndim, 0.0_wp, T2, 6)
-   call blas_gemm("N", "N", ndim, ndim, 6, -1.0_wp, Q, ndim, T2, 6, 1.0_wp, Hp, ndim)
+   call mctc_gemm(Hp, Q, T1, alpha=1.0_wp, beta=0.0_wp)
+   call mctc_gemm(T1, Q, Hp, transb="T", alpha=-1.0_wp, beta=1.0_wp)
+   call mctc_gemm(Q, Hp, T2, transa="T", alpha=1.0_wp, beta=0.0_wp)
+   call mctc_gemm(Q, T2, Hp, alpha=-1.0_wp, beta=1.0_wp)
    Hp = 0.5_wp * (Hp + transpose(Hp))
 
    ! Hp = V W V^T, overwriting Hp with V
@@ -525,13 +525,13 @@ subroutine compute_compliance(unit, H, B, xyz, nat, nint, C, error)
       write(unit, "(A,I0,A,I0)") &
          & "  Note: Hessian rank=", rank_h, " /= 3N-rigid=", nvib
    end if
-   call blas_gemm("N", "N", nint, ndim, ndim, 1.0_wp, B, nint, Hp, ndim, 0.0_wp, Z, nint)
+   call mctc_gemm(B, Hp, Z, alpha=1.0_wp, beta=0.0_wp)
    ! Apply D: divide retained modal columns by w_i and drop discarded modes.
    ZD = 0.0_wp
    do i = 1, ndim
       if (abs(W(i)) > tol_h) ZD(:, i) = Z(:, i) / W(i)
    end do
-   call blas_gemm("N", "T", nint, nint, ndim, 1.0_wp, Z, nint, ZD, nint, 0.0_wp, C, nint)
+   call mctc_gemm(Z, ZD, C, transb="T", alpha=1.0_wp, beta=0.0_wp)
    C = 0.5_wp * (C + transpose(C))
    deallocate(Hp, Q, W, Z, ZD, T1, T2, work)
 
