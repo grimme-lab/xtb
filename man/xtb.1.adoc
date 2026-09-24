@@ -254,6 +254,20 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 *--o1nh*::
     perform the numerical hessian calculation using the ODLR approximation (O1NumHess)
 
+Hessian runs automatically perform a compliance analysis for nonperiodic
+systems with more than one atom and no frozen atoms. The analysis uses the
+redundant internal coordinates of the molecular graph: bond stretches,
+angles, dihedrals, and two fixed-frame bend components for each near-linear
+angle. For every coordinate, the output reports the diagonal compliance
+constant C~ii~ and its reciprocal 1/C~ii~, the relaxed force constant. Bond
+rows also report a local-mode frequency calculated from 1/C~ii~ and the bond
+reduced mass.
+
+Units depend on the coordinate type. For a bond, C~ii~ is in a0^2^/Eh and
+1/C~ii~ is in Eh/a0^2^ (1 Eh/a0^2^ = 15.570 N/cm); angular coordinates and
+mixed-coordinate couplings have their corresponding coordinate-dependent
+units, so the bond conversion does not apply to them.
+
 *--imagmin* 'REAL'::
     magnitudes below this value (cm⁻¹) are ignored in the O1NumHess
     imaginary frequency repair (default 5).
@@ -413,6 +427,11 @@ OUTPUT
 
 *hessian*::
    contains the (not mass weighted) cartesian Hessian, *--namespace* compatible.
+
+*compliance.dat*::
+   compliance analysis from an eligible Hessian run. Lists every internal
+   coordinate with C~ii~ and 1/C~ii~, followed by up to 20 strongest
+   off-diagonal couplings per coordinate in descending order of magnitude.
 
 *xtbtopo.mol*::
    topology information written in molfile format.
