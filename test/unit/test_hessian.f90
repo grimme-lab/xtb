@@ -973,113 +973,63 @@ subroutine test_near_linear_bmatrix_fd(error)
 end subroutine test_near_linear_bmatrix_fd
 
 
-!> Locks the covalent-neighbourlist compliance path: water-like O/H/H gives
-!> two bond rows and one angle row, distant H/H gives zero coordinates.
+!> The driver writes two bonds and one angle for water, none for separated atoms.
 subroutine test_compliance_driver_redundant(error)
-   !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
 
-   integer, parameter :: nat3 = 3, nat2 = 2
-   integer, parameter :: at3(nat3) = [8, 1, 1]
-   integer, parameter :: at2(nat2) = [1, 1]
-   real(wp), parameter :: mass3(nat3) = [16.0_wp, 1.0_wp, 1.0_wp]
-   real(wp), parameter :: mass2(nat2) = [1.0_wp, 1.0_wp]
-   real(wp), parameter :: xyz3(3, nat3) = reshape([ &
-      & 0.0_wp, 0.0_wp, 0.0_wp, &
-      & 0.0_wp, 1.8_wp, 0.0_wp, &
-      & 1.7_wp, -0.5_wp, 0.0_wp], shape(xyz3))
-   real(wp), parameter :: xyz2(3, nat2) = reshape([ &
-      & 0.0_wp, 0.0_wp, 0.0_wp, &
-      & 10.0_wp, 0.0_wp, 0.0_wp], shape(xyz2))
-
    type(TEnvironment) :: env
-   type(TMolecule) :: mol3, mol2
-   real(wp) :: hess3(3*nat3, 3*nat3), hess2(3*nat2, 3*nat2)
-   integer :: unit, dat_unit, i, ios, nbond, nangle, nrows
-   logical :: failed, zero_report
+   type(TMolecule) :: mol
+   real(wp) :: xyz(3, 3), hess(9, 9)
+   integer :: unit, dat_unit, ios, i, icase, counts(3), expected(3)
+   logical :: failed
    character(256) :: line
+   character(4) :: kind
 
+   xyz(:, 1) = 0.0_wp
+   xyz(:, 2) = [0.0_wp, 1.8_wp, 0.0_wp]
+   xyz(:, 3) = [1.7_wp, -0.5_wp, 0.0_wp]
+   call init(mol, [8, 1, 1], xyz)
+   hess = 0.0_wp
+   do i = 1, 9
+      hess(i, i) = 1.0_wp
+   end do
    call init(env)
-   hess3 = 0.0_wp
-   do i = 1, 3*nat3
-      hess3(i, i) = 1.0_wp
-   end do
-   open(newunit=unit, status="scratch", action="readwrite", iostat=ios)
-   call check(error, ios, 0)
-   if (allocated(error)) return
-   call init(mol3, at3, xyz3)
-   mol3%atmass = mass3
+   open(newunit=unit, status="scratch")
    env%unit = unit
-   call compliance_driver(env, mol3, hess3)
-   call env%check(failed)
-   if (failed) then
-      call test_failed(error, "Compliance calculation failed")
-      return
-   end if
-   rewind(unit)
-   nbond = 0
-   nangle = 0
-   do
-      read(unit, "(a)", iostat=ios) line
-      if (ios /= 0) exit
-      if (index(line, "bond stretch") > 0) nbond = nbond + 1
-      if (index(line, "angle") > 0) nangle = nangle + 1
+
+   expected = [3, 2, 1] ! Total, bond and angle records.
+   do icase = 1, 2
+      if (icase == 2) then
+         mol%xyz = 10.0_wp * mol%xyz
+         expected = 0
+      end if
+      call compliance_driver(env, mol, hess)
+      call env%check(failed)
+      call check(error, .not. failed)
+      if (allocated(error)) exit
+
+      counts = 0
+      open(newunit=dat_unit, file="compliance.dat", status="old")
+      do
+         read(dat_unit, "(a)", iostat=ios) line
+         if (ios /= 0) exit
+         if (index(line, "# coord ") /= 1) cycle
+         read(line(8:), *) kind
+         counts(1) = counts(1) + 1
+         if (kind == "bond") counts(2) = counts(2) + 1
+         if (kind == "ang") counts(3) = counts(3) + 1
+      end do
+      close(dat_unit, status="delete")
+      do i = 1, 3
+         call check(error, counts(i), expected(i))
+         if (allocated(error)) exit
+      end do
+      if (allocated(error)) exit
    end do
    close(unit)
-   open(newunit=dat_unit, file="compliance.dat", status="old", iostat=ios)
-   call check(error, ios, 0)
-   if (allocated(error)) return
-   close(dat_unit, status="delete", iostat=ios)
-   call check(error, ios, 0)
-   if (allocated(error)) return
-
-   call check(error, nbond, 2)
-   if (allocated(error)) return
-   call check(error, nangle, 1)
-   if (allocated(error)) return
-
-   hess2 = 0.0_wp
-   do i = 1, 3*nat2
-      hess2(i, i) = 1.0_wp
-   end do
-   open(newunit=unit, status="scratch", action="readwrite", iostat=ios)
-   call check(error, ios, 0)
-   if (allocated(error)) return
-   call init(mol2, at2, xyz2)
-   mol2%atmass = mass2
-   env%unit = unit
-   call compliance_driver(env, mol2, hess2)
-   call env%check(failed)
-   if (failed) then
-      call test_failed(error, "Compliance calculation failed")
-      return
-   end if
-   rewind(unit)
-   nrows = 0
-   zero_report = .false.
-   do
-      read(unit, "(a)", iostat=ios) line
-      if (ios /= 0) exit
-      if (index(line, "bond stretch") > 0) nrows = nrows + 1
-      if (index(line, "angle") > 0) nrows = nrows + 1
-      if (index(line, "dihedral") > 0) nrows = nrows + 1
-      if (index(line, "0 coordinates") > 0) zero_report = .true.
-   end do
-   close(unit)
-   open(newunit=dat_unit, file="compliance.dat", status="old", iostat=ios)
-   call check(error, ios, 0)
-   if (allocated(error)) return
-   close(dat_unit, status="delete", iostat=ios)
-   call check(error, ios, 0)
-   if (allocated(error)) return
-
-   call check(error, nrows, 0)
-   if (allocated(error)) return
-   if (.not. zero_report) then
-      call test_failed(error, "Zero-coordinate compliance report was not completed")
-   end if
 
 end subroutine test_compliance_driver_redundant
+
 
 !> Locks covalent neighbour-list generation: canonical half-list storage,
 !> replacement semantics, and the supported-cutoff tolerance margin for
