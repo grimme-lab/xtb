@@ -1,0 +1,555 @@
+! This file is part of xtb.
+!
+! Copyright (C) 2026 Leopold M. Seidler
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+!> Compliance matrix driver.
+!>
+!> Coordinates: the redundant internal coordinates of the molecular graph,
+!> built from the reference geometry.  Bonds come from a covalent-radius
+!> neighbour list (TNeighbourList%generate_covalent); the graph and
+!> the coordinate set are built by xtb_internals_graph and
+!> xtb_internals_redundant.  The set holds bond stretches, ordinary valence
+!> angles, fixed-frame pairs for bends near linearity, and defined dihedrals.
+!> Dihedrals with a near-linear interior angle are omitted because their
+!> torsion is undefined.  xtb_bmatrix::get_bmatrix supplies the Wilson B matrix.
+!>
+!> C = B H^+ B^T, H projected out of translations and rotations first;
+!> handles redundant coordinate sets (symmetric tops etc.).
+!>
+!> Equivalent to the projected-force-constant route
+!>    F = G^+ Bp Hp Bp^T G^+ ,  G = Bp Bp^T ,  C = F^+ ,
+!> where Bp and Hp denote non-rigid projections.  Neither G nor F nor their
+!> pseudoinverses are needed: H^+ is formed directly in the non-rigid subspace,
+!> giving the same projection of each B row.  Fixed-frame linear bends need not
+!> themselves annihilate rotations.
+!>
+!> Raw numerical Hessians (the ones handed over by the frequency code) carry
+!> residual curvature along those directions, and its reciprocal would
+!> otherwise dominate C.
+!>
+!> Works for any nint and any coordinate set (diatomic, linear, mixed,
+!> general, redundant).  nint is passed explicitly -- no hardcoded 3N-6.
+!>
+!> Output: bonds -> angular rows -> dihedrals, with C_ii and 1/C_ii, plus local
+!> mode frequencies for bonds.  Each near-linear bend has two consecutive
+!> fixed-frame components.  A nonlinear near-linear molecule still has 3N-6
+!> physical modes, and either projected component can be redundant; an exactly
+!> linear molecule has 3N-5 modes.  An exactly zero C_ii is reported with
+!> 1/C_ii = +Infinity.  compliance.dat reports each diagonal element and the
+!> top-20 off-diagonal couplings per coordinate sorted by |C_ij| descending.
+!>
+!> Units: C in Bohr^2/Hartree, 1/C in Eh/a0^2, 1 Eh/a0^2 = 15.570 N/cm.
+!>
+!> Ref.: K. Brandhorst, J. Grunenberg, Chem. Soc. Rev. 37 (2008), 1558.
+!>       J. Grunenberg, Chem. Sci. 6 (2015), 4086.
+!>
+!> SG (with Claude), 05/26
+
+module xtb_compliance
+   use, intrinsic :: ieee_arithmetic, only : ieee_positive_inf, ieee_value
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_math, only : crossProd
+   use xtb_type_environment, only : TEnvironment
+   use xtb_mctc_convert, only : autoamu
+   use xtb_type_molecule, only : TMolecule
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_internals_graph, only : graph_type, init
+   use xtb_internals_type, only : internal_coords_set_type, coord_bond, &
+      & coord_angle, coord_linbend, coord_dihedral
+   use xtb_internals_redundant, only : redundant_type, init
+   use xtb_bmatrix, only : get_bmatrix
+   use xtb_mctc_blas, only : mctc_gemm
+   use xtb_mctc_lapack, only : mctc_syev
+   implicit none
+   private
+
+   public :: compliance_driver, compute_compliance
+
+contains
+
+!> Print compliance constants (bonds, angular rows, dihedrals) for the reference
+!> geometry and write selected compliance couplings to compliance.dat.
+!> Near-linear bends use two consecutive components in a fixed reference frame.
+subroutine compliance_driver(env, mol, hess)
+   !> Calculation environment carrying output unit and error state.
+   type(TEnvironment), intent(inout) :: env
+   !> Molecular structure containing atom count, numbers, geometry, and masses.
+   type(TMolecule), intent(in) :: mol
+   !> Cartesian Hessian in Hartree/Bohr^2, dimension (3*mol%n, 3*mol%n).
+   real(wp), intent(in) :: hess(3*mol%n, 3*mol%n)
+
+   type(TNeighbourList) :: neigh_list
+   type(graph_type) :: graph
+   type(redundant_type) :: internals
+   real(wp), allocatable :: bmat(:, :), compl(:, :)
+   logical :: failed
+
+   write(env%unit, "(a)") ""
+   call generic_header(env%unit, "Compliance Constants", 49, 10)
+   write(env%unit, "(a)") ""
+   write(env%unit, "(a)") "References for compliance constants and relaxed force constants:"
+   write(env%unit, "(a)") &
+      "      K. Brandhorst, J. Grunenberg, Chem. Soc. Rev. 37 (2008), 1558."
+   write(env%unit, "(a)") &
+      "      J. Grunenberg, Chem. Sci. 6 (2015), 4086."
+
+   call init(neigh_list, mol%n)
+   call neigh_list%generate_covalent(mol%at, mol%xyz)
+   call init(graph, neigh_list)
+   call init(internals, graph, mol%xyz)
+
+   allocate(bmat(internals%ncoords, 3*mol%n), compl(internals%ncoords, internals%ncoords))
+   call get_bmatrix(internals, mol%xyz, bmat)
+   call compute_compliance(env, hess, bmat, mol%xyz, mol%n, internals%ncoords, compl)
+   call env%check(failed)
+   if (failed) return
+   call print_compl(env%unit, mol, internals, compl)
+
+end subroutine compliance_driver
+
+
+!> Print diagonal elements of the compliance matrix in the order of bonds,
+!> angular rows, and dihedrals.  Fixed-frame linear-bend pairs are labelled
+!> separately; either component can be redundant after rigid-mode projection.
+!>
+!> Also calls write_compliance_dat to write selected couplings to a file.
+subroutine print_compl(unit, mol, internals, C)
+   !> Molecular structure containing atom count, numbers, and masses.
+   type(TMolecule), intent(in) :: mol
+   !> Redundant coordinate set with the definitions and the reference values.
+   type(redundant_type), intent(in) :: internals
+   !> Formatted output unit.
+   integer, intent(in) :: unit
+   !> Compliance matrix, dimension (ncoords, ncoords), in Bohr^2/Hartree.
+   real(wp), intent(in) :: C(internals%ncoords, internals%ncoords)
+
+   integer :: ic, k, a1, a2, coord_width, atom_width, table_width
+   integer :: idx_ord(internals%ncoords)
+   real(wp) :: cc, invcc, mu, freq
+   character(20) :: s
+   character(32) :: ibuf
+   character(128) :: fmt
+   ! local mode frequency: nu_a = fac * sqrt(k_a[a.u.] / mu[a.u.])
+   !   k_a = 1/C_ii  in Eh/a0^2
+   !   mu  = m_A*m_B/(m_A+m_B)  in electron masses
+   !   fac = 1/(2*pi*c) * sqrt(Eh/(a0^2 * amu))
+   !       = 5140.4869 cm^-1
+   ! Convert mu to amu with autoamu before applying fac.
+   real(wp), parameter :: fac = 5140.4869_wp ! cm^-1, mu converted to amu
+
+   write(unit, "(a)") ""
+   write(unit, "(a)") "Table columns C and 1/C report diagonal compliance elements C_ii and their reciprocals."
+   write(unit, "(a)") "units: C   in Bohr^2/Hartree (a0^2/Eh)"
+   write(unit, "(a)") "       1/C in Eh/a0^2  (relaxed force constant)"
+   write(unit, "(a)") "       conversion: 1 Eh/a0^2 = 15.570 N/cm"
+   write(unit, "(a)") "coord value: bond stretches in Bohr (a0); angles and dihedrals in radians"
+   write(unit, "(a)") "             linear bends are dimensionless fixed-frame projections"
+   write(unit, "(a)") "bond local-mode frequency nu_loc in cm^-1"
+   write(unit, "(a)") "exact zero C is reported as 1/C = +Infinity (zero response)"
+   write(unit, "(a)") ""
+   write(unit, "(a)") "Reference for bond local-mode frequencies:"
+   write(unit, "(a)") "      Cremer, Kraka, Zou, J. Chem. Theory Comput. 8 (2012) 2864."
+   write(unit, "(a)") ""
+
+   write(ibuf, "(i0)") internals%ncoords
+   coord_width = max(4, len_trim(ibuf))
+   write(ibuf, "(i0)") mol%n
+   atom_width = max(3, len_trim(ibuf))
+   table_width = coord_width + 4*atom_width + 77
+   k = 0
+
+   ! 1) bond stretches
+   ! nu_a = fac * sqrt(1/(mu_AB * C_ii))   [cm^-1]
+   ! mu_AB is formed from electron-mass inputs and converted to amu below.
+   write(unit, "(a)") &
+      repeat(" ", coord_width + 1) // &
+      "type                atoms                   " // &
+      repeat(" ", 4*(atom_width - 3)) // &
+      "coord value       C       1/C    nu_loc/cm-1"
+   write(unit, "(a)") repeat("-", table_width)
+   write(fmt, '("(i",i0,",1x,a14,2(a2,i",i0,",3x),",i0,"x,4f10.2)")') &
+      coord_width, atom_width, 2*atom_width + 10
+   do ic = 1, internals%ncoords
+      if (internals%kind(ic) /= coord_bond) cycle
+      k = k + 1
+      idx_ord(k) = ic
+      cc = C(ic, ic)
+      invcc = reciprocal(cc)
+      s = "bond stretch"
+      a1 = internals%atoms(1, ic)
+      a2 = internals%atoms(2, ic)
+      mu = mol%atmass(a1) * mol%atmass(a2) / (mol%atmass(a1) + mol%atmass(a2)) * autoamu
+      freq = fac * sqrt(invcc/mu)
+      write(unit, fmt) &
+         k, s, mol%sym(a1), a1, mol%sym(a2), a2, &
+         internals%q(ic), cc, invcc, freq
+   end do
+
+   ! 2) angular rows
+   write(fmt, '("(i",i0,",1x,a14,3(a2,i",i0,",3x),",i0,"x,3f10.4)")') &
+      coord_width, atom_width, atom_width + 5
+   do ic = 1, internals%ncoords
+      if (internals%kind(ic) /= coord_angle .and. &
+         & internals%kind(ic) /= coord_linbend) cycle
+      k = k + 1
+      idx_ord(k) = ic
+      cc = C(ic, ic)
+      invcc = reciprocal(cc)
+      if (internals%kind(ic) == coord_angle) then
+         s = "angle"
+      else if (is_second_linbend(internals, ic)) then
+         s = "linear bend 2"
+      else
+         s = "linear bend 1"
+      end if
+      write(unit, fmt) &
+         k, s, mol%sym(internals%atoms(1, ic)), internals%atoms(1, ic), &
+         mol%sym(internals%atoms(2, ic)), internals%atoms(2, ic), &
+         mol%sym(internals%atoms(3, ic)), internals%atoms(3, ic), &
+         internals%q(ic), cc, invcc
+   end do
+
+   ! 3) dihedrals
+   write(fmt, '("(i",i0,",1x,a14,4(a2,i",i0,",3x),3f10.4)")') &
+      coord_width, atom_width
+   do ic = 1, internals%ncoords
+      if (internals%kind(ic) /= coord_dihedral) cycle
+      k = k + 1
+      idx_ord(k) = ic
+      cc = C(ic, ic)
+      s = "dihedral"
+      write(unit, fmt) &
+         k, s, mol%sym(internals%atoms(1, ic)), internals%atoms(1, ic), &
+         mol%sym(internals%atoms(2, ic)), internals%atoms(2, ic), &
+         mol%sym(internals%atoms(3, ic)), internals%atoms(3, ic), &
+         mol%sym(internals%atoms(4, ic)), internals%atoms(4, ic), &
+         internals%q(ic), cc, reciprocal(cc)
+   end do
+   write(unit, "(a)") repeat("-", table_width)
+
+   call write_compliance_dat(unit, mol, internals, C, idx_ord, k)
+
+end subroutine print_compl
+
+
+!> Write selected compliance couplings to a file named "compliance.dat".
+!>
+!> For each coordinate it outputs C_ii, its reciprocal (positive infinity when
+!> C_ii is exactly zero), and the top NCOUP off-diagonal couplings |C_ij| sorted
+!> in descending order.
+subroutine write_compliance_dat(unit, mol, internals, C, idx_ord, ncoord)
+   !> Molecular structure containing atom count and atomic numbers.
+   type(TMolecule), intent(in) :: mol
+   !> Internal-coordinate definitions.
+   class(internal_coords_set_type), intent(in) :: internals
+   !> Formatted output unit.
+   integer, intent(in) :: unit
+   !> Number of internal coordinates.
+   integer, intent(in) :: ncoord
+   !> Compliance matrix, dimension (ncoords, ncoords), in Bohr^2/Hartree.
+   real(wp), intent(in) :: C(internals%ncoords, internals%ncoords)
+   !> Coordinate order used for the printed table, dimension (ncoord).
+   integer, intent(in) :: idx_ord(ncoord)
+
+   integer, parameter :: NCOUP = 20
+   integer :: iunit, i, j, p, q, ii, jj, nc_act, coord_width, atom_width
+   integer :: jsort(ncoord)
+   real(wp) :: aval(ncoord), tmp_r
+   integer :: tmp_i
+   character(4) :: coord_type(ncoord)
+   character(:), allocatable :: atoms(:)
+   character(32) :: ibuf
+   character(128) :: fmt_coord, fmt_coupling
+
+   write(ibuf, "(i0)") mol%n
+   atom_width = 11 + 4*len_trim(ibuf)
+   allocate(character(atom_width) :: atoms(ncoord))
+   call build_labels(mol, internals, ncoord, coord_type, atoms)
+   write(ibuf, "(i0)") ncoord
+   coord_width = max(4, len_trim(ibuf))
+   fmt_coord = "(a,1x,a,1x,a,a,es22.12e3,a,es22.12e3)"
+   write(fmt_coupling, '("(1x,i",i0,",2x,a4,1x,a",i0,",2x,es22.12e3)")') &
+      coord_width, atom_width
+
+   open(newunit=iunit, file="compliance.dat", status="replace")
+
+   write(iunit, "(a)") "#"
+   write(iunit, "(a)") "# compliance.dat"
+   write(iunit, "(a)") "#"
+   write(iunit, "(a)") "# units: C   in Bohr^2/Hartree (a0^2/Eh)"
+   write(iunit, "(a)") "#        1/C in Eh/a0^2  (relaxed force constant)"
+   write(iunit, "(a)") "#        conversion: 1 Eh/a0^2 = 15.570 N/cm"
+   write(iunit, "(a)") "#        exact zero C is reported as 1/C = +Infinity (zero response)"
+   write(iunit, "(a)") "#"
+   write(iunit, "(a)") "# Ref.: K. Brandhorst, J. Grunenberg,"
+   write(iunit, "(a)") "#       Chem. Soc. Rev. 37 (2008) 1558."
+   write(iunit, "(a)") "#"
+   write(iunit, "(a,i0)") "# number of internal coordinates : ", ncoord
+   write(iunit, "(a,i0)") "# top couplings shown per coord  : ", NCOUP
+   write(iunit, "(a)") "#"
+
+   do i = 1, ncoord
+      ii = idx_ord(i)
+
+      write(iunit, "(a)")  ""
+      write(iunit, fmt_coord) &
+         "# coord", trim(coord_type(i)), trim(atoms(i)), &
+         " C_ii = ", C(ii, ii), " 1/C_ii = ", reciprocal(C(ii, ii))
+      write(iunit, "(a)") &
+         "#" // repeat(" ", coord_width - 1) // "j  type " // &
+         "atoms" // repeat(" ", atom_width - 3) // "C_ij"
+
+      ! collect off-diagonal |C_ij|
+      nc_act = 0
+      do j = 1, ncoord
+         if (j == i) cycle
+         nc_act = nc_act + 1
+         jsort(nc_act) = j
+         aval(nc_act) = abs(C(ii, idx_ord(j)))
+      end do
+
+      ! insertion sort descending
+      do p = 2, nc_act
+         tmp_r = aval(p)
+         tmp_i = jsort(p)
+         q = p - 1
+         do while (q >= 1)
+            if (aval(q) >= tmp_r) exit
+            aval(q+1) = aval(q)
+            jsort(q+1) = jsort(q)
+            q = q - 1
+         end do
+         aval(q+1) = tmp_r
+         jsort(q+1) = tmp_i
+      end do
+
+      ! write top NCOUP couplings
+      do p = 1, min(NCOUP, nc_act)
+         j = jsort(p)
+         jj = idx_ord(j)
+         if (aval(p) < 1.0e-12_wp) exit
+         write(iunit, fmt_coupling) &
+            j, coord_type(j), atoms(j), C(ii, jj)
+      end do
+
+   end do
+
+   write(iunit, "(a)") ""
+   write(iunit, "(a)") "# end of compliance.dat"
+   close(iunit)
+
+   write(unit, *)
+   write(unit, "(a,i0,a)") &
+      "compliance matrix written to compliance.dat  (", ncoord, " coordinates)"
+
+end subroutine write_compliance_dat
+
+
+!> Build human-readable labels for the internal coordinates, in the order
+!> bonds, angular rows, dihedrals.  Fixed-frame bend pairs use lb1/lb2.
+subroutine build_labels(mol, internals, ncoord, coord_type, atoms)
+   !> Molecular structure containing atomic numbers.
+   type(TMolecule), intent(in) :: mol
+   !> Internal-coordinate definitions.
+   class(internal_coords_set_type), intent(in) :: internals
+   !> Number of internal coordinates.
+   integer, intent(in) :: ncoord
+   !> Coordinate type abbreviations and atom labels, dimension (ncoord).
+   character(4), intent(out) :: coord_type(ncoord)
+   character(*), intent(out) :: atoms(ncoord)
+
+   integer :: ic, k
+
+   k = 0
+   coord_type = "??"
+   atoms = "??"
+
+   do ic = 1, internals%ncoords ! bonds
+      if (internals%kind(ic) /= coord_bond) cycle
+      k = k + 1
+      coord_type(k) = "bond"
+      write(atoms(k), "(a2,i0,a,a2,i0)") &
+         mol%sym(internals%atoms(1, ic)), internals%atoms(1, ic), &
+         "-", mol%sym(internals%atoms(2, ic)), internals%atoms(2, ic)
+   end do
+   do ic = 1, internals%ncoords ! angular rows
+      if (internals%kind(ic) /= coord_angle .and. &
+         & internals%kind(ic) /= coord_linbend) cycle
+      k = k + 1
+      if (internals%kind(ic) == coord_angle) then
+         coord_type(k) = "ang"
+      else if (is_second_linbend(internals, ic)) then
+         coord_type(k) = "lb2"
+      else
+         coord_type(k) = "lb1"
+      end if
+      write(atoms(k), "(a2,i0,a,a2,i0,a,a2,i0)") &
+         mol%sym(internals%atoms(1, ic)), internals%atoms(1, ic), &
+         "-", mol%sym(internals%atoms(2, ic)), internals%atoms(2, ic), &
+         "-", mol%sym(internals%atoms(3, ic)), internals%atoms(3, ic)
+   end do
+   do ic = 1, internals%ncoords ! dihedrals
+      if (internals%kind(ic) /= coord_dihedral) cycle
+      k = k + 1
+      coord_type(k) = "dih"
+      write(atoms(k), "(a2,i0,a,a2,i0,a,a2,i0,a,a2,i0)") &
+         mol%sym(internals%atoms(1, ic)), internals%atoms(1, ic), &
+         "-", mol%sym(internals%atoms(2, ic)), internals%atoms(2, ic), &
+         "-", mol%sym(internals%atoms(3, ic)), internals%atoms(3, ic), &
+         "-", mol%sym(internals%atoms(4, ic)), internals%atoms(4, ic)
+   end do
+
+end subroutine build_labels
+
+!> True for the second row of a consecutive fixed-frame linear-bend pair.
+pure logical function is_second_linbend(internals, ic)
+   class(internal_coords_set_type), intent(in) :: internals
+   integer, intent(in) :: ic
+
+   is_second_linbend = ic > 1
+   if (is_second_linbend) then
+      is_second_linbend = internals%kind(ic - 1) == coord_linbend .and. &
+         & all(internals%atoms(1:3, ic - 1) == internals%atoms(1:3, ic))
+   end if
+
+end function is_second_linbend
+
+
+!> Reciprocal with an explicit positive-infinity result for exact zero.
+pure real(wp) function reciprocal(value)
+   real(wp), intent(in) :: value
+
+   if (value == 0.0_wp) then
+      reciprocal = ieee_value(value, ieee_positive_inf)
+   else
+      reciprocal = 1.0_wp / value
+   end if
+
+end function reciprocal
+
+
+!> Compliance constants of the reference geometry as the pseudoinverse of the
+!> Hessian projected out of translations and rotations.
+!>
+!> C = B H^+ B^T, evaluated as Z (Z D)^T with Z = B V and D = diag(1/w_i) from
+!> the eigen decomposition Hp = V W V^T of the projected, symmetrised Hessian.
+!> Fixed-frame near-linear bend pairs may contain rigid-rotation components;
+!> projection through H^+ removes those components, so one paired row can have
+!> zero response without implying a missing physical bend.
+subroutine compute_compliance(env, H, B, xyz, nat, nint, C)
+   !> Calculation environment carrying output unit and error state.
+   type(TEnvironment), intent(inout) :: env
+   !> Number of atoms.
+   integer, intent(in) :: nat
+   !> Number of internal coordinates, passed explicitly -- no hardcoded 3N-6.
+   integer, intent(in) :: nint
+   !> Cartesian Hessian in Hartree/Bohr^2, dimension (3*natoms, 3*natoms).
+   real(wp), intent(in) :: H(3*nat, 3*nat)
+   !> Wilson B matrix, dimension (nint, 3*natoms).
+   real(wp), intent(in) :: B(nint, 3*nat)
+   !> Cartesian reference coordinates in Bohr, dimension (3, natoms).
+   real(wp), intent(in) :: xyz(3, nat)
+   !> Compliance matrix, dimension (nint, nint), in Bohr^2/Hartree.
+   real(wp), intent(out) :: C(nint, nint)
+
+   integer :: i, j, ndim, nrigid, nvib, rank_h
+   real(wp) :: tol_h, normq, center(3), rotation_scale
+   ! Relative to the largest rotation norm, sqrt(epsilon) makes the rank test size-independent.
+   real(wp), parameter :: rigid_basis_tol = sqrt(epsilon(1.0_wp))
+   real(wp), allocatable :: Hp(:, :), Q(:, :), W(:), Z(:, :), ZD(:, :), &
+      & T1(:, :), T2(:, :)
+   logical :: failed
+
+   if (nint == 0) then
+      C = 0.0_wp
+      return
+   end if
+   ndim = 3 * nat
+   allocate(Hp(ndim, ndim), Q(ndim, 6), W(ndim), Z(nint, ndim), &
+      & ZD(nint, ndim), T1(ndim, 6), T2(6, ndim))
+
+   ! orthonormal basis of the rigid (translation + rotation) space
+   center = sum(xyz, dim=2) / nat
+   Q = 0.0_wp
+   do i = 1, 3
+      Q(i::3, i) = 1.0_wp
+   end do
+   do j = 1, nat
+      Q(3*j-2:3*j, 4) = crossProd([1.0_wp, 0.0_wp, 0.0_wp], xyz(:, j) - center)
+      Q(3*j-2:3*j, 5) = crossProd([0.0_wp, 1.0_wp, 0.0_wp], xyz(:, j) - center)
+      Q(3*j-2:3*j, 6) = crossProd([0.0_wp, 0.0_wp, 1.0_wp], xyz(:, j) - center)
+   end do
+   rotation_scale = max(norm2(Q(:, 4)), norm2(Q(:, 5)), norm2(Q(:, 6)))
+
+   ! modified Gram-Schmidt; the rotation about the molecular axis of a
+   ! linear molecule produces no displacement
+   nrigid = 0
+   do i = 1, 6
+      do j = 1, i - 1
+         normq = dot_product(Q(:, i), Q(:, j))
+         Q(:, i) = Q(:, i) - normq * Q(:, j)
+      end do
+      normq = norm2(Q(:, i))
+      if (i > 3 .and. normq <= rigid_basis_tol*rotation_scale) then
+         Q(:, i) = 0.0_wp
+         cycle
+      end if
+      nrigid = nrigid + 1
+      Q(:, i) = Q(:, i) / normq
+   end do
+   nvib = ndim - nrigid
+
+   ! H averaged into symmetry first: the numerical Hessian handed over by
+   ! the frequency code is only symmetric to within its finite-difference
+   ! noise
+   Hp = 0.5_wp * (H + transpose(H))
+
+   ! Hp = (1 - Q Q^T) Hp (1 - Q Q^T)
+   call mctc_gemm(Hp, Q, T1, alpha=1.0_wp, beta=0.0_wp)
+   call mctc_gemm(T1, Q, Hp, transb="T", alpha=-1.0_wp, beta=1.0_wp)
+   call mctc_gemm(Q, Hp, T2, transa="T", alpha=1.0_wp, beta=0.0_wp)
+   call mctc_gemm(Q, T2, Hp, alpha=-1.0_wp, beta=1.0_wp)
+   Hp = 0.5_wp * (Hp + transpose(Hp))
+
+   ! Hp = V W V^T, overwriting Hp with V
+   call mctc_syev(env, Hp, W, jobz="V", uplo="U")
+   call env%check(failed)
+   if (failed) return
+
+   ! Z = B V
+   ! ZD = Z D, with D(i,i) = 1/W(i) for retained modes and zero otherwise
+   ! C = Z (ZD)^T = B V D V^T B^T = B Hp^+ B^T
+   ! Scale epsilon by matrix size and largest |w| to cover eigensolver roundoff.
+   tol_h = real(ndim, wp) * epsilon(1.0_wp) * maxval(abs(W))
+   rank_h = count(abs(W) > tol_h)
+   if (rank_h /= nvib) then
+      write(env%unit, "(A,I0,A,I0)") &
+         & "  Note: Hessian rank=", rank_h, " /= 3N-rigid=", nvib
+   end if
+   call mctc_gemm(B, Hp, Z, alpha=1.0_wp, beta=0.0_wp)
+   ! Apply D: divide retained modal columns by w_i and drop discarded modes.
+   ZD = 0.0_wp
+   do i = 1, ndim
+      if (abs(W(i)) > tol_h) ZD(:, i) = Z(:, i) / W(i)
+   end do
+   call mctc_gemm(Z, ZD, C, transb="T", alpha=1.0_wp, beta=0.0_wp)
+   C = 0.5_wp * (C + transpose(C))
+   deallocate(Hp, Q, W, Z, ZD, T1, T2)
+
+end subroutine compute_compliance
+
+
+end module xtb_compliance

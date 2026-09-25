@@ -18,8 +18,8 @@
 
 !> Shared internal-coordinate traversal for Swart and Lindh Hessians
 module xtb_modelhessian_internal
-   use xtb_bmatrix, only : bmat_bond, bmat_angle, bmat_linbend, bmat_torsion, &
-      & bmat_outofplane, oop_angle, bmat_accum_packed, &
+   use xtb_bmatrix, only : bmat_bond, bmat_angle, bmat_linbend, linbend_frame, &
+      & bmat_torsion, bmat_outofplane, oop_angle, bmat_accum_packed, &
       & bmat_accum_pairblock_packed
    use xtb_chargemodel, only : new_charge_model_2019
    use xtb_mctc_accuracy, only : wp
@@ -31,28 +31,61 @@ module xtb_modelhessian_internal
    use xtb_modelhessian_type, only : TModelHessian
    use xtb_type_param, only : chrg_parameter
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_setvar, only : modhess_setvar
    implicit none(type, external)
    private
 
    !> Base for model Hessians defined by redundant internal coordinates
    type, public, abstract, extends(TModelHessian) :: TInternalModelHessianBase
+      private
+      !> Bond-stretching force constant
+      real(wp) :: kr
+      !> Angle-bending force constant
+      real(wp) :: kf
+      !> Torsional force constant
+      real(wp) :: kt
+      !> Out-of-plane force constant
+      real(wp) :: ko
+      !> Distance-dependent scaling factor
+      real(wp) :: kd
+      !> Charge-dependent force constant
+      real(wp) :: kq
+      !> Pair distance cutoff
+      real(wp) :: rcut
+      !> Dispersion scaling factor
+      real(wp) :: s6
    contains
-      procedure :: stretch
-      procedure :: bend
-      procedure :: torsion
-      procedure :: outofplane
-      procedure :: add_charge
-      procedure(pair_factor_interface), deferred :: pair_factor
+      !> Initialize model-Hessian configuration
+      procedure, public :: init => init_internal_model_hessian
+      !> Compute packed model Hessian
+      procedure, public :: compute_packed
+      !> Add bond-stretching contributions
+      procedure, private :: stretch
+      !> Add angle-bending contributions
+      procedure, private :: bend
+      !> Add torsional contributions
+      procedure, private :: torsion
+      !> Add out-of-plane contributions
+      procedure, private :: outofplane
+      !> Add charge-response contribution
+      procedure, private :: add_charge
+      !> Evaluate pair-distance decay factor
+      procedure(pair_factor_interface), deferred, public :: pair_factor
    end type TInternalModelHessianBase
 
    abstract interface
+      !> Pair-distance decay factor for the internal-coordinate force constants
       pure function pair_factor_interface(self, at_i, at_j, r2, dispersion_scale, &
             & outofplane) result(factor)
          import :: TInternalModelHessianBase, wp
          implicit none(type, external)
+         !> Model Hessian implementation
          class(TInternalModelHessianBase), intent(in) :: self
+         !> Atomic numbers of the pair
          integer, intent(in) :: at_i, at_j
+         !> Squared pair distance and dispersion scaling factor
          real(wp), intent(in) :: r2, dispersion_scale
+         !> Out-of-plane term indicator
          logical, intent(in) :: outofplane
 
          real(wp) :: factor
@@ -61,15 +94,81 @@ module xtb_modelhessian_internal
 
 contains
 
+!> Copy model-Hessian configuration into an internal-coordinate model
+subroutine init_internal_model_hessian(self, modh)
+   !> Model Hessian implementation
+   class(TInternalModelHessianBase), intent(inout) :: self
+   !> Model Hessian configuration
+   type(modhess_setvar), intent(in) :: modh
+
+   self%kr = modh%kr
+   self%kf = modh%kf
+   self%kt = modh%kt
+   self%ko = modh%ko
+   self%kd = modh%kd
+   self%kq = modh%kq
+   self%rcut = modh%rcut
+   self%s6 = modh%s6
+end subroutine init_internal_model_hessian
+
+!> Compute a packed internal-coordinate model Hessian
+subroutine compute_packed(self, env, xyz, n, hess, at)
+   !> Model Hessian implementation
+   class(TInternalModelHessianBase), intent(in) :: self
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+   !> Number of atoms
+   integer, intent(in) :: n
+   !> Cartesian coordinates
+   real(wp), intent(in) :: xyz(3, n)
+   !> Packed lower-triangle Hessian
+   real(wp), intent(out) :: hess((3*n)*(3*n + 1)/2)
+   !> Atomic numbers
+   integer, intent(in) :: at(n)
+
+   real(wp) :: kd
+   logical, allocatable :: lcutoff(:, :)
+
+   hess = 0.0_wp
+   allocate(lcutoff(n, n), source=.false.)
+
+   kd = self%kd / self%kr
+   call self%stretch(xyz, n, hess, at, self%kr, kd, self%s6, lcutoff, self%rcut)
+   if (self%kf /= 0.0_wp) then
+      call self%bend(xyz, n, hess, at, self%kf, kd, lcutoff)
+   end if
+   if (self%kt /= 0.0_wp) then
+      call self%torsion(xyz, n, hess, at, self%kt, kd, lcutoff)
+   end if
+   if (self%ko /= 0.0_wp) then
+      call self%outofplane(xyz, n, hess, at, self%ko, kd, lcutoff)
+   end if
+   if (self%kq /= 0.0_wp) then
+      call self%add_charge(env, xyz, n, hess, at, self%kq)
+   end if
+end subroutine compute_packed
+
 !> Add bond-stretching and D2 contributions
 pure subroutine stretch(self, xyz, n, hess, at, kr, kd, s6, lcutoff, rcut)
+   !> Model Hessian implementation
    class(TInternalModelHessianBase), intent(in) :: self
+   !> Number of atoms
    integer, intent(in) :: n
+   !> Cartesian coordinates
    real(wp), intent(in) :: xyz(3, n)
+   !> Packed Hessian updated in place
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
+   !> Atomic numbers
    integer, intent(in) :: at(n)
-   real(wp), intent(in) :: kr, kd, s6
+   !> Bond-stretching force constant
+   real(wp), intent(in) :: kr
+   !> Distance-dependent scaling factor
+   real(wp), intent(in) :: kd
+   !> Dispersion scaling factor
+   real(wp), intent(in) :: s6
+   !> Pair cutoff mask updated in place
    logical, intent(inout) :: lcutoff(n, n)
+   !> Distance cutoff
    real(wp), intent(in) :: rcut
 
    integer :: i, j
@@ -93,19 +192,31 @@ end subroutine stretch
 
 !> Add angle-bending contributions
 pure subroutine bend(self, xyz, n, hess, at, force_constant, kd, lcutoff)
+   !> Model Hessian implementation
    class(TInternalModelHessianBase), intent(in) :: self
+   !> Number of atoms
    integer, intent(in) :: n
+   !> Cartesian coordinates
    real(wp), intent(in) :: xyz(3, n)
+   !> Packed Hessian updated in place
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
+   !> Atomic numbers
    integer, intent(in) :: at(n)
+   !> Internal-coordinate force constant and distance-dependent scaling factor
    real(wp), intent(in) :: force_constant, kd
+   !> Pair cutoff mask
    logical, intent(in) :: lcutoff(n, n)
 
-   real(wp), parameter :: rzero = 1.0e-10_wp
-   integer :: i, j, m, ii
+   ! Minimum arm and outer-pair length (Bohr).
+   real(wp), parameter :: arm_pair_length_tol = 1.0e-10_wp
+   ! Linear-bend sine threshold (dimensionless).
+   real(wp), parameter :: linear_sine_tol = 1.0e-10_wp
+   ! Same-ray cosine proximity threshold (dimensionless).
+   real(wp), parameter :: same_ray_cosine_tol = 1.0e-12_wp
+   integer :: i, j, m
    real(wp) :: vec_ij(3), vec_mi(3), vec_mj(3), cross_vec(3)
-   real(wp) :: rmi2, rmi, rmj2, rmj, rij2, rrij, gij, rl2, rl
-   real(wp) :: sinphi, cosphi, bmat9(9), linear_bmat(2, 9)
+   real(wp) :: rmi2, rmi, rmj2, rmj, rij2, rrij, gij
+   real(wp) :: sinphi, cosphi, bmat9(9), evec1(3), evec2(3)
 
    do m = 1, n
       do i = 1, n
@@ -113,38 +224,36 @@ pure subroutine bend(self, xyz, n, hess, at, force_constant, kd, lcutoff)
          vec_mi = xyz(:, i) - xyz(:, m)
          rmi2 = dot_product(vec_mi, vec_mi)
          rmi = sqrt(rmi2)
+         if (rmi <= arm_pair_length_tol) cycle
          do j = 1, i - 1
             if (j == m) cycle
             if (lcutoff(j, i) .or. lcutoff(j, m)) cycle
             vec_mj = xyz(:, j) - xyz(:, m)
             rmj2 = dot_product(vec_mj, vec_mj)
             rmj = sqrt(rmj2)
-            cosphi = dot_product(vec_mi, vec_mj) / (rmi*rmj)
-            if (abs(cosphi - 1.0_wp) < 1.0e-12_wp) cycle
+            if (rmj <= arm_pair_length_tol) cycle
             vec_ij = xyz(:, j) - xyz(:, i)
             rij2 = dot_product(vec_ij, vec_ij)
             rrij = sqrt(rij2)
+            if (rrij <= arm_pair_length_tol) cycle
+            cosphi = dot_product(vec_mi, vec_mj) / (rmi*rmj)
+            if (abs(cosphi - 1.0_wp) < same_ray_cosine_tol) cycle
             gij = force_constant &
                * self%pair_factor(at(m), at(i), rmi2, 0.5_wp*kd, .false.) &
                * self%pair_factor(at(m), at(j), rmj2, 0.5_wp*kd, .false.)
-            cross_vec = crossProd(vec_mi, vec_mj)
-            rl2 = dot_product(cross_vec, cross_vec)
-            if (rl2 < 1.0e-14_wp) then
-               rl = 0.0_wp
-            else
-               rl = sqrt(rl2)
-            end if
-            if (rmj <= rzero .or. rmi <= rzero .or. rrij <= rzero) cycle
-            sinphi = rl / (rmj*rmi)
-            if (sinphi > rzero) then
+            cross_vec = crossProd(vec_mi/rmi, vec_mj/rmj)
+            sinphi = norm2(cross_vec)
+            if (sinphi > linear_sine_tol) then
                bmat9 = bmat_angle(vec_mi, vec_mj)
                call bmat_accum_packed(n, hess, [i, m, j], bmat9, gij)
             else
-               linear_bmat = bmat_linbend(vec_mi, vec_mj)
-               do ii = 1, 2
-                  call bmat_accum_packed(n, hess, [i, m, j], &
-                     & linear_bmat(ii, :), gij)
-               end do
+               ! linear centre: the two Decius bends along a fixed frame
+               ! perpendicular to the axis, k B^T B summed over both
+               call linbend_frame(vec_mi/rmi, evec1, evec2)
+               call bmat_accum_packed(n, hess, [i, m, j], &
+                  & bmat_linbend(vec_mi, vec_mj, evec1), gij)
+               call bmat_accum_packed(n, hess, [i, m, j], &
+                  & bmat_linbend(vec_mi, vec_mj, evec2), gij)
             end if
          end do
       end do
@@ -153,12 +262,19 @@ end subroutine bend
 
 !> Add torsional contributions using one reversal-safe orientation
 pure subroutine torsion(self, xyz, n, hess, at, force_constant, kd, lcutoff)
+   !> Model Hessian implementation
    class(TInternalModelHessianBase), intent(in) :: self
+   !> Number of atoms
    integer, intent(in) :: n
+   !> Cartesian coordinates
    real(wp), intent(in) :: xyz(3, n)
+   !> Packed Hessian updated in place
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
+   !> Atomic numbers
    integer, intent(in) :: at(n)
+   !> Internal-coordinate force constant and distance-dependent scaling factor
    real(wp), intent(in) :: force_constant, kd
+   !> Pair cutoff mask
    logical, intent(in) :: lcutoff(n, n)
 
    real(wp), parameter :: a35 = (35.0_wp/180.0_wp) * pi
@@ -209,12 +325,19 @@ end subroutine torsion
 
 !> Add out-of-plane contributions
 pure subroutine outofplane(self, xyz, n, hess, at, force_constant, kd, lcutoff)
+   !> Model Hessian implementation
    class(TInternalModelHessianBase), intent(in) :: self
+   !> Number of atoms
    integer, intent(in) :: n
+   !> Cartesian coordinates
    real(wp), intent(in) :: xyz(3, n)
+   !> Packed Hessian updated in place
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
+   !> Atomic numbers
    integer, intent(in) :: at(n)
+   !> Internal-coordinate force constant and distance-dependent scaling factor
    real(wp), intent(in) :: force_constant, kd
+   !> Pair cutoff mask
    logical, intent(in) :: lcutoff(n, n)
 
    integer :: i, j, k, l
@@ -264,12 +387,19 @@ end subroutine outofplane
 
 !> Add the neutral-molecule EEQ response contribution
 subroutine add_charge(self, env, xyz, n, hess, at, kq)
+   !> Model Hessian implementation
    class(TInternalModelHessianBase), intent(in) :: self
+   !> Calculation environment
    type(TEnvironment), intent(inout) :: env
+   !> Number of atoms
    integer, intent(in) :: n
+   !> Cartesian coordinates
    real(wp), intent(in) :: xyz(3, n)
+   !> Packed Hessian updated in place
    real(wp), intent(inout) :: hess((3*n)*(3*n + 1)/2)
+   !> Atomic numbers
    integer, intent(in) :: at(n)
+   !> Charge-dependent force constant
    real(wp), intent(in) :: kq
 
    type(chrg_parameter) :: chrgeq

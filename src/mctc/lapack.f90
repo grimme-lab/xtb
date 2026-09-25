@@ -22,7 +22,7 @@ module xtb_mctc_lapack
       & lapack_hegvx, lapack_hpgv, lapack_hpgvd,  lapack_hpgvx
    use xtb_mctc_lapack_gst, only : lapack_sygst, lapack_spgst, lapack_hegst, &
       & lapack_hpgst
-   use xtb_mctc_lapack_stdeigval, only : lapack_syev, lapack_syevd, lapack_syevx, &
+   use xtb_mctc_lapack_stdeigval, only : mctc_syev, lapack_syev, lapack_syevd, lapack_syevx, &
       & lapack_syevr, lapack_spev, lapack_spevd, lapack_spevx, lapack_heev, &
       & lapack_heevd, lapack_heevx, lapack_heevr, lapack_hpev, lapack_hpevd, &
       & lapack_hpevx

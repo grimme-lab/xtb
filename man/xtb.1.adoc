@@ -242,7 +242,7 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 
 *--hess*::
     perform a numerical hessian calculation on input geometry
-
+    
 *--ohess* ['LEVEL']::
     perform a numerical hessian calculation on an `ancopt(3)` optimized
     geometry
@@ -250,6 +250,9 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 *--bhess* ['LEVEL']::
     perform a biased numerical hessian calculation on an `ancopt(3)` optimized
     geometry
+
+    Hessian runs automatically perform a compliance analysis for nonperiodic
+    systems with more than one atom and no frozen atoms.
 
 *--o1nh*::
     perform the numerical hessian calculation using the ODLR approximation (O1NumHess)
@@ -413,6 +416,11 @@ OUTPUT
 
 *hessian*::
    contains the (not mass weighted) cartesian Hessian, *--namespace* compatible.
+
+*compliance.dat*::
+   compliance analysis from an eligible Hessian run. Lists every internal
+   coordinate with C~ii~ and 1/C~ii~, followed by up to 20 strongest
+   off-diagonal couplings per coordinate in descending order of magnitude.
 
 *xtbtopo.mol*::
    topology information written in molfile format.

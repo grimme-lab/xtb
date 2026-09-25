@@ -21,6 +21,7 @@ module xtb_hessian
    use xtb_freq_io, only : rdhess, wrhess, writeHessianOut, &
       & write_tm_vibspectrum, g98fake, g98fake2, rddipd
    use xtb_freq_project, only : trproj
+   use xtb_compliance, only : compliance_driver
    implicit none
    private
 
@@ -326,6 +327,12 @@ subroutine numhess( &
         enddo
       enddo
    endif
+
+   if (mol%n > 1 .and. freezeset%n == 0 .and. .not. set%periodic) then
+      call compliance_driver(env, mol, res%hess)
+      call env%check(exitRun)
+      if (exitRun) return
+   end if
 
    if (set%pr_dftbp_hessian_out) then
       call writeHessianOut('hessian.out', res%hess)

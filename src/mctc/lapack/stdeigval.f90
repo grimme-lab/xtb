@@ -18,13 +18,21 @@
 !> LAPACK eigenproblem solvers
 module xtb_mctc_lapack_stdeigval
    use xtb_mctc_accuracy, only : sp, dp
+   use xtb_type_environment, only : TEnvironment
    implicit none
    private
 
+   public :: mctc_syev
    public :: lapack_syev, lapack_syevd, lapack_syevx, lapack_syevr, lapack_spev
    public :: lapack_spevd, lapack_spevx
    public :: lapack_heev, lapack_heevd, lapack_heevx, lapack_heevr, lapack_hpev
    public :: lapack_hpevd, lapack_hpevx
+
+
+   interface mctc_syev
+      module procedure :: mctc_ssyev
+      module procedure :: mctc_dsyev
+   end interface mctc_syev
 
 
    interface lapack_syev
@@ -597,6 +605,146 @@ module xtb_mctc_lapack_stdeigval
 
 
 contains
+
+
+!> Solve a real symmetric eigenvalue problem in single precision.
+subroutine mctc_ssyev(env, amat, eval, jobz, uplo)
+   character(len=*), parameter :: source = 'mctc_lapack_syev'
+   !> Calculation environment receiving errors.
+   type(TEnvironment), intent(inout) :: env
+   !> Symmetric matrix, overwritten with eigenvectors when requested.
+   real(sp), intent(inout) :: amat(:, :)
+   !> Eigenvalues in ascending order.
+   real(sp), intent(out) :: eval(:)
+   !> Compute eigenvectors ('V') or eigenvalues only ('N').
+   character(len=1), intent(in), optional :: jobz
+   !> Triangle containing matrix data, upper ('U') or lower ('L').
+   character(len=1), intent(in), optional :: uplo
+
+   character(len=1) :: job, ula
+   character(len=80) :: message
+   integer :: info, lda, lwork, n, stat
+   real(sp) :: query(1)
+   real(sp), allocatable :: work(:)
+
+   job = 'V'
+   if (present(jobz)) job = jobz
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+
+   n = size(amat, 1)
+   if (size(amat, 2) /= n) then
+      call env%error("Matrix must be square", source)
+      return
+   end if
+   if (size(eval) < n) then
+      call env%error("Eigenvalue array is too small", source)
+      return
+   end if
+   if (job /= 'V' .and. job /= 'v' .and. job /= 'N' .and. job /= 'n') then
+      call env%error("Invalid eigenvector option", source)
+      return
+   end if
+   if (ula /= 'U' .and. ula /= 'u' .and. ula /= 'L' .and. ula /= 'l') then
+      call env%error("Invalid matrix triangle", source)
+      return
+   end if
+   if (n == 0) return
+
+   lda = max(1, n)
+   call lapack_syev(job, ula, n, amat, lda, eval, query, -1, info)
+   if (info /= 0) then
+      write(message, '(a, i0)') "Workspace query failed with info = ", info
+      call env%error(message, source)
+      return
+   end if
+
+   lwork = max(1, nint(query(1)))
+   allocate(work(lwork), stat=stat)
+   if (stat /= 0) then
+      call env%error("Workspace allocation failed", source)
+      return
+   end if
+
+   call lapack_syev(job, ula, n, amat, lda, eval, work, lwork, info)
+   if (info < 0) then
+      write(message, '(a, i0)') "LAPACK received an illegal argument, info = ", info
+      call env%error(message, source)
+   else if (info > 0) then
+      write(message, '(a, i0)') "Eigenvalue solver did not converge, info = ", info
+      call env%error(message, source)
+   end if
+end subroutine mctc_ssyev
+
+
+!> Solve a real symmetric eigenvalue problem in double precision.
+subroutine mctc_dsyev(env, amat, eval, jobz, uplo)
+   character(len=*), parameter :: source = 'mctc_lapack_syev'
+   !> Calculation environment receiving errors.
+   type(TEnvironment), intent(inout) :: env
+   !> Symmetric matrix, overwritten with eigenvectors when requested.
+   real(dp), intent(inout) :: amat(:, :)
+   !> Eigenvalues in ascending order.
+   real(dp), intent(out) :: eval(:)
+   !> Compute eigenvectors ('V') or eigenvalues only ('N').
+   character(len=1), intent(in), optional :: jobz
+   !> Triangle containing matrix data, upper ('U') or lower ('L').
+   character(len=1), intent(in), optional :: uplo
+
+   character(len=1) :: job, ula
+   character(len=80) :: message
+   integer :: info, lda, lwork, n, stat
+   real(dp) :: query(1)
+   real(dp), allocatable :: work(:)
+
+   job = 'V'
+   if (present(jobz)) job = jobz
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+
+   n = size(amat, 1)
+   if (size(amat, 2) /= n) then
+      call env%error("Matrix must be square", source)
+      return
+   end if
+   if (size(eval) < n) then
+      call env%error("Eigenvalue array is too small", source)
+      return
+   end if
+   if (job /= 'V' .and. job /= 'v' .and. job /= 'N' .and. job /= 'n') then
+      call env%error("Invalid eigenvector option", source)
+      return
+   end if
+   if (ula /= 'U' .and. ula /= 'u' .and. ula /= 'L' .and. ula /= 'l') then
+      call env%error("Invalid matrix triangle", source)
+      return
+   end if
+   if (n == 0) return
+
+   lda = max(1, n)
+   call lapack_syev(job, ula, n, amat, lda, eval, query, -1, info)
+   if (info /= 0) then
+      write(message, '(a, i0)') "Workspace query failed with info = ", info
+      call env%error(message, source)
+      return
+   end if
+
+   lwork = max(1, nint(query(1)))
+   allocate(work(lwork), stat=stat)
+   if (stat /= 0) then
+      call env%error("Workspace allocation failed", source)
+      return
+   end if
+
+   call lapack_syev(job, ula, n, amat, lda, eval, work, lwork, info)
+   if (info < 0) then
+      write(message, '(a, i0)') "LAPACK received an illegal argument, info = ", info
+      call env%error(message, source)
+   else if (info > 0) then
+      write(message, '(a, i0)') "Eigenvalue solver did not converge, info = ", info
+      call env%error(message, source)
+   end if
+end subroutine mctc_dsyev
 
 
 end module xtb_mctc_lapack_stdeigval

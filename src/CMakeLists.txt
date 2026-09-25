@@ -23,6 +23,7 @@ add_subdirectory("docking")
 add_subdirectory("extern")
 add_subdirectory("freq")
 add_subdirectory("gfnff")
+add_subdirectory("internals")
 add_subdirectory("io")
 add_subdirectory("iff")
 add_subdirectory("main")
@@ -52,6 +53,7 @@ list(APPEND srcs
   "${dir}/broyden.f90"
   "${dir}/charge_model.f90"
   "${dir}/coffee.f90"
+  "${dir}/compliance.f90"
   "${dir}/constrain_param.f90"
   "${dir}/constrain_pot.f90"
   "${dir}/constr.f90"
