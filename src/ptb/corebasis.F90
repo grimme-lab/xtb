@@ -31,7 +31,7 @@ module xtb_ptb_corebasis
 
    use tblite_basis_type, only: cgto_type, basis_type
    use tblite_basis_slater, only: slater_to_gauss
-   use tblite_integral_overlap, only: overlap_cgto, msao
+   use tblite_integral_native_integrals, only: overlap_cgto, msao
    use tblite_blas, only: gemm
 
    implicit none

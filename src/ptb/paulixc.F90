@@ -28,7 +28,7 @@ module xtb_ptb_paulixc
 
    use tblite_blas, only: gemm
    use tblite_basis_type, only: basis_type
-   use tblite_integral_multipole, only: msao
+   use tblite_integral_native_integrals, only: msao
 
    use xtb_ptb_vdzp, only: max_shell
 

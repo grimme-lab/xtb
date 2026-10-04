@@ -37,7 +37,7 @@ module xtb_dipro
    use tblite_blas, only : dot, gemv, gemm
    use tblite_context_type, only : context_type
    use tblite_cutoff, only : get_lattice_points
-   use tblite_integral_overlap, only : get_overlap
+   use tblite_integral_native_integrals, only : get_overlap
    use tblite_output_format, only : format_string
    use tblite_wavefunction_type, only : wavefunction_type, new_wavefunction, &
       & get_density_matrix

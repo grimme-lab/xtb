@@ -25,11 +25,10 @@ module xtb_ptb_integrals
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
-   use tblite_integral_dipole, only: get_dipole_integrals
+   use tblite_integral_native_integrals, only: get_dipole_integrals, overlap_cgto, &
+      & multipole_cgto, maxl, msao
    use tblite_cutoff, only: get_lattice_points
    use tblite_basis_type, only: basis_type, get_cutoff
-   use tblite_integral_overlap, only: overlap_cgto, maxl, msao
-   use tblite_integral_multipole, only: multipole_cgto
    use tblite_adjlist, only: adjacency_list
 
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell

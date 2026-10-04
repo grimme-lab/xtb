@@ -28,7 +28,7 @@ module xtb_ptb_hamiltonian
 
    use tblite_basis_type, only: basis_type
    use tblite_adjlist, only: adjacency_list
-   use tblite_integral_multipole, only: msao
+   use tblite_integral_native_integrals, only: msao
 
    use xtb_ptb_data, only: THamiltonianData
    use xtb_ptb_param, only: ptbGlobals

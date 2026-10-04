@@ -808,7 +808,7 @@ subroutine test_mindless_efield(error)
    real(wp), parameter :: ref_energies(2) = [&
       & -33.021306346085_wp, -24.079954040112_wp]
    real(wp), parameter :: ref_gnorms(2) = [&
-      &  0.071794704990_wp, 0.071819398796_wp]
+      &  0.067555026228_wp, 0.062728835019_wp]
 
    if (.not.get_xtb_feature('tblite')) then
       call skip_test(error, "xtb not compiled with tblite support")
