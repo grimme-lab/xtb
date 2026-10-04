@@ -422,18 +422,6 @@ jobs:
               mingw-w64-${{ matrix.arch }}-binutils
               mingw-w64-${{ matrix.arch }}-ntldd
               zip
-         - name: Diagnose static libgomp (temporary)
-           run: |
-            gfortran --version | head -n 1
-            echo "libgomp.a      -> $(gfortran -print-file-name=libgomp.a)"
-            echo "libgomp.dll.a  -> $(gfortran -print-file-name=libgomp.dll.a)"
-            echo "library search dirs:"
-            gfortran -print-search-dirs | grep '^libraries'
-            echo "files named libgomp* on the system:"
-            find /mingw64 -name 'libgomp*' 2>/dev/null
-            pacman -Q mingw-w64-x86_64-gcc mingw-w64-x86_64-libgomp mingw-w64-x86_64-gcc-libs
-            echo "files owned by the libgomp package:"
-            pacman -Ql mingw-w64-x86_64-libgomp | grep -i gomp
          # Configure static build with an absolute install location
          - name: Configure build (static)
            run: >
