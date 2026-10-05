@@ -64,11 +64,16 @@
       enddo
 
       ig=findloc(gridSize,nangsa,dim=1)
-      allocate(grida(4,nangsa))
-      call getAngGrid(ig,grida(1:3,:),grida(4,:),stat)
-      if (stat.ne.0) then
+      if (ig.eq.0) then
          write(output_unit,'(a,i0,a)') 'ESP: no Lebedev grid with ',
      &      nangsa,' points available'
+         error stop
+      endif
+      allocate(grida(4,gridSize(ig)))
+      call getAngGrid(ig,grida(1:3,:),grida(4,:),stat)
+      if (stat.ne.0) then
+         write(output_unit,'(a,i0,a)') 'ESP: Lebedev grid with ',
+     &      nangsa,' points failed'
          error stop
       endif
 
