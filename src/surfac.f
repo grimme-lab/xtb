@@ -17,12 +17,14 @@
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-      subroutine surfac(fname,n,xyz,at)
+      subroutine surfac(fname,n,xyz,at,nangsa)
       use, intrinsic :: iso_fortran_env, only : output_unit
       use xtb_mctc_accuracy, only : wp
+      use xtb_solv_lebedev, only : gridSize, getAngGrid
       implicit none
       character(len=*),intent(in)       :: fname
       integer, intent(in)               :: n,at(n) !number of atoms,Ordnunszahlen
+      integer, intent(in)               :: nangsa  !Lebedev points per atom
       real(wp), intent(in)              :: xyz(3,n)
 
       real(wp),allocatable              :: s(:,:) !surface 
@@ -30,12 +32,8 @@
       real(wp)                          :: point(3),rx,ry,rz,r,r2,rsas
       real(wp)                          :: rad(n),rad2(n),d3rad(94)
 
-      integer, parameter                :: nangsa=86
-!     integer, parameter                :: nangsa=230
-      real(wp)                          :: grida(4,nangsa)
-      include 'grida86.fh'
-!     include 'grida230.fh'
-      integer                           :: i,j,k,np,ip
+      real(wp),allocatable              :: grida(:,:)
+      integer                           :: i,j,k,np,ip,ig,stat
 
       ! D3 radii in Bohr
       data d3rad/
@@ -64,6 +62,20 @@
          rad (i) =(d3rad(at(i))*1.2)    ! scale factor adjusted to get vdW contacts right
          rad2(i) =(d3rad(at(i))*1.2)**2
       enddo
+
+      ig=findloc(gridSize,nangsa,dim=1)
+      if (ig.eq.0) then
+         write(output_unit,'(a,i0,a)') 'ESP: no Lebedev grid with ',
+     &      nangsa,' points available'
+         error stop
+      endif
+      allocate(grida(4,gridSize(ig)))
+      call getAngGrid(ig,grida(1:3,:),grida(4,:),stat)
+      if (stat.ne.0) then
+         write(output_unit,'(a,i0,a)') 'ESP: Lebedev grid with ',
+     &      nangsa,' points failed'
+         error stop
+      endif
 
       np=n*nangsa
       allocate(s(3,np))

@@ -396,6 +396,7 @@ module xtb_setparam
    character(len=:),allocatable  :: property_file
    logical  :: pr_esp = .false.
    character(len=:),allocatable  :: esp_gridfile
+   integer  :: esp_nang = 86
    character(len=10) :: lmoinfo_fname='xtblmoinfo'
    logical  :: pr_molden_input = .false.
    logical  :: pr_lmo = .false.

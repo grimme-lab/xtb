@@ -63,7 +63,7 @@
 
 !     call setfmc
 
-      if(.not.ex) call surfac(grid_file,n,xyz,at) ! generate surface coords
+      if(.not.ex) call surfac(grid_file,n,xyz,at,set%esp_nang) ! generate surface coords
 
       open(unit=83,file=grid_file)
       open(unit=84,file='xtb_esp.dat')

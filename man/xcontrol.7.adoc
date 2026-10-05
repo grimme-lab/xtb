@@ -572,6 +572,9 @@ $write
     a data file and a cosmo file
 *gridfile*='file'::
     read gridpoints for ESP calculation from 'file'.
+*gridpoints*='integer'::
+    number of Lebedev points per atom used to generate the ESP surface
+    (e.g. 38, 86, 230, 590), default: 86.
 *mos*='bool'::
     print molden file
 *lmo*='bool'::
