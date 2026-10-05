@@ -2720,6 +2720,9 @@ subroutine set_scan(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by scan",source)
+   case('elements','atoms','DISTANCE','ANGLE','DIHEDRAL','distance','angle', &
+         & 'dihedral','center','cma','cma interface','z')
+      call colon_only_error(env,'scan',key,val,source)
    case('mode')
       if (val.eq.'sequential') then
          scan_mode = p_scan_sequential
