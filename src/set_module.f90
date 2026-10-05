@@ -83,7 +83,7 @@ module xtb_setmod
 
    implicit none
 
-   private :: wp,mirror_line,getValue
+   private :: wp,mirror_line,getValue,colon_only_error
 
    character,private,parameter :: flag = '$'
    character,private,parameter :: colon = ':'
@@ -113,6 +113,17 @@ module xtb_setmod
    end interface
 
 contains
+
+!> Report atom dependent keys written as 'key=value' instead of 'key: value'.
+subroutine colon_only_error(env,group,key,val,source)
+   type(TEnvironment), intent(inout) :: env
+   character(len=*), intent(in) :: group
+   character(len=*), intent(in) :: key
+   character(len=*), intent(in) :: val
+   character(len=*), intent(in) :: source
+   call env%error("'"//key//"="//val//"' is not supported in $"//group//", "// &
+      & "maybe you meant: '"//key//": "//val//"'",source)
+end subroutine colon_only_error
 
 subroutine write_set(ictrl)
 
@@ -2177,6 +2188,8 @@ subroutine set_hess(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by hess",source)
+   case('element mass','modify mass','isotope','scale mass')
+      call colon_only_error(env,'hess',key,val,source)
    case('sccacc')
       if (getValue(env,val,ddum).and.set1) set%accu_hess = ddum
       set1 = .false.
@@ -2212,6 +2225,8 @@ subroutine set_reactor(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by reactor",source)
+   case('atoms')
+      call colon_only_error(env,'reactor',key,val,source)
    case('kpush')
       if (getValue(env,val,ddum).and.set1) set%reactset%kpush = ddum
       set1 = .false.
@@ -2518,6 +2533,8 @@ subroutine set_fix(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by fix",source)
+   case('elements','atoms','freeze','shake')
+      call colon_only_error(env,'fix',key,val,source)
    case('freeze frequency')
       if (getValue(env,val,ddum).and.set1) freezeset%fc = ddum
       set1 = .false.
@@ -2544,6 +2561,9 @@ subroutine set_constr(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by constrain",source)
+   case('elements','atoms','DISTANCE','ANGLE','DIHEDRAL','distance','angle', &
+         & 'dihedral','center','cma','cma interface','z')
+      call colon_only_error(env,'constrain',key,val,source)
    case('force constant')
       if (getValue(env,val,ddum).and.set1) fcconstr = ddum
       set1 = .false.
@@ -2594,6 +2614,8 @@ subroutine set_metadyn(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by metadyn",source)
+   case('atoms','bias atoms','bias elements','modify factor','scale factor')
+      call colon_only_error(env,'metadyn',key,val,source)
    case('save')
       if (getValue(env,val,idum).and.set1) metaset%maxsave = idum
       set1 = .false.
@@ -2618,8 +2640,6 @@ subroutine set_metadyn(env,key,val)
    case('bias-input', 'bias_input', 'bias input')
       if (set8) rmsdset%fname = val
       set8 = .false.
-   case('atoms','bias atoms','bias elements','modify factor','scale factor')
-      ! atom dependent keys are read together with the geometry in constrain_param
    end select
 
 end subroutine set_metadyn
@@ -2647,6 +2667,8 @@ subroutine set_path(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by path",source)
+   case('atoms')
+      call colon_only_error(env,'path',key,val,source)
    case('nrun')
       if (getValue(env,val,idum).and.set1) set%pathset%nrun = idum
       set1 = .false.
@@ -2730,7 +2752,9 @@ subroutine set_wall(env,key,val)
    logical,save :: set8 = .true.
    select case(key)
    case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by fix",source)
+      call env%warning("the key '"//key//"' is not recognized by wall",source)
+   case('sphere','ellipsoid','sandwich')
+      call colon_only_error(env,'wall',key,val,source)
    case('potential')
       if (.not.set1) return
       if (val.eq.'polynomial') then
@@ -2798,6 +2822,11 @@ subroutine set_split(env,key,val)
    type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
+   select case(key)
+   case default ! do nothing
+   case('fragment','fragment1','fragment2')
+      call colon_only_error(env,'split',key,val,source)
+   end select
 end subroutine set_split
 
 subroutine set_legacy(env,key,val)
