@@ -378,7 +378,11 @@ subroutine md(env,mol,chk,calc, &
    call open_file(trj,trim(atmp),'w')
    if(set%shake_md.and.set%shake_print.and.ncons.gt.0) then
       allocate(shakef(ncons))
-      call open_file(ishake,'xtb.shake','w')
+      atmp='xtb.shake'
+      if(icall.gt.0)then
+         write(atmp,'(''xtb.shake.'',i0)')icall
+      endif
+      call open_file(ishake,trim(atmp),'w')
       write(ishake,'(a)') '# SHAKE constraint forces (Eh/a0, >0 = atoms pushed apart)'
       write(ishake,'(a,*(1x,i0,"-",i0))') '# step  time/fs  bonds:',conslist(:,1:ncons)
    endif

@@ -245,9 +245,6 @@ $gfn
 
 $hess
 ~~~~~
-*shakeprint*='logical'::
-    write the SHAKE constraint forces (Eh/bohr) of every MD step to xtb.shake
-    (default: false)
 *sccacc*='real'::
     SCC accuracy level in Hessian runs
 *step*='real'::
@@ -317,6 +314,9 @@ $md
     allowing large time steps (=0 off)
 *shake*='int'::
     shake on (=0: off which is default) for X-H bonds only (=1),
+*shakeprint*='logical'::
+    write the SHAKE constraint forces (Eh/bohr) of every MD step to xtb.shake
+    (xtb.shake.'n' for the 'n'-th MD run of multi-MD workflows, default: false)
 *sccacc*='real'::
     SCC accuracy level in MD. Every 10th step the SCC is properly converged
     at sccconv=1.0. sccmd should be < 5 in critical cases, effects may show
