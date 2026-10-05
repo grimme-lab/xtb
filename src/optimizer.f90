@@ -967,11 +967,9 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    anc%coord = anc%coord + displ * alp
 
    ! conv check !
-   ! The energy change of the first cycle is zero by construction (the energy
-   ! of the incoming geometry is the reference), so it cannot signal
-   ! convergence. Without a step, biased optimizations (metadynamics hopping)
-   ! stay on top of the bias potential.
-   if(ii.gt.1.and.abs(echng).lt.ethr.and.gnorm.lt.gthr.and.echng.lt.1.0e-10_wp) then
+   ! The energy change of the very first cycle is zero by construction 
+   ! and cannot signal convergence.
+   if(iter.gt.1.and.abs(echng).lt.ethr.and.gnorm.lt.gthr.and.echng.lt.1.0e-10_wp) then
       restart=.false.
       converged = .true.
       etot=energy
