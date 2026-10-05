@@ -314,6 +314,8 @@ module xtb_setparam
 !  or all bonds (=2) or user defined bonds (=3)
    integer  :: shake_mode = 2
    logical  :: shake_md = .true.
+!  write SHAKE constraint forces to xtb.shake every MD step
+   logical  :: shake_print = .false.
    logical  :: xhonly = .true.
    logical  :: honly = .false.
    logical :: forcewrrestart = .false.

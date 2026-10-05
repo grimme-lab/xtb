@@ -198,6 +198,8 @@ module xtb_type_setvar
 !     or all bonds (=2) or user defined bonds (=3)
       integer  :: shake_mode = 2
       logical  :: shake_md = .true.
+!     write SHAKE constraint forces to xtb.shake every MD step
+      logical  :: shake_print = .false.
       logical  :: xhonly = .true.
       logical  :: honly = .false.
 !     SCC accuracy level in MD. Every 10th step the SCC is properly converged

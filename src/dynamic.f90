@@ -147,7 +147,7 @@ subroutine md(env,mol,chk,calc, &
    use xtb_type_calculator
    use xtb_type_restart
    use xtb_type_data
-   use xtb_shake, only: do_shake,ncons
+   use xtb_shake, only: do_shake,ncons,conslist,dro,lambda
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -182,6 +182,8 @@ subroutine md(env,mol,chk,calc, &
    logical  :: ex,thermostat,restart,confdump,equi,gmd,ldum
 
    integer :: i,j,k,ic,jc,ia,ja,ii,jj,ndum,cdump,nmax,ibin
+   integer :: ishake
+   real(wp), allocatable :: shakef(:)
    integer :: nstep,ndump,mdump,dumpstep,screendump,acount
    integer :: cdump0,nbo(0:20,mol%n),k3,nreg,ngeoav
    integer :: blockl,iblock,nblock
@@ -374,6 +376,12 @@ subroutine md(env,mol,chk,calc, &
       write(atmp,'(''xtb.trj.'',i0)')icall
    endif
    call open_file(trj,trim(atmp),'w')
+   if(set%shake_md.and.set%shake_print.and.ncons.gt.0) then
+      allocate(shakef(ncons))
+      call open_file(ishake,'xtb.shake','w')
+      write(ishake,'(a)') '# SHAKE constraint forces (Eh/a0, >0 = atoms pushed apart)'
+      write(ishake,'(a,*(1x,i0,"-",i0))') '# step  time/fs  bonds:',conslist(:,1:ncons)
+   endif
    pdb = -1
    if (allocated(mol%pdb) .and. icall == 0) then
       call open_file(pdb, 'xtb-trj.pdb', 'w')
@@ -618,6 +626,13 @@ subroutine md(env,mol,chk,calc, &
       !ccccccccccccccccccc
 
       if(set%shake_md) call do_shake(mol%n,xyzo,mol%xyz,vel,acc,mass,tstep)
+      if(set%shake_md.and.set%shake_print.and.ncons.gt.0) then
+         ! constraint force along each bond (Eh/a0), >0 pushes the atoms apart
+         do i = 1, ncons
+            shakef(i) = lambda(i)*sqrt(sum(dro(:,i)**2))/tstep**2
+         enddo
+         write(ishake,'(i8,f12.3,*(es16.8))') nstep,nstep*tstep/fstoau,shakef
+      endif
 
       ! update velocities
       velo = vel
@@ -698,6 +713,8 @@ subroutine md(env,mol,chk,calc, &
    call wrmdrestart(mol%n,mol%xyz,velo)
 
    call touch_file('xtbmdok')
+
+   if(allocated(shakef)) call close_file(ishake)
 
    write(*,*) 'normal exit of md()'
 

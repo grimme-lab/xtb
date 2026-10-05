@@ -264,6 +264,7 @@ subroutine write_set_md(ictrl)
    write(ictrl,'(3x,"step=",g0)') set%tstep_md
    write(ictrl,'(3x,"hmass=",i0)') set%md_hmass
    write(ictrl,'(3x,"shake=",i0)') set%shake_mode
+   write(ictrl,'(3x,"shakeprint=",i0)') bool2int(set%shake_print)
    write(ictrl,'(3x,"sccacc=",g0)') set%accu_md
    write(ictrl,'(3x,"forcewrrestart=",i0)') bool2int(set%forcewrrestart)
 end subroutine write_set_md
@@ -2026,6 +2027,7 @@ subroutine set_md(env,key,val)
    logical,save :: set11= .true.
    logical,save :: set12= .true.
    logical,save :: set13= .true.
+   logical,save :: set14= .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by md",source)
@@ -2103,6 +2105,9 @@ subroutine set_md(env,key,val)
    case('forcewrrestart')
       if (getValue(env,val,ldum).and.set13) set%forcewrrestart = ldum
       set13 = .false.
+   case('shakeprint')
+      if (getValue(env,val,ldum).and.set14) set%shake_print = ldum
+      set14 = .false.
    end select
 end subroutine set_md
 
@@ -2857,6 +2862,7 @@ subroutine set_legacy(env,key,val)
    case('mddumpxyz');   call set_md(env,'dump',val)
    case('mdskip');      call set_md(env,'skip',val)
    case('shake');       call set_md(env,'shake',val)
+   case('shakeprint');  call set_md(env,'shakeprint',val)
    case('md_hmass');    call set_md(env,'hmass',val)
    case('tend');        call set_siman(env,'temp',val)
    case('mdstep');      call set_md(env,'step',val)

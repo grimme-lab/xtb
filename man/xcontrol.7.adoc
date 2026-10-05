@@ -245,6 +245,9 @@ $gfn
 
 $hess
 ~~~~~
+*shakeprint*='logical'::
+    write the SHAKE constraint forces (Eh/bohr) of every MD step to xtb.shake
+    (default: false)
 *sccacc*='real'::
     SCC accuracy level in Hessian runs
 *step*='real'::
