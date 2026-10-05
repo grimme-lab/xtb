@@ -2618,6 +2618,8 @@ subroutine set_metadyn(env,key,val)
    case('bias-input', 'bias_input', 'bias input')
       if (set8) rmsdset%fname = val
       set8 = .false.
+   case('atoms','bias atoms','bias elements','modify factor','scale factor')
+      ! atom dependent keys are read together with the geometry in constrain_param
    end select
 
 end subroutine set_metadyn
