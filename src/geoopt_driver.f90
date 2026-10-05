@@ -22,7 +22,7 @@ contains
 !> more info: https://xtb-docs.readthedocs.io/en/latest/optimization.html 
 subroutine geometry_optimization &
       &   (env,mol,wfn,calc,egap,et,maxiter,maxcycle_in,etot,g,sigma, &
-      &    tight,pr,initial_sp,fail, iter_needed)
+      &    tight,pr,initial_sp,fail, iter_needed, res)
 
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
@@ -92,7 +92,10 @@ subroutine geometry_optimization &
    !> perform initial single point 
    logical, intent(in)    :: initial_sp
 
-   type(scc_results) :: res
+   !> Optional result container to be updated in final singlepoint
+   type(scc_results), optional :: res
+
+   type(scc_results) :: res_
    logical :: final_sp, exitRun
    integer :: printlevel
    integer :: ilog
@@ -143,7 +146,7 @@ subroutine geometry_optimization &
 
    if (initial_sp)  call singlepoint &
          &(env,mol,wfn,calc, &
-         & egap,et,maxiter,printlevel-1,.false.,.false.,1.0_wp,etot,g,sigma,res)
+         & egap,et,maxiter,printlevel-1,.false.,.false.,1.0_wp,etot,g,sigma,res_)
 
    select case(set%opt_engine)
    case(p_engine_rf) ! ANCopt !
@@ -206,9 +209,16 @@ subroutine geometry_optimization &
    ! final SP (usually for all engines) !
    if (final_sp) then
       if (pr) call generic_header(env%unit,'Final Singlepoint',49,10)
-      call singlepoint &
-         &(env,mol,wfn,calc, &
-         & egap,et,maxiter,printlevel,.false.,.false.,1.0_wp,etot,g,sigma,res)
+      ! Optionally update the result container if it is present
+      if (present(res)) then
+         call singlepoint &
+            &(env,mol,wfn,calc, &
+            & egap,et,maxiter,printlevel,.false.,.false.,1.0_wp,etot,g,sigma,res)
+      else
+         call singlepoint &
+            &(env,mol,wfn,calc, &
+            & egap,et,maxiter,printlevel,.false.,.false.,1.0_wp,etot,g,sigma,res_)
+      end if
    endif
    
    ! close log file !

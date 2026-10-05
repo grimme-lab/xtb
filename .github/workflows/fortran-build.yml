@@ -413,6 +413,7 @@ jobs:
             install: >-
               git
               mingw-w64-${{ matrix.arch }}-gcc-fortran
+              mingw-w64-${{ matrix.arch }}-libgomp
               mingw-w64-${{ matrix.arch }}-lapack
               mingw-w64-${{ matrix.arch }}-python
               mingw-w64-${{ matrix.arch }}-python-pip

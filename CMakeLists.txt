@@ -335,6 +335,14 @@ install(
 
 # -- Targets file
 # -- This makes the project importable from the build directory
+# mctc-lib (>= 0.5.2) provides real targets, which must be exported
+if(TARGET "mctc-lib")
+   export(
+      TARGETS "mctc-lib" "mctc-lib-lib"
+      NAMESPACE "mctc-lib::"
+      FILE "${PROJECT_BINARY_DIR}/mctc-lib-targets.cmake"
+   )
+endif()
 export(
    EXPORT "${PROJECT_NAME}-targets"
    FILE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-targets.cmake"

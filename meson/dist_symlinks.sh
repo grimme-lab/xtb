@@ -55,6 +55,7 @@ link_subproject tblite multicharge
 link_subproject tblite dftd4
 link_subproject tblite s-dftd3
 link_subproject tblite mstore
+link_subproject tblite ddx
 
 # Same pattern as tblite: dftd4 and toml-f need these nested sources for
 # CMake/offline builds.

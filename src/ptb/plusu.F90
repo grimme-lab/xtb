@@ -30,7 +30,7 @@ module xtb_ptb_plusu
    use mctc_io, only: structure_type
    !> tblite-lib
    use tblite_basis_type, only: basis_type
-   use tblite_integral_multipole, only: msao
+   use tblite_integral_native_integrals, only: msao
    !> xtb_ptb-lib
    use xtb_ptb_data, only: TPlusU
 
