@@ -17,6 +17,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/calculator.F90"
+  "${dir}/local.F90"
   "${dir}/restart.F90"
   "${dir}/mapping.F90"
 )

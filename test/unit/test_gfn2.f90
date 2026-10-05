@@ -39,7 +39,8 @@ subroutine collect_gfn2(testsuite)
       new_unittest("mindless-solvation", test_gfn2_mindless_solvation), &
       new_unittest("dmetal", test_gfn2_dmetal), &
       new_unittest("mindless-cosmo", test_gfn2_mindless_cosmo), &
-      new_unittest("wbo", test_gfn2_wbo) &
+      new_unittest("wbo", test_gfn2_wbo), &
+      new_unittest("lmo-molden", test_gfn2_lmo_molden) &
       ]
 
 end subroutine collect_gfn2
@@ -1089,5 +1090,124 @@ subroutine test_gfn2_wbo(error)
    call check_(error, chk%wfn%wbo(2,10), 2.81892857328157_wp,thr=thr) 
 
 end subroutine test_gfn2_wbo
+
+!> Check LMO center file and optional the molden output
+subroutine test_gfn2_lmo_molden(error)
+   use xtb_mctc_accuracy, only : wp
+   use mctc_io_convert, only : aatoau
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+   use xtb_setparam, only : set
+   use xtb_solv_model, only : TSolvModel
+
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_propertyoutput, only : main_property
+
+   type(error_type), allocatable, intent(out) :: error
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   type(scc_results) :: res
+   type(TSolvModel), allocatable :: solvModel
+
+   real(wp) :: energy, hl_gap, sigma(3,3)
+   real(wp), allocatable :: gradient(:,:)
+   integer :: unit1, unit2, stat1, stat2
+   character(len=1024) :: line1, line2
+   logical :: exitRun
+   logical :: exist_lmoinfo, exist_lmocent, exist_molden, exist_molden_lmo
+   logical :: pr_lmo_save, pr_molden_save
+   logical :: differ
+
+   
+   energy = 0.0_wp
+   call init(env)
+   call getMolecule(mol, 'co_cnx6')
+   mol%xyz = mol%xyz*aatoau
+   allocate(gradient(3, mol%n))
+
+   call newXTBCalculator(env, mol, calc, 'param_gfn2-xtb.txt', 2)
+   call newWavefunction(env, mol, calc, chk)
+
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (allocated(error)) return
+
+   ! Mirror the command line with molden and lmo options
+   pr_lmo_save = set%pr_lmo
+   pr_molden_save = set%pr_molden_input
+   set%pr_lmo = .true.
+   set%pr_molden_input = .true.
+
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (allocated(error)) return
+
+   ! Check LMO classification results
+   call check_(error, allocated(res%iff_results))
+   if (allocated(error)) return
+   call check_(error, res%iff_results%nlmo, 33)
+   if (allocated(error)) return
+
+   ! Check LMO center files
+   inquire(file='xtblmoinfo', exist=exist_lmoinfo)
+   inquire(file='lmocent.coord', exist=exist_lmocent)
+   call check_(error, exist_lmoinfo)
+   if (allocated(error)) return
+   call check_(error, exist_lmocent)
+   if (allocated(error)) return
+
+   ! The canonical Molden file is written by the property printout
+   call main_property(6, env, mol, chk%wfn, calc%basis, calc%xtbData, res, &
+      & solvModel, 1.0_wp)
+
+   set%pr_lmo = pr_lmo_save
+   set%pr_molden_input = pr_molden_save
+
+   ! Check that both canonical and localized-MO Molden files are written
+   inquire(file='molden.input', exist=exist_molden)
+   inquire(file='molden-lmo.input', exist=exist_molden_lmo)
+   call check_(error, exist_molden)
+   if (allocated(error)) return
+   call check_(error, exist_molden_lmo)
+   if (allocated(error)) return
+
+   ! Check that localized and canonical coefficients are different
+   differ = .false.
+   open(newunit=unit1, file='molden.input', status='old', action='read')
+   open(newunit=unit2, file='molden-lmo.input', status='old', action='read')
+   do
+      read(unit1, '(a)', iostat=stat1) line1
+      read(unit2, '(a)', iostat=stat2) line2
+      if (stat1 /= 0 .or. stat2 /= 0) then
+         if (stat1 /= stat2) differ = .true.
+         exit
+      end if
+      if (line1 /= line2) then
+         differ = .true.
+         exit
+      end if
+   end do
+   close(unit1)
+   close(unit2)
+   call check_(error, differ)
+   if (allocated(error)) return
+
+   call delete_file('xtblmoinfo')
+   call delete_file('lmocent.coord')
+   call delete_file('molden.input')
+   call delete_file('molden-lmo.input')
+   call delete_file('charges')
+
+end subroutine test_gfn2_lmo_molden
 
 end module test_gfn2

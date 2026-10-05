@@ -51,32 +51,22 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    real(wp),allocatable :: d(:,:)
    real(wp),allocatable :: f(:)
    real(wp),allocatable :: eiga(:)
-   real(wp),allocatable :: xcen(:)
-   real(wp),allocatable :: qmo(:,:)
-   real(wp),allocatable :: tmpq(:,:)
    real(wp),allocatable :: rr(:)
    real(wp),allocatable :: wbo(:,:)
    real(wp),allocatable :: xyztmp(:,:)
-   real(sp),allocatable :: rklmo(:,:)
    real(wp),allocatable :: tmp_cmo(:,:)
+   real(wp),allocatable :: cmo_cao(:,:)
+   real(wp),allocatable :: eig_lmo(:)
    integer, allocatable :: ind(:)
-   integer, allocatable :: lneigh(:,:)
-   integer, allocatable :: aneigh(:,:)
 
-   integer mo,n,i,j,k,ii,jj,imem(nat),idum,isc,iso,nop,pilist(ihomo)
-   integer lamdu1,lamdu2,imo1,imo2,iso1,iso2,ij,jdum,maxlp,maxpi,is1
-   integer ilumo,klev,nlev,nn,m,ldum(ihomo),sigrel(3,ihomo),npi,is2
-   integer i1,i2,i3,is3,ipi,piset(nat),ncyc,j1,j2,smo,pmo,nl,nm,nr
-   integer imo,new
-   real(wp) :: dd,dum,det,pp,dtot(3),diptot,thr,t0,w0,t1,w1,vec1(3),v(6)
-   real(wp) :: enlumo,enhomo,qhl(nat,2),ps,efh,efl,r1,r2,pithr,vec2(3)
+   integer mo,n,i,j,k,idum,isc,iso,nop
+   integer lamdu1,lamdu2,imo1,imo2,iso1,iso2,ij
+   integer imo
+   real(wp) :: dd,dum,det,dtot(3),diptot,thr,t0,w0,t1,w1,v(6)
+   real(wp) :: enlumo,enhomo,qhl(nat,2)
    real(wp) :: praxis(3,3),aa,bb,cc
    character(len=80) :: atmp
-   character(len=5) :: lmostring(4)
-   data lmostring/'sigma','LP   ','pi   ','delpi'/
-   logical l1,l2,l3,flip
    integer LWORK,IWORK,LIWORK,INFO
-   integer :: iscreen,icoord,ilmoi,icent ! file handles
 
    call timing(t0,w0)
    if(set%pr_local) then
@@ -84,79 +74,10 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
       write(*,*)'localization/xTB-IFF output generation'
    end if
    n=ihomo
-   ilumo=n+1
 
-   if(ilumo.gt.nao)then
-      enlumo=1000.
-   else
-      enlumo=eig(ilumo)
-   endif
-   efh=eig(n)
-   efl=enlumo
+   call get_ct_populations(nat,nao,ihomo,basis%aoat2,s,cmo,eig,enhomo,enlumo,qhl)
 
-   !     HOMO/LUMO populations for xTB FF (CT terms)
-   qhl = 0
-   thr = 0.01
-
-   if(ihomo.eq.0) then
-      ! the HOMO is non-existing, place at unrealistically low energy
-      enhomo=-999.999999990d0
-      if(set%pr_local) write(*,*) 'Warning: No occupied orbitals to localize!'
-      qhl(1:nat,1)=0.0d0
-   else
-      klev=0
-      enhomo=0
-      do nlev=ihomo,1,-1 ! loop over highest levels
-         if(efh-eig(nlev).gt.thr) exit
-         klev=klev+1
-         enhomo=enhomo+eig(nlev)
-         do i=1,nao
-            ii=basis%aoat2(i)
-            do j=1,i-1
-               jj=basis%aoat2(j)
-               ps=s(j,i)*cmo(j,nlev)*cmo(i,nlev)
-               qhl(ii,1)=qhl(ii,1)+ps
-               qhl(jj,1)=qhl(jj,1)+ps
-            enddo
-            ps=s(i,i)*cmo(i,nlev)*cmo(i,nlev)
-            qhl(ii,1)=qhl(ii,1)+ps
-         enddo
-      enddo
-      dum=1./float(klev)
-      enhomo=enhomo*dum
-      qhl(1:nat,1)=qhl(1:nat,1)*dum
-      if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' occ. levels'
-   endif
-
-   klev=0
-   enlumo=0
-   do nlev=ilumo,nao ! loop over highest levels
-      if(eig(nlev)-efl.gt.thr) exit
-      klev=klev+1
-      enlumo=enlumo+eig(nlev)
-      do i=1,nao
-         ii=basis%aoat2(i)
-         do j=1,i-1
-            jj=basis%aoat2(j)
-            ps=s(j,i)*cmo(j,nlev)*cmo(i,nlev)
-            qhl(ii,2)=qhl(ii,2)+ps
-            qhl(jj,2)=qhl(jj,2)+ps
-         enddo
-         ps=s(i,i)*cmo(i,nlev)*cmo(i,nlev)
-         qhl(ii,2)=qhl(ii,2)+ps
-      enddo
-   enddo
-   dum=1./float(klev)
-   enlumo=enlumo*dum
-   qhl(1:nat,2)=qhl(1:nat,2)*dum
-   if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' virt. levels'
-   if(ilumo.gt.nao)then
-      enlumo=1000.
-      qhl(1:nat,2)=0
-   endif
-
-   allocate(lneigh(4,n),aneigh(2,n), source=0)
-   allocate(cca(nao*nao),xcen(n), source=0.0_wp)
+   allocate(cca(nao*nao), source=0.0_wp)
    allocate(d(n,n),ecent(n,4),eiga(n),qcent(n,3),ecent2(n,4), source=0.0_wp)
 
    ! do only occ. ones
@@ -269,7 +190,24 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
       ! Apply transformation if there is a occupied orbital to be localized
       CALL dgemm('N','N',nao,n,n,1.D0,cca,nao,d,n,0.D0,tmp_cmo,nao) ! non-std BLAS
    
-   end if 
+   end if
+
+   ! Localized-MO molden file, tagged with '-lmo'
+   if (set%pr_molden_input) then
+      allocate(cmo_cao(nbf,nao), source=0.0_wp)
+      if (nbf == nao) then
+         cmo_cao = tmp_cmo
+      else
+         call sao2cao(nao, tmp_cmo, nbf, cmo_cao, basis)
+      end if
+      ! Localized orbitals have no orbital energies, use the orbital index
+      allocate(eig_lmo(nao))
+      eig_lmo = [(real(i,wp), i=1,nao)]
+      call printmold(nat,nao,nbf,xyz,at,cmo_cao,eig_lmo,focc,huge(1.0_wp),basis, &
+         & 'molden-lmo.input','Foster-Boys localized orbitals')
+      deallocate(eig_lmo,cmo_cao)
+      write(*,'(/,a,/)') 'Localized MOs written to file <molden-lmo.input>'
+   end if
 
    ! X^2,Y^2,Z^2 over LMOs
    !     k=0
@@ -293,11 +231,205 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    !        ecent(i,4)=sqrt(r2-r1)
    !     enddo
 
+   ! Wiberg-Mayer bond orders, needed for the delocalized-pi regularization
+   ! inside classify_lmo 
+   allocate(wbo(nat,nat))
+   wbo=0.0d0
+   call get_wiberg(nat,nao,at,xyz,p,s,wbo,basis%fila2)
+
+   call classify_lmo(nat,at,xyz,q,nao,n,basis%aoat2,s,tmp_cmo(:,1:n),f,wbo, &
+      & ecent,etot,diptot,enlumo,enhomo,qhl,results)
+
+   deallocate(cca,d,f,wbo,ecent)
+
+end subroutine local
+
+!> Average the HOMO/LUMO energies and their atom-resolved Mulliken
+!> populations over near-degenerate canonical levels
+subroutine get_ct_populations(nat,nao,ihomo,aoat2,s,cmo,eig,enhomo,enlumo,qhl)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_setparam
+
+   implicit none
+   !> Number of atoms
+   integer, intent(in) :: nat
+   !> Number of AOs
+   integer, intent(in) :: nao
+   !> Number of occupied orbitals
+   integer, intent(in) :: ihomo
+   !> AO to atom mapping
+   integer, intent(in) :: aoat2(nao)
+   !> AO overlap matrix
+   real(wp), intent(in) :: s(nao,nao)
+   !> Canonical MO coefficients in the AO basis
+   real(wp), intent(in) :: cmo(nao,nao)
+   !> Canonical orbital energies
+   real(wp), intent(in) :: eig(nao)
+   !> Averaged HOMO/LUMO energies
+   real(wp), intent(out) :: enhomo,enlumo
+   !> Atom-resolved HOMO/LUMO populations
+   real(wp), intent(out) :: qhl(nat,2)
+
+   integer :: n,ilumo,i,j,ii,jj,klev,nlev
+   real(wp) :: efh,efl,thr,dum,ps
+
+   n=ihomo
+   ilumo=n+1
+
+   if(ilumo.gt.nao)then
+      enlumo=1000.
+   else
+      enlumo=eig(ilumo)
+   endif
+   efh=eig(n)
+   efl=enlumo
+
+   !     HOMO/LUMO populations for xTB FF (CT terms)
+   qhl = 0
+   thr = 0.01
+
+   if(ihomo.eq.0) then
+      ! the HOMO is non-existing, place at unrealistically low energy
+      enhomo=-999.999999990d0
+      if(set%pr_local) write(*,*) 'Warning: No occupied orbitals to localize!'
+      qhl(1:nat,1)=0.0d0
+   else
+      klev=0
+      enhomo=0
+      do nlev=ihomo,1,-1 ! loop over highest levels
+         if(efh-eig(nlev).gt.thr) exit
+         klev=klev+1
+         enhomo=enhomo+eig(nlev)
+         do i=1,nao
+            ii=aoat2(i)
+            do j=1,i-1
+               jj=aoat2(j)
+               ps=s(j,i)*cmo(j,nlev)*cmo(i,nlev)
+               qhl(ii,1)=qhl(ii,1)+ps
+               qhl(jj,1)=qhl(jj,1)+ps
+            enddo
+            ps=s(i,i)*cmo(i,nlev)*cmo(i,nlev)
+            qhl(ii,1)=qhl(ii,1)+ps
+         enddo
+      enddo
+      dum=1./float(klev)
+      enhomo=enhomo*dum
+      qhl(1:nat,1)=qhl(1:nat,1)*dum
+      if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' occ. levels'
+   endif
+
+   klev=0
+   enlumo=0
+   do nlev=ilumo,nao ! loop over highest levels
+      if(eig(nlev)-efl.gt.thr) exit
+      klev=klev+1
+      enlumo=enlumo+eig(nlev)
+      do i=1,nao
+         ii=aoat2(i)
+         do j=1,i-1
+            jj=aoat2(j)
+            ps=s(j,i)*cmo(j,nlev)*cmo(i,nlev)
+            qhl(ii,2)=qhl(ii,2)+ps
+            qhl(jj,2)=qhl(jj,2)+ps
+         enddo
+         ps=s(i,i)*cmo(i,nlev)*cmo(i,nlev)
+         qhl(ii,2)=qhl(ii,2)+ps
+      enddo
+   enddo
+   dum=1./float(klev)
+   enlumo=enlumo*dum
+   qhl(1:nat,2)=qhl(1:nat,2)*dum
+   if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' virt. levels'
+   if(ilumo.gt.nao)then
+      enlumo=1000.
+      qhl(1:nat,2)=0
+   endif
+
+end subroutine get_ct_populations
+
+!> Classify localized MOs (sigma/LP/pi/delocalized-pi) from their Boys
+!> centers and populate the xTB-IFF/docking results
+subroutine classify_lmo(nat,at,xyz,q,nao,n,aoat2,s,cmo_lmo,f,wbo,ecent, &
+      & etot,diptot,enlumo,enhomo,qhl,results,ilmo0,nlmo0,islot_out,nlmo_out)
+   use xtb_mctc_accuracy, only : wp, sp
+   use xtb_mctc_constants, only : pi
+   use xtb_mctc_convert, only : autoev,autoaa
+   use xtb_mctc_symbols, only : toSymbol
+   use xtb_setparam
+   use xtb_type_data, only : scc_results
+
+   implicit none
+   !> Number of atoms
+   integer, intent(in) :: nat
+   !> Ordinal numbers
+   integer, intent(in) :: at(nat)
+   !> Cartesian coordinates
+   real(wp), intent(in) :: xyz(3,nat)
+   !> Atomic partial charges
+   real(wp), intent(in) :: q(nat)
+   !> Number of AOs
+   integer, intent(in) :: nao
+   !> Number of occupied (localized) orbitals
+   integer, intent(in) :: n
+   !> AO to atom mapping
+   integer, intent(in) :: aoat2(nao)
+   !> AO overlap matrix
+   real(wp), intent(in) :: s(nao,nao)
+   !> Localized MO coefficients in the AO basis
+   real(wp), intent(in) :: cmo_lmo(nao,n)
+   !> Diagonal LMO Fock matrix element (for printout only)
+   real(wp), intent(in) :: f(n)
+   !> Wiberg-Mayer bond orders
+   real(wp), intent(in) :: wbo(nat,nat)
+   !> LMO charge centers, modified in place for shifted lone pairs
+   real(wp), intent(inout) :: ecent(n,4)
+   !> Total energy (for printout only)
+   real(wp), intent(in) :: etot
+   !> Total dipole moment
+   real(wp), intent(in) :: diptot
+   !> Averaged LUMO/HOMO energies and their atomic populations
+   real(wp), intent(in) :: enlumo,enhomo,qhl(nat,2)
+   !> Detailed results, xTB-IFF/docking part is populated here
+   type(scc_results), intent(inout) :: results
+   !> Index offset into the output LMO arrays, for accumulating multiple
+   !> spin channels
+   integer, intent(in), optional :: ilmo0
+   !> Cumulative number of valid LMOs already stored by previous calls
+   integer, intent(in), optional :: nlmo0
+   !> Next free index offset, to chain a subsequent spin channel
+   integer, intent(out), optional :: islot_out
+   !> Cumulative number of valid LMOs including this call
+   integer, intent(out), optional :: nlmo_out
+
+   real(wp),allocatable :: qmo(:,:)
+   real(wp),allocatable :: tmpq(:,:)
+   real(wp),allocatable :: xcen(:)
+   real(sp),allocatable :: rklmo(:,:)
+   integer, allocatable :: lneigh(:,:)
+   integer, allocatable :: aneigh(:,:)
+   integer :: ilmo0_,nlmo0_
+
+   integer imem(nat),idum,jdum,maxlp,maxpi,is1,pilist(n)
+   integer i,j,k,ii,ij,nn,m,ldum(n),sigrel(3,n),npi,is2
+   integer i1,i2,i3,is3,ipi,piset(nat),j1,j2,smo,pmo,nl,nm,nr
+   integer imo,new
+   real(wp) :: dd,dum,pp,dtot(3),vec1(3),vec2(3),pithr
+   character(len=5) :: lmostring(4)
+   data lmostring/'sigma','LP   ','pi   ','delpi'/
+   logical l1,l2,l3,flip
+   integer :: iscreen,icoord,ilmoi,icent ! file handles
+
+   ilmo0_ = 0
+   if (present(ilmo0)) ilmo0_ = ilmo0
+   nlmo0_ = 0
+   if (present(nlmo0)) nlmo0_ = nlmo0
+
    pithr=2.20  ! below is pi, large is pi deloc (typ=4)
 
    ! number of centers for each mo
    allocate(qmo(nat,n))
-   call mocent(nat,nao,n,tmp_cmo,s,qmo,xcen,basis%aoat2)
+   allocate(xcen(n), source=0.0_wp)
+   call mocent(nat,nao,n,cmo_lmo,s,qmo,xcen,aoat2)
 
    allocate(rklmo(5,2*n))
    if(set%pr_local) write(*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'
@@ -347,7 +479,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
          call lmotype(nat,at,xyz,ecent(i,1),ecent(i,2),ecent(i,3), &
          &                imem(1),imem(2),xcen(i),.true.,pithr,jdum)
       endif
-      if(set%pr_local) then 
+      if(set%pr_local) then
       write(*,'(i5,1x,a5,2f7.2,3f10.5,12(i5,2x,a2,'':'',f6.2))')  &
       &   i,lmostring(jdum),autoev*f(i),xcen(i),ecent(i,1:3), &
       &   (imem(j),toSymbol(at(imem(j))),qmo(j,i),j=1,idum)
@@ -382,6 +514,8 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    enddo
 
    !ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+   allocate(lneigh(4,n),aneigh(2,n), source=0)
 
    new=0
    if(maxval(rklmo(5,1:n)).ge.3.)then
@@ -456,11 +590,6 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
 
       if(set%pr_local) write(*,*) 'thr ',pithr, '# pi deloc LMO',npi
 
-
-      allocate(wbo(nat,nat))
-      wbo=0.0d0
-      call get_wiberg(nat,nao,at,xyz,p,s,wbo,basis%fila2)
-
       !     now create new LMO
       k=0
       m=0
@@ -471,6 +600,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
          dd=wbo(i2,i1)
          do j=1,3
             smo=sigrel(j,i)
+            if(smo.lt.1) cycle
             if(rklmo(5,smo).ne.1) cycle
             !         if(rklmo(5,smo).eq.0.or.rklmo(5,smo).eq.2) cycle
             j1 = aneigh(1,smo)
@@ -509,7 +639,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
             rklmo(4:5,n+k)=rklmo(4:5,imo)
             rklmo(  5,smo)=0 ! remove sigma
             !        add to screen file, protomer search
-            if(set%pr_local) then 
+            if(set%pr_local) then
                write(iscreen,*) nat+1
                write(iscreen,*)
                do ii=1,nat
@@ -521,7 +651,6 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
          enddo
       enddo
       new=k
-      deallocate(wbo)
 
    endif
 
@@ -558,7 +687,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
       if(set%pr_local) write(icent,'(''$end'')')
       call close_file(ilmoi)
       if(set%pr_local) call close_file(icent)
-   end if 
+   end if
 
    !> Saving results
    k=0
@@ -568,7 +697,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    results%iff_results%at = at
    results%iff_results%xyz = xyz
    results%iff_results%q = q
-   results%iff_results%nlmo = k
+   results%iff_results%nlmo = nlmo0_ + k
    results%iff_results%dipol = diptot
    results%iff_results%elumo = enlumo
    results%iff_results%ehomo = enhomo
@@ -576,10 +705,12 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    results%iff_results%qct(1:nat,2) = qhl(1:nat,2)
    do i=1,n+new
       if(int(rklmo(5,i)).gt.0) then
-         results%iff_results%lmo(i) = int(rklmo(5,i))
-         results%iff_results%rlmo(1:3,i) = rklmo(1:3,i)
+         results%iff_results%lmo(ilmo0_+i) = int(rklmo(5,i))
+         results%iff_results%rlmo(1:3,ilmo0_+i) = rklmo(1:3,i)
       endif
    end do
+   if (present(islot_out)) islot_out = ilmo0_ + n + new
+   if (present(nlmo_out)) nlmo_out = nlmo0_ + k
 
    if(set%pr_local) then
       write(*,*)'files:'
@@ -589,9 +720,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
       write(*,*)
    end if
 
-   deallocate(xcen,cca,d,f,qmo,ecent,rklmo)
+   deallocate(xcen,qmo,rklmo,lneigh,aneigh)
 
-end subroutine local
+end subroutine classify_lmo
 
 ! determine type of LMO
 subroutine lmotype(n,at,xyz,ex,ey,ez,ia1,ia2,xcen,modi,pithr,typ)

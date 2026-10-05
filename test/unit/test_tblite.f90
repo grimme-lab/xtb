@@ -47,7 +47,8 @@ subroutine collect_tblite(testsuite)
       new_unittest("gfn2-mindless-gbe", test_gfn2_mindless_gbe), &
       new_unittest("gfn1-mindless-ddx", test_gfn1_mindless_ddx), &
       new_unittest("gfn2-mindless-ddx", test_gfn2_mindless_ddx), &
-      new_unittest("mindless-efield", test_mindless_efield) &
+      new_unittest("mindless-efield", test_mindless_efield), &
+      new_unittest("lmo-molden", test_lmo_molden) &
       ]
 
 end subroutine collect_tblite
@@ -845,5 +846,119 @@ subroutine test_mindless_efield(error)
 
 end subroutine test_mindless_efield
 
+
+!> Check tagged molden file writing for localized orbitals with tblite
+subroutine test_lmo_molden(error)
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data
+   use xtb_type_environment
+   use xtb_setparam, only : set
+   use xtb_propertyoutput, only : tblite_property
+
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 7
+   integer, parameter :: at(nat) = [6,6,6,1,1,1,1]
+   real(wp),parameter :: xyz(3,nat) = reshape(&
+      &[0.00000000000000_wp, 0.00000000000000_wp,-1.79755622305860_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 0.95338756106749_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 3.22281255790261_wp, &
+      &-0.96412815539807_wp,-1.66991895015711_wp,-2.53624948351102_wp, &
+      &-0.96412815539807_wp, 1.66991895015711_wp,-2.53624948351102_wp, &
+      & 1.92825631079613_wp, 0.00000000000000_wp,-2.53624948351102_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 5.23010455462158_wp], shape(xyz))
+
+   type(TMolecule)    :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TTBLiteCalculator) :: calc
+
+   real(wp) :: energy, sigma(3, 3)
+   real(wp) :: hl_gap
+   real(wp),allocatable :: gradient(:,:)
+   logical :: pr_lmo_save, pr_molden_save
+   logical :: exist_molden, exist_molden_lmo, differ
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   call init(mol, at, xyz)
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2"))
+   call newTBLiteWavefunction(env, mol, calc, chk)
+
+   ! Mirror '--lmo --molden' on the command line
+   pr_lmo_save = set%pr_lmo
+   pr_molden_save = set%pr_molden_input
+   set%pr_lmo = .true.
+   set%pr_molden_input = .true.
+
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   ! Write the Molden file(s), just like the full CLI run does after the
+   ! singlepoint has finished
+   call tblite_property(6, env, chk, calc, mol, res)
+
+   set%pr_lmo = pr_lmo_save
+   set%pr_molden_input = pr_molden_save
+
+   ! The canonical and localized-MO Molden files both get written ...
+   inquire(file='molden.input', exist=exist_molden)
+   inquire(file='molden-lmo.input', exist=exist_molden_lmo)
+   call check_(error, exist_molden)
+   if (allocated(error)) return
+   call check_(error, exist_molden_lmo)
+   if (allocated(error)) return
+
+   ! ... and actually hold different (localized vs. canonical) coefficients
+   call files_differ('molden.input', 'molden-lmo.input', differ)
+   call check_(error, differ)
+   if (allocated(error)) return
+
+   call delete_file('molden.input')
+   call delete_file('molden-lmo.input')
+   call delete_file('charges')
+
+end subroutine test_lmo_molden
+
+!> Line-by-line comparison of two text files
+subroutine files_differ(file1, file2, differ)
+   character(len=*), intent(in) :: file1, file2
+   logical, intent(out) :: differ
+
+   integer :: unit1, unit2, stat1, stat2
+   character(len=1024) :: line1, line2
+
+   differ = .false.
+   open(newunit=unit1, file=file1, status='old', action='read')
+   open(newunit=unit2, file=file2, status='old', action='read')
+
+   do
+      read(unit1, '(a)', iostat=stat1) line1
+      read(unit2, '(a)', iostat=stat2) line2
+      if (stat1 /= 0 .or. stat2 /= 0) then
+         if (stat1 /= stat2) differ = .true.
+         exit
+      end if
+      if (line1 /= line2) then
+         differ = .true.
+         exit
+      end if
+   end do
+
+   close(unit1)
+   close(unit2)
+
+end subroutine files_differ
 
 end module test_tblite

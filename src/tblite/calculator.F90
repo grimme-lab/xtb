@@ -50,6 +50,7 @@ module xtb_tblite_calculator
    use tblite_xtb_singlepoint, only : xtb_singlepoint
    use tblite_data_spin, only : get_spin_constant
    use xtb_tblite_mapping, only : convert_tblite_to_wfn
+   use xtb_tblite_local, only : get_tblite_lmo
 #endif
    use xtb_tblite_mapping, only : convert_tblite_to_results
    use xtb_mctc_accuracy, only : wp
@@ -518,7 +519,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    type(post_processing_list), allocatable :: post_proc
    real(wp) :: efix
    real(wp), allocatable :: dpmom(:), qpmom(:)
-   character(len=:), allocatable :: wbo_label, molmom_label
+   character(len=:), allocatable :: wbo_label, molmom_label, lmo_label
 
    struc = mol
    ctx%unit = env%unit
@@ -526,8 +527,9 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! Setup the required post-processing
    allocate(post_proc)
-   if (set%pr_wiberg .or. set%pr_wbofrag) then
-      ! Wiberg-Mayer bond orders
+   if (set%pr_wiberg .or. set%pr_wbofrag .or. set%pr_lmo) then
+      ! Wiberg-Mayer bond orders, also needed for the delocalized-pi
+      ! regularization of the localized orbitals below
       wbo_label = "bond-orders"
       call add_post_processing(post_proc, struc, wbo_label, error)
       if (allocated(error)) then
@@ -546,6 +548,18 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       end if
    end if
 
+   if (set%pr_lmo) then
+      ! Foster-Boys localized orbitals for the xTB-IFF/docking results
+      lmo_label = "lmo-foster-boys"
+      call add_post_processing(post_proc, struc, lmo_label, error)
+      if (allocated(error)) then
+         call env%error(error%message, source)
+         return
+      end if
+      ! Overlap integrals are needed to classify the localized orbitals
+      self%tblite%save_integrals = .true.
+   end if
+
    ! Needed to update atomic charges after reading restart file
    call get_qat_from_qsh(self%tblite%bas, chk%tblite%qsh, chk%tblite%qat)
 
@@ -557,6 +571,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          call env%error(error%message, source)
       end do
       return
+   end if
+
+   if (set%pr_lmo) then
+      call get_tblite_lmo(env, mol, self%tblite%bas, chk%tblite, &
+         & results%tblite_results, energy, results)
    end if
 
    ! convert tblite results into xtb data !

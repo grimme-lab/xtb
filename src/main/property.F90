@@ -247,7 +247,8 @@ module xtb_propertyoutput
          end if
          emo = wfx%emo * evtoau
          focc = wfx%focca + wfx%foccb
-         call printmold(mol%n, basis%nao, basis%nbf, mol%xyz, mol%at, C, emo, focc, 2.0_wp, basis)
+         call printmold(mol%n, basis%nao, basis%nbf, mol%xyz, mol%at, C, emo, focc, 2.0_wp, basis, &
+            & 'molden.input', '')
          write (iunit, '(/,"MOs/occ written to file <molden.input>",/)')
          deallocate (C, focc, emo)
       end if
@@ -295,6 +296,7 @@ module xtb_propertyoutput
       use tblite_output_ascii, only : ascii_levels, ascii_atomic_charges, &
          & ascii_dipole_moments, ascii_quadrupole_moments
       use tblite_io_molden, only : save_molden
+      use tblite_wavefunction_type, only : wavefunction_type
 #endif
 
       implicit none
@@ -314,10 +316,11 @@ module xtb_propertyoutput
 
 #if WITH_TBLITE
       type(structure_type) :: struc
-      integer :: ifile
+      integer :: ifile, imo
       real(wp) :: dip
       real(wp), allocatable :: wbo(:, :, :), dpmom(:), qpmom(:)
       type(error_type), allocatable :: error
+      type(wavefunction_type) :: wfn_loc
 
       struc = mol
 
@@ -370,6 +373,25 @@ module xtb_propertyoutput
             return
          end if
          write (iunit, '(/,"MOs/occ written to file <molden.input>",/)')
+
+         if (set%pr_lmo) then
+            wfn_loc = wfx%tblite
+            call res%tblite_results%dict%get_entry("localized-orbitals", wfn_loc%coeff)
+            if (allocated(wfn_loc%coeff)) then
+               ! Localized orbitals have no orbital energies, use the orbital index
+               do imo = 1, size(wfn_loc%emo, 1)
+                  wfn_loc%emo(imo, :) = real(imo, wp)
+               end do
+               call save_molden("molden-lmo.input", struc, calc%tblite%bas, &
+                  & wfn_loc, error, title="Foster-Boys localized orbitals")
+               if (allocated(error)) then
+                  call env%error("Error writing localized MO molden file: "//error%message)
+               end if
+               write (iunit, '(/,"Localized MOs written to file <molden-lmo.input>",/)')
+            else
+               call env%warning("Localized orbitals not available, skipping molden-lmo.input")
+            end if
+         end if
       end if
 
       ! Dipole moments
