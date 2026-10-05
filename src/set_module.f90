@@ -1388,62 +1388,62 @@ subroutine set_write(env,key,val)
        if (set14) set%esp_gridfile = val
       set14 = .false.
    case('gridpoints')
-      if (getValue(env,val,idum).and.set33) set%esp_nang = idum
-      set33 = .false.
-   case('stm')
-      if (getValue(env,val,ldum).and.set15) set%pr_stm = ldum
+      if (getValue(env,val,idum).and.set15) set%esp_nang = idum
       set15 = .false.
-   case('gbw')
-      if (getValue(env,val,ldum).and.set16) set%pr_gbw = ldum
+   case('stm')
+      if (getValue(env,val,ldum).and.set16) set%pr_stm = ldum
       set16 = .false.
-   case('tm mos')
-      if (getValue(env,val,ldum).and.set17) set%pr_tmmos = ldum
+   case('gbw')
+      if (getValue(env,val,ldum).and.set17) set%pr_gbw = ldum
       set17 = .false.
-   case('tm basis')
-      if (getValue(env,val,ldum).and.set18) set%pr_tmbas = ldum
+   case('tm mos')
+      if (getValue(env,val,ldum).and.set18) set%pr_tmmos = ldum
       set18 = .false.
-   case('json')
-      if (getValue(env,val,ldum).and.set19) set%pr_json = ldum
+   case('tm basis')
+      if (getValue(env,val,ldum).and.set19) set%pr_tmbas = ldum
       set19 = .false.
-   case('distances')
-      if (getValue(env,val,ldum).and.set20) set%pr_distances = ldum
+   case('json')
+      if (getValue(env,val,ldum).and.set20) set%pr_json = ldum
       set20 = .false.
-   case('angles')
-      if (getValue(env,val,ldum).and.set21) set%pr_angles = ldum
+   case('distances')
+      if (getValue(env,val,ldum).and.set21) set%pr_distances = ldum
       set21 = .false.
-   case('torsions')
-      if (getValue(env,val,ldum).and.set22) set%pr_torsions = ldum
+   case('angles')
+      if (getValue(env,val,ldum).and.set22) set%pr_angles = ldum
       set22 = .false.
-   case('final struct')
-      if (getValue(env,val,ldum).and.set23) set%pr_finalstruct = ldum
+   case('torsions')
+      if (getValue(env,val,ldum).and.set23) set%pr_torsions = ldum
       set23 = .false.
-   case('geosum')
-      if (getValue(env,val,ldum).and.set24) set%pr_geosum = ldum
+   case('final struct')
+      if (getValue(env,val,ldum).and.set24) set%pr_finalstruct = ldum
       set24 = .false.
-   case('moments','inertia')
-      if (getValue(env,val,ldum).and.set25) set%pr_moments = ldum
+   case('geosum')
+      if (getValue(env,val,ldum).and.set25) set%pr_geosum = ldum
       set25 = .false.
-   case('modef')
-      if (getValue(env,val,ldum).and.set26) set%pr_modef = ldum
+   case('moments','inertia')
+      if (getValue(env,val,ldum).and.set26) set%pr_moments = ldum
       set26 = .false.
-   case('wbo fragments')
-      if (getValue(env,val,ldum).and.set27) set%pr_wbofrag = ldum
+   case('modef')
+      if (getValue(env,val,ldum).and.set27) set%pr_modef = ldum
       set27 = .false.
-   case('output file')
-      if (set28) set%property_file = val
+   case('wbo fragments')
+      if (getValue(env,val,ldum).and.set28) set%pr_wbofrag = ldum
       set28 = .false.
-   case('fod population')
-      if (getValue(env,val,ldum).and.set29) set%pr_fod_pop = ldum
+   case('output file')
+      if (set29) set%property_file = val
       set29 = .false.
-   case('gbsa')
-      if (getValue(env,val,ldum).and.set30) set%pr_gbsa = ldum
+   case('fod population')
+      if (getValue(env,val,ldum).and.set30) set%pr_fod_pop = ldum
       set30 = .false.
-   case('vib_normal_modes', 'nmtm')
-      if (getValue(env,val,ldum).and.set31) set%pr_nmtm = ldum
+   case('gbsa')
+      if (getValue(env,val,ldum).and.set31) set%pr_gbsa = ldum
       set31 = .false.
-   case('hessian.out')
-      if (getValue(env,val,ldum).and.set32) set%pr_dftbp_hessian_out = ldum
+   case('vib_normal_modes', 'nmtm')
+      if (getValue(env,val,ldum).and.set32) set%pr_nmtm = ldum
       set32 = .false.
+   case('hessian.out')
+      if (getValue(env,val,ldum).and.set33) set%pr_dftbp_hessian_out = ldum
+      set33 = .false.
    end select
 end subroutine set_write
 
