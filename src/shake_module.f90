@@ -30,6 +30,7 @@ module xtb_shake
    real(wp),  allocatable :: distcons(:)
    real(wp),  allocatable :: dro(:,:)
    real(wp),  allocatable :: dr (:,:)
+   real(wp),  allocatable :: lambda(:) ! accumulated SHAKE multipliers of the last step
    integer, parameter :: maxcyc = 250
    real(wp), parameter :: tolshake = 1.d-7
 
@@ -141,7 +142,7 @@ subroutine init_shake(nat,at,xyz,wbo)
 99 ncons  = nconsu
    if(nconsu.lt.1) return
 
-   allocate(conslist(2,ncons),distcons(ncons),dro(3,ncons),dr(4,ncons))
+   allocate(conslist(2,ncons),distcons(ncons),dro(3,ncons),dr(4,ncons),lambda(ncons))
 
    conslist(1:2,1:ncons)=conslistu(1:2,1:ncons)
    do i = 1, ncons
@@ -172,6 +173,7 @@ subroutine do_shake(nat,xyzo,xyz,velo,acc,mass,tstep)
 
    conv = .false.
    icyc = 0
+   lambda = 0.d0
 
    xyzt = xyz
 
@@ -219,6 +221,7 @@ subroutine do_shake(nat,xyzo,xyz,velo,acc,mass,tstep)
 
          gcons = (dist-dr(4,i))/denom
 
+         lambda(i) = lambda(i) + gcons
          xyzt(1:3,iat) = xyzt(1:3,iat) + rmi*gcons*dro(1:3,i)
          xyzt(1:3,jat) = xyzt(1:3,jat) - rmj*gcons*dro(1:3,i)
 
