@@ -374,6 +374,7 @@ subroutine write_set_write(ictrl)
    write(ictrl,'(3x,"output file=",a)')      set%property_file
    write(ictrl,'(3x,"esp=",a)')              bool2string(set%pr_esp)
    if (allocated(set%esp_gridfile)) write(ictrl,'(3x,"gridfile=",a)')         set%esp_gridfile
+   write(ictrl,'(3x,"gridpoints=",i0)')      set%esp_nang
    write(ictrl,'(3x,"mos=",a)')              bool2string(set%pr_molden_input)
    write(ictrl,'(3x,"gbw=",a)')              bool2string(set%pr_gbw)
    write(ictrl,'(3x,"tm mos=",a)')           bool2string(set%pr_tmmos)
@@ -1337,6 +1338,7 @@ subroutine set_write(env,key,val)
    logical,save :: set30 = .true.
    logical,save :: set31 = .true.
    logical,save :: set32 = .true.
+   logical,save :: set33 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by write",source)
@@ -1385,6 +1387,9 @@ subroutine set_write(env,key,val)
    case('gridfile', 'grid file')
        if (set14) set%esp_gridfile = val
       set14 = .false.
+   case('gridpoints')
+      if (getValue(env,val,idum).and.set33) set%esp_nang = idum
+      set33 = .false.
    case('stm')
       if (getValue(env,val,ldum).and.set15) set%pr_stm = ldum
       set15 = .false.
