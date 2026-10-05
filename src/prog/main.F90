@@ -1366,7 +1366,10 @@ contains
       real(wp) :: ddum
       character(len=:), allocatable :: flag, sec
       logical :: exist
+      ! Accuracy explicitly requested via --acc, independent of its value
+      logical :: acc_provided
 
+      acc_provided = .false.
       set%gfn_method = 2
       dipro%diprocalc = .false.
       coffee = .false.
@@ -1488,6 +1491,7 @@ contains
                   else
                      set%acc = ddum
                   end if
+                  acc_provided = .true.
                end if
                tblite%accuracy = set%acc
             else
@@ -1883,33 +1887,38 @@ contains
                   call set_gbsa(env, flag(3:), 'true')
                end if
                ! Add solvation model also to tblite input
-               if (.not. allocated(tblite%solvation)) then
-                  allocate(tblite%solvation)
+               if (flag /= "--tmcosmo") then
+                  if (.not. allocated(tblite%solvation)) then
+                     allocate(tblite%solvation)
+                  end if
+                  if (allocated(tblite%solvation%solvation_model)) then
+                     call env%error("Cannot specify multiple solvation models", source)
+                  end if
+                  ! Select tblite solvation model
+                  if (flag == "--cosmo") then
+                     tblite%solvation%solvation_model = "cosmo"
+                  else if (flag == "--cpcm") then
+                     tblite%solvation%solvation_model = "cpcm"
+                  else if (flag == "--pcm") then
+                     tblite%solvation%solvation_model = "pcm"
+                  end if
+                  tblite%solvation%solvent = sec
                end if
-               if (allocated(tblite%solvation%solvation_model)) then
-                  call env%error("Cannot specify multiple solvation models", source)
-               end if
-               ! Select tblite solvation model
-               if (flag == "--cosmo") then
-                  tblite%solvation%solvation_model = "cosmo"
-               else if (flag == "--cpcm") then
-                  tblite%solvation%solvation_model = "cpcm"
-               else if (flag == "--pcm") then
-                  tblite%solvation%solvation_model = "pcm"
-               end if
-               tblite%solvation%solvent = sec
                ! Read possible reference state
                call args%nextArg(sec)
                if (allocated(sec)) then
                   if (sec == 'gsolv') then
                      gsolvstate = solutionState%gsolv
-                     tblite%solvation%reference_state = "gsolv"
+                     if (allocated(tblite%solvation)) &
+                        & tblite%solvation%reference_state = "gsolv"
                   else if (sec == 'reference') then
                      gsolvstate = solutionState%reference
-                     tblite%solvation%reference_state = "reference"
+                     if (allocated(tblite%solvation)) &
+                        & tblite%solvation%reference_state = "reference"
                   else if (sec == 'bar1M') then
                      gsolvstate = solutionState%mol1bar
-                     tblite%solvation%reference_state = "bar1M"
+                     if (allocated(tblite%solvation)) &
+                        & tblite%solvation%reference_state = "bar1M"
                   else
                      call env%warning("Unknown reference state '"//sec//"'", source)
                   end if
@@ -1981,7 +1990,7 @@ contains
             end if
             ! Tighten the SCF convergence with the optimization level
             ! if there is no user defined accuracy
-            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+            if (.not.acc_provided) then
                if (set%optset%optlev == 1) then
                   set%acc = 0.5_wp
                else if (set%optset%optlev >= 2) then
@@ -1994,7 +2003,7 @@ contains
             call set_runtyp('hess')
             ! Tighten SCF convergence by default for numerical Hessian
             ! if there is no user defined accuracy
-            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+            if (.not.acc_provided) then
                set%acc = 0.2_wp
                tblite%accuracy = set%acc
             end if
@@ -2010,7 +2019,7 @@ contains
             end if
             ! Tighten SCF convergence by default for numerical Hessian
             ! if there is no user defined accuracy
-            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+            if (.not.acc_provided) then
                set%acc = 0.2_wp
                tblite%accuracy = set%acc
             end if
@@ -2023,7 +2032,7 @@ contains
             end if
             ! Tighten SCF convergence by default for numerical Hessian
             ! if there is no user defined accuracy
-            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+            if (.not.acc_provided) then
                set%acc = 0.2_wp
                tblite%accuracy = set%acc
             end if
@@ -2095,7 +2104,7 @@ contains
             end if
             ! Tighten the SCF convergence with the optimization level
             ! if there is no user defined accuracy
-            if (abs(set%acc - 1.0_wp) < epsilon(set%acc)) then
+            if (.not.acc_provided) then
                if (set%optset%optlev == 1) then
                   set%acc = 0.5_wp
                else if (set%optset%optlev >= 2) then

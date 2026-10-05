@@ -538,7 +538,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! Molecular multipole moments
    molmom_label = "molmom"
-   if (set%pr_dipole) then
+   if (set%pr_dipole .or. set%pr_quadrupole) then
       call add_post_processing(post_proc, struc, molmom_label, error)
       if (allocated(error)) then
          call env%error(error%message, source)
@@ -811,6 +811,7 @@ subroutine getTBLiteFeature(env, feature, available)
 #if WITH_TBLITE
    available = get_tblite_feature(feature)
 #else
+   available = .false.
    call feature_not_implemented(env)
 #endif
 end subroutine getTBLiteFeature

@@ -367,11 +367,12 @@ module xtb_propertyoutput
          call save_molden("molden.input", struc, calc%tblite%bas, wfx%tblite, error)
          if (allocated(error)) then
             call env%error("Error writing molden file: "//error%message)
+            return
          end if
          write (iunit, '(/,"MOs/occ written to file <molden.input>",/)')
       end if
 
-      ! Multipole moments
+      ! Dipole moments
       if (set%pr_dipole .and. .not. set%silent) then
          call res%tblite_results%dict%get_entry("molecular-dipole", dpmom)
          call ascii_dipole_moments(iunit, 1, struc, wfx%tblite%dpat(:, :, 1), dpmom)
@@ -379,12 +380,12 @@ module xtb_propertyoutput
          write (iunit, '(4x,"Total dipole moment (a.u. / Debye):",2f9.4)') &
                & dip, dip * autod
          write (iunit, '(a)')
+      end if
 
-         ! Quadrupole moments (available for all methods in tblite)
-         if (set%pr_quadrupole .and. .not. set%silent) then
-            call res%tblite_results%dict%get_entry("molecular-quadrupole", qpmom)
-            call ascii_quadrupole_moments(iunit, 1, struc, wfx%tblite%qpat(:, :, 1), qpmom)
-         end if
+      ! Quadrupole moments (available for all methods in tblite)
+      if (set%pr_quadrupole .and. .not. set%silent) then
+         call res%tblite_results%dict%get_entry("molecular-quadrupole", qpmom)
+         call ascii_quadrupole_moments(iunit, 1, struc, wfx%tblite%qpat(:, :, 1), qpmom)
       end if
 #else 
       call env%error("Compiled without support for tblite library")
