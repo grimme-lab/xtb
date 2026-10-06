@@ -349,7 +349,7 @@ module xtb_propertyoutput
             call close_file(ifile)
          end if
          if (.not. set%silent) then
-            call print_wiberg(iunit, struc%nat, struc%num(mol%id), mol%sym(mol%id), &
+            call print_wiberg(iunit, struc%nat, struc%num(mol%id), mol%sym, &
                & wbo(:, :, 1), 0.1_wp)
 
             call checkTopology(iunit, mol, wbo(:, :, 1), 1)
