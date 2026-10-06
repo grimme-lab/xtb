@@ -50,9 +50,9 @@ module xtb_tblite_calculator
    use tblite_xtb_singlepoint, only : xtb_singlepoint
    use tblite_data_spin, only : get_spin_constant
    use xtb_tblite_mapping, only : convert_tblite_to_wfn
-   use xtb_tblite_local, only : get_tblite_lmo
 #endif
    use xtb_tblite_mapping, only : convert_tblite_to_results
+   use xtb_local, only : get_tblite_lmo
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data
@@ -574,8 +574,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    end if
 
    if (set%pr_lmo) then
-      call get_tblite_lmo(env, mol, self%tblite%bas, chk%tblite, &
-         & results%tblite_results, energy, results)
+      call get_tblite_lmo(env, mol, chk, self%tblite%bas%ao2at, energy, results)
    end if
 
    ! convert tblite results into xtb data !
