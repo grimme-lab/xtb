@@ -615,8 +615,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       if (.not.set%silent) then
          if (set%verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
-            write(env%unit,outfmt) "HOMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo),  "eV   "
-            write(env%unit,outfmt) "LUMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo+1),"eV   "
+            ! HOMO or LUMO might not exist for systems without occupied or virtual orbitals
+            if (chk%wfn%ihomo > 0) then
+               write(env%unit,outfmt) "HOMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo),  "eV   "
+            end if
+            if (chk%wfn%ihomo < size(chk%wfn%emo)) then
+               write(env%unit,outfmt) "LUMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo+1),"eV   "
+            end if
          endif
          write(env%unit,'(9x,"::",49("."),"::")')
          select case(self%tblite%method)

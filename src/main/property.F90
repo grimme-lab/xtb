@@ -1639,7 +1639,12 @@ subroutine print_orbital_eigenvalues(iunit, wfn, range)
 
    minorb = max(wfn%ihomoa - (range + 1), 1)
    maxorb = min(wfn%ihomoa + range, wfn%nao)
-   gap = wfn%emo(wfn%ihomoa + 1) - wfn%emo(wfn%ihomoa)
+   ! The gap is undefined without occupied or virtual orbitals
+   if (wfn%ihomoa > 0 .and. wfn%ihomoa < wfn%nao) then
+      gap = wfn%emo(wfn%ihomoa + 1) - wfn%emo(wfn%ihomoa)
+   else
+      gap = 0.0_wp
+   end if
 
    write (iunit, '(a)')
    write (iunit, '(a10,a14,a21,a21)') "#", "Occupation", "Energy/Eh", "Energy/eV"

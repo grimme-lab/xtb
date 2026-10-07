@@ -17,7 +17,7 @@
 set(_lib "tblite")
 set(_pkg "TBLITE")
 set(_url "https://github.com/tblite/tblite")
-set(_rev "964c4c22e0f2642068091f97eaf53620128c8f1c")
+set(_rev "8516789076270bbf6840133ed579f76aa4b186d2")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
    set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")

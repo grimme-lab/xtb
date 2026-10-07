@@ -1107,7 +1107,7 @@ subroutine test_lmo_no_occupied(error)
 
    real(wp) :: energy, sigma(3, 3), hl_gap
    real(wp), allocatable :: gradient(:, :)
-   logical :: pr_lmo_save, exitRun
+   logical :: pr_lmo_save, verbose_save, silent_save, exitRun
 
    if (.not.get_xtb_feature('tblite')) then
       call skip_test(error, "xtb not compiled with tblite support")
@@ -1124,14 +1124,20 @@ subroutine test_lmo_no_occupied(error)
    call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2"))
    call newTBLiteWavefunction(env, mol, calc, chk)
 
-   ! Mirror '--lmo' on the command line
+   ! Mirror '--lmo --verbose' on the command line
    pr_lmo_save = set%pr_lmo
+   verbose_save = set%verbose
+   silent_save = set%silent
    set%pr_lmo = .true.
+   set%verbose = .true.
+   set%silent = .false.
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
    set%pr_lmo = pr_lmo_save
+   set%verbose = verbose_save
+   set%silent = silent_save
 
    call delete_file('xtblmoinfo')
    call delete_file('lmocent.coord')
