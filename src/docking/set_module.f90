@@ -476,6 +476,8 @@ contains
       input%etemp = set%etemp
       input%accuracy = accuracy
       input%max_iter = set%maxscciter
+      ! xTB-IFF requires LMOs of a spin-restricted wavefunction
+      input%spin_polarized = .false.
 
       ! Implicit solvation, same condition as for the native xTB calculator
       if (allocated(set%solvInput%solvent)) then

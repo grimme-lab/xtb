@@ -96,6 +96,8 @@ contains
 
    subroutine precomp(env, iff_data, mol, etot, mol_num)
 
+      character(len=*), parameter :: source = 'iff_prepare_precomp'
+
       !> Molecular structure data
       type(TMolecule), intent(inout) :: mol
       !> IFF data
@@ -214,7 +216,9 @@ contains
       set%pr_lmo = .false.
 
       !> Save the results
-      if (mol_num .eq. 1) then
+      if (.not.allocated(res%iff_results)) then
+         call env%error("Localized orbitals for xTB-IFF are not available", source)
+      else if (mol_num .eq. 1) then
          pre_e_A = etot
          iff_data%n1 = res%iff_results%n
          iff_data%at1 = res%iff_results%at
