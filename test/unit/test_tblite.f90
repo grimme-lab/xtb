@@ -352,9 +352,9 @@ subroutine test_gfn1_mindless_gbsa(error)
    character(len=*), parameter :: mindless(3) = [&
       & "mindless01", "mindless02", "mindless03"]
    real(wp), parameter :: ref_energies(3) = [&
-      & -33.072695457843_wp, -26.891768686617_wp, -25.862989566439_wp]
+      & -33.070984226895_wp, -26.889972394330_wp, -25.863303060829_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.058628136130_wp, 0.063073074869_wp, 0.056104584806_wp]
+      &  0.058279388856_wp, 0.063549001585_wp, 0.057213147947_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "toluene", "water  ", "dmso   "]
    character(len=*), parameter :: reference_states(3) = [&
@@ -426,9 +426,9 @@ subroutine test_gfn2_mindless_alpb(error)
    character(len=*), parameter :: mindless(3) = [&
       & "mindless01", "mindless02", "mindless03"]
    real(wp), parameter :: ref_energies(3) = [&
-      & -30.370379038871_wp, -24.094915747408_wp, -23.753741199115_wp]
+      & -30.371666860420_wp, -24.097540618377_wp, -23.756804328635_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.059708802674_wp, 0.058776300817_wp, 0.038985705570_wp]
+      &  0.059251596681_wp, 0.058330311868_wp, 0.038701806599_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "toluene", "water  ", "dioxane"]
    character(len=*), parameter :: reference_states(3) = [&
@@ -500,9 +500,9 @@ subroutine test_gfn1_mindless_gb(error)
    character(len=*), parameter :: mindless(3) = [&
       & "mindless01", "mindless02", "mindless03"]
    real(wp), parameter :: ref_energies(3) = [&
-      & -33.064405942599_wp, -26.868953153982_wp, -25.842056538615_wp]
+      & -33.062299321363_wp, -26.867001198379_wp, -25.838407153268_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.049650911438_wp, 0.060795167702_wp, 0.052671765954_wp]
+      &  0.050201466232_wp, 0.061145997232_wp, 0.052607750696_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "12.0 ", "water", "dmso "]
 
@@ -572,9 +572,9 @@ subroutine test_gfn2_mindless_gbe(error)
    character(len=*), parameter :: mindless(3) = [&
       & "mindless01", "mindless02", "mindless03"]
    real(wp), parameter :: ref_energies(3) = [&
-      & -30.372378247546_wp, -24.088080237554_wp, -23.752565609529_wp]
+      & -30.374483516047_wp, -24.091569563445_wp, -23.756982080663_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.061857944458_wp, 0.057444286571_wp, 0.042941843446_wp]
+      &  0.061052452620_wp, 0.057423342266_wp, 0.042255904958_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "12.0 ", "water", "dmso "]
 

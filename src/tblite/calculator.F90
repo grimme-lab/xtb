@@ -366,7 +366,7 @@ subroutine construct_solv_input(input, solv_input, error)
          end if
 
          ! Select the default born kernel
-         kernel = merge(born_kernel%still, born_kernel%p16, alpb)
+         kernel = merge(born_kernel%p16, born_kernel%still, alpb)
 
          ! Construct parametrized solvation model input for tblite
          if (parametrized_solvation) then
@@ -387,7 +387,7 @@ subroutine construct_solv_input(input, solv_input, error)
          end if
 
          ! Select the default born kernel
-         kernel = merge(born_kernel%still, born_kernel%p16, alpb)
+         kernel = merge(born_kernel%p16, born_kernel%still, alpb)
 
          if (.not.parametrized_solvation .and. sol_state /= solution_state%gsolv) then
             call fatal_error(error, "Solution state shift is only supported for named solvents")
