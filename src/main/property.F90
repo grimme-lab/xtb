@@ -247,7 +247,8 @@ module xtb_propertyoutput
          end if
          emo = wfx%emo * evtoau
          focc = wfx%focca + wfx%foccb
-         call printmold(mol%n, basis%nao, basis%nbf, mol%xyz, mol%at, C, emo, focc, 2.0_wp, basis)
+         call printmold(mol%n, basis%nao, basis%nbf, mol%xyz, mol%at, C, emo, focc, 2.0_wp, basis, &
+            & 'molden.input', '')
          write (iunit, '(/,"MOs/occ written to file <molden.input>",/)')
          deallocate (C, focc, emo)
       end if
@@ -295,6 +296,7 @@ module xtb_propertyoutput
       use tblite_output_ascii, only : ascii_levels, ascii_atomic_charges, &
          & ascii_dipole_moments, ascii_quadrupole_moments
       use tblite_io_molden, only : save_molden
+      use tblite_wavefunction_type, only : wavefunction_type
 #endif
 
       implicit none
@@ -314,10 +316,11 @@ module xtb_propertyoutput
 
 #if WITH_TBLITE
       type(structure_type) :: struc
-      integer :: ifile
+      integer :: ifile, imo
       real(wp) :: dip
       real(wp), allocatable :: wbo(:, :, :), dpmom(:), qpmom(:)
       type(error_type), allocatable :: error
+      type(wavefunction_type) :: wfn_loc
 
       struc = mol
 
@@ -346,7 +349,7 @@ module xtb_propertyoutput
             call close_file(ifile)
          end if
          if (.not. set%silent) then
-            call print_wiberg(iunit, struc%nat, struc%num(mol%id), mol%sym(mol%id), &
+            call print_wiberg(iunit, struc%nat, struc%num(mol%id), mol%sym, &
                & wbo(:, :, 1), 0.1_wp)
 
             call checkTopology(iunit, mol, wbo(:, :, 1), 1)
@@ -370,6 +373,26 @@ module xtb_propertyoutput
             return
          end if
          write (iunit, '(/,"MOs/occ written to file <molden.input>",/)')
+
+         if (set%pr_lmo) then
+            wfn_loc = wfx%tblite
+            call res%tblite_results%dict%get_entry("localized-orbitals", wfn_loc%coeff)
+            if (allocated(wfn_loc%coeff)) then
+               ! Localized orbitals have no orbital energies, use the orbital index
+               do imo = 1, size(wfn_loc%emo, 1)
+                  wfn_loc%emo(imo, :) = real(imo, wp)
+               end do
+               call save_molden("molden-lmo.input", struc, calc%tblite%bas, &
+                  & wfn_loc, error, title="Foster-Boys localized orbitals")
+               if (allocated(error)) then
+                  call env%error("Error writing localized MO molden file: "//error%message)
+                  return
+               end if
+               write (iunit, '(/,"Localized MOs written to file <molden-lmo.input>",/)')
+            else
+               call env%warning("Localized orbitals not available, skipping molden-lmo.input")
+            end if
+         end if
       end if
 
       ! Dipole moments
@@ -1616,7 +1639,12 @@ subroutine print_orbital_eigenvalues(iunit, wfn, range)
 
    minorb = max(wfn%ihomoa - (range + 1), 1)
    maxorb = min(wfn%ihomoa + range, wfn%nao)
-   gap = wfn%emo(wfn%ihomoa + 1) - wfn%emo(wfn%ihomoa)
+   ! The gap is undefined without occupied or virtual orbitals
+   if (wfn%ihomoa > 0 .and. wfn%ihomoa < wfn%nao) then
+      gap = wfn%emo(wfn%ihomoa + 1) - wfn%emo(wfn%ihomoa)
+   else
+      gap = 0.0_wp
+   end if
 
    write (iunit, '(a)')
    write (iunit, '(a10,a14,a21,a21)') "#", "Occupation", "Energy/Eh", "Energy/eV"

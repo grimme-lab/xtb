@@ -47,7 +47,10 @@ subroutine collect_tblite(testsuite)
       new_unittest("gfn2-mindless-gbe", test_gfn2_mindless_gbe), &
       new_unittest("gfn1-mindless-ddx", test_gfn1_mindless_ddx), &
       new_unittest("gfn2-mindless-ddx", test_gfn2_mindless_ddx), &
-      new_unittest("mindless-efield", test_mindless_efield) &
+      new_unittest("mindless-efield", test_mindless_efield), &
+      new_unittest("lmo-molden", test_lmo_molden), &
+      new_unittest("lmo-spinpol", test_lmo_spinpol), &
+      new_unittest("lmo-no-occupied", test_lmo_no_occupied) &
       ]
 
 end subroutine collect_tblite
@@ -845,5 +848,319 @@ subroutine test_mindless_efield(error)
 
 end subroutine test_mindless_efield
 
+
+!> Check tagged molden file writing for localized orbitals with tblite
+subroutine test_lmo_molden(error)
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data
+   use xtb_type_environment
+   use xtb_setparam, only : set
+   use xtb_propertyoutput, only : tblite_property
+
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 7
+   integer, parameter :: at(nat) = [6,6,6,1,1,1,1]
+   real(wp),parameter :: xyz(3,nat) = reshape(&
+      &[0.00000000000000_wp, 0.00000000000000_wp,-1.79755622305860_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 0.95338756106749_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 3.22281255790261_wp, &
+      &-0.96412815539807_wp,-1.66991895015711_wp,-2.53624948351102_wp, &
+      &-0.96412815539807_wp, 1.66991895015711_wp,-2.53624948351102_wp, &
+      & 1.92825631079613_wp, 0.00000000000000_wp,-2.53624948351102_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 5.23010455462158_wp], shape(xyz))
+
+   type(TMolecule)    :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TTBLiteCalculator) :: calc
+
+   real(wp) :: energy, sigma(3, 3)
+   real(wp) :: hl_gap
+   real(wp),allocatable :: gradient(:,:)
+   logical :: pr_lmo_save, pr_molden_save
+   logical :: exist_molden, exist_molden_lmo, differ
+   integer :: unit1, unit2, stat1, stat2
+   character(len=1024) :: line1, line2
+   logical :: in_mo1, in_mo2
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   call init(mol, at, xyz)
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2"))
+   call newTBLiteWavefunction(env, mol, calc, chk)
+
+   ! Mirror '--lmo --molden' on the command line
+   pr_lmo_save = set%pr_lmo
+   pr_molden_save = set%pr_molden_input
+   set%pr_lmo = .true.
+   set%pr_molden_input = .true.
+
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   ! Write the Molden file(s), just like the full CLI run does after the
+   ! singlepoint has finished
+   call tblite_property(6, env, chk, calc, mol, res)
+
+   set%pr_lmo = pr_lmo_save
+   set%pr_molden_input = pr_molden_save
+
+   ! The canonical and localized-MO Molden files both get written ...
+   inquire(file='molden.input', exist=exist_molden)
+   inquire(file='molden-lmo.input', exist=exist_molden_lmo)
+   call check_(error, exist_molden)
+   if (allocated(error)) return
+   call check_(error, exist_molden_lmo)
+   if (allocated(error)) return
+
+   ! ... and actually hold different (localized vs. canonical) coefficients
+   differ = .false.
+   in_mo1 = .false.
+   in_mo2 = .false.
+   open(newunit=unit1, file='molden.input', status='old', action='read')
+   open(newunit=unit2, file='molden-lmo.input', status='old', action='read')
+   do
+      ! Next coefficient line of the canonical file
+      do
+         read(unit1, '(a)', iostat=stat1) line1
+         if (stat1 /= 0) exit
+         if (index(line1, '[MO]') == 1) then
+            in_mo1 = .true.
+            cycle
+         end if
+         if (in_mo1 .and. .not.any(line1(1:4) == ['Sym=', 'Ene=', 'Spin', 'Occu'])) exit
+      end do
+      ! Next coefficient line of the localized file
+      do
+         read(unit2, '(a)', iostat=stat2) line2
+         if (stat2 /= 0) exit
+         if (index(line2, '[MO]') == 1) then
+            in_mo2 = .true.
+            cycle
+         end if
+         if (in_mo2 .and. .not.any(line2(1:4) == ['Sym=', 'Ene=', 'Spin', 'Occu'])) exit
+      end do
+      if (stat1 /= 0 .or. stat2 /= 0) then
+         if (stat1 /= stat2) differ = .true.
+         exit
+      end if
+      if (line1 /= line2) then
+         differ = .true.
+         exit
+      end if
+   end do
+   close(unit1)
+   close(unit2)
+   call check_(error, differ)
+   if (allocated(error)) return
+
+   call delete_file('molden.input')
+   call delete_file('molden-lmo.input')
+   call delete_file('charges')
+   call delete_file('wbo')
+   call delete_file('xtbtopo.mol')
+   call delete_file('xtblmoinfo')
+   call delete_file('lmocent.coord')
+   call delete_file('coordprot.0')
+   call delete_file('xtbscreen.xyz')
+
+end subroutine test_lmo_molden
+
+
+!> Check that a spin-polarized calculation skips the xTB-IFF LMO classification
+!> of the localized orbitals but writes both spin channels to the Molden file
+subroutine test_lmo_spinpol(error)
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data
+   use xtb_type_environment
+   use xtb_setparam, only : set
+   use xtb_propertyoutput, only : tblite_property
+
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 2
+   integer, parameter :: at(nat) = [8, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 1.83303265000000_wp], &
+      & shape(xyz))
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TTBLiteCalculator) :: calc
+
+   real(wp) :: energy, sigma(3, 3), hl_gap
+   real(wp), allocatable :: gradient(:, :)
+   logical :: pr_lmo_save, pr_molden_save, exitRun, exist_lmoinfo
+   logical :: exist_molden_lmo
+   integer :: unit, stat, nalpha, nbeta
+   character(len=1024) :: line
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   call init(mol, at, xyz, uhf=1)
+
+   allocate(gradient(3, mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newTBLiteCalculator(env, mol, calc, &
+      & TTBLiteInput(method="gfn2", spin_polarized=.true.))
+   call newTBLiteWavefunction(env, mol, calc, chk)
+
+   ! Remove LMO info of previous tests
+   call delete_file('xtblmoinfo')
+
+   ! Mirror '--lmo --molden' on the command line
+   pr_lmo_save = set%pr_lmo
+   pr_molden_save = set%pr_molden_input
+   set%pr_lmo = .true.
+   set%pr_molden_input = .true.
+
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+   call tblite_property(6, env, chk, calc, mol, res)
+
+   set%pr_lmo = pr_lmo_save
+   set%pr_molden_input = pr_molden_save
+
+   ! Skipping the classification only issues a warning
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (allocated(error)) return
+
+   ! No xTB-IFF classification for a spin-polarized wavefunction
+   call check_(error, .not.allocated(res%iff_results), &
+      & "xTB-IFF results present for a spin-polarized wavefunction")
+   if (allocated(error)) return
+   inquire(file='xtblmoinfo', exist=exist_lmoinfo)
+   call check_(error, .not.exist_lmoinfo, &
+      & "LMO info written for a spin-polarized wavefunction")
+   if (allocated(error)) return
+
+   ! Localized orbitals of both spin channels are written to the Molden file
+   inquire(file='molden-lmo.input', exist=exist_molden_lmo)
+   call check_(error, exist_molden_lmo)
+   if (allocated(error)) return
+   nalpha = 0
+   nbeta = 0
+   open(newunit=unit, file='molden-lmo.input', status='old', action='read')
+   do
+      read(unit, '(a)', iostat=stat) line
+      if (stat /= 0) exit
+      if (index(line, 'Alpha') > 0) nalpha = nalpha + 1
+      if (index(line, 'Beta') > 0) nbeta = nbeta + 1
+   end do
+   close(unit)
+   call check_(error, nalpha > 0 .and. nbeta == nalpha, &
+      & "Localized orbitals of both spin channels expected in Molden file")
+   if (allocated(error)) return
+
+   call delete_file('molden.input')
+   call delete_file('molden-lmo.input')
+   call delete_file('charges')
+   call delete_file('wbo')
+   call delete_file('xtbtopo.mol')
+
+end subroutine test_lmo_spinpol
+
+
+!> Check that the xTB-IFF data is stored for a system without occupied
+!> orbitals, like a sodium cation
+subroutine test_lmo_no_occupied(error)
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data
+   use xtb_type_environment
+   use xtb_setparam, only : set
+
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 1
+   integer, parameter :: at(nat) = [11]
+   real(wp), parameter :: xyz(3, nat) = 0.0_wp
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TTBLiteCalculator) :: calc
+
+   real(wp) :: energy, sigma(3, 3), hl_gap
+   real(wp), allocatable :: gradient(:, :)
+   logical :: pr_lmo_save, verbose_save, silent_save, exitRun
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   call init(mol, at, xyz, chrg=1.0_wp)
+
+   allocate(gradient(3, mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2"))
+   call newTBLiteWavefunction(env, mol, calc, chk)
+
+   ! Mirror '--lmo --verbose' on the command line
+   pr_lmo_save = set%pr_lmo
+   verbose_save = set%verbose
+   silent_save = set%silent
+   set%pr_lmo = .true.
+   set%verbose = .true.
+   set%silent = .false.
+
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   set%pr_lmo = pr_lmo_save
+   set%verbose = verbose_save
+   set%silent = silent_save
+
+   call delete_file('xtblmoinfo')
+   call delete_file('lmocent.coord')
+   call delete_file('xtbscreen.xyz')
+
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (allocated(error)) return
+
+   ! Molecular data is stored even without localized orbitals
+   call check_(error, allocated(res%iff_results))
+   if (allocated(error)) return
+   call check_(error, res%iff_results%nlmo, 0)
+   if (allocated(error)) return
+   call check_(error, res%iff_results%at(1), 11)
+   if (allocated(error)) return
+   call check_(error, res%iff_results%q(1), 1.0_wp, thr=thr)
+   if (allocated(error)) return
+   ! Non-existing HOMO is placed at an unrealistically low energy
+   call check_(error, res%iff_results%ehomo < -999.0_wp, &
+      & "Placeholder energy expected for the non-existing HOMO")
+   if (allocated(error)) return
+
+end subroutine test_lmo_no_occupied
 
 end module test_tblite

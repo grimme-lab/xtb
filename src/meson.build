@@ -100,7 +100,7 @@ srcs += files(
   'lidep.f90',
   'lin.f90',
   'lin_mod.f90',
-  'local.f90',
+  'local.F90',
   'locmode.f90',
   'lopt.f90',
   'ls_rmsd.f90',

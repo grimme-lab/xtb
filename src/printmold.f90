@@ -33,7 +33,7 @@
 ! ibf(ncent)   : # of contracted AOs on atom
 
 
-subroutine printmold(ncent,nmo,nbf,xyz,at,cmo,eval,occ,thr,basis)
+subroutine printmold(ncent,nmo,nbf,xyz,at,cmo,eval,occ,thr,basis,fname,title)
    use xtb_mctc_symbols, only : toSymbol
    use xtb_type_basisset
    implicit none
@@ -45,6 +45,10 @@ subroutine printmold(ncent,nmo,nbf,xyz,at,cmo,eval,occ,thr,basis)
    real*8, intent ( in ) :: thr
    integer, intent( in ) :: at(ncent)
    integer, intent( in ) :: ncent,nmo,nbf
+   !> Output file name
+   character(len=*), intent(in) :: fname
+   !> Comment written to the title section, skipped if empty
+   character(len=*), intent(in) :: title
    ! temporary variables
    integer i,j,k,icount,jcount,z,nmomax,nop
    real*8 dum
@@ -54,11 +58,12 @@ subroutine printmold(ncent,nmo,nbf,xyz,at,cmo,eval,occ,thr,basis)
    integer :: iwfn
 
    iwfn=29
-   call open_file(iwfn,'molden.input','w')
+   call open_file(iwfn,fname,'w')
 
 
    write(iwfn,'(A)',advance='yes')'[Molden Format]'
    write(iwfn,'(A)',advance='yes')'[Title]'
+   if (len_trim(title) > 0) write(iwfn,'(A)',advance='yes') trim(title)
 
    !cccccccccccccccccccccccccccccccccccccccccccccccc
    ! print out atoms & coordinates                 c

@@ -101,7 +101,7 @@ list(APPEND srcs
   "${dir}/lidep.f90"
   "${dir}/lin.f90"
   "${dir}/lin_mod.f90"
-  "${dir}/local.f90"
+  "${dir}/local.F90"
   "${dir}/locmode.f90"
   "${dir}/lopt.f90"
   "${dir}/ls_rmsd.f90"

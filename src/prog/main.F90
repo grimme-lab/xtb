@@ -1006,7 +1006,12 @@ contains
 
       ! reset the gap, since it is currently not updated in ancopt and numhess
       if (allocated(chk%wfn%emo)) then
-         res%hl_gap = chk%wfn%emo(chk%wfn%ihomo + 1) - chk%wfn%emo(chk%wfn%ihomo)
+         ! The gap is undefined without occupied or virtual orbitals
+         if (chk%wfn%ihomo > 0 .and. chk%wfn%ihomo < size(chk%wfn%emo)) then
+            res%hl_gap = chk%wfn%emo(chk%wfn%ihomo + 1) - chk%wfn%emo(chk%wfn%ihomo)
+         else
+            res%hl_gap = 0.0_wp
+         end if
       end if
 
       ! CPCM-X post-SCF solvation
