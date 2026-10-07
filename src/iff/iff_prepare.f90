@@ -27,6 +27,9 @@ module xtb_iff_iffprepare
    use xtb_type_restart, only: TRestart
    use xtb_type_calculator, only: TCalculator
    use xtb_xtb_calculator, only: TxTBCalculator
+   use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, &
+      & newTBLiteWavefunction
+   use xtb_docking_set_module, only: get_tblite_input
    use xtb_setmod, only: set_gfn
    use xtb_readin, only: xfind
    use xtb_solv_state, only: solutionState
@@ -38,7 +41,8 @@ module xtb_iff_iffprepare
    use xtb_main_setup, only: newCalculator
    use xtb_single, only: singlepoint
    use xtb_docking_param, only: chrg, uhf, gsolvstate_iff, pre_e_A, &
-                              & pre_e_B, optlvl, ehomo, elumo, dipol, &
+                              & pre_e_B, optlvl, docking_tblite, ehomo, &
+                              & elumo, dipol, &
                               & natom_molA, natom_arg, split_mol
 
    implicit none
@@ -121,6 +125,7 @@ contains
       integer, allocatable ::  tmp_unit
       logical :: newdisp_tmp
       integer :: itemp = 48
+      type(TTBLiteInput) :: tblite_input
 
       allocate (cn(mol%n), g(3, mol%n))
 
@@ -136,16 +141,22 @@ contains
          if (mol%at(i) .gt. 57 .and. mol%at(i) .lt. 72) mol%z(i) = 3
       end do
 
-      !> Set GFN2 settings
-      if (optlvl /= 'gfn1') then
+      !> Set GFN1/GFN2 settings, all other optlvl use GFN2 for the LMOs
+      extrun_tmp = set%mode_extrun
+      newdisp_tmp = set%newdisp
+      if (optlvl == 'gfn1') then
+         set%gfn_method = 1
+         fnv = xfind('param_gfn1-xtb.txt')
+      else
          set%gfn_method = 2
          fnv = xfind('param_gfn2-xtb.txt')
-         extrun_tmp = set%mode_extrun
-         set%mode_extrun = p_ext_xtb
-         newdisp_tmp = set%newdisp
          set%newdisp = .true.
+      end if
+      if (docking_tblite) then
+         set%mode_extrun = p_ext_tblite
+         call get_tblite_input(tblite_input, acc)
       else
-         fnv = xfind('param_gfn1-xtb.txt') !Other stuff already set
+         set%mode_extrun = p_ext_xtb
       end if
       if (mol_num .eq. 1) then
          if (chrg(1) /= 0.0_wp) mol%chrg = chrg(1)
@@ -160,7 +171,8 @@ contains
       env%unit = itemp
 
       !> New calculator
-      call newCalculator(env, mol, calc, fnv, restart, acc)
+      call newCalculator(env, mol, calc, fnv, restart, acc, &
+         & tblite_input=tblite_input)
       call env%checkpoint("Could not setup parameterisation")
 
 !   gsolvstate = solutionState%gsolv
@@ -183,6 +195,8 @@ contains
          end if
          !> initialize shell charges from gasteiger charges
       call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,chk%wfn%q,chk%wfn%qsh,set%gfn_method)
+      type is (TTBLiteCalculator)
+         call newTBLiteWavefunction(env, mol, calc, chk)
       end select
 
       call delete_file('.sccnotconverged')
@@ -228,10 +242,8 @@ contains
          dipol(2) = res%iff_results%dipol
       end if
 
-      if (optlvl /= 'gfn1') then
-         set%mode_extrun = extrun_tmp
-         set%newdisp = newdisp_tmp
-      end if
+      set%mode_extrun = extrun_tmp
+      set%newdisp = newdisp_tmp
 
       set%silent = .false.
       env%unit = tmp_unit

@@ -90,6 +90,8 @@ module xtb_docking_param
    logical :: samerand = .false.
    logical :: test = .false.
    character(len=:), allocatable :: optlvl
+   !> Use the tblite library as backend for GFN1-xTB and GFN2-xTB
+   logical :: docking_tblite = .false.
 
    !>docklmocommon
    integer :: maxlmo = 50000
