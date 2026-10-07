@@ -100,6 +100,14 @@ foreach(t IN LISTS tests)
   ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR}"
   )
 endforeach()
+# run test suites writing/deleting the same LMO and Molden output files serially
+set_tests_properties(
+  "${PROJECT_NAME}/gfn2"
+  "${PROJECT_NAME}/iff"
+  "${PROJECT_NAME}/tblite"
+  PROPERTIES
+  RESOURCE_LOCK "lmo-output-files"
+)
 # add PTB explicitly since it is not part of the tests list
 add_test("${PROJECT_NAME}/ptb" "${PROJECT_NAME}-tester" "ptb")
 set_tests_properties(
