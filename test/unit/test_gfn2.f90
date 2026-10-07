@@ -1124,7 +1124,7 @@ subroutine test_gfn2_lmo_molden(error)
    logical :: exist_lmoinfo, exist_lmocent, exist_molden, exist_molden_lmo
    logical :: pr_lmo_save, pr_molden_save
    logical :: differ
-
+   logical :: in_mo1, in_mo2
    
    energy = 0.0_wp
    call init(env)
@@ -1152,6 +1152,13 @@ subroutine test_gfn2_lmo_molden(error)
    call check_(error, .not.exitRun)
    if (allocated(error)) return
 
+   ! The canonical Molden file is written by the property printout
+   call main_property(6, env, mol, chk%wfn, calc%basis, calc%xtbData, res, &
+      & solvModel, 1.0_wp)
+
+   set%pr_lmo = pr_lmo_save
+   set%pr_molden_input = pr_molden_save
+
    ! Check LMO classification results
    call check_(error, allocated(res%iff_results))
    if (allocated(error)) return
@@ -1166,13 +1173,6 @@ subroutine test_gfn2_lmo_molden(error)
    call check_(error, exist_lmocent)
    if (allocated(error)) return
 
-   ! The canonical Molden file is written by the property printout
-   call main_property(6, env, mol, chk%wfn, calc%basis, calc%xtbData, res, &
-      & solvModel, 1.0_wp)
-
-   set%pr_lmo = pr_lmo_save
-   set%pr_molden_input = pr_molden_save
-
    ! Check that both canonical and localized-MO Molden files are written
    inquire(file='molden.input', exist=exist_molden)
    inquire(file='molden-lmo.input', exist=exist_molden_lmo)
@@ -1183,11 +1183,31 @@ subroutine test_gfn2_lmo_molden(error)
 
    ! Check that localized and canonical coefficients are different
    differ = .false.
+   in_mo1 = .false.
+   in_mo2 = .false.
    open(newunit=unit1, file='molden.input', status='old', action='read')
    open(newunit=unit2, file='molden-lmo.input', status='old', action='read')
    do
-      read(unit1, '(a)', iostat=stat1) line1
-      read(unit2, '(a)', iostat=stat2) line2
+      ! Next coefficient line of the canonical file
+      do
+         read(unit1, '(a)', iostat=stat1) line1
+         if (stat1 /= 0) exit
+         if (index(line1, '[MO]') == 1) then
+            in_mo1 = .true.
+            cycle
+         end if
+         if (in_mo1 .and. .not.any(line1(1:4) == ['Sym=', 'Ene=', 'Spin', 'Occu'])) exit
+      end do
+      ! Next coefficient line of the localized file
+      do
+         read(unit2, '(a)', iostat=stat2) line2
+         if (stat2 /= 0) exit
+         if (index(line2, '[MO]') == 1) then
+            in_mo2 = .true.
+            cycle
+         end if
+         if (in_mo2 .and. .not.any(line2(1:4) == ['Sym=', 'Ene=', 'Spin', 'Occu'])) exit
+      end do
       if (stat1 /= 0 .or. stat2 /= 0) then
          if (stat1 /= stat2) differ = .true.
          exit

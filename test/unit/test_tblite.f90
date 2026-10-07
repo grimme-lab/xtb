@@ -880,6 +880,9 @@ subroutine test_lmo_molden(error)
    real(wp),allocatable :: gradient(:,:)
    logical :: pr_lmo_save, pr_molden_save
    logical :: exist_molden, exist_molden_lmo, differ
+   integer :: unit1, unit2, stat1, stat2
+   character(len=1024) :: line1, line2
+   logical :: in_mo1, in_mo2
 
    if (.not.get_xtb_feature('tblite')) then
       call skip_test(error, "xtb not compiled with tblite support")
@@ -921,31 +924,32 @@ subroutine test_lmo_molden(error)
    if (allocated(error)) return
 
    ! ... and actually hold different (localized vs. canonical) coefficients
-   call files_differ('molden.input', 'molden-lmo.input', differ)
-   call check_(error, differ)
-   if (allocated(error)) return
-
-   call delete_file('molden.input')
-   call delete_file('molden-lmo.input')
-   call delete_file('charges')
-
-end subroutine test_lmo_molden
-
-!> Line-by-line comparison of two text files
-subroutine files_differ(file1, file2, differ)
-   character(len=*), intent(in) :: file1, file2
-   logical, intent(out) :: differ
-
-   integer :: unit1, unit2, stat1, stat2
-   character(len=1024) :: line1, line2
-
    differ = .false.
-   open(newunit=unit1, file=file1, status='old', action='read')
-   open(newunit=unit2, file=file2, status='old', action='read')
-
+   in_mo1 = .false.
+   in_mo2 = .false.
+   open(newunit=unit1, file='molden.input', status='old', action='read')
+   open(newunit=unit2, file='molden-lmo.input', status='old', action='read')
    do
-      read(unit1, '(a)', iostat=stat1) line1
-      read(unit2, '(a)', iostat=stat2) line2
+      ! Next coefficient line of the canonical file
+      do
+         read(unit1, '(a)', iostat=stat1) line1
+         if (stat1 /= 0) exit
+         if (index(line1, '[MO]') == 1) then
+            in_mo1 = .true.
+            cycle
+         end if
+         if (in_mo1 .and. .not.any(line1(1:4) == ['Sym=', 'Ene=', 'Spin', 'Occu'])) exit
+      end do
+      ! Next coefficient line of the localized file
+      do
+         read(unit2, '(a)', iostat=stat2) line2
+         if (stat2 /= 0) exit
+         if (index(line2, '[MO]') == 1) then
+            in_mo2 = .true.
+            cycle
+         end if
+         if (in_mo2 .and. .not.any(line2(1:4) == ['Sym=', 'Ene=', 'Spin', 'Occu'])) exit
+      end do
       if (stat1 /= 0 .or. stat2 /= 0) then
          if (stat1 /= stat2) differ = .true.
          exit
@@ -955,10 +959,15 @@ subroutine files_differ(file1, file2, differ)
          exit
       end if
    end do
-
    close(unit1)
    close(unit2)
+   call check_(error, differ)
+   if (allocated(error)) return
 
-end subroutine files_differ
+   call delete_file('molden.input')
+   call delete_file('molden-lmo.input')
+   call delete_file('charges')
+
+end subroutine test_lmo_molden
 
 end module test_tblite

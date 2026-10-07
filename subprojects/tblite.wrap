@@ -1,4 +1,4 @@
 [wrap-git]
 directory = tblite
-url = https://github.com/thfroitzheim/tblite
-revision = 911ee11486559eb99eadc91b6de5de5034c2d1c1
+url = https://github.com/tblite/tblite
+revision = 964c4c22e0f2642068091f97eaf53620128c8f1c

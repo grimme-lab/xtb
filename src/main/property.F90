@@ -386,6 +386,7 @@ module xtb_propertyoutput
                   & wfn_loc, error, title="Foster-Boys localized orbitals")
                if (allocated(error)) then
                   call env%error("Error writing localized MO molden file: "//error%message)
+                  return
                end if
                write (iunit, '(/,"Localized MOs written to file <molden-lmo.input>",/)')
             else
