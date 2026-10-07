@@ -84,18 +84,17 @@ write(iunit,'(3x,a)') &
    "  DOI: 10.1063/5.0137838",&
    "",&
    "for O1NumHess refer to:",&
-   "* B. Wang, S. Luo, Z. Wang, W. Liu,",&
-   "  J. Chem. Theory Comput. 21, 10893-10909.",&
+   "* B. Wang, S. Luo, Z. Wang, W. Liu, J. Chem. Theory Comput. 21, 10893-10909.",&
    "  DOI: 10.1021/acs.jctc.5c01354",&
    "",&
    "with help from (in alphabetical order)",&
-   "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher,", &
+   "P. Atkinson, T. Balduf, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher,", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, M. Friede, T. Froitzheim,", &
    "I. Gerasimov, C. Hölzer, A. Katbashev, J. Kohn, J. Koopman, C. Lavigne,", &
    "S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer, J. Pisarek,", &
-   "C. Plett, P. Pracht, F. Pultar, J. Seibert, L. M. Seidler, P. Shushkov, S. Spicher,", &
-   "M. Stahn, M. Steiner, T. Strunk, J. Stückrath, T. Rose, and J. Unsleber", &
-   ""
+   "C. Plett, P. Pracht, F. Pultar, J. Seibert, L. M. Seidler, P. Shushkov,", &
+   "S. Spicher, M. Stahn, M. Steiner, T. Strunk, J. Stückrath, T. Rose,", &
+   "and J. Unsleber"
 end subroutine citation
 
 subroutine help(iunit)

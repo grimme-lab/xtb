@@ -16,7 +16,7 @@ This is the official repository of the `xtb` program package developed by the Gr
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Citations](#citations)
-- [Licence](#license)
+- [License](#license)
 
 ## Installation
 
@@ -148,6 +148,7 @@ was a dire need for them and we had many contributors who made these
 features reality:
 
 - P. Atkinson ([@patrickatkinson](https://github.com/patrickatkinson))
+- T. Balduf ([@TyBalduf](https://github.com/TyBalduf))
 - [C. Bannwarth](https://www.ipc.rwth-aachen.de/cms/IPC/Das-Institut/IPC-Arbeitsgruppen/~onnkh) ([@cbannwarth](https://github.com/cbannwarth))
 - F. Bohle ([@fabothch](https://github.com/fabothch))
 - [G. Brandenburg](http://www.gerit-brandenburg.de/) ([@gbrandenburg](https://github.com/gbrandenburg))
