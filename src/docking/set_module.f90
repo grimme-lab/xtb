@@ -29,10 +29,13 @@ module xtb_docking_set_module
    use xtb_mctc_strings, only : parse
    use xtb_setmod
    use xtb_mctc_convert, only : autokcal
+   use xtb_tblite_calculator, only : TTBLiteInput
+   use xtb_solv_state, only : solutionState
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
-   private :: wp, mirror_line, getValue
+   private :: wp, mirror_line, getValue, TTBLiteInput, solutionState, gbKernel
 
    character, private, parameter :: flag = '$'
    character, private, parameter :: colon = ':'
@@ -453,6 +456,59 @@ contains
          call set_exttyp('ff')
       end if
 
+      ! GFN1-xTB and GFN2-xTB final optimizations through the tblite library
+      if (docking_tblite .and. (optlvl == 'gfn1' .or. optlvl == 'gfn2')) then
+         set%mode_extrun = p_ext_tblite
+      end if
+
    end subroutine set_optlvl
+
+   !> Setup the input of the tblite calculator consistent with the settings
+   !> used for the native xTB calculator
+   subroutine get_tblite_input(input, accuracy)
+
+      !> Input for the tblite calculator
+      type(TTBLiteInput), intent(out) :: input
+
+      !> Numerical accuracy
+      real(wp), intent(in) :: accuracy
+
+      input%method = merge('gfn1', 'gfn2', optlvl == 'gfn1')
+      input%etemp = set%etemp
+      input%accuracy = accuracy
+      input%max_iter = set%maxscciter
+      ! xTB-IFF requires LMOs of a spin-restricted wavefunction
+      input%spin_polarized = .false.
+
+      ! Implicit solvation, same condition as for the native xTB calculator
+      if (allocated(set%solvInput%solvent)) then
+         if (set%solvInput%solvent /= 'none' .and. set%solvInput%solvent /= 'gas' &
+            & .and. set%solvInput%solvent /= 'vac') then
+            allocate(input%solvation)
+            input%solvation%solvent = set%solvInput%solvent
+            if (set%solvInput%cosmo) then
+               input%solvation%solvation_model = 'cosmo'
+            else
+               input%solvation%solvation_model = &
+                  & merge('alpb', 'gbsa', set%solvInput%alpb)
+               ! Same Born kernel as for the native xTB calculator
+               if (set%solvInput%kernel == gbKernel%still) then
+                  input%solvation%kernel = 'still'
+               else
+                  input%solvation%kernel = 'p16'
+               end if
+            end if
+            select case(gsolvstate_iff)
+            case(solutionState%reference)
+               input%solvation%reference_state = 'reference'
+            case(solutionState%mol1bar)
+               input%solvation%reference_state = 'bar1M'
+            case default
+               input%solvation%reference_state = 'gsolv'
+            end select
+         end if
+      end if
+
+   end subroutine get_tblite_input
 
 end module xtb_docking_set_module

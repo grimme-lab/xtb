@@ -27,6 +27,9 @@ module xtb_docking_search_nci
    use xtb_setparam
    use xtb_gfnff_calculator, only: TGFFCalculator,newGFFCalculator
    use xtb_xtb_calculator, only: TxTBCalculator
+   use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, &
+      & newTBLiteWavefunction
+   use xtb_docking_set_module, only: get_tblite_input
    use xtb_type_calculator, only: TCalculator
    use xtb_main_setup, only: newCalculator
    use xtb_geoopt
@@ -154,6 +157,8 @@ contains
       character(len=*), parameter :: p_fname_param_gfn1 = 'param_gfn1-xtb.txt'
       character(len=*), parameter :: p_fname_param_gfn2 = 'param_gfn2-xtb.txt'
       character(len=*), parameter :: p_fname_param_gfnff = '.param_gfnff-xtb'
+      !> Input for the tblite calculator
+      type(TTBLiteInput) :: tblite_input
       !> Restart
       type(TRestart) :: chk
       !> SCC results
@@ -239,7 +244,11 @@ contains
       if (optlvl == 'gfn2') fnv = xfind(p_fname_param_gfn2)
       if (optlvl == 'gfn0') fnv = xfind(p_fname_param_gfn0)
       if (optlvl == 'gfn1') fnv = xfind(p_fname_param_gfn1)
-      call newCalculator(env, comb, calc, fnv, restart, acc)
+      if (docking_tblite .and. (optlvl == 'gfn1' .or. optlvl == 'gfn2')) then
+         call get_tblite_input(tblite_input, acc)
+      end if
+      call newCalculator(env, comb, calc, fnv, restart, acc, &
+         & tblite_input=tblite_input)
       call env%checkpoint("Could not setup single-point calculator")
       call initDefaults(env, calc, comb, gsolvstate_iff)
       call env%checkpoint("Could not setup defaults")
@@ -270,6 +279,8 @@ contains
          molA_e = etot
       type is (TxTBCalculator)
          molA_e = pre_e_A
+      type is (TTBLiteCalculator)
+         molA_e = pre_e_A
       end select
 
       !> SP molB
@@ -285,6 +296,8 @@ contains
 
          !> Topo of both single molecules together
       type is (TxTBCalculator)
+         molB_e = pre_e_B
+      type is (TTBLiteCalculator)
          molB_e = pre_e_B
       end select
 
@@ -547,6 +560,8 @@ contains
                call restore_gff(env, comb, calc, topo_backup, neigh_backup)
             type is (TxTBCalculator)
                call restart_xTB(env, comb, chk, calc)
+            type is (TTBLiteCalculator)
+               call restart_tblite(env, comb, chk, calc)
             end select
             call geometry_optimization&
             &     (env, comb, chk, calc, egap, set%etemp, set%maxscciter, set%optset%maxoptcycle,&
@@ -912,6 +927,8 @@ contains
             call restore_gff(env, comb, calc, topo_backup, neigh_backup)
          type is (TxTBCalculator)
             call restart_xTB(env, comb, chk, calc)
+         type is (TTBLiteCalculator)
+            call restart_tblite(env, comb, chk, calc)
          end select
          write (*, *) icycle
          call start_timing(5)
@@ -1196,6 +1213,41 @@ contains
       call env%checkpoint("Setup for calculation failed")
 
    end subroutine restart_xTB
+
+   !> Reset the constraints and the wavefunction guess of the tblite calculator
+   !> for a new starting geometry
+   subroutine restart_tblite(env, mol, chk, calc)
+
+      !> Calculation environment
+      type(TEnvironment), intent(inout) :: env
+
+      !> Molecular structure data
+      type(TMolecule), intent(inout) :: mol
+
+      !> Restart data
+      type(TRestart), intent(inout) :: chk
+
+      !> Calculator instance
+      type(TTBLiteCalculator), intent(inout) :: calc
+
+      integer :: i
+
+      !> Read the constrain again with new xyz only if necessary
+      if (constraint_xyz) then
+         number_walls = 0 !Reset wall potentials
+         do i=1, maxwalls
+            if(allocated(wpot(i)%list)) deallocate(wpot(i)%list)
+         end do
+         nconstr=0 !Reset number of constraints for distance, angle, and dihedral
+         call read_userdata(xcontrol, env, mol)
+         call constrain_xTB_gff(env, mol)
+      end if
+
+      call newTBLiteWavefunction(env, mol, calc, chk)
+      call delete_file('.sccnotconverged')
+      call env%checkpoint("Setup for calculation failed")
+
+   end subroutine restart_tblite
 
    subroutine constrain_xTB_gff(env, mol)
 

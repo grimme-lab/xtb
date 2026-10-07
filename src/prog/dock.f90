@@ -39,6 +39,7 @@ module xtb_prog_dock
    use xtb_setmod
    use xtb_docking_set_module
    use xtb_docking_param
+   use xtb_features, only: get_xtb_feature
    use xtb_mctc_convert, only: autokcal
    use xtb_iff_data, only: TIFFData
    use xtb_iff_iffini, only: init_iff
@@ -199,12 +200,14 @@ contains
       write (env%unit, *) 'Precomputation of electronic properties'
       write (env%unit, *) ' For Molecule 1'
       call precomp(env, iff_data, molA, molA_e, 1)
+      call env%checkpoint("LMO computation for molecule 1 failed")
       write (env%unit, *) ' Successful'
       call stop_timing(2)
 
       !MolB
       write (env%unit, *) ' For Molecule 2'
       call precomp(env, iff_data, molB, molB_e, 2)
+      call env%checkpoint("LMO computation for molecule 2 failed")
       write (env%unit, *) ' Successful'
 
       !> Special Docking CMA shift
@@ -568,6 +571,13 @@ contains
          case ('--gff')
             optlvl = 'gfnff'
 
+         case ('--tblite')
+            if (get_xtb_feature('tblite')) then
+               docking_tblite = .true.
+            else
+               call env%error("Compiled without support for tblite library", source)
+            end if
+
          case ('-a', '--acc')
             call args%nextArg(sec)
             if (allocated(sec)) then
@@ -764,6 +774,7 @@ contains
          "    --stepa <real>    : Grid step size for angular grid in [deg]", &
     "    --nfinal <INT>    : Number of structures that are finally optimized", &
          "    --optlvl <method> : Defines the Method of final optimizations", &
+         "    --tblite          : Use tblite library as backend for GFN1/GFN2-xTB", &
          "    --maxgen <INT>    : Number of structure generation cycles", &
          "    --nstack <INT>    : Number of grid points in one direction of stack search", &
          "    --maxparent <INT> : Number of parents for structure generation", &

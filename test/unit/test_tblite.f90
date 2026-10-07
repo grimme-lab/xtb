@@ -429,13 +429,15 @@ subroutine test_gfn2_mindless_alpb(error)
    character(len=*), parameter :: mindless(3) = [&
       & "mindless01", "mindless02", "mindless03"]
    real(wp), parameter :: ref_energies(3) = [&
-      & -30.371666860420_wp, -24.097540618377_wp, -23.756804328635_wp]
+      & -30.371666860420_wp, -24.097540618377_wp, -23.753741199115_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.059251596681_wp, 0.058330311868_wp, 0.038701806599_wp]
+      &  0.059251596681_wp, 0.058330311868_wp, 0.038985706183_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "toluene", "water  ", "dioxane"]
    character(len=*), parameter :: reference_states(3) = [&
       & "reference", "gsolv    ", "bar1M    "]
+   character(len=*), parameter :: kernels(3) = [&
+      & "p16  ", "p16  ", "still"]
 
    if (.not.get_xtb_feature('tblite')) then
       call skip_test(error, "xtb not compiled with tblite support")
@@ -452,7 +454,8 @@ subroutine test_gfn2_mindless_alpb(error)
 
       call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2", &
          & accuracy=0.01_wp, solvation=TTBLiteSolvationInput(solvation_model="alpb", &
-         & solvent=solvents(iMol), reference_state=reference_states(iMol))))
+         & solvent=solvents(iMol), reference_state=reference_states(iMol), &
+         & kernel=kernels(iMol))))
       call newTBLiteWavefunction(env, mol, calc, chk)
 
       call env%check(exitRun)
