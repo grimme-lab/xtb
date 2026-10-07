@@ -30,6 +30,8 @@ module xtb_oniom
    use xtb_gfnff_calculator, only: TGFFCalculator, newGFFCalculator
    use xtb_type_topology, only: TTopology, len
    use xtb_xtb_calculator, only: TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, &
+      & newTBLiteCalculator, newTBLiteWavefunction
    use xtb_extern_orca, only: TOrcaCalculator, newOrcaCalculator
    use xtb_extern_turbomole, only: TTMCalculator, newTMCalculator
    use xtb_setparam, only: set
@@ -43,6 +45,9 @@ module xtb_oniom
    type :: oniom_input
       character(len=:), allocatable :: first_arg
       character(len=:), allocatable :: second_arg
+
+      !> Evaluate GFN-xTB methods with the tblite library
+      logical :: tblite = .false.
    
       end type oniom_input
    
@@ -77,6 +82,9 @@ module xtb_oniom
       !> wavefunctions for inner region calculations
       type(TRestart) :: chk_low, chk_high
 
+      !> input for tblite, if allocated GFN-xTB methods are evaluated with tblite
+      type(TTBLiteInput), allocatable :: tblite
+
    contains
 
       procedure :: singlepoint
@@ -99,7 +107,7 @@ module xtb_oniom
 contains
 
 !> create ONIOM Calcultor
-subroutine newOniomCalculator(self, env, mol, input)
+subroutine newOniomCalculator(self, env, mol, input, tblite)
    
    implicit none
    
@@ -114,9 +122,10 @@ subroutine newOniomCalculator(self, env, mol, input)
    
    !> cml input
    type(oniom_input), intent(in) :: input
+
+   !> input for tblite, required if GFN-xTB methods are evaluated with tblite
+   type(TTBLiteInput), intent(in), optional :: tblite
    
-   type(TxTBCalculator), allocatable :: xtb
-   type(TOrcaCalculator), allocatable :: orca
    type(TGFFCalculator), allocatable :: gff
    integer :: icol
    integer :: i
@@ -155,6 +164,15 @@ subroutine newOniomCalculator(self, env, mol, input)
    
    endif
    
+   ! store tblite input for GFN-xTB methods !
+   if (input%tblite) then
+      if (.not. present(tblite)) then
+         call env%error("ONIOM with tblite requires tblite input")
+         return
+      end if
+      allocate (self%tblite, source=tblite)
+   end if
+
    ! write user-defined inner region list as raw string into array !
    self%list = TAtomList(list=input%second_arg)
    call self%list%to_list(self%idx)
@@ -175,9 +193,7 @@ subroutine newOniomCalculator(self, env, mol, input)
    
    ! gfn1/2 !
    case default
-      allocate (xtb)
-      call newXTBCalculator(env, mol, xtb, method=self%method_low)
-      call move_alloc(xtb, self%real_low)
+      call newXTBLevel(self, env, mol, self%method_low, .true., self%real_low)
 
    ! gfnff !
    case (3)
@@ -234,7 +250,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    
    
    ! temporary storages !
-   type(TxTBCalculator), allocatable :: tmp 
    type(TGFFCalculator), allocatable :: gff
    type(TOrcaCalculator), allocatable :: orca
    type(TTMCalculator), allocatable :: turbo
@@ -265,6 +280,16 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    ! forward solvation to outer region !
    if (allocated(self%solvation)) then
       call move_alloc(self%solvation, self%real_low%solvation)
+   end if
+
+   ! setup partial and shell charges for whole system !
+   if (.not.allocated(chk%wfn%qsh)) then
+      select type (calc => self%real_low)
+      type is (TxTBCalculator)
+         call newWavefunction(env, mol, calc, chk)
+      type is (TTBLiteCalculator)
+         call newTBLiteWavefunction(env, mol, calc, chk)
+      end select
    end if
    
    !-------------------------!
@@ -328,9 +353,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
       ! gfn1/2 !
       case (1, 2)
-         allocate (tmp)
-         call newXTBCalculator(env, inner_mol, tmp, method=self%method_low)
-         call move_alloc(tmp, self%model_low)
+         call newXTBLevel(self, env, inner_mol, self%method_low, .false., self%model_low)
 
       ! gfnff !
       case (3)
@@ -361,9 +384,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       
       ! gfn1/2 !
       case (1, 2)
-         allocate (tmp)
-         call newXTBCalculator(env, inner_mol, tmp, method=self%method_high)
-         call move_alloc(tmp, self%model_high)
+         call newXTBLevel(self, env, inner_mol, self%method_high, .false., self%model_high)
 
       ! gfnff !
       case (3)
@@ -401,12 +422,16 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       select type (calc => self%model_low)
       type is (TxTBCalculator)
          call newWavefunction(env, inner_mol, calc, self%chk_low)
+      type is (TTBLiteCalculator)
+         call newTBLiteWavefunction(env, inner_mol, calc, self%chk_low)
       end select
    end if
    if (.not.allocated(self%chk_high%wfn%qsh)) then
       select type (calc => self%model_high)
       type is (TxTBCalculator)
          call newWavefunction(env, inner_mol, calc, self%chk_high)
+      type is (TTBLiteCalculator)
+         call newTBLiteWavefunction(env, inner_mol, calc, self%chk_high)
       end select
    end if
    
@@ -591,6 +616,63 @@ subroutine writeInfo(self, unit, mol)
 
 end subroutine writeInfo
 
+!> create GFN-xTB calculator, using tblite if requested
+subroutine newXTBLevel(self, env, mol, method, outer, calc)
+
+   !> instance of TOniomCalculator
+   type(TOniomCalculator), intent(in) :: self
+
+   !> calculation environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> GFN-xTB method (1 or 2)
+   integer, intent(in) :: method
+
+   !> calculator is used for the whole system (outer region)
+   logical, intent(in) :: outer
+
+   !> new GFN-xTB calculator
+   class(TCalculator), allocatable, intent(out) :: calc
+
+   type(TxTBCalculator), allocatable :: xtb
+   type(TTBLiteCalculator), allocatable :: tblite
+   type(TTBLiteInput) :: input
+
+   if (allocated(self%tblite)) then
+      input = self%tblite
+
+      ! method is defined by ONIOM, not by a parameter file !
+      if (allocated(input%param)) deallocate(input%param)
+      if (method == 1) then
+         input%method = "gfn1"
+      else
+         input%method = "gfn2"
+      end if
+
+      ! solvation is only applied to the whole system !
+      if (.not. outer .and. allocated(input%solvation)) deallocate(input%solvation)
+
+      allocate (tblite)
+      call newTBLiteCalculator(env, mol, tblite, input)
+
+      if (outer) then
+         ! bond orders are required for the topology !
+         tblite%bond_orders = .true.
+         ! EEQ guess charges are required for the inner region charge !
+         tblite%guess = "eeq"
+      end if
+      call move_alloc(tblite, calc)
+   else
+      allocate (xtb)
+      call newXTBCalculator(env, mol, xtb, method=method)
+      call move_alloc(xtb, calc)
+   end if
+
+end subroutine newXTBLevel
+
 !> create inner region
 subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
 
@@ -643,6 +725,9 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    
    !> if the both bonded atoms are inside the inner region
    logical :: inside
+
+   !> if the topology is derived from Wiberg bond orders
+   logical :: from_wbo
    
    !> control output
    logical :: set1 = .true.
@@ -706,6 +791,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    call create_jacobian(jacobian,at)
    
    ! identify bonded atoms and save them into an array + assign iterator !
+   from_wbo = .false.
    select type (calc => self%real_low)
    class default
       call env%error("Topology information could not be derived from the given calculator",source)
@@ -722,6 +808,15 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
 
    ! gfn1/2 !
    type is (TxTBCalculator)
+      from_wbo = .true.
+
+   ! gfn1/2 via tblite !
+   type is (TTBLiteCalculator)
+      from_wbo = .true.
+
+   end select
+
+   if (from_wbo) then
       if (.not. allocated(topo)) then
          allocate (topo)
 
@@ -740,7 +835,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
       
       iterator = size(bonded,2)
    
-   end select
+   end if
 
    !-----------!
    ! ALGORITHM !
@@ -1569,6 +1664,12 @@ function calculateCharge(self, env, mol, chk) result(chrg_model)
    type is (TxTBCalculator)
       do i = 1, size(self%idx)
          charge = charge + chk%wfn%q(self%idx(i))         
+      end do
+
+   ! GFN1/2 via tblite !
+   type is (TTBLiteCalculator)
+      do i = 1, size(self%idx)
+         charge = charge + chk%wfn%q(self%idx(i))
       end do
 
    class default

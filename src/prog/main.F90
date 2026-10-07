@@ -717,6 +717,8 @@ contains
             if (restart) then ! only in first run
                call readRestart(env, chk%wfn, 'xtbrestart', mol%n, mol%at, set%gfn_method, exist, .true.)
             end if
+         type is (TTBLiteCalculator)
+            call newTBLiteWavefunction(env, mol, xtb, chk)
          end select
          if (.not. set%oniom_settings%fixed_chrgs) then
             set%oniom_settings%innerchrg = calculateCharge(calc, env, mol, chk)
@@ -1373,8 +1375,11 @@ contains
       logical :: exist
       ! Accuracy explicitly requested via --acc, independent of its value
       logical :: acc_provided
+      ! tblite library explicitly requested via --tblite
+      logical :: use_tblite
 
       acc_provided = .false.
+      use_tblite = .false.
       set%gfn_method = 2
       dipro%diprocalc = .false.
       coffee = .false.
@@ -1609,6 +1614,7 @@ contains
          case ('--tblite')
             if (get_xtb_feature('tblite')) then
                call set_exttyp('tblite')
+               use_tblite = .true.
             else
                call env%error("Compiled without support for tblite library", source)
                return
@@ -2147,6 +2153,12 @@ contains
          end select
          call args%nextFlag(flag)
       end do
+
+      ! ONIOM evaluates its GFN-xTB methods with tblite, independent of flag order
+      if (use_tblite .and. allocated(oniom%second_arg)) then
+         set%mode_extrun = p_ext_oniom
+         oniom%tblite = .true.
+      end if
 
    end subroutine parseArguments
 

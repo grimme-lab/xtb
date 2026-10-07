@@ -91,7 +91,7 @@ contains
             return
          end if
          allocate (oniom)
-         call newOniomCalculator(oniom, env, mol, input)
+         call newOniomCalculator(oniom, env, mol, input, tblite_input)
          call move_alloc(oniom, calc)
 
       case (p_ext_eht, p_ext_xtb)
