@@ -503,11 +503,6 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
       call env%error(error%message, source)
       return
    end if
-
-   ! Provide the guess charges also in the xtb wavefunction
-   call chk%wfn%allocate(mol%n, calc%tblite%bas%nsh, calc%tblite%bas%nao)
-   chk%wfn%q(:) = chk%tblite%qat(:, 1)
-   chk%wfn%qsh(:) = chk%tblite%qsh(:, 1)
 #else
     call feature_not_implemented(env)
 #endif

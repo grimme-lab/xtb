@@ -14,6 +14,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Implementaion of the ONIOM method
 !> publication: https://doi.org/10.1039/D3CP02178E (further reference) 
 module xtb_oniom
@@ -275,14 +279,21 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    end if
 
    ! setup partial and shell charges for whole system !
-   if (.not.allocated(chk%wfn%qsh)) then
-      select type (calc => self%real_low)
-      type is (TxTBCalculator)
+   select type (calc => self%real_low)
+   type is (TxTBCalculator)
+      if (.not.allocated(chk%wfn%qsh)) then
          call newWavefunction(env, mol, calc, chk)
-      type is (TTBLiteCalculator)
+      end if
+   type is (TTBLiteCalculator)
+#if WITH_TBLITE
+      if (.not.allocated(chk%tblite%qsh)) then
          call newTBLiteWavefunction(env, mol, calc, chk)
-      end select
-   end if
+      end if
+#else
+      call feature_not_implemented(env)
+      return
+#endif
+   end select
    
    !-------------------------!
    ! whole system, low-level !
@@ -410,22 +421,36 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    end if
  
    ! setup partial and shell charges for gnf1/2 !
-   if (.not.allocated(self%chk_low%wfn%qsh)) then
-      select type (calc => self%model_low)
-      type is (TxTBCalculator)
+   select type (calc => self%model_low)
+   type is (TxTBCalculator)
+      if (.not.allocated(self%chk_low%wfn%qsh)) then
          call newWavefunction(env, inner_mol, calc, self%chk_low)
-      type is (TTBLiteCalculator)
+      end if
+   type is (TTBLiteCalculator)
+#if WITH_TBLITE
+      if (.not.allocated(self%chk_low%tblite%qsh)) then
          call newTBLiteWavefunction(env, inner_mol, calc, self%chk_low)
-      end select
-   end if
-   if (.not.allocated(self%chk_high%wfn%qsh)) then
-      select type (calc => self%model_high)
-      type is (TxTBCalculator)
+      end if
+#else
+      call feature_not_implemented(env)
+      return
+#endif
+   end select
+   select type (calc => self%model_high)
+   type is (TxTBCalculator)
+      if (.not.allocated(self%chk_high%wfn%qsh)) then
          call newWavefunction(env, inner_mol, calc, self%chk_high)
-      type is (TTBLiteCalculator)
+      end if
+   type is (TTBLiteCalculator)
+#if WITH_TBLITE
+      if (.not.allocated(self%chk_high%tblite%qsh)) then
          call newTBLiteWavefunction(env, inner_mol, calc, self%chk_high)
-      end select
-   end if
+      end if
+#else
+      call feature_not_implemented(env)
+      return
+#endif
+   end select
    
 
    ! SP: inner region low-level !
@@ -1660,9 +1685,14 @@ function calculateCharge(self, env, mol, chk) result(chrg_model)
 
    ! GFN1/2 via tblite !
    type is (TTBLiteCalculator)
+#if WITH_TBLITE
       do i = 1, size(self%idx)
-         charge = charge + chk%wfn%q(self%idx(i))
+         charge = charge + chk%tblite%qat(self%idx(i), 1)
       end do
+#else
+      call feature_not_implemented(env)
+      return
+#endif
 
    class default
       call env%error("Not possible to calculate with external methods for real region", source)
@@ -1737,5 +1767,14 @@ subroutine protectCoord(env)
    endif
 
 end subroutine protectCoord
+
+#if ! WITH_TBLITE
+subroutine feature_not_implemented(env)
+   !> Computational environment
+   type(TEnvironment), intent(inout) :: env
+
+   call env%error("Compiled without support for tblite library")
+end subroutine feature_not_implemented
+#endif
 
 end module xtb_oniom

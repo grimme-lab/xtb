@@ -120,7 +120,7 @@ list(APPEND srcs
   "${dir}/neighbor.f90"
   "${dir}/o1numhess.f90"
   "${dir}/onetri.f90"
-  "${dir}/oniom.f90"
+  "${dir}/oniom.F90"
   "${dir}/optimizer.f90"
   "${dir}/pbc.f90"
   "${dir}/pbc_tools.f90"

@@ -349,8 +349,11 @@ subroutine test_oniom_calculateCharge_tblite(error)
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
    type(error_type), allocatable, intent(out) :: error
       !! error message type, with stat amd message
-   real(wp), parameter :: thr = 2.0e-3_wp
-      !! EEQ guess charges of native and tblite backend differ slightly
+   integer, parameter :: nreg = 2
+   character(len=*), parameter :: region(nreg) = [character(len=10) :: '1-14', '1-7,15-17']
+      !! inner regions, the second one gives 1 (instead of 0) with SAD guess charges
+   integer, parameter :: ref(nreg) = [1, 0]
+      !! inner region charges from EEQ guess charges
    !> Molecular structure data
    integer, parameter :: nat = 17
       !! 1,3 pentadiene-1-cation + h2o
@@ -381,7 +384,7 @@ subroutine test_oniom_calculateCharge_tblite(error)
    type(TOniomCalculator) :: calc_xtb, calc_tblite
    type(oniom_input) :: input
    type(TTBLiteInput) :: tblite
-   integer :: iat, innchrg_xtb, innchrg_tblite
+   integer :: ireg, innchrg_xtb, innchrg_tblite
 
    if (.not.get_xtb_feature('tblite')) then
       call skip_test(error, "xtb not compiled with tblite support")
@@ -393,38 +396,36 @@ subroutine test_oniom_calculateCharge_tblite(error)
    mol%chrg = 1.0_wp
 
    input%first_arg = 'gfn2:gfn2'
-   input%second_arg = '1-14'
 
-   ! native backend !
-   call newOniomCalculator(calc_xtb, env, mol, input)
-   select type(xtb => calc_xtb%real_low)
-   type is(TxTBCalculator)
-      call newWavefunction(env, mol, xtb, chk_xtb)
-   class default
-      call test_failed(error, "Native ONIOM calculator does not use native xTB")
-      return
-   end select
-   innchrg_xtb = calculateCharge(calc_xtb, env, mol, chk_xtb)
+   do ireg = 1, nreg
+      input%second_arg = trim(region(ireg))
 
-   ! tblite backend !
-   call newOniomCalculator(calc_tblite, env, mol, input, tblite)
-   select type(xtb => calc_tblite%real_low)
-   type is(TTBLiteCalculator)
-      call newTBLiteWavefunction(env, mol, xtb, chk_tblite)
-   class default
-      call test_failed(error, "tblite ONIOM calculator does not use tblite")
-      return
-   end select
-   innchrg_tblite = calculateCharge(calc_tblite, env, mol, chk_tblite)
+      ! native backend !
+      call newOniomCalculator(calc_xtb, env, mol, input)
+      select type(xtb => calc_xtb%real_low)
+      type is(TxTBCalculator)
+         call newWavefunction(env, mol, xtb, chk_xtb)
+      class default
+         call test_failed(error, "Native ONIOM calculator does not use native xTB")
+         return
+      end select
+      innchrg_xtb = calculateCharge(calc_xtb, env, mol, chk_xtb)
 
-   call check_(error, innchrg_xtb, 1)
-   if (allocated(error)) return
-   call check_(error, innchrg_tblite, innchrg_xtb)
-   if (allocated(error)) return
+      ! tblite backend !
+      call newOniomCalculator(calc_tblite, env, mol, input, tblite)
+      select type(xtb => calc_tblite%real_low)
+      type is(TTBLiteCalculator)
+         call newTBLiteWavefunction(env, mol, xtb, chk_tblite)
+      class default
+         call test_failed(error, "tblite ONIOM calculator does not use tblite")
+         return
+      end select
+      innchrg_tblite = calculateCharge(calc_tblite, env, mol, chk_tblite)
 
-   ! both backends start from EEQ guess charges !
-   do iat = 1, mol%n
-      call check_(error, chk_tblite%wfn%q(iat), chk_xtb%wfn%q(iat), thr=thr)
+      ! both backends start from EEQ guess charges !
+      call check_(error, innchrg_xtb, ref(ireg))
+      if (allocated(error)) return
+      call check_(error, innchrg_tblite, innchrg_xtb)
       if (allocated(error)) return
    end do
 
