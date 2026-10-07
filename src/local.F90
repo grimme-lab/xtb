@@ -365,7 +365,7 @@ end subroutine get_ct_populations
 !> Classify localized MOs (sigma/LP/pi/delocalized-pi) from their Boys
 !> centers and populate the xTB-IFF/docking results
 subroutine classify_lmo(nat,at,xyz,q,nao,n,aoat2,s,cmo_lmo,f,wbo,ecent, &
-      & etot,diptot,enlumo,enhomo,qhl,results,ilmo0,nlmo0,islot_out,nlmo_out)
+      & etot,diptot,enlumo,enhomo,qhl,results)
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert, only : autoev,autoaa
@@ -406,15 +406,6 @@ subroutine classify_lmo(nat,at,xyz,q,nao,n,aoat2,s,cmo_lmo,f,wbo,ecent, &
    real(wp), intent(in) :: enlumo,enhomo,qhl(nat,2)
    !> Detailed results, xTB-IFF/docking part is populated here
    type(scc_results), intent(inout) :: results
-   !> Index offset into the output LMO arrays, for accumulating multiple
-   !> spin channels
-   integer, intent(in), optional :: ilmo0
-   !> Cumulative number of valid LMOs already stored by previous calls
-   integer, intent(in), optional :: nlmo0
-   !> Next free index offset, to chain a subsequent spin channel
-   integer, intent(out), optional :: islot_out
-   !> Cumulative number of valid LMOs including this call
-   integer, intent(out), optional :: nlmo_out
 
    real(wp),allocatable :: qmo(:,:)
    real(wp),allocatable :: tmpq(:,:)
@@ -422,7 +413,6 @@ subroutine classify_lmo(nat,at,xyz,q,nao,n,aoat2,s,cmo_lmo,f,wbo,ecent, &
    real(sp),allocatable :: rklmo(:,:)
    integer, allocatable :: lneigh(:,:)
    integer, allocatable :: aneigh(:,:)
-   integer :: ilmo0_,nlmo0_
 
    integer imem(nat),idum,jdum,maxlp,maxpi,is1,pilist(n)
    integer i,j,k,ii,ij,nn,m,ldum(n),sigrel(3,n),npi,is2
@@ -433,11 +423,6 @@ subroutine classify_lmo(nat,at,xyz,q,nao,n,aoat2,s,cmo_lmo,f,wbo,ecent, &
    data lmostring/'sigma','LP   ','pi   ','delpi'/
    logical l1,l2,l3,flip
    integer :: iscreen,icoord,ilmoi,icent ! file handles
-
-   ilmo0_ = 0
-   if (present(ilmo0)) ilmo0_ = ilmo0
-   nlmo0_ = 0
-   if (present(nlmo0)) nlmo0_ = nlmo0
 
    pithr=2.20  ! below is pi, large is pi deloc (typ=4)
 
@@ -712,7 +697,7 @@ subroutine classify_lmo(nat,at,xyz,q,nao,n,aoat2,s,cmo_lmo,f,wbo,ecent, &
    results%iff_results%at = at
    results%iff_results%xyz = xyz
    results%iff_results%q = q
-   results%iff_results%nlmo = nlmo0_ + k
+   results%iff_results%nlmo = k
    results%iff_results%dipol = diptot
    results%iff_results%elumo = enlumo
    results%iff_results%ehomo = enhomo
@@ -720,12 +705,10 @@ subroutine classify_lmo(nat,at,xyz,q,nao,n,aoat2,s,cmo_lmo,f,wbo,ecent, &
    results%iff_results%qct(1:nat,2) = qhl(1:nat,2)
    do i=1,n+new
       if(int(rklmo(5,i)).gt.0) then
-         results%iff_results%lmo(ilmo0_+i) = int(rklmo(5,i))
-         results%iff_results%rlmo(1:3,ilmo0_+i) = rklmo(1:3,i)
+         results%iff_results%lmo(i) = int(rklmo(5,i))
+         results%iff_results%rlmo(1:3,i) = rklmo(1:3,i)
       endif
    end do
-   if (present(islot_out)) islot_out = ilmo0_ + n + new
-   if (present(nlmo_out)) nlmo_out = nlmo0_ + k
 
    if(set%pr_local) then
       write(*,*)'files:'
@@ -1090,7 +1073,14 @@ subroutine get_tblite_lmo(env, mol, chk, ao2at, etot, results)
    real(wp), allocatable :: cmo_lmo(:,:,:), centers(:,:,:), wbo(:,:,:)
    real(wp), allocatable :: f(:), ecent(:,:), qhl(:,:), ovlp(:,:)
    real(wp) :: enhomo,enlumo,diptot
-   integer :: nao, nocc, spin, ilmo, nlmo
+   integer :: nao, nocc
+
+   ! xTB-IFF describes each LMO as a doubly occupied electron pair
+   if (chk%tblite%nspin /= 1) then
+      call env%warning("xTB-IFF classification of localized orbitals requires "// &
+         & "a spin-restricted wavefunction, skipping", source)
+      return
+   end if
 
    nao = size(ao2at)
 
@@ -1110,7 +1100,7 @@ subroutine get_tblite_lmo(env, mol, chk, ao2at, etot, results)
       return
    end if
 
-   ! Charge-transfer terms of xTB-IFF are derived from the alpha-spin
+   ! Number of occupied spatial orbitals, singly occupied ones included
    nocc = int(merge(chk%tblite%nel(1)+1.0_wp, chk%tblite%nel(1), &
       & mod(chk%tblite%nel(1), 1.0_wp) > 0.5_wp))
 
@@ -1123,29 +1113,17 @@ subroutine get_tblite_lmo(env, mol, chk, ao2at, etot, results)
    allocate(results%iff_results)
    call results%iff_results%allocateIFFResults(mol%n)
 
-   ! For an open-shell (spin-unrestricted) calculation, tblite localizes
-   ! each spin channel independently; classify and accumulate both into
-   ! the same xTB-IFF LMO list.
-   ilmo = 0
-   nlmo = 0
-   do spin = 1, chk%tblite%nspin
-      nocc = int(merge(chk%tblite%nel(spin)+1.0_wp, chk%tblite%nel(spin), &
-         & mod(chk%tblite%nel(spin), 1.0_wp) > 0.5_wp))
-      if (nocc <= 0) cycle
-
+   if (nocc > 0) then
       allocate(ecent(nocc, 4), source=0.0_wp)
-      ecent(1:nocc, 1:3) = transpose(centers(1:3, 1:nocc, spin))
+      ecent(1:nocc, 1:3) = transpose(centers(1:3, 1:nocc, 1))
 
       ! Diagonal LMO Fock matrix element is not exposed by tblite localization
       allocate(f(nocc), source=0.0_wp)
 
-      call classify_lmo(mol%n, mol%at, mol%xyz, chk%tblite%qat(:, 1), nao, nocc, ao2at, &
-         & ovlp, cmo_lmo(:, 1:nocc, spin), f, wbo(:, :, 1), ecent, etot, &
-         & diptot, enlumo, enhomo, qhl, results, ilmo0=ilmo, nlmo0=nlmo, &
-         & islot_out=ilmo, nlmo_out=nlmo)
-
-      deallocate(ecent, f)
-   end do
+      call classify_lmo(mol%n, mol%at, mol%xyz, chk%tblite%qat(:, 1), nao, nocc, &
+         & ao2at, ovlp, cmo_lmo(:, 1:nocc, 1), f, wbo(:, :, 1), ecent, etot, &
+         & diptot, enlumo, enhomo, qhl, results)
+   end if
 #else
    call env%error("Compiled without support for tblite library", source)
 #endif

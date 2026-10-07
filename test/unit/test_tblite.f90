@@ -48,7 +48,8 @@ subroutine collect_tblite(testsuite)
       new_unittest("gfn1-mindless-ddx", test_gfn1_mindless_ddx), &
       new_unittest("gfn2-mindless-ddx", test_gfn2_mindless_ddx), &
       new_unittest("mindless-efield", test_mindless_efield), &
-      new_unittest("lmo-molden", test_lmo_molden) &
+      new_unittest("lmo-molden", test_lmo_molden), &
+      new_unittest("lmo-spinpol", test_lmo_spinpol) &
       ]
 
 end subroutine collect_tblite
@@ -967,7 +968,118 @@ subroutine test_lmo_molden(error)
    call delete_file('molden.input')
    call delete_file('molden-lmo.input')
    call delete_file('charges')
+   call delete_file('wbo')
+   call delete_file('xtbtopo.mol')
+   call delete_file('xtblmoinfo')
+   call delete_file('lmocent.coord')
+   call delete_file('coordprot.0')
+   call delete_file('xtbscreen.xyz')
 
 end subroutine test_lmo_molden
+
+
+!> Check that a spin-polarized calculation skips the xTB-IFF LMO classification
+!> of the localized orbitals but writes both spin channels to the Molden file
+subroutine test_lmo_spinpol(error)
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data
+   use xtb_type_environment
+   use xtb_setparam, only : set
+   use xtb_propertyoutput, only : tblite_property
+
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 2
+   integer, parameter :: at(nat) = [8, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp, 1.83303265000000_wp], &
+      & shape(xyz))
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TTBLiteCalculator) :: calc
+
+   real(wp) :: energy, sigma(3, 3), hl_gap
+   real(wp), allocatable :: gradient(:, :)
+   logical :: pr_lmo_save, pr_molden_save, exitRun, exist_lmoinfo
+   logical :: exist_molden_lmo
+   integer :: unit, stat, nalpha, nbeta
+   character(len=1024) :: line
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   call init(mol, at, xyz, uhf=1)
+
+   allocate(gradient(3, mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newTBLiteCalculator(env, mol, calc, &
+      & TTBLiteInput(method="gfn2", spin_polarized=.true.))
+   call newTBLiteWavefunction(env, mol, calc, chk)
+
+   ! Remove LMO info of previous tests
+   call delete_file('xtblmoinfo')
+
+   ! Mirror '--lmo --molden' on the command line
+   pr_lmo_save = set%pr_lmo
+   pr_molden_save = set%pr_molden_input
+   set%pr_lmo = .true.
+   set%pr_molden_input = .true.
+
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+   call tblite_property(6, env, chk, calc, mol, res)
+
+   set%pr_lmo = pr_lmo_save
+   set%pr_molden_input = pr_molden_save
+
+   ! Skipping the classification only issues a warning
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (allocated(error)) return
+
+   ! No xTB-IFF classification for a spin-polarized wavefunction
+   call check_(error, .not.allocated(res%iff_results), &
+      & "xTB-IFF results present for a spin-polarized wavefunction")
+   if (allocated(error)) return
+   inquire(file='xtblmoinfo', exist=exist_lmoinfo)
+   call check_(error, .not.exist_lmoinfo, &
+      & "LMO info written for a spin-polarized wavefunction")
+   if (allocated(error)) return
+
+   ! Localized orbitals of both spin channels are written to the Molden file
+   inquire(file='molden-lmo.input', exist=exist_molden_lmo)
+   call check_(error, exist_molden_lmo)
+   if (allocated(error)) return
+   nalpha = 0
+   nbeta = 0
+   open(newunit=unit, file='molden-lmo.input', status='old', action='read')
+   do
+      read(unit, '(a)', iostat=stat) line
+      if (stat /= 0) exit
+      if (index(line, 'Alpha') > 0) nalpha = nalpha + 1
+      if (index(line, 'Beta') > 0) nbeta = nbeta + 1
+   end do
+   close(unit)
+   call check_(error, nalpha > 0 .and. nbeta == nalpha, &
+      & "Localized orbitals of both spin channels expected in Molden file")
+   if (allocated(error)) return
+
+   call delete_file('molden.input')
+   call delete_file('molden-lmo.input')
+   call delete_file('charges')
+   call delete_file('wbo')
+   call delete_file('xtbtopo.mol')
+
+end subroutine test_lmo_spinpol
 
 end module test_tblite
