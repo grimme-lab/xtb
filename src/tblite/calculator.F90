@@ -112,6 +112,9 @@ module xtb_tblite_calculator
       character(len=:), allocatable :: solvent
       !> Solvation reference state
       character(len=:), allocatable :: reference_state
+      !> Born interaction kernel ("p16" or "still"), defaults to P16 for
+      !> ALPB/GBE and to Still for GBSA/GB
+      character(len=:), allocatable :: kernel
    end type TTBLiteSolvationInput
 
    !> Calculator interface for xTB based methods
@@ -366,8 +369,19 @@ subroutine construct_solv_input(input, solv_input, error)
             alpb = .true.
          end if
 
-         ! Select the default born kernel
+         ! Select the born kernel, the default depends on the solvation model
          kernel = merge(born_kernel%p16, born_kernel%still, alpb)
+         if (allocated(input%kernel)) then
+            select case(input%kernel)
+            case default
+               call fatal_error(error, "Unknown Born kernel '"//input%kernel//"' requested")
+               return
+            case("p16")
+               kernel = born_kernel%p16
+            case("still")
+               kernel = born_kernel%still
+            end select
+         end if
 
          ! Construct parametrized solvation model input for tblite
          if (parametrized_solvation) then
@@ -387,8 +401,19 @@ subroutine construct_solv_input(input, solv_input, error)
             alpb = .true.
          end if
 
-         ! Select the default born kernel
+         ! Select the born kernel, the default depends on the solvation model
          kernel = merge(born_kernel%p16, born_kernel%still, alpb)
+         if (allocated(input%kernel)) then
+            select case(input%kernel)
+            case default
+               call fatal_error(error, "Unknown Born kernel '"//input%kernel//"' requested")
+               return
+            case("p16")
+               kernel = born_kernel%p16
+            case("still")
+               kernel = born_kernel%still
+            end select
+         end if
 
          if (.not.parametrized_solvation .and. sol_state /= solution_state%gsolv) then
             call fatal_error(error, "Solution state shift is only supported for named solvents")

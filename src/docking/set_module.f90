@@ -31,10 +31,11 @@ module xtb_docking_set_module
    use xtb_mctc_convert, only : autokcal
    use xtb_tblite_calculator, only : TTBLiteInput
    use xtb_solv_state, only : solutionState
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
-   private :: wp, mirror_line, getValue, TTBLiteInput, solutionState
+   private :: wp, mirror_line, getValue, TTBLiteInput, solutionState, gbKernel
 
    character, private, parameter :: flag = '$'
    character, private, parameter :: colon = ':'
@@ -490,6 +491,12 @@ contains
             else
                input%solvation%solvation_model = &
                   & merge('alpb', 'gbsa', set%solvInput%alpb)
+               ! Same Born kernel as for the native xTB calculator
+               if (set%solvInput%kernel == gbKernel%still) then
+                  input%solvation%kernel = 'still'
+               else
+                  input%solvation%kernel = 'p16'
+               end if
             end if
             select case(gsolvstate_iff)
             case(solutionState%reference)
