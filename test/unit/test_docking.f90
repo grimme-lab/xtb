@@ -647,36 +647,44 @@ subroutine test_dock_wat_wat_gfnff(error)
 end subroutine test_dock_wat_wat_gfnff
 
 
-!> Check consistency of GFN1-xTB docking between native and tblite backend
+!> Check consistency of GFN1-xTB/GBSA docking between native and tblite backend
 subroutine test_docking_gfn1(error)
+   use xtb_solv_state, only : solutionState
 
    !> Error handling
    type(error_type), allocatable, intent(out) :: error
 
-   call test_docking_backends(error, 'gfn1')
+   call test_docking_backends(error, 'gfn1', 'gbsa', solutionState%gsolv)
 
 end subroutine test_docking_gfn1
 
 
-!> Check consistency of GFN2-xTB docking between native and tblite backend
+!> Check consistency of GFN2-xTB/ALPB docking between native and tblite backend
 subroutine test_docking_gfn2(error)
+   use xtb_solv_state, only : solutionState
 
    !> Error handling
    type(error_type), allocatable, intent(out) :: error
 
-   call test_docking_backends(error, 'gfn2')
+   call test_docking_backends(error, 'gfn2', 'alpb', solutionState%mol1bar)
 
 end subroutine test_docking_gfn2
 
 
 !> Run the same xTB-IFF docking with the native and the tblite backend
-subroutine test_docking_backends(error, method)
+subroutine test_docking_backends(error, method, solv_model, state)
 
    !> Error handling
    type(error_type), allocatable, intent(out) :: error
 
    !> Method for the LMOs and the final optimizations
    character(len=*), intent(in) :: method
+
+   !> Implicit solvation model in water, either 'gbsa' or 'alpb'
+   character(len=*), intent(in) :: solv_model
+
+   !> Reference state of the solvation free energy
+   integer, intent(in) :: state
 
    real(wp), parameter :: thr_frag = 1.0e-6_wp, thr_iff = 1.0e-5_wp
    real(wp), parameter :: thr_final = 1.0e-4_wp
@@ -690,11 +698,11 @@ subroutine test_docking_backends(error, method)
    end if
 
    ! Native xTB backend first, tblite backend second
-   call run_docking(error, method, .false., frag_e(:, 1), nlmo(:, 1), &
-      & ntype(:, :, 1), eiff(1), efinal(1))
+   call run_docking(error, method, solv_model, state, .false., frag_e(:, 1), &
+      & nlmo(:, 1), ntype(:, :, 1), eiff(1), efinal(1))
    if (allocated(error)) return
-   call run_docking(error, method, .true., frag_e(:, 2), nlmo(:, 2), &
-      & ntype(:, :, 2), eiff(2), efinal(2))
+   call run_docking(error, method, solv_model, state, .true., frag_e(:, 2), &
+      & nlmo(:, 2), ntype(:, :, 2), eiff(2), efinal(2))
    if (allocated(error)) return
 
    do i = 1, 2
@@ -716,27 +724,35 @@ subroutine test_docking_backends(error, method)
 end subroutine test_docking_backends
 
 
-!> Ethanol-water docking with a fast search setup
-subroutine run_docking(error, method, use_tblite, frag_e, nlmo, ntype, &
-      & eiff, efinal)
+!> Ethanol-water docking in water with a fast search setup
+subroutine run_docking(error, method, solv_model, state, use_tblite, frag_e, &
+      & nlmo, ntype, eiff, efinal)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init
    use xtb_setparam, only : set, initrand, p_ext_xtb, p_ext_tblite
    use xtb_docking_set_module, only : set_optlvl
    use xtb_docking_param, only : set_iff_param, cmadock, optlvl, &
-      & docking_tblite, maxparent, maxgen, mxcma, stepr, stepa, n_opt
+      & docking_tblite, gsolvstate_iff, maxparent, maxgen, mxcma, stepr, &
+      & stepa, n_opt
    use xtb_iff_data, only : TIFFData
    use xtb_iff_iffini, only : init_iff
    use xtb_iff_iffprepare, only : precomp
    use xtb_iff_iffenergy, only : iff_e
    use xtb_docking_search_nci, only : docking_search
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    !> Error handling
    type(error_type), allocatable, intent(out) :: error
 
    !> Method for the LMOs and the final optimizations
    character(len=*), intent(in) :: method
+
+   !> Implicit solvation model in water, either 'gbsa' or 'alpb'
+   character(len=*), intent(in) :: solv_model
+
+   !> Reference state of the solvation free energy
+   integer, intent(in) :: state
 
    !> Use the tblite library as backend
    logical, intent(in) :: use_tblite
@@ -779,7 +795,7 @@ subroutine run_docking(error, method, use_tblite, frag_e, nlmo, ntype, &
    type(TIFFData) :: iff_data
    type(TMolecule) :: molA, molB, comb
    real(wp) :: icoord0(6), icoord(6), r(3), e
-   integer :: i, iunit, stat, extrun_save, gfn_save
+   integer :: i, iunit, stat, extrun_save, gfn_save, state_save
    logical :: exitRun, newdisp_save, tblite_selected
    type(TSolvInput) :: solv_save
 
@@ -793,6 +809,7 @@ subroutine run_docking(error, method, use_tblite, frag_e, nlmo, ntype, &
    gfn_save = set%gfn_method
    newdisp_save = set%newdisp
    solv_save = set%solvInput
+   state_save = gsolvstate_iff
 
    ! Same random numbers for both backends
    call initrand
@@ -803,8 +820,16 @@ subroutine run_docking(error, method, use_tblite, frag_e, nlmo, ntype, &
    ! set_gfn only applies the first requested method, set it directly
    set%mode_extrun = p_ext_xtb
    set%gfn_method = merge(1, 2, method == 'gfn1')
-   ! Gas phase, the solvent might be set by a previous test
-   set%solvInput = TSolvInput()
+   ! Same solvation setup as '--gbsa water' or '--alpb water' in xtb dock,
+   ! replacing any solvent set by a previous test
+   if (solv_model == 'gbsa') then
+      set%solvInput = TSolvInput(solvent='water', alpb=.false., &
+         & kernel=gbKernel%still)
+   else
+      set%solvInput = TSolvInput(solvent='water', alpb=.true., &
+         & kernel=gbKernel%p16)
+   end if
+   gsolvstate_iff = state
 
    call precomp(env, iff_data, molA, frag_e(1), 1)
    call precomp(env, iff_data, molB, frag_e(2), 2)
@@ -871,6 +896,7 @@ subroutine run_docking(error, method, use_tblite, frag_e, nlmo, ntype, &
    set%gfn_method = gfn_save
    set%newdisp = newdisp_save
    set%solvInput = solv_save
+   gsolvstate_iff = state_save
 
    call env%check(exitRun)
    call check_(error, .not.exitRun, "Docking with "//method//" failed")
