@@ -36,7 +36,9 @@ subroutine collect_oniom(testsuite)
       new_unittest("cutbond", test_oniom_cutbond), &
       new_unittest("singlepoint", test_oniom_singlepoint), &
       new_unittest("calculateCharge-tblite", test_oniom_calculateCharge_tblite), &
-      new_unittest("singlepoint-tblite", test_oniom_singlepoint_tblite) &
+      new_unittest("singlepoint-tblite", test_oniom_singlepoint_tblite), &
+      new_unittest("singlepoint-tblite-alpb", test_oniom_singlepoint_tblite_alpb), &
+      new_unittest("singlepoint-tblite-gbsa", test_oniom_singlepoint_tblite_gbsa) &
       ]
 
 end subroutine collect_oniom 
@@ -430,22 +432,71 @@ subroutine test_oniom_calculateCharge_tblite(error)
 end subroutine test_oniom_calculateCharge_tblite
 
 !---------------------------------------------
-! Unit test for ONIOM sp with tblite,
+! Unit test for ONIOM sp with tblite in gas phase,
 ! compared to the native backend
 !---------------------------------------------
 subroutine test_oniom_singlepoint_tblite(error)
+   use xtb_mctc_accuracy, only : wp
+
+   type(error_type), allocatable, intent(out) :: error
+      !! error message type, with stat amd message
+
+   call oniom_singlepoint_tblite(error, -7.370829949440_wp)
+
+end subroutine test_oniom_singlepoint_tblite
+
+!---------------------------------------------
+! Unit test for ONIOM sp with tblite in ALPB(water),
+! compared to the native backend
+!---------------------------------------------
+subroutine test_oniom_singlepoint_tblite_alpb(error)
+   use xtb_mctc_accuracy, only : wp
+
+   type(error_type), allocatable, intent(out) :: error
+      !! error message type, with stat amd message
+
+   call oniom_singlepoint_tblite(error, -7.368810571421_wp, "alpb")
+
+end subroutine test_oniom_singlepoint_tblite_alpb
+
+!---------------------------------------------
+! Unit test for ONIOM sp with tblite in GBSA(water),
+! compared to the native backend
+!---------------------------------------------
+subroutine test_oniom_singlepoint_tblite_gbsa(error)
+   use xtb_mctc_accuracy, only : wp
+
+   type(error_type), allocatable, intent(out) :: error
+      !! error message type, with stat amd message
+
+   call oniom_singlepoint_tblite(error, -7.369155170153_wp, "gbsa")
+
+end subroutine test_oniom_singlepoint_tblite_gbsa
+
+!---------------------------------------------
+! ONIOM sp with native and tblite backend,
+! optionally with implicit solvation
+!---------------------------------------------
+subroutine oniom_singlepoint_tblite(error, reference, solvation_model)
    use xtb_mctc_accuracy, only : wp
 
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_restart
    use xtb_type_data, only : scc_results
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
    
+   use xtb_main_setup, only : addSolvationModel
    use xtb_oniom, only : TOniomCalculator, newOniomCalculator, oniom_input
-   use xtb_tblite_calculator, only : TTBLiteInput
+   use xtb_tblite_calculator, only : TTBLiteInput, TTBLiteSolvationInput
 
    type(error_type), allocatable, intent(out) :: error
       !! error message type, with stat amd message
+   real(wp), intent(in) :: reference
+      !! ONIOM energy of the native backend
+   character(len=*), intent(in), optional :: solvation_model
+      !! solvation model ('alpb' or 'gbsa') with water, gas phase if absent
    real(wp), parameter :: thr = 1.0e-7_wp
    real(wp), parameter :: thr2 = 1.0e-6_wp
    integer, parameter :: nat = 8
@@ -491,8 +542,20 @@ subroutine test_oniom_singlepoint_tblite(error)
 
    ! native backend !
    call newOniomCalculator(calc_xtb, env, mol, input)
+   if (present(solvation_model)) then
+      ! same settings as --alpb and --gbsa in the main program !
+      call addSolvationModel(env, calc_xtb, TSolvInput(solvent="water", &
+         & alpb=solvation_model == "alpb", &
+         & kernel=merge(gbKernel%p16, gbKernel%still, solvation_model == "alpb")))
+      tblite%solvation = TTBLiteSolvationInput(solvation_model=solvation_model, &
+         & solvent="water")
+   end if
    call calc_xtb%singlepoint(env, mol, chk_xtb, 0, .false., energy_xtb, &
       & gradient_xtb, sigma, hlgap, results)
+
+   ! solvation has to be applied, the reference differs from the gas phase !
+   call check_(error, energy_xtb, reference, thr=thr)
+   if (allocated(error)) return
 
    ! tblite backend !
    input%tblite = .true.
@@ -534,7 +597,7 @@ subroutine test_oniom_singlepoint_tblite(error)
       end do
    end do
 
-end subroutine test_oniom_singlepoint_tblite
+end subroutine oniom_singlepoint_tblite
 
 
 end module test_oniom
