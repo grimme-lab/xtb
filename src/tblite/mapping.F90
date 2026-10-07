@@ -96,7 +96,12 @@ subroutine convert_tblite_to_results(results, mol, chk, energy, converged, gradi
    ! we need to find the HOMO/LUMO first
    homo = merge(chk%tblite%nel(1)+1, chk%tblite%nel(1), &
       & mod(chk%tblite%nel(1), 1.0_wp) > 0.5_wp)
-   results%hl_gap = (chk%tblite%emo(homo + 1, 1) - chk%tblite%emo(homo, 1)) * autoev
+   ! The gap is undefined without occupied or virtual orbitals
+   if (homo > 0 .and. homo < size(chk%tblite%emo, 1)) then
+      results%hl_gap = (chk%tblite%emo(homo + 1, 1) - chk%tblite%emo(homo, 1)) * autoev
+   else
+      results%hl_gap = 0.0_wp
+   end if
 
 #endif
 
