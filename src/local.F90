@@ -296,7 +296,6 @@ subroutine get_ct_populations(nat,nao,ihomo,aoat2,s,cmo,eig,enhomo,enlumo,qhl)
    else
       enlumo=eig(ilumo)
    endif
-   efh=eig(n)
    efl=enlumo
 
    !     HOMO/LUMO populations for xTB FF (CT terms)
@@ -309,6 +308,7 @@ subroutine get_ct_populations(nat,nao,ihomo,aoat2,s,cmo,eig,enhomo,enlumo,qhl)
       if(set%pr_local) write(*,*) 'Warning: No occupied orbitals to localize!'
       qhl(1:nat,1)=0.0d0
    else
+      efh=eig(n)
       klev=0
       enhomo=0
       do nlev=ihomo,1,-1 ! loop over highest levels
@@ -333,31 +333,33 @@ subroutine get_ct_populations(nat,nao,ihomo,aoat2,s,cmo,eig,enhomo,enlumo,qhl)
       if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' occ. levels'
    endif
 
-   klev=0
-   enlumo=0
-   do nlev=ilumo,nao ! loop over highest levels
-      if(eig(nlev)-efl.gt.thr) exit
-      klev=klev+1
-      enlumo=enlumo+eig(nlev)
-      do i=1,nao
-         ii=aoat2(i)
-         do j=1,i-1
-            jj=aoat2(j)
-            ps=s(j,i)*cmo(j,nlev)*cmo(i,nlev)
-            qhl(ii,2)=qhl(ii,2)+ps
-            qhl(jj,2)=qhl(jj,2)+ps
-         enddo
-         ps=s(i,i)*cmo(i,nlev)*cmo(i,nlev)
-         qhl(ii,2)=qhl(ii,2)+ps
-      enddo
-   enddo
-   dum=1./float(klev)
-   enlumo=enlumo*dum
-   qhl(1:nat,2)=qhl(1:nat,2)*dum
-   if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' virt. levels'
    if(ilumo.gt.nao)then
+      ! the LUMO is non-existing, place at unrealistically high energy
       enlumo=1000.
       qhl(1:nat,2)=0
+   else
+      klev=0
+      enlumo=0
+      do nlev=ilumo,nao ! loop over highest levels
+         if(eig(nlev)-efl.gt.thr) exit
+         klev=klev+1
+         enlumo=enlumo+eig(nlev)
+         do i=1,nao
+            ii=aoat2(i)
+            do j=1,i-1
+               jj=aoat2(j)
+               ps=s(j,i)*cmo(j,nlev)*cmo(i,nlev)
+               qhl(ii,2)=qhl(ii,2)+ps
+               qhl(jj,2)=qhl(jj,2)+ps
+            enddo
+            ps=s(i,i)*cmo(i,nlev)*cmo(i,nlev)
+            qhl(ii,2)=qhl(ii,2)+ps
+         enddo
+      enddo
+      dum=1./float(klev)
+      enlumo=enlumo*dum
+      qhl(1:nat,2)=qhl(1:nat,2)*dum
+      if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' virt. levels'
    endif
 
 end subroutine get_ct_populations
@@ -1113,17 +1115,16 @@ subroutine get_tblite_lmo(env, mol, chk, ao2at, etot, results)
    allocate(results%iff_results)
    call results%iff_results%allocateIFFResults(mol%n)
 
-   if (nocc > 0) then
-      allocate(ecent(nocc, 4), source=0.0_wp)
-      ecent(1:nocc, 1:3) = transpose(centers(1:3, 1:nocc, 1))
+   ! Classify also without occupied orbitals to store the molecular data
+   allocate(ecent(nocc, 4), source=0.0_wp)
+   ecent(1:nocc, 1:3) = transpose(centers(1:3, 1:nocc, 1))
 
-      ! Diagonal LMO Fock matrix element is not exposed by tblite localization
-      allocate(f(nocc), source=0.0_wp)
+   ! Diagonal LMO Fock matrix element is not exposed by tblite localization
+   allocate(f(nocc), source=0.0_wp)
 
-      call classify_lmo(mol%n, mol%at, mol%xyz, chk%tblite%qat(:, 1), nao, nocc, &
-         & ao2at, ovlp, cmo_lmo(:, 1:nocc, 1), f, wbo(:, :, 1), ecent, etot, &
-         & diptot, enlumo, enhomo, qhl, results)
-   end if
+   call classify_lmo(mol%n, mol%at, mol%xyz, chk%tblite%qat(:, 1), nao, nocc, &
+      & ao2at, ovlp, cmo_lmo(:, 1:nocc, 1), f, wbo(:, :, 1), ecent, etot, &
+      & diptot, enlumo, enhomo, qhl, results)
 #else
    call env%error("Compiled without support for tblite library", source)
 #endif

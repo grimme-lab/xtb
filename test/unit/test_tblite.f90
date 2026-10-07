@@ -49,7 +49,8 @@ subroutine collect_tblite(testsuite)
       new_unittest("gfn2-mindless-ddx", test_gfn2_mindless_ddx), &
       new_unittest("mindless-efield", test_mindless_efield), &
       new_unittest("lmo-molden", test_lmo_molden), &
-      new_unittest("lmo-spinpol", test_lmo_spinpol) &
+      new_unittest("lmo-spinpol", test_lmo_spinpol), &
+      new_unittest("lmo-no-occupied", test_lmo_no_occupied) &
       ]
 
 end subroutine collect_tblite
@@ -1081,5 +1082,79 @@ subroutine test_lmo_spinpol(error)
    call delete_file('xtbtopo.mol')
 
 end subroutine test_lmo_spinpol
+
+
+!> Check that the xTB-IFF data is stored for a system without occupied
+!> orbitals, like a sodium cation
+subroutine test_lmo_no_occupied(error)
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data
+   use xtb_type_environment
+   use xtb_setparam, only : set
+
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 1
+   integer, parameter :: at(nat) = [11]
+   real(wp), parameter :: xyz(3, nat) = 0.0_wp
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TTBLiteCalculator) :: calc
+
+   real(wp) :: energy, sigma(3, 3), hl_gap
+   real(wp), allocatable :: gradient(:, :)
+   logical :: pr_lmo_save, exitRun
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   call init(mol, at, xyz, chrg=1.0_wp)
+
+   allocate(gradient(3, mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2"))
+   call newTBLiteWavefunction(env, mol, calc, chk)
+
+   ! Mirror '--lmo' on the command line
+   pr_lmo_save = set%pr_lmo
+   set%pr_lmo = .true.
+
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   set%pr_lmo = pr_lmo_save
+
+   call delete_file('xtblmoinfo')
+   call delete_file('lmocent.coord')
+   call delete_file('xtbscreen.xyz')
+
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (allocated(error)) return
+
+   ! Molecular data is stored even without localized orbitals
+   call check_(error, allocated(res%iff_results))
+   if (allocated(error)) return
+   call check_(error, res%iff_results%nlmo, 0)
+   if (allocated(error)) return
+   call check_(error, res%iff_results%at(1), 11)
+   if (allocated(error)) return
+   call check_(error, res%iff_results%q(1), 1.0_wp, thr=thr)
+   if (allocated(error)) return
+   ! Non-existing HOMO is placed at an unrealistically low energy
+   call check_(error, res%iff_results%ehomo < -999.0_wp, &
+      & "Placeholder energy expected for the non-existing HOMO")
+   if (allocated(error)) return
+
+end subroutine test_lmo_no_occupied
 
 end module test_tblite
