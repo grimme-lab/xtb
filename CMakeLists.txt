@@ -19,7 +19,7 @@ cmake_minimum_required(VERSION 3.18)
 # Setup the xtb Project
 project(
   "xtb"
-  VERSION "6.7.1"
+  VERSION "6.8.0"
   DESCRIPTION "Semiempirical Extended Tight-Binding Program Package"
   LANGUAGES "C" "Fortran")
 
