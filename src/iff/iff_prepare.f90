@@ -126,6 +126,7 @@ contains
       integer :: extrun_tmp
       integer, allocatable ::  tmp_unit
       logical :: newdisp_tmp
+      logical :: use_gfn1
       integer :: itemp = 48
       type(TTBLiteInput) :: tblite_input
 
@@ -143,10 +144,13 @@ contains
          if (mol%at(i) .gt. 57 .and. mol%at(i) .lt. 72) mol%z(i) = 3
       end do
 
-      !> Set GFN1/GFN2 settings, all other optlvl use GFN2 for the LMOs
+      !> Set GFN1/GFN2 settings, all other optlvl use GFN2 for the LMOs,
+      !> the optlvl is only set by docking and not for '--iff'
+      use_gfn1 = .false.
+      if (allocated(optlvl)) use_gfn1 = optlvl == 'gfn1'
       extrun_tmp = set%mode_extrun
       newdisp_tmp = set%newdisp
-      if (optlvl == 'gfn1') then
+      if (use_gfn1) then
          set%gfn_method = 1
          fnv = xfind('param_gfn1-xtb.txt')
       else
