@@ -45,11 +45,7 @@ module xtb_oniom
    type :: oniom_input
       character(len=:), allocatable :: first_arg
       character(len=:), allocatable :: second_arg
-
-      !> Evaluate GFN-xTB methods with the tblite library
-      logical :: tblite = .false.
-   
-      end type oniom_input
+   end type oniom_input
    
    !> ONIOM calculator 
    type, extends(TCalculator) :: TOniomCalculator 
@@ -82,7 +78,7 @@ module xtb_oniom
       !> wavefunctions for inner region calculations
       type(TRestart) :: chk_low, chk_high
 
-      !> input for tblite, if allocated GFN-xTB methods are evaluated with tblite
+      !> input for tblite
       type(TTBLiteInput), allocatable :: tblite
 
    contains
@@ -123,7 +119,7 @@ subroutine newOniomCalculator(self, env, mol, input, tblite)
    !> cml input
    type(oniom_input), intent(in) :: input
 
-   !> input for tblite, required if GFN-xTB methods are evaluated with tblite
+   !> input for tblite, if present GFN-xTB methods are evaluated with tblite
    type(TTBLiteInput), intent(in), optional :: tblite
    
    type(TGFFCalculator), allocatable :: gff
@@ -165,11 +161,7 @@ subroutine newOniomCalculator(self, env, mol, input, tblite)
    endif
    
    ! store tblite input for GFN-xTB methods !
-   if (input%tblite) then
-      if (.not. present(tblite)) then
-         call env%error("ONIOM with tblite requires tblite input")
-         return
-      end if
+   if (present(tblite)) then
       allocate (self%tblite, source=tblite)
    end if
 

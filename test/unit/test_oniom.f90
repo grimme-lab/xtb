@@ -407,7 +407,6 @@ subroutine test_oniom_calculateCharge_tblite(error)
    innchrg_xtb = calculateCharge(calc_xtb, env, mol, chk_xtb)
 
    ! tblite backend !
-   input%tblite = .true.
    call newOniomCalculator(calc_tblite, env, mol, input, tblite)
    select type(xtb => calc_tblite%real_low)
    type is(TTBLiteCalculator)
@@ -558,7 +557,6 @@ subroutine oniom_singlepoint_tblite(error, reference, solvation_model)
    if (allocated(error)) return
 
    ! tblite backend !
-   input%tblite = .true.
    call newOniomCalculator(calc_tblite, env, mol, input, tblite)
    call calc_tblite%singlepoint(env, mol, chk_tblite, 0, .false., energy_tblite, &
       & gradient_tblite, sigma, hlgap, results)

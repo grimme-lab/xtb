@@ -226,6 +226,11 @@ contains
       call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
          & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
+      ! ONIOM evaluates its GFN-xTB methods with tblite, independent of the flag order
+      if (allocated(oniom%second_arg) .and. set%tblite) then
+         set%mode_extrun = p_ext_oniom
+         set%oniom_settings%tblite = .true.
+      end if
 
       ! No solvation available for PTB!
       if (set%mode_extrun == p_ext_ptb) then
@@ -1375,11 +1380,8 @@ contains
       logical :: exist
       ! Accuracy explicitly requested via --acc, independent of its value
       logical :: acc_provided
-      ! tblite library explicitly requested via --tblite
-      logical :: use_tblite
 
       acc_provided = .false.
-      use_tblite = .false.
       set%gfn_method = 2
       dipro%diprocalc = .false.
       coffee = .false.
@@ -1614,7 +1616,7 @@ contains
          case ('--tblite')
             if (get_xtb_feature('tblite')) then
                call set_exttyp('tblite')
-               use_tblite = .true.
+               set%tblite = .true.
             else
                call env%error("Compiled without support for tblite library", source)
                return
@@ -2153,12 +2155,6 @@ contains
          end select
          call args%nextFlag(flag)
       end do
-
-      ! ONIOM evaluates its GFN-xTB methods with tblite, independent of flag order
-      if (use_tblite .and. allocated(oniom%second_arg)) then
-         set%mode_extrun = p_ext_oniom
-         oniom%tblite = .true.
-      end if
 
    end subroutine parseArguments
 

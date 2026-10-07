@@ -133,6 +133,9 @@ module xtb_setparam
 
       !> if saturate outer region
       logical :: outer = .false.
+
+      !> evaluate GFN-xTB methods with the tblite library
+      logical :: tblite = .false.
       
       !> log units
       integer:: ilog1, ilog2
@@ -506,6 +509,7 @@ module xtb_setparam
    integer  :: extcode = 0
    integer  :: extmode = 0
    integer  :: mode_extrun = 1 ! xtb is default
+   logical  :: tblite = .false. ! tblite library requested
 !  integer  :: dummyint ! not used
    integer  :: runtyp = 2 ! SCC by default
    integer  :: elprop = 0 ! dipole by default

@@ -91,7 +91,15 @@ contains
             return
          end if
          allocate (oniom)
-         call newOniomCalculator(oniom, env, mol, input, tblite_input)
+         if (set%oniom_settings%tblite) then
+            if (.not. present(tblite_input)) then
+               call env%error("ONIOM with tblite requires tblite input", source)
+               return
+            end if
+            call newOniomCalculator(oniom, env, mol, input, tblite_input)
+         else
+            call newOniomCalculator(oniom, env, mol, input)
+         end if
          call move_alloc(oniom, calc)
 
       case (p_ext_eht, p_ext_xtb)
