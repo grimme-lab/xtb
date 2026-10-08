@@ -172,6 +172,7 @@ contains
 !! ------------------------------------------------------------------------
       logical :: struc_conversion_done = .false.
       logical :: anyopt, anyhess
+      logical :: tblite_backend ! GFN-xTB methods are evaluated with tblite
       ! logical for checking whether ODLR approximation can be used
       logical :: odlr_valid
 
@@ -226,6 +227,13 @@ contains
       call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
          & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
+      ! ONIOM evaluates its GFN-xTB methods with tblite, independent of the flag order
+      if (allocated(oniom%second_arg) .and. set%tblite) then
+         set%mode_extrun = p_ext_oniom
+         set%oniom_settings%tblite = .true.
+      end if
+      tblite_backend = set%mode_extrun == p_ext_tblite &
+         & .or. (set%mode_extrun == p_ext_oniom .and. set%oniom_settings%tblite)
 
       ! No solvation available for PTB!
       if (set%mode_extrun == p_ext_ptb) then
@@ -235,12 +243,12 @@ contains
       end if
 
       ! Spin-polarization is only available in the tblite library
-      if (set%mode_extrun /= p_ext_tblite .and. tblite%spin_polarized) then
+      if (.not. tblite_backend .and. tblite%spin_polarized) then
          call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
       end if
 
       ! CPCM and PCM solvation models are only available in the tblite library
-      if ((set%mode_extrun /= p_ext_tblite) .and. allocated(tblite%solvation)) then
+      if (.not. tblite_backend .and. allocated(tblite%solvation)) then
          if (tblite%solvation%solvation_model == "cpcm" &
             & .or. tblite%solvation%solvation_model == "pcm") then
             call env%error("CPCM and PCM solvation models are only available with the tblite library! Try --tblite", source)
@@ -347,7 +355,7 @@ contains
 
       ! efield read: tblite or gfnff and PTB only
       if (set%mode_extrun == p_ext_gfnff .or. set%mode_extrun == p_ext_ptb &
-         & .or. set%mode_extrun == p_ext_tblite) then
+         & .or. tblite_backend) then
          call open_file(ich, '.EFIELD', 'r')
          if (ich /= -1) then
             call getline(ich, cdum, iostat=err)
@@ -356,7 +364,7 @@ contains
             else
                call set_efield(env, cdum)
                ! Take electric field from file also for tblite if not already present
-               if (set%mode_extrun == p_ext_tblite .and. .not.allocated(tblite%efield)) then
+               if (tblite_backend .and. .not.allocated(tblite%efield)) then
                   allocate(tblite%efield(3))
                   tblite%efield = set%efield
                end if
@@ -367,7 +375,7 @@ contains
 
       ! If EFIELD is not zero when using xtb, print a warning
       if (((set%mode_extrun /= p_ext_ptb) .and. (set%mode_extrun /= p_ext_gfnff) &
-         & .and. (set%mode_extrun /= p_ext_tblite)) &
+         & .and. .not. tblite_backend) &
          & .and. (sum(abs(set%efield)) /= 0.0_wp)) then
          call env%terminate("External electric field is not zero ('--efield' or file '.EFIELD'), &
             & but only supported via tblite or for GFN-FF and PTB")
@@ -704,7 +712,7 @@ contains
          ipeashift = calc%xtbData%ipeashift
       type is (TTBLiteCalculator)
          if (restart) then
-            call loadRestart(env, chk, 'xtbrestart', exist)
+            call loadRestart(env, chk, mol, 'xtbrestart', exist)
             if (exist) write (env%unit, "(a)") "Wavefunction read from restart file"
          end if
          ipeashift = calc%ipeashift
@@ -717,9 +725,15 @@ contains
             if (restart) then ! only in first run
                call readRestart(env, chk%wfn, 'xtbrestart', mol%n, mol%at, set%gfn_method, exist, .true.)
             end if
+         type is (TTBLiteCalculator)
+            call newTBLiteWavefunction(env, mol, xtb, chk)
+            if (restart) then ! only in first run
+               call loadRestart(env, chk, mol, 'xtbrestart', exist)
+               if (exist) write (env%unit, "(a)") "Wavefunction read from restart file"
+            end if
          end select
          if (.not. set%oniom_settings%fixed_chrgs) then
-            set%oniom_settings%innerchrg = calculateCharge(calc, env, mol, chk)
+            set%oniom_settings%innerchrg = calculateCharge(calc, env, mol, chk, exist)
          end if
          if (.not. set%oniom_settings%fixed_spin) then
             set%oniom_settings%innerspin = mol%uhf
@@ -1609,6 +1623,7 @@ contains
          case ('--tblite')
             if (get_xtb_feature('tblite')) then
                call set_exttyp('tblite')
+               set%tblite = .true.
             else
                call env%error("Compiled without support for tblite library", source)
                return

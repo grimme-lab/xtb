@@ -112,7 +112,7 @@ srcs += files(
   'neighbor.f90',
   'o1numhess.f90',
   'onetri.f90',
-  'oniom.f90',
+  'oniom.F90',
   'optimizer.f90',
   'pbc.f90',
   'pbc_tools.f90',

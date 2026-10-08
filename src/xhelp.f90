@@ -147,6 +147,7 @@ subroutine help(iunit)
    "    'outer' can be 'gfn2', 'gfn1', or 'gfnff'.", &
    "    The inner region is given as a comma separated indices directly in the commandline", &
    "    or in a file with each index on a separate line.", &
+   "    Combine with --tblite to evaluate 'gfn2' and 'gfn1' with the tblite library.", &
    "",&
    "--efield REAL,REAL,REAL",&
    "    static electric field in Cartesian coordinates, overrides '.EFIELD' file,",&

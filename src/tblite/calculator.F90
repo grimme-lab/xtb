@@ -129,6 +129,8 @@ module xtb_tblite_calculator
       logical :: color
       !> Shift for IP/EA calculations
       real(wp) :: ipeashift
+      !> Always compute Wiberg-Mayer bond orders
+      logical :: bond_orders = .false.
 #if WITH_TBLITE
       !> Instance of tblite calculator
       type(xtb_calculator) :: tblite
@@ -543,7 +545,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    type(context_type) :: ctx
    type(post_processing_list), allocatable :: post_proc
    real(wp) :: efix
-   real(wp), allocatable :: dpmom(:), qpmom(:)
+   real(wp), allocatable :: dpmom(:), qpmom(:), wbo(:, :, :)
    character(len=:), allocatable :: wbo_label, molmom_label, lmo_label
 
    struc = mol
@@ -552,7 +554,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! Setup the required post-processing
    allocate(post_proc)
-   if (set%pr_wiberg .or. set%pr_wbofrag .or. set%pr_lmo) then
+   if (set%pr_wiberg .or. set%pr_wbofrag .or. set%pr_lmo .or. self%bond_orders) then
       ! Wiberg-Mayer bond orders, also needed for the delocalized-pi
       ! regularization of the localized orbitals below
       wbo_label = "bond-orders"
@@ -603,7 +605,14 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    end if
 
    ! convert tblite results into xtb data !
-   call convert_tblite_to_wfn(env, self%tblite%bas, mol, chk)
+   if (allocated(wbo_label)) then
+      call results%tblite_results%dict%get_entry(wbo_label, wbo)
+   end if
+   if (allocated(wbo)) then
+      call convert_tblite_to_wfn(env, self%tblite%bas, mol, chk, wbo)
+   else
+      call convert_tblite_to_wfn(env, self%tblite%bas, mol, chk)
+   end if
    call convert_tblite_to_results(results,mol,chk,energy,.true.,gradient=gradient)
    hlgap = results%hl_gap
 

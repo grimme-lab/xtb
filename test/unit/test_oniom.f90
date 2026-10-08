@@ -15,7 +15,9 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module test_oniom
-   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed
+   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed, &
+      & skip_test
+   use xtb_features, only : get_xtb_feature
    implicit none
    private
 
@@ -32,7 +34,11 @@ subroutine collect_oniom(testsuite)
       new_unittest("calculateCharge", test_oniom_calculateCharge), &
          !! function that registers a new unit test -> result unittest_type object
       new_unittest("cutbond", test_oniom_cutbond), &
-      new_unittest("singlepoint", test_oniom_singlepoint) &
+      new_unittest("singlepoint", test_oniom_singlepoint), &
+      new_unittest("calculateCharge-tblite", test_oniom_calculateCharge_tblite), &
+      new_unittest("singlepoint-tblite", test_oniom_singlepoint_tblite), &
+      new_unittest("singlepoint-tblite-alpb", test_oniom_singlepoint_tblite_alpb), &
+      new_unittest("singlepoint-tblite-gbsa", test_oniom_singlepoint_tblite_gbsa) &
       ]
 
 end subroutine collect_oniom 
@@ -291,6 +297,9 @@ subroutine test_oniom_singlepoint(error)
       !! interface to initMoleculeNumbers
    mol%chrg = 0.0_wp
    allocate(gradient(3,mol%n))
+   set%oniom_settings%innerchrg = 0
+   set%oniom_settings%innerspin = 0
+      !! inner region charge and spin, as determined by the main program
    call open_file(io,"w.coord","w")
    call writeMolecule(mol,io,filetype%tmol)
    call close_file(io)
@@ -326,6 +335,339 @@ subroutine test_oniom_singlepoint(error)
    !call check_(error,inner_mol%xyz(3,5),0.00000120013337_wp,thr=thr)
 
 end subroutine test_oniom_singlepoint
+
+!---------------------------------------------
+! Unit test for automatic charge determination
+! with tblite, compared to the native backend
+!---------------------------------------------
+subroutine test_oniom_calculateCharge_tblite(error)
+   use xtb_mctc_accuracy, only : wp
+
+   use xtb_type_environment
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data, only : scc_results
+   
+   use xtb_oniom, only : TOniomCalculator, calculateCharge, newOniomCalculator, oniom_input
+   use xtb_xtb_calculator, only : TxTBCalculator, newWavefunction
+   use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction, &
+      & newTBLiteCalculator
+   use xtb_tblite_restart, only : loadRestart, dumpRestart
+   type(error_type), allocatable, intent(out) :: error
+      !! error message type, with stat amd message
+   character(len=*), parameter :: fname = 'oniom-tblite.restart'
+   integer, parameter :: nreg = 2
+   character(len=*), parameter :: region(nreg) = [character(len=10) :: '1-14', '1-7,15-17']
+      !! inner regions, the second one gives 1 (instead of 0) with SAD guess charges
+   integer, parameter :: ref(nreg) = [1, 0]
+      !! inner region charges from EEQ guess charges
+   !> Molecular structure data
+   integer, parameter :: nat = 17
+      !! 1,3 pentadiene-1-cation + h2o
+   integer, parameter :: at(nat) = [6,6,6,6,6,1,1,1,1,1,1,1,1,1, 8,1,1]
+   real(wp), parameter :: xyz(3,nat) = reshape(&
+      [ 7.11179039031184_wp, -0.65533236978132_wp,  0.64998029924754_wp, &
+      & 9.54574522537207_wp,  0.30133566481849_wp,  0.45943898636196_wp, &
+      & 5.13954887436106_wp,  0.33928833942508_wp, -0.70036877110532_wp, &
+      &11.69126318297630_wp, -0.71972100226778_wp,  1.75001053205592_wp, &
+      & 2.55237710171780_wp, -0.58098675992530_wp, -0.59290041363421_wp, &
+      & 6.76811222294413_wp, -2.23038959587740_wp,  1.90836157103276_wp, &
+      & 9.86172384803294_wp,  1.88061446715386_wp, -0.80779818687663_wp, &
+      & 5.50044858469288_wp,  1.92224580974752_wp, -1.95079140534105_wp, &
+      &11.22134447610320_wp, -1.94366600251515_wp,  3.32992090742500_wp, &
+      &12.66603076756040_wp, -1.91198818602751_wp,  0.30482336978588_wp, &
+      &13.10010470005330_wp,  0.69862396283326_wp,  2.23170047213733_wp, &
+      & 1.27494163620898_wp,  0.97527170197973_wp, -0.13473721665480_wp, &
+      & 1.96940212226880_wp, -1.18150778329094_wp, -2.48288874184834_wp, &
+      & 2.29849092954603_wp, -2.12388855284911_wp,  0.73684528757996_wp, &
+      &14.20884549186960_wp, -3.85859246461132_wp, -2.12437520158188_wp, &
+      &13.93153897438870_wp, -5.65462186833272_wp, -2.15399113818471_wp, &
+      &15.98310331300670_wp, -3.59190426260830_wp, -2.41348990450454_wp  &
+      & ], shape(xyz))
+   
+   type(TMolecule) :: mol, mol_state
+   type(TRestart) :: chk_xtb, chk_tblite, chk_restart, chk_gfn1, chk_chrg, chk_uhf
+   type(TRestart) :: chk_spin, chk_nospin
+   type(TEnvironment) :: env
+   type(TOniomCalculator) :: calc_xtb, calc_tblite
+   type(TTBLiteCalculator) :: calc_gfn1, calc_spin
+   type(oniom_input) :: input
+   type(TTBLiteInput) :: tblite
+   type(scc_results) :: results
+   real(wp) :: energy, hlgap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+   logical :: exist, exist_gfn1, exist_chrg, exist_uhf, exist_nospin
+   integer :: ireg, innchrg_xtb, innchrg_tblite
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   call init(mol, at, xyz)
+   mol%chrg = 1.0_wp
+
+   input%first_arg = 'gfn2:gfn2'
+
+   do ireg = 1, nreg
+      input%second_arg = trim(region(ireg))
+
+      ! native backend !
+      call newOniomCalculator(calc_xtb, env, mol, input)
+      select type(xtb => calc_xtb%real_low)
+      type is(TxTBCalculator)
+         call newWavefunction(env, mol, xtb, chk_xtb)
+      class default
+         call test_failed(error, "Native ONIOM calculator does not use native xTB")
+         return
+      end select
+      innchrg_xtb = calculateCharge(calc_xtb, env, mol, chk_xtb)
+
+      ! tblite backend !
+      call newOniomCalculator(calc_tblite, env, mol, input, tblite)
+      select type(xtb => calc_tblite%real_low)
+      type is(TTBLiteCalculator)
+         call newTBLiteWavefunction(env, mol, xtb, chk_tblite)
+      class default
+         call test_failed(error, "tblite ONIOM calculator does not use tblite")
+         return
+      end select
+      innchrg_tblite = calculateCharge(calc_tblite, env, mol, chk_tblite)
+
+      ! both backends use the same EEQ guess charges !
+      call check_(error, innchrg_xtb, ref(ireg))
+      if (allocated(error)) return
+      call check_(error, innchrg_tblite, innchrg_xtb)
+      if (allocated(error)) return
+   end do
+
+   ! charges of a restart file are used instead of the guess charges, !
+   ! the shell charges of a fresh SAD guess would give 1 here !
+   allocate(gradient(3, mol%n))
+   exist = .false.
+   select type(xtb => calc_tblite%real_low)
+   type is(TTBLiteCalculator)
+      call xtb%singlepoint(env, mol, chk_tblite, 0, .false., energy, gradient, &
+         & sigma, hlgap, results)
+      call dumpRestart(env, chk_tblite, fname)
+      call newTBLiteWavefunction(env, mol, xtb, chk_restart)
+      call loadRestart(env, chk_restart, mol, fname, exist)
+
+      ! a restart file of a different charge or spin state is not read !
+      call init(mol_state, at, xyz)
+      mol_state%chrg = 0.0_wp
+      call newTBLiteWavefunction(env, mol_state, xtb, chk_chrg)
+      call loadRestart(env, chk_chrg, mol_state, fname, exist_chrg)
+      call init(mol_state, at, xyz)
+      mol_state%chrg = 1.0_wp
+      mol_state%uhf = 2
+      call newTBLiteWavefunction(env, mol_state, xtb, chk_uhf)
+      call loadRestart(env, chk_uhf, mol_state, fname, exist_uhf)
+   end select
+   ! a restart file of a different basis set (GFN2 for GFN1) is not read !
+   call newTBLiteCalculator(env, mol, calc_gfn1, TTBLiteInput(method="gfn1"))
+   call newTBLiteWavefunction(env, mol, calc_gfn1, chk_gfn1)
+   call loadRestart(env, chk_gfn1, mol, fname, exist_gfn1)
+   call delete_file(fname)
+   call check_(error, exist)
+   if (allocated(error)) return
+   call check_(error, .not.exist_chrg, "Restart file of a different charge was read")
+   if (allocated(error)) return
+   call check_(error, .not.exist_uhf, "Restart file of a different spin state was read")
+   if (allocated(error)) return
+   call check_(error, .not.exist_gfn1, "Restart file of a different basis set was read")
+   if (allocated(error)) return
+
+   ! a restart file with two spin channels is not read for one spin channel !
+   call newTBLiteCalculator(env, mol, calc_spin, &
+      & TTBLiteInput(method="gfn2", spin_polarized=.true.))
+   call newTBLiteWavefunction(env, mol, calc_spin, chk_spin)
+   call dumpRestart(env, chk_spin, fname)
+   select type(xtb => calc_tblite%real_low)
+   type is(TTBLiteCalculator)
+      call newTBLiteWavefunction(env, mol, xtb, chk_nospin)
+      call loadRestart(env, chk_nospin, mol, fname, exist_nospin)
+   end select
+   call delete_file(fname)
+   call check_(error, .not.exist_nospin, "Restart file with two spin channels was read")
+   if (allocated(error)) return
+   innchrg_tblite = calculateCharge(calc_tblite, env, mol, chk_restart, restarted=.true.)
+   call check_(error, innchrg_tblite, ref(nreg))
+
+end subroutine test_oniom_calculateCharge_tblite
+
+!---------------------------------------------
+! Unit test for ONIOM sp with tblite in gas phase,
+! compared to the native backend
+!---------------------------------------------
+subroutine test_oniom_singlepoint_tblite(error)
+   use xtb_mctc_accuracy, only : wp
+
+   type(error_type), allocatable, intent(out) :: error
+      !! error message type, with stat amd message
+
+   call oniom_singlepoint_tblite(error, -7.370829949440_wp)
+
+end subroutine test_oniom_singlepoint_tblite
+
+!---------------------------------------------
+! Unit test for ONIOM sp with tblite in ALPB(water),
+! compared to the native backend
+!---------------------------------------------
+subroutine test_oniom_singlepoint_tblite_alpb(error)
+   use xtb_mctc_accuracy, only : wp
+
+   type(error_type), allocatable, intent(out) :: error
+      !! error message type, with stat amd message
+
+   call oniom_singlepoint_tblite(error, -7.368810571421_wp, "alpb")
+
+end subroutine test_oniom_singlepoint_tblite_alpb
+
+!---------------------------------------------
+! Unit test for ONIOM sp with tblite in GBSA(water),
+! compared to the native backend
+!---------------------------------------------
+subroutine test_oniom_singlepoint_tblite_gbsa(error)
+   use xtb_mctc_accuracy, only : wp
+
+   type(error_type), allocatable, intent(out) :: error
+      !! error message type, with stat amd message
+
+   call oniom_singlepoint_tblite(error, -7.369155170153_wp, "gbsa")
+
+end subroutine test_oniom_singlepoint_tblite_gbsa
+
+!---------------------------------------------
+! ONIOM sp with native and tblite backend,
+! optionally with implicit solvation
+!---------------------------------------------
+subroutine oniom_singlepoint_tblite(error, reference, solvation_model)
+   use xtb_mctc_accuracy, only : wp
+
+   use xtb_type_environment
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data, only : scc_results
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
+   
+   use xtb_main_setup, only : addSolvationModel
+   use xtb_setparam, only : set
+   use xtb_oniom, only : TOniomCalculator, newOniomCalculator, oniom_input
+   use xtb_tblite_calculator, only : TTBLiteInput, TTBLiteSolvationInput
+
+   type(error_type), allocatable, intent(out) :: error
+      !! error message type, with stat amd message
+   real(wp), intent(in) :: reference
+      !! ONIOM energy of the native backend
+   character(len=*), intent(in), optional :: solvation_model
+      !! solvation model ('alpb' or 'gbsa') with water, gas phase if absent
+   real(wp), parameter :: thr = 1.0e-7_wp
+   real(wp), parameter :: thr2 = 1.0e-6_wp
+   integer, parameter :: nat = 8
+      !! ethane 
+   integer, parameter :: at(nat) = [6,6,1,1,1,1,1,1]
+   real(wp), parameter :: xyz(3,nat) = reshape(&
+      [-6.42056194812604_wp,  4.42017706707601_wp,  0.00000514267503_wp, &
+      &-3.54497465898797_wp,  4.42017905349380_wp, -0.00000041470841_wp, &
+      &-7.14339394244295_wp,  4.96696898911297_wp,  1.84484217131586_wp, &
+      &-7.14339651464075_wp,  2.54910578073934_wp, -0.44887528991923_wp, &
+      &-7.14340046326272_wp,  5.74445490934900_wp, -1.39594753088679_wp, &
+      &-2.82213644603571_wp,  3.09590294303751_wp,  1.39595405551176_wp, &
+      &-2.82214050550548_wp,  6.29125104633740_wp,  0.44887759570039_wp, &
+      &-2.82214295551184_wp,  3.87338472886870_wp, -1.84483683242736_wp &
+      & ], shape(xyz))
+   
+   type(TMolecule) :: mol, inner_xtb, inner_tblite
+   type(TRestart) :: chk_xtb, chk_tblite
+   type(TEnvironment) :: env
+   type(TOniomCalculator) :: calc_xtb, calc_tblite
+   type(oniom_input) :: input
+   type(TTBLiteInput) :: tblite
+   type(scc_results) :: results
+   real(wp), allocatable :: jacobian_xtb(:, :), jacobian_tblite(:, :)
+   integer, allocatable :: idx_xtb(:), idx_tblite(:)
+   real(wp) :: energy_xtb, energy_tblite, hlgap, sigma(3, 3)
+   real(wp), allocatable :: gradient_xtb(:, :), gradient_tblite(:, :)
+   integer :: iat, ic, jc
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   call init(env)
+   call init(mol, at, xyz)
+   mol%chrg = 0.0_wp
+   allocate(gradient_xtb(3, mol%n), gradient_tblite(3, mol%n))
+
+   ! inner region charge and spin, as determined by the main program !
+   set%oniom_settings%innerchrg = 0
+   set%oniom_settings%innerspin = 0
+
+   ! C-C bond is cut, all three calculations use GFN-xTB !
+   input%first_arg = "gfn2:gfn1"
+   input%second_arg = '1,3-5'
+
+   ! native backend !
+   call newOniomCalculator(calc_xtb, env, mol, input)
+   if (present(solvation_model)) then
+      ! same settings as --alpb and --gbsa in the main program !
+      call addSolvationModel(env, calc_xtb, TSolvInput(solvent="water", &
+         & alpb=solvation_model == "alpb", &
+         & kernel=merge(gbKernel%p16, gbKernel%still, solvation_model == "alpb")))
+      tblite%solvation = TTBLiteSolvationInput(solvation_model=solvation_model, &
+         & solvent="water")
+   end if
+   call calc_xtb%singlepoint(env, mol, chk_xtb, 0, .false., energy_xtb, &
+      & gradient_xtb, sigma, hlgap, results)
+
+   ! solvation has to be applied, the reference differs from the gas phase !
+   call check_(error, energy_xtb, reference, thr=thr)
+   if (allocated(error)) return
+
+   ! tblite backend !
+   call newOniomCalculator(calc_tblite, env, mol, input, tblite)
+   call calc_tblite%singlepoint(env, mol, chk_tblite, 0, .false., energy_tblite, &
+      & gradient_tblite, sigma, hlgap, results)
+
+   call check_(error, energy_tblite, energy_xtb, thr=thr)
+   if (allocated(error)) return
+   do iat = 1, mol%n
+      do ic = 1, 3
+         call check_(error, gradient_tblite(ic, iat), gradient_xtb(ic, iat), thr=thr2)
+         if (allocated(error)) return
+      end do
+   end do
+
+   ! same linked atoms for both backends !
+   call calc_xtb%cutbond(env, mol, chk_xtb, calc_xtb%topo, inner_xtb, &
+      & jacobian_xtb, idx_xtb)
+   call calc_tblite%cutbond(env, mol, chk_tblite, calc_tblite%topo, inner_tblite, &
+      & jacobian_tblite, idx_tblite)
+
+   call check_(error, size(idx_tblite), size(idx_xtb))
+   if (allocated(error)) return
+   call check_(error, size(idx_tblite), 5)
+   if (allocated(error)) return
+   do iat = 1, size(idx_xtb)
+      call check_(error, idx_tblite(iat), idx_xtb(iat))
+      if (allocated(error)) return
+      do ic = 1, 3
+         call check_(error, inner_tblite%xyz(ic, iat), inner_xtb%xyz(ic, iat), thr=thr)
+         if (allocated(error)) return
+      end do
+   end do
+   do jc = 1, size(jacobian_xtb, 2)
+      do ic = 1, size(jacobian_xtb, 1)
+         call check_(error, jacobian_tblite(ic, jc), jacobian_xtb(ic, jc), thr=thr)
+         if (allocated(error)) return
+      end do
+   end do
+
+end subroutine oniom_singlepoint_tblite
 
 
 end module test_oniom
