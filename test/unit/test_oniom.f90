@@ -297,6 +297,9 @@ subroutine test_oniom_singlepoint(error)
       !! interface to initMoleculeNumbers
    mol%chrg = 0.0_wp
    allocate(gradient(3,mol%n))
+   set%oniom_settings%innerchrg = 0
+   set%oniom_settings%innerspin = 0
+      !! inner region charge and spin, as determined by the main program
    call open_file(io,"w.coord","w")
    call writeMolecule(mol,io,filetype%tmol)
    call close_file(io)
@@ -343,12 +346,16 @@ subroutine test_oniom_calculateCharge_tblite(error)
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_restart
+   use xtb_type_data, only : scc_results
    
    use xtb_oniom, only : TOniomCalculator, calculateCharge, newOniomCalculator, oniom_input
    use xtb_xtb_calculator, only : TxTBCalculator, newWavefunction
-   use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
+   use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction, &
+      & newTBLiteCalculator
+   use xtb_tblite_restart, only : loadRestart, dumpRestart
    type(error_type), allocatable, intent(out) :: error
       !! error message type, with stat amd message
+   character(len=*), parameter :: fname = 'oniom-tblite.restart'
    integer, parameter :: nreg = 2
    character(len=*), parameter :: region(nreg) = [character(len=10) :: '1-14', '1-7,15-17']
       !! inner regions, the second one gives 1 (instead of 0) with SAD guess charges
@@ -379,11 +386,16 @@ subroutine test_oniom_calculateCharge_tblite(error)
       & ], shape(xyz))
    
    type(TMolecule) :: mol
-   type(TRestart) :: chk_xtb, chk_tblite
+   type(TRestart) :: chk_xtb, chk_tblite, chk_restart, chk_gfn1
    type(TEnvironment) :: env
    type(TOniomCalculator) :: calc_xtb, calc_tblite
+   type(TTBLiteCalculator) :: calc_gfn1
    type(oniom_input) :: input
    type(TTBLiteInput) :: tblite
+   type(scc_results) :: results
+   real(wp) :: energy, hlgap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+   logical :: exist, exist_gfn1
    integer :: ireg, innchrg_xtb, innchrg_tblite
 
    if (.not.get_xtb_feature('tblite')) then
@@ -422,12 +434,36 @@ subroutine test_oniom_calculateCharge_tblite(error)
       end select
       innchrg_tblite = calculateCharge(calc_tblite, env, mol, chk_tblite)
 
-      ! both backends start from EEQ guess charges !
+      ! both backends use the same EEQ guess charges !
       call check_(error, innchrg_xtb, ref(ireg))
       if (allocated(error)) return
       call check_(error, innchrg_tblite, innchrg_xtb)
       if (allocated(error)) return
    end do
+
+   ! charges of a restart file are used instead of the guess charges, !
+   ! the shell charges of a fresh SAD guess would give 1 here !
+   allocate(gradient(3, mol%n))
+   exist = .false.
+   select type(xtb => calc_tblite%real_low)
+   type is(TTBLiteCalculator)
+      call xtb%singlepoint(env, mol, chk_tblite, 0, .false., energy, gradient, &
+         & sigma, hlgap, results)
+      call dumpRestart(env, chk_tblite, fname)
+      call newTBLiteWavefunction(env, mol, xtb, chk_restart)
+      call loadRestart(env, chk_restart, fname, exist)
+   end select
+   ! a restart file of a different basis set (GFN2 for GFN1) is not read !
+   call newTBLiteCalculator(env, mol, calc_gfn1, TTBLiteInput(method="gfn1"))
+   call newTBLiteWavefunction(env, mol, calc_gfn1, chk_gfn1)
+   call loadRestart(env, chk_gfn1, fname, exist_gfn1)
+   call delete_file(fname)
+   call check_(error, exist)
+   if (allocated(error)) return
+   call check_(error, .not.exist_gfn1)
+   if (allocated(error)) return
+   innchrg_tblite = calculateCharge(calc_tblite, env, mol, chk_restart, restarted=.true.)
+   call check_(error, innchrg_tblite, ref(nreg))
 
 end subroutine test_oniom_calculateCharge_tblite
 
@@ -488,6 +524,7 @@ subroutine oniom_singlepoint_tblite(error, reference, solvation_model)
    use xtb_solv_kernel, only : gbKernel
    
    use xtb_main_setup, only : addSolvationModel
+   use xtb_setparam, only : set
    use xtb_oniom, only : TOniomCalculator, newOniomCalculator, oniom_input
    use xtb_tblite_calculator, only : TTBLiteInput, TTBLiteSolvationInput
 
@@ -535,6 +572,10 @@ subroutine oniom_singlepoint_tblite(error, reference, solvation_model)
    call init(mol, at, xyz)
    mol%chrg = 0.0_wp
    allocate(gradient_xtb(3, mol%n), gradient_tblite(3, mol%n))
+
+   ! inner region charge and spin, as determined by the main program !
+   set%oniom_settings%innerchrg = 0
+   set%oniom_settings%innerspin = 0
 
    ! C-C bond is cut, all three calculations use GFN-xTB !
    input%first_arg = "gfn2:gfn1"

@@ -46,6 +46,8 @@ subroutine loadRestart(env, chk, fname, success)
    integer :: io, info
    integer(i8) :: version, dummy, nat, nsh, nel, nuhf
 
+   success = .false.
+
    ! call env%io%readBinary(io, fname)
    call open_binary(io, fname, "r")
    if (io == -1) then
@@ -55,6 +57,7 @@ subroutine loadRestart(env, chk, fname, success)
    read(io, iostat=info) &
       version, dummy, nat, nsh, nel, nuhf
 
+   ! only a restart file of the same system and basis set can be read
    if (info == 0 &
       .and. nat == size(chk%tblite%n0at, kind=kind(nat)) &
       .and. nsh == size(chk%tblite%n0sh, kind=kind(nsh))) then
@@ -65,12 +68,12 @@ subroutine loadRestart(env, chk, fname, success)
          if (info == 0) &
             read(io, iostat=info) chk%tblite%qpat
       end if
+      success = info == 0
    end if
-
-   success = info == 0
    ! call env%io%closeFile(io)
    call close_file(io)
 #else
+   success = .false.
    call feature_not_implemented(env)
 #endif
 end subroutine loadRestart

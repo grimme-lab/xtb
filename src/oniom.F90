@@ -33,7 +33,8 @@ module xtb_oniom
    use xtb_type_neighbourlist, only: TNeighbourlist
    use xtb_gfnff_calculator, only: TGFFCalculator, newGFFCalculator
    use xtb_type_topology, only: TTopology, len
-   use xtb_xtb_calculator, only: TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_xtb_calculator, only: TxTBCalculator, newXTBCalculator, newWavefunction, &
+      & newGuessCharges
    use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, &
       & newTBLiteCalculator, newTBLiteWavefunction
    use xtb_extern_orca, only: TOrcaCalculator, newOrcaCalculator
@@ -166,6 +167,24 @@ subroutine newOniomCalculator(self, env, mol, input, tblite)
    
    ! store tblite input for GFN-xTB methods !
    if (present(tblite)) then
+      ! options of tblite, which require a GFN-xTB method at a certain level !
+      if (tblite%spin_polarized .and. self%method_high > 2 .and. self%method_low > 2) then
+         call env%error("Spin-polarization requires a GFN-xTB method in ONIOM")
+         return
+      end if
+      if (allocated(tblite%solvation) .and. self%method_low > 2) then
+         if (tblite%solvation%solvation_model == "cpcm" &
+            & .or. tblite%solvation%solvation_model == "pcm") then
+            call env%error("CPCM and PCM solvation models require a GFN-xTB low-level method in ONIOM")
+            return
+         end if
+      end if
+      if (allocated(tblite%efield) .and. self%method_high > 3) then
+         if (any(tblite%efield /= 0.0_wp)) then
+            call env%error("Electric fields are not supported for external high-level methods in ONIOM")
+            return
+         end if
+      end if
       allocate (self%tblite, source=tblite)
    end if
 
@@ -678,8 +697,6 @@ subroutine newXTBLevel(self, env, mol, method, outer, calc)
       if (outer) then
          ! bond orders are required for the topology !
          tblite%bond_orders = .true.
-         ! EEQ guess charges are required for the inner region charge !
-         tblite%guess = "eeq"
       end if
       call move_alloc(tblite, calc)
    else
@@ -702,7 +719,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    character(len=*), parameter :: source = "xtb_oniom_cutbond" 
 
    !> polymorphic calculator
-   class(TOniomCalculator), intent(in) :: self
+   class(TOniomCalculator), intent(inout) :: self
    
    !> calculation environment
    type(TEnvironment), intent(inout) :: env
@@ -738,6 +755,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    integer, allocatable :: at(:), at_out(:)
    integer, allocatable :: bonded(:, :)
    real(wp), allocatable :: xyz(:, :), xyz_out(:, :)
+   real(wp), allocatable :: wbo(:, :)
    character(len=:),allocatable :: fname_inner
    
    !> if the both bonded atoms are inside the inner region
@@ -831,6 +849,9 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    type is (TTBLiteCalculator)
       from_wbo = .true.
 
+      ! bond orders of the previous singlepoint are only required for the topology !
+      calc%bond_orders = .false.
+
    end select
 
    if (from_wbo) then
@@ -838,7 +859,14 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
          allocate (topo)
 
          ! return assigned topo%list !
-         call makeBondTopology(topo, mol, chk%wfn%wbo) 
+         if (allocated(chk%wfn%wbo)) then
+            call makeBondTopology(topo, mol, chk%wfn%wbo) 
+         else
+            ! no bond orders before the first tblite singlepoint (--cut), !
+            ! the native guess wavefunction has zero bond orders as well !
+            allocate (wbo(mol%n, mol%n), source=0.0_wp)
+            call makeBondTopology(topo, mol, wbo)
+         end if
          
          ! return neighList !
          call topologyToNeighbourList(topo, neighList, mol) 
@@ -1641,7 +1669,7 @@ subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
 end subroutine checkfororder
 
 !> automatic inner region charge determination
-function calculateCharge(self, env, mol, chk) result(chrg_model)
+function calculateCharge(self, env, mol, chk, restarted) result(chrg_model)
    
    implicit none
    
@@ -1659,10 +1687,18 @@ function calculateCharge(self, env, mol, chk) result(chrg_model)
    
    !> wavefuntion wrapper
    type(TRestart), intent(in) :: chk
+
+   !> wavefunction was read from a restart file
+   logical, intent(in), optional :: restarted
    
    !> inner region charge
    real(wp) :: charge
    
+   !> guess charges of the whole system
+   real(wp), allocatable :: q(:)
+
+   logical :: from_restart
+   integer :: ish
    integer :: i, j, n, k, pre_last
    integer :: chrg_model
    integer, allocatable :: at(:)
@@ -1685,14 +1721,28 @@ function calculateCharge(self, env, mol, chk) result(chrg_model)
 
    ! GFN1/2 via tblite !
    type is (TTBLiteCalculator)
+      from_restart = .false.
+      if (present(restarted)) from_restart = restarted
+      if (from_restart) then
+         ! charges of the restart file, as for the native backend !
 #if WITH_TBLITE
-      do i = 1, size(self%idx)
-         charge = charge + chk%tblite%qat(self%idx(i), 1)
-      end do
+         do ish = 1, size(chk%tblite%qsh, 1)
+            if (any(self%idx == calc%tblite%bas%sh2at(ish))) then
+               charge = charge + chk%tblite%qsh(ish, 1)
+            end if
+         end do
 #else
-      call feature_not_implemented(env)
-      return
+         call feature_not_implemented(env)
+         return
 #endif
+      else
+         ! same guess charges as for the native backend !
+         allocate (q(mol%n))
+         call newGuessCharges(env, mol, self%method_low, q)
+         do i = 1, size(self%idx)
+            charge = charge + q(self%idx(i))
+         end do
+      end if
 
    class default
       call env%error("Not possible to calculate with external methods for real region", source)

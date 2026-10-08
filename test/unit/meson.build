@@ -102,6 +102,20 @@ test('GFN2-FF xcontrol', xtb_exe, env: xtbenv, args: [
   '--coffee', '--strict', '--norestart', '--namespace', 'test7',
   '--input', files('../inputs/gfnff.inp'),
 ])
+if tblite_dep.found()
+  # ONIOM with tblite
+  oniom_tests = {
+    'ONIOM tblite': ['--oniom', 'gfn2:gfn1', '1,15-17', '--tblite'],
+    'ONIOM tblite flag order': ['--tblite', '--oniom', 'gfn2:gfn1', '1,15-17'],
+    'ONIOM tblite efield': ['--oniom', 'gfn2:gfn1', '1,15-17', '--tblite', '--efield', '0.0,0.0,0.5'],
+    'ONIOM tblite spinpol': ['--oniom', 'gfn2:gfn1', '1,15-17', '--tblite', '--spinpol'],
+  }
+  foreach name, args : oniom_tests
+    test(name, xtb_exe, env: xtbenv, args: [
+      '--coffee', '--strict', '--norestart', '--namespace', name.underscorify(),
+    ] + args)
+  endforeach
+endif
 if host_machine.system() != 'windows'
   test('Info', xtb_exe, env: xtbenv, args: [
     'info',

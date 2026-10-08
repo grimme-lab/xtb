@@ -148,3 +148,25 @@ set_tests_properties(
   PROPERTIES
   ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
 )
+
+if(WITH_TBLITE)
+  # ONIOM with tblite, fails if the ONIOM energy is missing (e.g. plain tblite run)
+  add_test("xtb/ONIOM/tblite" ${XTB-EXE} --coffee --strict --norestart --namespace oniom1
+    --oniom gfn2:gfn1 1,15-17 --tblite)
+  add_test("xtb/ONIOM/tblite/order" ${XTB-EXE} --coffee --strict --norestart --namespace oniom2
+    --tblite --oniom gfn2:gfn1 1,15-17)
+  add_test("xtb/ONIOM/tblite/efield" ${XTB-EXE} --coffee --strict --norestart --namespace oniom3
+    --oniom gfn2:gfn1 1,15-17 --tblite --efield 0.0,0.0,0.5)
+  add_test("xtb/ONIOM/tblite/spinpol" ${XTB-EXE} --coffee --strict --norestart --namespace oniom4
+    --oniom gfn2:gfn1 1,15-17 --tblite --spinpol)
+  set_tests_properties(
+    "xtb/ONIOM/tblite"
+    "xtb/ONIOM/tblite/order"
+    "xtb/ONIOM/tblite/efield"
+    "xtb/ONIOM/tblite/spinpol"
+    PROPERTIES
+    ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
+    PASS_REGULAR_EXPRESSION "ONIOM TOTAL ENERGY"
+    FAIL_REGULAR_EXPRESSION "\\[ERROR\\]"
+  )
+endif()
