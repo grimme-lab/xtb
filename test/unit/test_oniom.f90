@@ -387,15 +387,16 @@ subroutine test_oniom_calculateCharge_tblite(error)
    
    type(TMolecule) :: mol, mol_state
    type(TRestart) :: chk_xtb, chk_tblite, chk_restart, chk_gfn1, chk_chrg, chk_uhf
+   type(TRestart) :: chk_spin, chk_nospin
    type(TEnvironment) :: env
    type(TOniomCalculator) :: calc_xtb, calc_tblite
-   type(TTBLiteCalculator) :: calc_gfn1
+   type(TTBLiteCalculator) :: calc_gfn1, calc_spin
    type(oniom_input) :: input
    type(TTBLiteInput) :: tblite
    type(scc_results) :: results
    real(wp) :: energy, hlgap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
-   logical :: exist, exist_gfn1, exist_chrg, exist_uhf
+   logical :: exist, exist_gfn1, exist_chrg, exist_uhf, exist_nospin
    integer :: ireg, innchrg_xtb, innchrg_tblite
 
    if (.not.get_xtb_feature('tblite')) then
@@ -476,6 +477,20 @@ subroutine test_oniom_calculateCharge_tblite(error)
    call check_(error, .not.exist_uhf, "Restart file of a different spin state was read")
    if (allocated(error)) return
    call check_(error, .not.exist_gfn1, "Restart file of a different basis set was read")
+   if (allocated(error)) return
+
+   ! a restart file with two spin channels is not read for one spin channel !
+   call newTBLiteCalculator(env, mol, calc_spin, &
+      & TTBLiteInput(method="gfn2", spin_polarized=.true.))
+   call newTBLiteWavefunction(env, mol, calc_spin, chk_spin)
+   call dumpRestart(env, chk_spin, fname)
+   select type(xtb => calc_tblite%real_low)
+   type is(TTBLiteCalculator)
+      call newTBLiteWavefunction(env, mol, xtb, chk_nospin)
+      call loadRestart(env, chk_nospin, mol, fname, exist_nospin)
+   end select
+   call delete_file(fname)
+   call check_(error, .not.exist_nospin, "Restart file with two spin channels was read")
    if (allocated(error)) return
    innchrg_tblite = calculateCharge(calc_tblite, env, mol, chk_restart, restarted=.true.)
    call check_(error, innchrg_tblite, ref(nreg))
