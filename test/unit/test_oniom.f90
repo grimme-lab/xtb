@@ -385,8 +385,8 @@ subroutine test_oniom_calculateCharge_tblite(error)
       &15.98310331300670_wp, -3.59190426260830_wp, -2.41348990450454_wp  &
       & ], shape(xyz))
    
-   type(TMolecule) :: mol
-   type(TRestart) :: chk_xtb, chk_tblite, chk_restart, chk_gfn1
+   type(TMolecule) :: mol, mol_state
+   type(TRestart) :: chk_xtb, chk_tblite, chk_restart, chk_gfn1, chk_chrg, chk_uhf
    type(TEnvironment) :: env
    type(TOniomCalculator) :: calc_xtb, calc_tblite
    type(TTBLiteCalculator) :: calc_gfn1
@@ -395,7 +395,7 @@ subroutine test_oniom_calculateCharge_tblite(error)
    type(scc_results) :: results
    real(wp) :: energy, hlgap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
-   logical :: exist, exist_gfn1
+   logical :: exist, exist_gfn1, exist_chrg, exist_uhf
    integer :: ireg, innchrg_xtb, innchrg_tblite
 
    if (.not.get_xtb_feature('tblite')) then
@@ -451,16 +451,30 @@ subroutine test_oniom_calculateCharge_tblite(error)
          & sigma, hlgap, results)
       call dumpRestart(env, chk_tblite, fname)
       call newTBLiteWavefunction(env, mol, xtb, chk_restart)
-      call loadRestart(env, chk_restart, fname, exist)
+      call loadRestart(env, chk_restart, mol, fname, exist)
+
+      ! a restart file of a different charge or spin state is not read !
+      mol_state = mol
+      mol_state%chrg = 0.0_wp
+      call newTBLiteWavefunction(env, mol_state, xtb, chk_chrg)
+      call loadRestart(env, chk_chrg, mol_state, fname, exist_chrg)
+      mol_state = mol
+      mol_state%uhf = 2
+      call newTBLiteWavefunction(env, mol_state, xtb, chk_uhf)
+      call loadRestart(env, chk_uhf, mol_state, fname, exist_uhf)
    end select
    ! a restart file of a different basis set (GFN2 for GFN1) is not read !
    call newTBLiteCalculator(env, mol, calc_gfn1, TTBLiteInput(method="gfn1"))
    call newTBLiteWavefunction(env, mol, calc_gfn1, chk_gfn1)
-   call loadRestart(env, chk_gfn1, fname, exist_gfn1)
+   call loadRestart(env, chk_gfn1, mol, fname, exist_gfn1)
    call delete_file(fname)
    call check_(error, exist)
    if (allocated(error)) return
-   call check_(error, .not.exist_gfn1)
+   call check_(error, .not.exist_chrg, "Restart file of a different charge was read")
+   if (allocated(error)) return
+   call check_(error, .not.exist_uhf, "Restart file of a different spin state was read")
+   if (allocated(error)) return
+   call check_(error, .not.exist_gfn1, "Restart file of a different basis set was read")
    if (allocated(error)) return
    innchrg_tblite = calculateCharge(calc_tblite, env, mol, chk_restart, restarted=.true.)
    call check_(error, innchrg_tblite, ref(nreg))

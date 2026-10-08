@@ -712,7 +712,7 @@ contains
          ipeashift = calc%xtbData%ipeashift
       type is (TTBLiteCalculator)
          if (restart) then
-            call loadRestart(env, chk, 'xtbrestart', exist)
+            call loadRestart(env, chk, mol, 'xtbrestart', exist)
             if (exist) write (env%unit, "(a)") "Wavefunction read from restart file"
          end if
          ipeashift = calc%ipeashift
@@ -728,7 +728,7 @@ contains
          type is (TTBLiteCalculator)
             call newTBLiteWavefunction(env, mol, xtb, chk)
             if (restart) then ! only in first run
-               call loadRestart(env, chk, 'xtbrestart', exist)
+               call loadRestart(env, chk, mol, 'xtbrestart', exist)
                if (exist) write (env%unit, "(a)") "Wavefunction read from restart file"
             end if
          end select

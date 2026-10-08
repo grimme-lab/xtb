@@ -22,6 +22,7 @@
 module xtb_tblite_restart
    use xtb_mctc_accuracy, only : wp, i8
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_molecule, only : TMolecule
    use xtb_type_restart, only : TRestart
    implicit none
    private
@@ -31,11 +32,13 @@ module xtb_tblite_restart
 contains
 
 !> Load restart file
-subroutine loadRestart(env, chk, fname, success)
+subroutine loadRestart(env, chk, mol, fname, success)
    !> Computational environment
    type(TEnvironment), intent(inout) :: env
    !> Restart file
    type(TRestart), intent(inout) :: chk
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
    !> File name
    character(len=*), intent(in) :: fname
    !> Successfully loaded restart
@@ -45,8 +48,17 @@ subroutine loadRestart(env, chk, fname, success)
    external :: open_binary, close_file
    integer :: io, info
    integer(i8) :: version, dummy, nat, nsh, nel, nuhf
+   integer(i8) :: nel_ref, nuhf_ref
 
    success = .false.
+
+   ! electrons from the initial guess, unpaired electrons as in the singlepoint
+   nel_ref = nint(chk%tblite%nocc, i8)
+   if (mod(mol%uhf, 2) == mod(nel_ref, 2_i8)) then
+      nuhf_ref = mol%uhf
+   else
+      nuhf_ref = mod(nel_ref, 2_i8)
+   end if
 
    ! call env%io%readBinary(io, fname)
    call open_binary(io, fname, "r")
@@ -57,10 +69,11 @@ subroutine loadRestart(env, chk, fname, success)
    read(io, iostat=info) &
       version, dummy, nat, nsh, nel, nuhf
 
-   ! only a restart file of the same system and basis set can be read
+   ! only a restart file of the same system, basis set and electronic state can be read
    if (info == 0 &
       .and. nat == size(chk%tblite%n0at, kind=kind(nat)) &
-      .and. nsh == size(chk%tblite%n0sh, kind=kind(nsh))) then
+      .and. nsh == size(chk%tblite%n0sh, kind=kind(nsh)) &
+      .and. nel == nel_ref .and. nuhf == nuhf_ref) then
       read(io, iostat=info) chk%tblite%qsh
       if (version >= 2) then
          if (info == 0) &

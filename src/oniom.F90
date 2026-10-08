@@ -173,11 +173,13 @@ subroutine newOniomCalculator(self, env, mol, input, tblite)
          return
       end if
       if (allocated(tblite%solvation) .and. self%method_low > 2) then
-         if (tblite%solvation%solvation_model == "cpcm" &
-            & .or. tblite%solvation%solvation_model == "pcm") then
-            call env%error("CPCM and PCM solvation models require a GFN-xTB low-level method in ONIOM")
+         ! these solvation models are only available in tblite, not for GFN-FF !
+         select case (tblite%solvation%solvation_model)
+         case ("gb", "gbe", "cpcm", "pcm")
+            call env%error("Solvation model '"//tblite%solvation%solvation_model// &
+               & "' requires a GFN-xTB low-level method in ONIOM")
             return
-         end if
+         end select
       end if
       if (allocated(tblite%efield) .and. self%method_high > 3) then
          if (any(tblite%efield /= 0.0_wp)) then
