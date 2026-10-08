@@ -1,6 +1,6 @@
 {
     "license": "LGPL-3.0-or-later", 
-    "version": "v6.2.3", 
+    "version": "v6.8.0", 
     "references": [
         "S. Grimme, C. Bannwarth, P. Shushkov, J. Chem. Theory Comput., 2017, 13, 1989-2009. DOI: 10.1021/acs.jctc.7b00118", 
         "C. Bannwarth, S. Ehlert and S. Grimme., J. Chem. Theory Comput., 2019, 15, 1652-1671. DOI: 10.1021/acs.jctc.8b01176", 
