@@ -454,11 +454,12 @@ subroutine test_oniom_calculateCharge_tblite(error)
       call loadRestart(env, chk_restart, mol, fname, exist)
 
       ! a restart file of a different charge or spin state is not read !
-      mol_state = mol
+      call init(mol_state, at, xyz)
       mol_state%chrg = 0.0_wp
       call newTBLiteWavefunction(env, mol_state, xtb, chk_chrg)
       call loadRestart(env, chk_chrg, mol_state, fname, exist_chrg)
-      mol_state = mol
+      call init(mol_state, at, xyz)
+      mol_state%chrg = 1.0_wp
       mol_state%uhf = 2
       call newTBLiteWavefunction(env, mol_state, xtb, chk_uhf)
       call loadRestart(env, chk_uhf, mol_state, fname, exist_uhf)
