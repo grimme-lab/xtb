@@ -651,10 +651,11 @@ subroutine test_gfn1_mindless_ddx(error)
       & "mindless01", "mindless02", "mindless03"]
    character(len=*), parameter :: solv_model(3) = [&
       & "cosmo", "cpcm ", "pcm  "]
+   ! References use ddX v1.0.0 with lmax=6 and switching=1.
    real(wp), parameter :: ref_energies(3) = [&
-      & -33.074347046151_wp, -26.876370111233_wp, -25.840189123165_wp]
+      & -33.075720271033_wp, -26.878402440179_wp, -25.840886464606_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.052710146819_wp, 0.060872658809_wp, 0.052661835629_wp]
+      &  0.053818646136_wp, 0.060824425986_wp, 0.052764104511_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "12.0 ", "water", "dmso "]
 
@@ -731,10 +732,11 @@ subroutine test_gfn2_mindless_ddx(error)
       & "mindless01", "mindless02", "mindless03"]
    character(len=*), parameter :: solv_model(3) = [&
       & "cosmo", "cpcm ", "pcm  "]
+   ! References use ddX v1.0.0 with lmax=6 and switching=1.
    real(wp), parameter :: ref_energies(3) = [&
-      & -30.388028543875_wp, -24.108974893111_wp, -23.766262242608_wp]
+      & -30.389981765099_wp, -24.114459414282_wp, -23.769434437075_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
-      &  0.064627429484_wp, 0.065047741475_wp, 0.0489928038278_wp]
+      &  0.065627988532_wp, 0.066556520743_wp, 0.050564981545_wp]
    character(len=*), parameter :: solvents(3) = [&
       & "12.0 ", "water", "dmso "]
 
