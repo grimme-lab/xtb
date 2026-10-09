@@ -320,13 +320,12 @@ subroutine mmompop_cpu(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    associate(dipm_omp => dipm, qp_omp => qp)
 #endif
 
-   !$omp do schedule(dynamic,32) collapse(2)
+   !$omp do schedule(guided)
    do i = 1,nao
-      do j = 1,nao
-         if (j >= i) cycle
-         ii = aoat2(i)
+      ii = aoat2(i)
+      ra(1:3) = xyz(1:3,ii)
+      do j = 1,i-1
          jj = aoat2(j)
-         ra(1:3) = xyz(1:3,ii)
          pij = p(j,i)
          ps = pij*s(j,i)
          !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
@@ -618,14 +617,13 @@ subroutine aniso_electro_cpu(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    !$omp private(i,j,k,kj,l,kl,q1,rr,dp1,qp1,rij,r2,ed,eq,edd,tt,tt3) &
    !$omp shared(nat, q, xyz, dipm, qp, gab3, gab5) &
    !$omp reduction(+:e01, e02, e11) &
-   !$omp schedule(dynamic,32) collapse(2)
+   !$omp schedule(guided)
    do i = 1, nat
-      do j = 1, nat
-         if (j >= i) cycle
-         q1 = q(i)
-         rr(1:3) = xyz(1:3,i)
-         dp1(1:3) = dipm(1:3,i)
-         qp1(1:6) = qp(1:6,i)
+      q1 = q(i)
+      rr(1:3) = xyz(1:3,i)
+      dp1(1:3) = dipm(1:3,i)
+      qp1(1:6) = qp(1:6,i)
+      do j = 1, i-1
          kj = i*(i-1)/2 + j
          rij(1:3) = xyz(1:3,j)-rr(1:3)
          r2 = sum(rij*rij)
@@ -876,6 +874,10 @@ subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    vd = 0.0_wp
    vq = 0.0_wp
    ! set up overlap proportional potential
+   !$omp parallel do default(none) &
+   !$omp private(i,j,l1,l2,ll,ki,ra,rb,dra,stmp,dtmp,qtmp,g3,g5,dum3a,dum5a,r2a,r2ab,t2a,qs1,qs2) &
+   !$omp shared(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq) &
+   !$omp schedule(static)
    do i = 1,nat
       ra(1:3) = xyz(1:3,i)
       stmp = 0.0_wp
@@ -1083,6 +1085,11 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
    real(wp) dgab3,dgab5,damp1,damp2,ddamp,qs2
 
    integer i,j,k,l,m,ki,kj,kl
+   !$omp parallel do default(none) reduction(+:g) &
+   !$omp shared(nat, xyz, q, dipm, qp, kdmp3, kdmp5, radcn, dcn, gab3, gab5) &
+   !$omp private(i, j, k, l, kj, kl, q1, rr, dip, qp1, tmp2, rij, r2, rabi, &
+   !$omp& damp1, damp2, ddamp, dgab3, dgab5, ed, edd, eq, tt, tt3, ddm2, &
+   !$omp& ddm3a, ddm3b, qqa, qqb, dxi, rab, tmp3) schedule(static)
    do i = 1,nat
       q1 = q(i)
       rr(1:3) = xyz(1:3,i)
