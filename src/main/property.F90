@@ -152,6 +152,7 @@ module xtb_propertyoutput
       real(wp) :: dip, dipol(3)
       real(wp) :: intcut, neglect
       real(wp), parameter :: trans(3, 1) = 0.0_wp
+      logical :: need_sdq
 
       type(TBorn) :: gbsa
 
@@ -161,6 +162,12 @@ module xtb_propertyoutput
 !  integral neglect threshold
       neglect = 10.0d-9 * acc
       ndim = basis%nao * (basis%nao + 1) / 2
+      need_sdq = (set%pr_mulliken .and. set%gfn_method == 1) &
+         & .or. (set%pr_spin_population .and. wfx%nopen /= 0) &
+         & .or. set%pr_fod_pop &
+         & .or. (set%pr_dipole .and. set%gfn_method <= 1) &
+         & .or. set%pr_lmo
+      if (need_sdq) then
       allocate (S(basis%nao, basis%nao), dpint(3, basis%nao, basis%nao), &
          & qpint(6, basis%nao, basis%nao), source=0.0_wp)
 #ifdef XTB_GPU
@@ -174,6 +181,7 @@ module xtb_propertyoutput
          &        basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
          &        basis%alp, basis%cont, S, dpint, qpint)
 #endif
+      end if
 
 !! orbital energies and occupation
       if (set%pr_eig) then

@@ -20,7 +20,7 @@ module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
    use xtb_mctc_lapack, only : lapack_sygvd
-   use xtb_mctc_blas, only : blas_gemm, mctc_symv, mctc_gemm
+   use xtb_mctc_blas, only : blas_gemm, blas_syrk, mctc_symv, mctc_gemm
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
@@ -267,7 +267,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        minpr,pr, &
       &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_mctc_lapack_trf, only : mctc_potrf
 
    use xtb_disp_dftd4,  only: disppot,edisp_scc
    use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
@@ -363,8 +362,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),allocatable   :: dqlast(:)
    real(wp),allocatable   :: omega(:)
 !! ------------------------------------------------------------------------
-!  Factorized overlap to avoid multiple factorizations
-   real(wp), allocatable :: S_factorized(:,:)
+!  AO eigenvector buffer for occupied-orbital back-transformation
+   real(wp), allocatable :: C_occ(:,:)
+   integer  :: m_occ
 !! ------------------------------------------------------------------------
 !  results of the SCC iterator
    real(wp),intent(out)   :: eel
@@ -408,9 +408,10 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    logical  :: econverged
    logical  :: qconverged
 
-   allocate(S_factorized(ndim, ndim), source = 0.0_wp )
-   S_factorized = S
-   call mctc_potrf(env, S_factorized)
+   call env%check(fail)
+   if (fail) return
+   allocate(C_occ(ndim, ndim), source = 0.0_wp)
+   m_occ = 0
 
    converged = .false.
    lastdiag = .false.
@@ -472,12 +473,12 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
-   call solver%fact_solve(env, H, S_factorized, emo)
+   call solver%fact_solve_subspace(env, H, emo)
    call env%check(fail)
-   if(fail)then
+   if (fail) then
       call env%error("Diagonalization of Hamiltonian failed", source)
       return
-   endif
+   end if
 
    if(ihomo+1.le.ndim.and.ihomo.ge.1)egap=emo(ihomo+1)-emo(ihomo)
    ! automatic reset to small value
@@ -509,8 +510,25 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       call gfn2broyden_save(n,k,nbr,dipm,qp,q_in)
    end if
 
+   ! Transform only occupied orbitals during SCC iterations
+   m_occ = 0
+   do i = ndim, 1, -1
+      if (abs(focc(i)) > 1.0e-16_wp) then
+         m_occ = i
+         exit
+      end if
+   end do
+   if (m_occ > 0) then
+      call solver%fact_backtransform(env, H, C_occ, 1, m_occ)
+      call env%check(fail)
+      if (fail) then
+         call env%error("Diagonalization of Hamiltonian failed", source)
+         return
+      end if
+   end if
+
    ! density matrix
-   call dmat(ndim,focc,H,P)
+   call dmat(ndim,focc,C_occ,P)
 
    ! new q
    call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
@@ -633,6 +651,18 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !! ------------------------------------------------------------------------
 
    enddo scc_iterator
+
+   if (thisiter >= 1) then
+      if (m_occ < ndim) then
+         call solver%fact_backtransform(env, H, C_occ, m_occ + 1, ndim)
+         call env%check(fail)
+         if (fail) then
+            call env%error("Diagonalization of Hamiltonian failed", source)
+            return
+         end if
+      end if
+      H = C_occ
+   end if
 
    jter = jter + min(iter,thisiter)
    fail = .not.converged
@@ -1179,10 +1209,40 @@ subroutine dmat(ndim,focc,C,P)
    real(wp),intent(in)  :: focc(:)
    real(wp),intent(in)  :: C(:,:)
    real(wp),intent(out) :: P(:,:)
-   integer :: i,m
+   integer :: i,m,m_occ,m_core,n_act
    real(wp),allocatable :: Ptmp(:,:)
 
-   allocate(Ptmp(ndim,ndim))
+   m_occ = 0
+   do m = min(ndim, size(focc), size(C, 2)), 1, -1
+      if (abs(focc(m)) > 1.0e-16_wp) then
+         m_occ = m
+         exit
+      end if
+   end do
+   if (m_occ == 0) then
+      P = 0.0_wp
+      return
+   end if
+   m_core = 0
+   if (focc(1) > 0.0_wp) then
+      do m = 1, m_occ
+         if (focc(m) /= focc(1)) exit
+         m_core = m
+      end do
+      if (m_core < m_occ .and. m_core < 2) m_core = 0
+   end if
+   if (m_core > 0) then
+      call blas_syrk('U', 'N', ndim, m_core, focc(1), C, ndim, 0.0_wp, P, ndim)
+      do m = 1, ndim
+         do i = 1, m - 1
+            P(m, i) = P(i, m)
+         end do
+      end do
+      if (m_core == m_occ) return
+   end if
+
+   n_act = m_occ - m_core
+   allocate(Ptmp(ndim,n_act))
    ! acc enter data create(Ptmp(:,:)) copyin(C(:, :), focc(:), P(:, :))
    ! acc kernels default(present)
    Ptmp = 0.0_wp
@@ -1190,14 +1250,18 @@ subroutine dmat(ndim,focc,C,P)
 
    ! acc parallel
    ! acc loop gang collapse(2)
-   do m=1,ndim
+   do m=1,n_act
       do i=1,ndim
-         Ptmp(i,m)=C(i,m)*focc(m)
+         Ptmp(i,m)=C(i,m_core+m)*focc(m_core+m)
       enddo
    enddo
    ! acc end parallel
    ! acc update host(Ptmp)
-   call mctc_gemm(C, Ptmp, P, transb='t')
+   if (m_core > 0) then
+      call mctc_gemm(C(:, m_core+1:m_occ), Ptmp, P, transb='t', beta=1.0_wp)
+   else
+      call mctc_gemm(C(:, 1:m_occ), Ptmp, P, transb='t')
+   end if
    ! acc exit data copyout(P(:,:)) delete(C(:,:), focc(:), Ptmp(:, :))
 
    deallocate(Ptmp)
