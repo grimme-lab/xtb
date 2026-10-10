@@ -228,11 +228,12 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
    !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij,itr) &
    !$omp shared(sint,dpint,qpint,H0,H0_noovlp) &
-   !$omp schedule(guided)
-   do iat = 2, nat
-      ra(1:3) = xyz(1:3,iat)
-      izp = at(iat)
-      do jat = 1, iat - 1
+   !$omp collapse(2) schedule(dynamic,32)
+   do iat = 1, nat
+      do jat = 1, nat
+         if (jat >= iat) cycle
+         ra(1:3) = xyz(1:3,iat)
+         izp = at(iat)
          jzp = at(jat)
          do itr = 1, size(trans, dim=2)
             rb(1:3) = xyz(1:3,jat) + trans(:, itr)
@@ -466,11 +467,12 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
    !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
    !$omp reduction(+:g,sigma,dhdcn) &
-   !$omp schedule(guided)
-   do iat = 2,nat
-      ri = xyz(:,iat)
-      izp = at(iat)
-      do jat = 1,iat-1
+   !$omp collapse(2) schedule(dynamic,32)
+   do iat = 1,nat
+      do jat = 1,nat
+         if (jat >= iat) cycle
+         ri = xyz(:,iat)
+         izp = at(iat)
          jzp = at(jat)
 
          do itr = 1, size(trans, dim=2)
@@ -696,11 +698,12 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    associate(g_omp => g, sigma_omp => sigma, dhdcn_omp => dhdcn)
 #endif
 
-   !$omp do schedule(guided)
-   do iat = 2,nat
-      izp = at(iat)
-      ri = xyz(:,iat)
-      do jat = 1,iat-1
+   !$omp do collapse(2) schedule(dynamic,32)
+   do iat = 1,nat
+      do jat = 1,nat
+         if (jat >= iat) cycle
+         izp = at(iat)
+         ri = xyz(:,iat)
          jzp = at(jat)
 
          rj = xyz(:,jat)
