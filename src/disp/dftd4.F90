@@ -2132,10 +2132,12 @@ subroutine atm_gradient_latp &
       !$omp parallel do default(none) &
       !$omp shared(nat, mol, r4r2, par, c6, dc6dcn, alp3, cutoff2, &
       !$omp& r2_mat, inv_r2, inv_r3, cralp_mat, sc6, dc6_over_c6) &
-      !$omp private(iat, jat, ati, atj, rij, r2ij, cij, scale) schedule(guided)
-      do iat = 2, nat
-         ati = mol%at(iat)
-         do jat = 1, iat - 1
+      !$omp private(iat, jat, ati, atj, rij, r2ij, cij, scale) &
+      !$omp collapse(2) schedule(dynamic, 32)
+      do iat = 1, nat
+         do jat = 1, nat
+            if (jat >= iat) cycle
+            ati = mol%at(iat)
             rij = mol%xyz(1:3, jat) - mol%xyz(1:3, iat)
             r2ij = sum(rij**2)
             r2_mat(jat, iat) = r2ij
@@ -2168,14 +2170,17 @@ subroutine atm_gradient_latp &
       associate(dGr_omp => dGr_edge, E_omp => E_edge)
 #endif
 
-      !$omp do schedule(dynamic, 1)
-      do iat = nat, 3, -1
-         do jat = 2, iat - 1
+      !$omp do collapse(2) schedule(dynamic, 32)
+      do iat = 1, nat
+         do jat = 1, nat
+            if (jat >= iat) cycle
             r2ij = r2_mat(jat, iat)
             if (r2ij > cutoff2) cycle
             dg1_acc = 0.0_wp
             e1_acc = 0.0_wp
-            !$omp simd reduction(+:dg1_acc, e1_acc)
+            !$omp simd reduction(+:dg1_acc, e1_acc) &
+            !$omp& private(r2jk, r2ik, c9, cralp, fdmp, dfdmp, rrr2, rrr3, ang_fact, &
+            !$omp& s1, d1, s2, d2, s3, d3, ang, dang1, dang2, dang3, e_triple)
             do kat = 1, jat - 1
                r2jk = r2_mat(kat, jat)
                r2ik = r2_mat(kat, iat)
