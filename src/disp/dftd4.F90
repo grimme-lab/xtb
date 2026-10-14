@@ -2049,6 +2049,7 @@ subroutine atm_gradient_latp &
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
    logical :: doPBC
    real(wp), allocatable :: r2_mat(:,:), inv_r1_mat(:,:), cralp_mat(:,:), sc6_mat(:,:)
+   real(wp), allocatable :: energies_omp(:), gradient_omp(:,:), sigma_omp(:,:), dEdcn_omp(:)
    real(wp) :: alp3, s9, inv_r1, inv_r1ij, inv_r2ij, cralp_ij, sc6_ij, r2ij_2, r2ij_3
    real(wp) :: c9, cralp, fdmp, dfdmp, rrr2, rrr3, ang_fact, ang, dang1, s1, d1
    real(wp) :: dg1_acc, e1_acc, g_ij, e_ij
@@ -2157,14 +2158,22 @@ subroutine atm_gradient_latp &
       end do
       !$omp end parallel do
 
-      !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
+      !$omp parallel default(none) &
       !$omp shared(nat, mol, c6, dc6dcn, alp3, s9, &
-      !$omp& r2_mat, inv_r1_mat, cralp_mat, sc6_mat) &
+      !$omp& r2_mat, inv_r1_mat, cralp_mat, sc6_mat, &
+      !$omp& energies, gradient, sigma, dEdcn) &
       !$omp private(iat, jat, kat, rij, r2ij, r2ik, r2jk, r2ij_2, r2ij_3, &
       !$omp& inv_r1ij, inv_r2ij, cralp_ij, sc6_ij, dg1_acc, e1_acc, &
       !$omp& c9, cralp, fdmp, dfdmp, inv_r1, rrr2, rrr3, ang_fact, &
-      !$omp& s1, d1, ang, dang1, g_ij, e_ij, scale) &
-      !$omp collapse(2) schedule(dynamic, 32)
+      !$omp& s1, d1, ang, dang1, g_ij, e_ij, scale, &
+      !$omp& energies_omp, gradient_omp, sigma_omp, dEdcn_omp)
+
+      allocate(energies_omp(size(energies, 1)), &
+         &     gradient_omp(size(gradient, 1), size(gradient, 2)), &
+         &     sigma_omp(size(sigma, 1), size(sigma, 2)), &
+         &     dEdcn_omp(size(dEdcn, 1)), source=0.0_wp)
+
+      !$omp do collapse(2) schedule(dynamic, 32)
       do iat = 1, nat
          do jat = 1, nat
             if (jat >= iat) cycle
@@ -2203,19 +2212,29 @@ subroutine atm_gradient_latp &
             e_ij = e1_acc
             if (g_ij == 0.0_wp .and. e_ij == 0.0_wp) cycle
             rij = mol%xyz(1:3, jat) - mol%xyz(1:3, iat)
-            gradient(:, iat) = gradient(:, iat) - g_ij * rij
-            gradient(:, jat) = gradient(:, jat) + g_ij * rij
-            sigma(:, 1) = sigma(:, 1) + 0.5_wp * g_ij * rij(1) * rij
-            sigma(:, 2) = sigma(:, 2) + 0.5_wp * g_ij * rij(2) * rij
-            sigma(:, 3) = sigma(:, 3) + 0.5_wp * g_ij * rij(3) * rij
-            energies(iat) = energies(iat) + e_ij * (1.0_wp / 6.0_wp)
-            energies(jat) = energies(jat) + e_ij * (1.0_wp / 6.0_wp)
+            gradient_omp(:, iat) = gradient_omp(:, iat) - g_ij * rij
+            gradient_omp(:, jat) = gradient_omp(:, jat) + g_ij * rij
+            sigma_omp(:, 1) = sigma_omp(:, 1) + 0.5_wp * g_ij * rij(1) * rij
+            sigma_omp(:, 2) = sigma_omp(:, 2) + 0.5_wp * g_ij * rij(2) * rij
+            sigma_omp(:, 3) = sigma_omp(:, 3) + 0.5_wp * g_ij * rij(3) * rij
+            energies_omp(iat) = energies_omp(iat) + e_ij * (1.0_wp / 6.0_wp)
+            energies_omp(jat) = energies_omp(jat) + e_ij * (1.0_wp / 6.0_wp)
             scale = 0.5_wp * e_ij / c6(jat, iat)
-            dEdcn(iat) = dEdcn(iat) + scale * dc6dcn(iat, jat)
-            dEdcn(jat) = dEdcn(jat) + scale * dc6dcn(jat, iat)
+            dEdcn_omp(iat) = dEdcn_omp(iat) + scale * dc6dcn(iat, jat)
+            dEdcn_omp(jat) = dEdcn_omp(jat) + scale * dc6dcn(jat, iat)
          end do
       end do
-      !$omp end parallel do
+      !$omp end do nowait
+
+      !$omp critical (atm_grad_crt)
+      energies(:) = energies + energies_omp
+      gradient(:, :) = gradient + gradient_omp
+      sigma(:, :) = sigma + sigma_omp
+      dEdcn(:) = dEdcn + dEdcn_omp
+      !$omp end critical (atm_grad_crt)
+
+      deallocate(energies_omp, gradient_omp, sigma_omp, dEdcn_omp)
+      !$omp end parallel
    end if
 
 end subroutine atm_gradient_latp
