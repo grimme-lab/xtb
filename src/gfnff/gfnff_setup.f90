@@ -87,7 +87,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
      return
   end if
 
-  if (.not.mol%info%two_dimensional) then
+  if (restart .and. .not.mol%info%two_dimensional) then
      call write_restart_gff(env,'gfnff_topo',mol%n,version,topo,neigh)
   end if
 
