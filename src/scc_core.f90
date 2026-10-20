@@ -20,7 +20,7 @@ module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
    use xtb_mctc_lapack, only : lapack_sygvd
-   use xtb_mctc_blas, only : blas_gemm, blas_syrk, mctc_symv, mctc_gemm
+   use xtb_mctc_blas, only : mctc_symv, mctc_gemm, mctc_syrk
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
@@ -262,7 +262,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        pcem,shellShift,externShift, &
       &        et,focc,focca,foccb,efa,efb, &
       &        eel,ees,eaes,epol,ed,epcem,egap,emo,ihomo,ihomoa,ihomob, &
-      &        H0,H,S,dpint,qpint,X,P,ies, &
+      &        H0,H,S,dpint,qpint,P,ies, &
       &        maxiter,startpdiag,scfconv,qconv, &
       &        minpr,pr, &
       &        fail,jter)
@@ -382,7 +382,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
    real(wp),intent(out)   :: H(ndim,ndim)
    real(wp),intent(inout) :: P(ndim,ndim)
-   real(wp),intent(inout) :: X(ndim,ndim)
    real(wp),intent(in)    :: S(ndim,ndim)
    real(wp),intent(in)    :: dpint(3,ndim,ndim)
    real(wp),intent(in)    :: qpint(6,ndim,ndim)
@@ -992,8 +991,8 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    else
 !                                                     call timing(t0,w0)
 !     go to MO basis using trafo(X) from first iteration (=full diag)
-      call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,H,ndim,X,ndim,0.0_wp,P,ndim)
-      call blas_gemm('T','N',ndim,ndim,ndim,1.0_wp,X,ndim,P,ndim,0.0_wp,H,ndim)
+      call mctc_gemm(H, X, P)
+      call mctc_gemm(X, P, H, transa='t')
 !                                                     call timing(t1,w1)
 !                       call prtime(6,1.5*(t1-t0),1.5*(w1-w0),'3xdgemm')
 !                                                     call timing(t0,w0)
@@ -1002,7 +1001,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                call prtime(6,t1-t0,w1-w0,'pseudodiag')
 
 !     C = X C', P=scratch
-      call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,X,ndim,H,ndim,0.0_wp,P,ndim)
+      call mctc_gemm(X, H, P)
 !     save and output MO matrix in AO basis
       H = P
    endif
@@ -1232,7 +1231,7 @@ subroutine dmat(ndim,focc,C,P)
       if (m_core < m_occ .and. m_core < 2) m_core = 0
    end if
    if (m_core > 0) then
-      call blas_syrk('U', 'N', ndim, m_core, focc(1), C, ndim, 0.0_wp, P, ndim)
+      call mctc_syrk(C(:, 1:m_core), P, alpha=focc(1))
       do m = 1, ndim
          do i = 1, m - 1
             P(m, i) = P(i, m)
@@ -1282,7 +1281,7 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    integer i,j,k,m
 
    allocate(Ptmp(ndim,ndim))
-   call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
+   call mctc_gemm(P, S, Ptmp)
    wb = 0
    !$omp parallel do default(none) &
    !$omp private(i,j,k,m,xsum,rab) &
@@ -1327,10 +1326,10 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    allocate(Ptmp_b(ndim,ndim))
 
    ! P^(alpha) * S !
-   call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,Pa,ndim,S,ndim,0.0_wp,Ptmp_a,ndim)
+   call mctc_gemm(Pa, S, Ptmp_a)
    
    ! P^(beta) * S !
-   call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,Pb,ndim,S,ndim,0.0_wp,Ptmp_b,ndim)
+   call mctc_gemm(Pb, S, Ptmp_b)
    
    wb = 0
    !$omp parallel do default(none) &

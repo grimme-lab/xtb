@@ -123,7 +123,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
 ! ========================================================================
    real(wp),allocatable :: cn(:)
-   real(wp),allocatable :: X(:,:)
    real(wp),allocatable :: S(:,:)
    real(wp),allocatable :: S12(:,:)
    real(wp),allocatable :: H0(:)
@@ -324,7 +323,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    allocate(H0(basis%nao*(basis%nao+1)/2), &
    &        H0_noovlp(basis%nao*(basis%nao+1)/2), &
    &        S(basis%nao,basis%nao),tmp(basis%nao), &
-   &        X(basis%nao,basis%nao), &
    &        ves(basis%nshell), &
    &        zsh(basis%nshell),&
    &        matlist (2,basis%nao*(basis%nao+1)/2))
@@ -629,7 +627,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       &     et,wfn%focc,wfn%focca,wfn%foccb,wfn%efa,wfn%efb, &
       &     eel,ees,eaes,epol,ed,epcem,egap, &
       &     wfn%emo,wfn%ihomo,wfn%ihomoa,wfn%ihomob, &
-      &     H0,wfn%C,S,dpint,qpint,X,wfn%P,ies, &
+      &     H0,wfn%C,S,dpint,qpint,wfn%P,ies, &
       &     maxiter,startpdiag,scfconv,qconv, &
       &     minpr,pr, &
       &     fail,jter)
