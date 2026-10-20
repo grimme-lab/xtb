@@ -168,18 +168,18 @@ module xtb_propertyoutput
          & .or. (set%pr_dipole .and. set%gfn_method <= 1) &
          & .or. set%pr_lmo
       if (need_sdq) then
-      allocate (S(basis%nao, basis%nao), dpint(3, basis%nao, basis%nao), &
-         & qpint(6, basis%nao, basis%nao), source=0.0_wp)
+         allocate (S(basis%nao, basis%nao), dpint(3, basis%nao, basis%nao), &
+            & qpint(6, basis%nao, basis%nao), source=0.0_wp)
 #ifdef XTB_GPU
-      call sdqint_gpu(xtbData%nShell, xtbData%hamiltonian%angShell, mol%n, mol%at, &
-         &        basis%nbf, basis%nao, mol%xyz, trans, intcut, &
-         &        basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
-         &        basis%alp, basis%cont, S, dpint, qpint)
+         call sdqint_gpu(xtbData%nShell, xtbData%hamiltonian%angShell, mol%n, mol%at, &
+            &        basis%nbf, basis%nao, mol%xyz, trans, intcut, &
+            &        basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
+            &        basis%alp, basis%cont, S, dpint, qpint)
 #else
-      call sdqint(xtbData%nShell, xtbData%hamiltonian%angShell, mol%n, mol%at, &
-         &        basis%nbf, basis%nao, mol%xyz, intcut, &
-         &        basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
-         &        basis%alp, basis%cont, S, dpint, qpint)
+         call sdqint(xtbData%nShell, xtbData%hamiltonian%angShell, mol%n, mol%at, &
+            &        basis%nbf, basis%nao, mol%xyz, intcut, &
+            &        basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
+            &        basis%alp, basis%cont, S, dpint, qpint)
 #endif
       end if
 

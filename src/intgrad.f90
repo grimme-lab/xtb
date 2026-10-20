@@ -876,16 +876,29 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,i
 end subroutine get_grad_overlap
 
 
+!> Build table of normalized 1D Cartesian Gaussian overlap moments via the
+!  two-center Obara-Saika recurrence around product center P:
+!  I(li, lj) = sqrt((alpi + alpj)/pi) * int (u - ri_u)^li (u - rj_u)^lj
+!              * exp(-(alpi + alpj) * (u - rp_u)^2) du,  with I(0, 0) = 1.
+!  The 3D Gaussian prefactor exp(-est) * (pi / (alpi + alpj))^(3/2) is applied
+!  once per primitive pair via kab in the caller.
 pure subroutine obara_saika_1d(li_max, lj_max, di, dj, gama, I_tab)
+   !> maximum angular momentum power on centers i and j
    integer, intent(in)  :: li_max, lj_max
-   real(wp),intent(in)  :: di, dj, gama
+   !> displacements rp_u - ri_u and rp_u - rj_u along coordinate u
+   real(wp),intent(in)  :: di, dj
+   !> inverse exponent factor 1 / (2 * (alpi + alpj))
+   real(wp),intent(in)  :: gama
+   !> normalized 1D overlap moments I(0:li_max, 0:lj_max)
    real(wp),intent(out) :: I_tab(0:, 0:)
    integer :: li, lj
+   ! Vertical recurrence on center i for lj = 0
    I_tab(0, 0) = 1.0_wp
    if (li_max >= 1) I_tab(1, 0) = di
    do li = 1, li_max - 1
       I_tab(li + 1, 0) = di * I_tab(li, 0) + real(li, wp) * gama * I_tab(li - 1, 0)
    end do
+   ! Vertical recurrence on center j for all li = 0..li_max
    do lj = 0, lj_max - 1
       I_tab(0, lj + 1) = dj * I_tab(0, lj)
       if (lj > 0) I_tab(0, lj + 1) = I_tab(0, lj + 1) + real(lj, wp) * gama * I_tab(0, lj - 1)
@@ -953,6 +966,7 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point, &
          est = est*ab
          kab = exp(-est)*(sqrtpi*sqrt(ab))**3
          rp = (alpi*ri + alpj*rj)*ab
+         ! 1D moments around point (m = 0, 1, 2 for S, D, Q) shifted from center j
          do k = 1, 3
             call obara_saika_1d(ishtyp, jshtyp + 2, rp(k) - ri(k), rp(k) - rj(k), 0.5_wp * ab, I_tab)
             d_jc = rj(k) - point(k)
@@ -964,8 +978,8 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point, &
                end do
             end do
          end do
-         !--------------- compute gradient ----------
-         ! now compute integrals  for different components of i(e.g., px,py,pz)
+         ! Assemble 3D Cartesian multipole integrals (1: S, 2..4: D, 5..10: Q)
+         ! for each angular momentum component of shells i and j
          do mli = 1,naoi
             iprim = ip+primcount(icao+mli)
             ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
@@ -1044,6 +1058,8 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
          est = est*ab
          kab = exp(-est)*(sqrtpi*sqrt(ab))**3
          rp = (alpi*ri + alpj*rj)*ab
+         ! j-centered 1D moments (m = 0, 1, 2 for S, D, Q) and analytical
+         ! derivatives d/d(ri_k): 2*alpi*I(li + 1, lj + m) - li*I(li - 1, lj + m)
          do k = 1, 3
             call obara_saika_1d(ishtyp + 1, jshtyp + 2, rp(k) - ri(k), rp(k) - rj(k), 0.5_wp * ab, I_tab)
             do lj = 0, jshtyp
