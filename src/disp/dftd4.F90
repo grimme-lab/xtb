@@ -2048,6 +2048,11 @@ subroutine atm_gradient_latp &
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
    logical :: doPBC
+   real(wp), allocatable :: r2_mat(:,:), inv_r1_mat(:,:), cralp_mat(:,:), sc6_mat(:,:)
+   real(wp), allocatable :: energies_omp(:), gradient_omp(:,:), sigma_omp(:,:), dEdcn_omp(:)
+   real(wp) :: alp3, s9, inv_r1, inv_r1ij, inv_r2ij, cralp_ij, sc6_ij, r2ij_2, r2ij_3
+   real(wp) :: c9, cralp, fdmp, dfdmp, rrr2, rrr3, ang_fact, ang, dang1, s1, d1
+   real(wp) :: dg1_acc, e1_acc, g_ij, e_ij
 
    cutoff2 = cutoff**2
    nat = len(mol) ! workaround for legacy Intel Fortran compilers
@@ -2118,60 +2123,118 @@ subroutine atm_gradient_latp &
       end do
       !$omp end parallel do
    else
-      !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
-      !$omp shared(mol, r4r2, par, trans, cutoff2, c6, dc6dcn, nat) &
-      !$omp private(iat, ati, jat, atj, kat, atk, c6ij, cij, c6ik, c6jk, cik, cjk, &
-      !$omp& rij, r2ij, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN) &
-      !$omp collapse(2) schedule(dynamic,32)
+      if (nat < 3) return
+      alp3 = real(par%alp, kind=wp) / 3.0_wp
+      s9 = par%s9
+      allocate(r2_mat(nat, nat), inv_r1_mat(nat, nat), &
+         &     cralp_mat(nat, nat), sc6_mat(nat, nat), source=0.0_wp)
+
+      !$omp parallel do default(none) &
+      !$omp shared(nat, mol, r4r2, par, c6, alp3, cutoff2, &
+      !$omp& r2_mat, inv_r1_mat, cralp_mat, sc6_mat) &
+      !$omp private(iat, jat, ati, atj, rij, r2ij, cij, inv_r1, cralp, scale) &
+      !$omp collapse(2) schedule(dynamic, 32)
       do iat = 1, nat
          do jat = 1, nat
             if (jat >= iat) cycle
             rij = mol%xyz(1:3, jat) - mol%xyz(1:3, iat)
             r2ij = sum(rij**2)
-            if (r2ij > cutoff2) cycle
-
-            do kat = 1, jat - 1
-
-               rik = mol%xyz(1:3, kat) - mol%xyz(1:3, iat)
-               r2ik = sum(rik**2)
-               if (r2ik > cutoff2) cycle
-               rjk = mol%xyz(1:3, kat) - mol%xyz(1:3, jat)
-               r2jk = sum(rjk**2)
-               if (r2jk > cutoff2) cycle
-
-               ati = mol%at(iat)
-               atj = mol%at(jat)
-               atk = mol%at(kat)
-
-               c6ij = c6(jat,iat)
-               c6ik = c6(kat,iat)
-               c6jk = c6(kat,jat)
-
-               cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
-               cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
-               cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
-
-               call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
-                  & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
-                  & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
-                  & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
-
-               scale = par%s9 * triple_scale(iat, jat, kat)
-               energies(iat) = energies(iat) + dE * scale / 3.0_wp
-               energies(jat) = energies(jat) + dE * scale / 3.0_wp
-               energies(kat) = energies(kat) + dE * scale / 3.0_wp
-               gradient(:, iat) = gradient(:, iat) + dG(:, 1) * scale
-               gradient(:, jat) = gradient(:, jat) + dG(:, 2) * scale
-               gradient(:, kat) = gradient(:, kat) + dG(:, 3) * scale
-               sigma(:, :) = sigma + dS * scale
-               dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
-               dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
-               dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
-
-            end do
+            if (r2ij > cutoff2 .or. c6(jat, iat) <= 0.0_wp) cycle
+            ati = mol%at(iat)
+            atj = mol%at(jat)
+            cij = par%a1 * sqrt(3.0_wp * r4r2(ati) * r4r2(atj)) + par%a2
+            inv_r1 = 1.0_wp / sqrt(r2ij)
+            cralp = (cij * inv_r1)**alp3
+            scale = sqrt(c6(jat, iat))
+            r2_mat(jat, iat) = r2ij
+            r2_mat(iat, jat) = r2ij
+            inv_r1_mat(jat, iat) = inv_r1
+            inv_r1_mat(iat, jat) = inv_r1
+            cralp_mat(jat, iat) = cralp
+            cralp_mat(iat, jat) = cralp
+            sc6_mat(jat, iat) = scale
+            sc6_mat(iat, jat) = scale
          end do
       end do
-   !$omp end parallel do
+      !$omp end parallel do
+
+      !$omp parallel default(none) &
+      !$omp shared(nat, mol, c6, dc6dcn, alp3, s9, &
+      !$omp& r2_mat, inv_r1_mat, cralp_mat, sc6_mat, &
+      !$omp& energies, gradient, sigma, dEdcn) &
+      !$omp private(iat, jat, kat, rij, r2ij, r2ik, r2jk, r2ij_2, r2ij_3, &
+      !$omp& inv_r1ij, inv_r2ij, cralp_ij, sc6_ij, dg1_acc, e1_acc, &
+      !$omp& c9, cralp, fdmp, dfdmp, inv_r1, rrr2, rrr3, ang_fact, &
+      !$omp& s1, d1, ang, dang1, g_ij, e_ij, scale, &
+      !$omp& energies_omp, gradient_omp, sigma_omp, dEdcn_omp)
+
+      allocate(energies_omp(size(energies, 1)), &
+         &     gradient_omp(size(gradient, 1), size(gradient, 2)), &
+         &     sigma_omp(size(sigma, 1), size(sigma, 2)), &
+         &     dEdcn_omp(size(dEdcn, 1)), source=0.0_wp)
+
+      !$omp do collapse(2) schedule(dynamic, 32)
+      do iat = 1, nat
+         do jat = 1, nat
+            if (jat >= iat) cycle
+            if (sc6_mat(jat, iat) <= 0.0_wp) cycle
+            r2ij = r2_mat(jat, iat)
+            r2ij_2 = r2ij * r2ij
+            r2ij_3 = r2ij_2 * r2ij
+            inv_r1ij = inv_r1_mat(jat, iat)
+            inv_r2ij = inv_r1ij * inv_r1ij
+            cralp_ij = 6.0_wp * cralp_mat(jat, iat)
+            sc6_ij = -s9 * sc6_mat(jat, iat)
+            dg1_acc = 0.0_wp
+            e1_acc = 0.0_wp
+            !$omp simd reduction(+:dg1_acc, e1_acc) &
+            !$omp& private(r2jk, r2ik, c9, cralp, fdmp, dfdmp, &
+            !$omp& inv_r1, rrr2, rrr3, ang_fact, s1, d1, ang, dang1)
+            do kat = 1, nat
+               r2jk = r2_mat(kat, jat)
+               r2ik = r2_mat(kat, iat)
+               c9 = sc6_ij * sc6_mat(kat, iat) * sc6_mat(kat, jat)
+               cralp = cralp_ij * cralp_mat(kat, iat) * cralp_mat(kat, jat)
+               fdmp = 1.0_wp / (1.0_wp + cralp)
+               dfdmp = -(alp3 * cralp) * fdmp * fdmp
+               inv_r1 = inv_r1ij * inv_r1_mat(kat, iat) * inv_r1_mat(kat, jat)
+               rrr2 = inv_r1 * inv_r1
+               rrr3 = rrr2 * inv_r1
+               ang_fact = 0.375_wp * rrr2 * rrr3
+               s1 = r2jk + r2ik
+               d1 = (r2jk - r2ik)**2
+               ang = ang_fact * ((r2ij_2 - d1) * (s1 - r2ij)) + rrr3
+               dang1 = -ang_fact * (r2ij_3 + r2ij_2 * s1 + r2ij * (2.0_wp * s1 * s1 + d1) - 5.0_wp * d1 * s1)
+               dg1_acc = dg1_acc + (-dang1 * fdmp + dfdmp * ang) * c9
+               e1_acc = e1_acc - fdmp * ang * c9
+            end do
+            g_ij = dg1_acc * inv_r2ij
+            e_ij = e1_acc
+            if (g_ij == 0.0_wp .and. e_ij == 0.0_wp) cycle
+            rij = mol%xyz(1:3, jat) - mol%xyz(1:3, iat)
+            gradient_omp(:, iat) = gradient_omp(:, iat) - g_ij * rij
+            gradient_omp(:, jat) = gradient_omp(:, jat) + g_ij * rij
+            sigma_omp(:, 1) = sigma_omp(:, 1) + 0.5_wp * g_ij * rij(1) * rij
+            sigma_omp(:, 2) = sigma_omp(:, 2) + 0.5_wp * g_ij * rij(2) * rij
+            sigma_omp(:, 3) = sigma_omp(:, 3) + 0.5_wp * g_ij * rij(3) * rij
+            energies_omp(iat) = energies_omp(iat) + e_ij * (1.0_wp / 6.0_wp)
+            energies_omp(jat) = energies_omp(jat) + e_ij * (1.0_wp / 6.0_wp)
+            scale = 0.5_wp * e_ij / c6(jat, iat)
+            dEdcn_omp(iat) = dEdcn_omp(iat) + scale * dc6dcn(iat, jat)
+            dEdcn_omp(jat) = dEdcn_omp(jat) + scale * dc6dcn(jat, iat)
+         end do
+      end do
+      !$omp end do nowait
+
+      !$omp critical (atm_grad_crt)
+      energies(:) = energies + energies_omp
+      gradient(:, :) = gradient + gradient_omp
+      sigma(:, :) = sigma + sigma_omp
+      dEdcn(:) = dEdcn + dEdcn_omp
+      !$omp end critical (atm_grad_crt)
+
+      deallocate(energies_omp, gradient_omp, sigma_omp, dEdcn_omp)
+      !$omp end parallel
    end if
 
 end subroutine atm_gradient_latp
