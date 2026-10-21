@@ -86,7 +86,7 @@ subroutine numhess( &
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
-   integer  :: nread,kend,lowmode,nzero
+   integer  :: nread,kend,lowmode,nzero,nproj
    integer  :: nonfrozh
    integer, allocatable :: nb(:,:)
    integer, allocatable :: indx(:),molvec(:),izero(:)
@@ -383,15 +383,17 @@ subroutine numhess( &
    ! vibrational subspace before diagonalization.
    if (fixset%n > 0) then
       ! Fixed coordinates remove overall translation. Project the fixed
-      ! Cartesian directions together with the remaining rotations.
+      ! Cartesian directions together with the rotations about axes through
+      ! all fixed atoms.
       call projectHessian(res%hess, mol, .false., .true., &
-         & linear=res%linear, fixedAtoms=fixset%atoms(:fixset%n))
+         & linear=res%linear, fixedAtoms=fixset%atoms(:fixset%n), nModes=nproj)
       if (set%runtyp == p_run_bhess) then
          call projectHessian(hbias, mol, .false., .true., &
             & linear=res%linear, fixedAtoms=fixset%atoms(:fixset%n))
       end if
    else
-      call projectHessian(res%hess, mol, .true., .true., linear=res%linear)
+      call projectHessian(res%hess, mol, .true., .true., linear=res%linear, &
+         & nModes=nproj)
       if (set%runtyp == p_run_bhess) then
          call projectHessian(hbias, mol, .true., .true., linear=res%linear)
       end if
@@ -413,7 +415,7 @@ subroutine numhess( &
    ! non mass weighted Hessian in hss
    hname = 'hessian'
    write(env%unit,'(a)')
-   write(env%unit,'("writing file <",a,">, containing the non-mass-weighted Hessian matrix in atomic units (Eₕ/Bohr²).")') hname
+   write(env%unit,'("writing file <",a,">, containing the non-mass-weighted, projected Hessian matrix in atomic units (Eₕ/Bohr²).")') hname
    call wrhess(n3,hss,hname)
 
    ! non mass weighted biased Hessian in hsb
@@ -447,11 +449,7 @@ subroutine numhess( &
    end if 
 
    write(env%unit,'(a)')
-   if(res%linear)then
-      write(env%unit,'(1x,a)') 'vibrational frequencies (cm⁻¹)'
-   else
-      write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
-   endif
+   write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
    k=0
    izero=[(i, i=1,n3)]
    do i=1,n3
@@ -486,10 +484,8 @@ subroutine numhess( &
    if (mol%n > 1) then
       kend=0
       if (freezeset%n == 0) then
-         kend=6
-         if(res%linear)then
-            kend=5
-         endif
+         ! number of rot/trans (and fixed) modes removed by the projection
+         kend=nproj
          if (nzero < kend) then
             call env%error('Too few rot/trans modes found, hessian is unusable', &
                & source)

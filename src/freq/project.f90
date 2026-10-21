@@ -32,7 +32,8 @@ contains
 
 
 !> Project translations and rotations from the Hessian matrix
-subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, fixedAtoms)
+subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, &
+      & fixedAtoms, nModes)
 
    !> Mass weighted Hessian matrix
    real(wp), intent(inout) :: hessian(:,:)
@@ -49,17 +50,26 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, fixedAto
    !> Molecular structure is linear and has only two rotational modes
    logical, intent(in), optional :: linear
 
-   !> Atoms whose three Cartesian coordinates are fixed
+   !> Atoms whose three Cartesian coordinates are fixed. The structure can then
+   !> only rotate about axes running through all fixed atoms, and it cannot
+   !> translate, so removeTrans should be false.
    integer, intent(in), optional :: fixedAtoms(:)
+
+   !> Number of modes removed by the projection
+   integer, intent(out), optional :: nModes
 
    real(wp), allocatable :: nullvec(:, :), projector(:, :), scratch(:, :)
    real(wp), parameter :: unity(3, 3) = reshape(&
       & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
       & [3, 3])
+   ! same collinearity threshold as is_linear (unit masses, Bohr²)
+   real(wp), parameter :: linthr_bohr2 = 1.0e-4_wp
    real(wp) :: center(3), vec(3), r2, inertia(3,3), moments(3), molMass, axes(3,3)
    integer :: ndim, nproj, nrot, nfixed, offset, rotOffset, linearAxis
    integer :: ii, jj, iat, ic, ifixed
-   logical :: isLinear
+   logical :: isLinear, freeAxis(3)
+
+   if (present(nModes)) nModes = 0
 
    ndim = 3*mol%n
 
@@ -146,10 +156,46 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, fixedAto
       ! axis to project with respect to
       linearAxis = 0
       if (isLinear) linearAxis = minloc(moments, dim=1)
+      do ii = 1, 3
+         freeAxis(ii) = ii /= linearAxis &
+            & .and. (isLinear .or. moments(ii) >= epsilon(0.0_wp))
+      end do
+
+      if (nfixed > 0) then
+         ! Rotations about the center of mass would move the fixed atoms. The
+         ! remaining rotations are those about axes through all fixed atoms,
+         ! i.e. axes through their centroid with vanishing moment of inertia
+         ! of the fixed atoms (unit masses).
+         center(:) = 0.0_wp
+         do ifixed = 1, nfixed
+            center(:) = center + mol%xyz(:, fixedAtoms(ifixed))
+         end do
+         center(:) = center / real(nfixed, wp)
+
+         ! A single fixed atom can rotate about any axis, keep the principal
+         ! axes of the molecule to treat linear molecules as above.
+         if (nfixed > 1) then
+            inertia(:, :) = 0.0_wp
+            do ifixed = 1, nfixed
+               vec(:) = mol%xyz(:, fixedAtoms(ifixed)) - center
+               r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+               inertia(:, :) = inertia + unity * r2
+               inertia(:, 1) = inertia(:, 1) - vec(1) * vec
+               inertia(:, 2) = inertia(:, 2) - vec(2) * vec
+               inertia(:, 3) = inertia(:, 3) - vec(3) * vec
+            end do
+
+            call eigvec3x3(inertia, moments, axes)
+
+            ! For a linear molecule the only candidate is the molecular axis,
+            ! rotation about it does not displace any atom.
+            freeAxis(:) = moments < linthr_bohr2 .and. .not.isLinear
+         end if
+      end if
+
       rotOffset = offset
       do ii = 1, 3
-         if (ii == linearAxis) cycle
-         if (.not.isLinear .and. moments(ii) < epsilon(0.0_wp)) cycle
+         if (.not.freeAxis(ii)) cycle
          rotOffset = rotOffset + 1
          do iat = 1, mol%n
             ic = (iat - 1) * 3
@@ -166,10 +212,11 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, fixedAto
       nullvec(ic+1:ic+3, :) = nullvec(ic+1:ic+3, :) * sqrt(mol%atmass(iat))
    end do
 
-   ! Fixed Cartesian directions overlap with rotational vectors. Build an
-   ! orthonormal basis for their combined span; dependent vectors (including
-   ! rotation about a linear molecular axis) are set to zero.
+   ! Build an orthonormal basis for the span of all displacement vectors,
+   ! linearly dependent vectors are set to zero.
    call blckmgs(ndim, nproj, ndim, nullvec)
+
+   if (present(nModes)) nModes = count(sum(nullvec**2, dim=1) > 0.5_wp)
 
    call mctc_syrk(nullvec, projector, alpha=-1.0_wp, beta=1.0_wp)
 
