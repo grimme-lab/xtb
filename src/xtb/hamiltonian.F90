@@ -197,6 +197,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    integer itt(0:3)
    parameter(itt  =(/0,1,4,10/))
    real(wp) :: saw(10)
+   real(wp), allocatable :: alp_min(:,:)
 
 
    ! integrals
@@ -208,9 +209,19 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
 
+   allocate(alp_min(size(caoshell, 1), nat), source=0.0_wp)
+   do iat = 1, nat
+      izp = at(iat)
+      do ish = 1, nShell(izp)
+         icao = caoshell(ish, iat)
+         iprim = primcount(icao + 1)
+         alp_min(ish, iat) = minval(alp(iprim + 1 : iprim + nprim(icao + 1)))
+      end do
+   end do
+
    !$omp parallel do default(none) &
    !$omp shared(nat, xyz, at, nShell, hData, selfEnergy, caoshell, saoshell, &
-   !$omp& nprim, primcount, alp, cont, intcut, trans, point) &
+   !$omp& nprim, primcount, alp, cont, intcut, trans, point, alp_min) &
    !$omp private (iat,jat,izp,ci,ra,rb,saw, &
    !$omp& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
    !$omp& jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq,shpoly, &
@@ -224,46 +235,50 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
          ra(1:3) = xyz(1:3,iat)
          izp = at(iat)
          jzp = at(jat)
-         do ish = 1, nShell(izp)
-            ishtyp = hData%angShell(ish,izp)
-            icao = caoshell(ish,iat)
-            naoi = llao(ishtyp)
-            iptyp = itt(ishtyp)
-            do jsh = 1, nShell(jzp)
-               jshtyp = hData%angShell(jsh,jzp)
-               jcao = caoshell(jsh,jat)
-               naoj = llao(jshtyp)
-               jptyp = itt(jshtyp)
+         do itr = 1, size(trans, dim=2)
+            rb(1:3) = xyz(1:3,jat) + trans(:, itr)
+            rab2 = sum( (rb-ra)**2 )
+            if (rab2 > 2000.0_wp) cycle
 
-               il = ishtyp+1
-               jl = jshtyp+1
-               ! diagonals are the same for all H0 elements
-               hii = selfEnergy(ish, iat)
-               hjj = selfEnergy(jsh, jat)
+            do ish = 1, nShell(izp)
+               alpi = alp_min(ish, iat)
+               ishtyp = hData%angShell(ish,izp)
+               icao = caoshell(ish,iat)
+               naoi = llao(ishtyp)
+               iptyp = itt(ishtyp)
+               do jsh = 1, nShell(jzp)
+                  alpj = alp_min(jsh, jat)
+                  if (alpi * alpj * rab2 > intcut * (alpi + alpj)) cycle
 
-               ! we scale the two shells depending on their exponent
-               zi = hData%slaterExponent(ish, izp)
-               zj = hData%slaterExponent(jsh, jzp)
-               zetaij = (2 * sqrt(zi*zj)/(zi+zj))**hData%wExp
-               call h0scal(hData,il,jl,izp,jzp,hData%valenceShell(ish, izp).ne.0, &
-                  & hData%valenceShell(jsh, jzp).ne.0,km)
+                  jshtyp = hData%angShell(jsh,jzp)
+                  jcao = caoshell(jsh,jat)
+                  naoj = llao(jshtyp)
+                  jptyp = itt(jshtyp)
 
-               hav = 0.5_wp * km * (hii + hjj) * zetaij
+                  il = ishtyp+1
+                  jl = jshtyp+1
+                  ! diagonals are the same for all H0 elements
+                  hii = selfEnergy(ish, iat)
+                  hjj = selfEnergy(jsh, jat)
 
-               do itr = 1, size(trans, dim=2)
-                  rb(1:3) = xyz(1:3,jat) + trans(:, itr)
-                  rab2 = sum( (rb-ra)**2 )
+                  ! we scale the two shells depending on their exponent
+                  zi = hData%slaterExponent(ish, izp)
+                  zj = hData%slaterExponent(jsh, jzp)
+                  zetaij = (2 * sqrt(zi*zj)/(zi+zj))**hData%wExp
+                  call h0scal(hData,il,jl,izp,jzp,hData%valenceShell(ish, izp).ne.0, &
+                     & hData%valenceShell(jsh, jzp).ne.0,km)
+
+                  hav = 0.5_wp * km * (hii + hjj) * zetaij
+
+                  call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,rb,point, &
+                     &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
 
                   ! distance dependent polynomial
                   shpoly=shellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
                      &             hData%atomicRad(izp),hData%atomicRad(jzp),ra,rb)
 
-                  ss = 0.0_wp
-                  dd = 0.0_wp
-                  qq = 0.0_wp
-                  call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,rb,point, &
-                     &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
                   !transform from CAO to SAO
+                  if (ishtyp >= 2 .or. jshtyp >= 2) then
                   call dtrf2(ss,ishtyp,jshtyp)
                   do k = 1,3
                      tmp(1:6,1:6) = dd(k,1:6,1:6)
@@ -275,6 +290,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
                      call dtrf2(tmp,ishtyp,jshtyp)
                      qq(k,1:6,1:6) = tmp(1:6,1:6)
                   enddo
+                  end if
                   do ii = 1,llao2(ishtyp)
                      iao = ii+saoshell(ish,iat)
                      do jj = 1,llao2(jshtyp)
@@ -332,13 +348,11 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
             jcao = caoshell(jsh,iat)
             naoj = llao(jshtyp)
             jptyp = itt(jshtyp)
-            ss = 0.0_wp
-            dd = 0.0_wp
-            qq = 0.0_wp
             call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
                &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
             !transform from CAO to SAO
             !call dtrf2(ss,ishtyp,jshtyp)
+            if (ishtyp >= 2 .or. jshtyp >= 2) then
             do k = 1,3
                tmp(1:6, 1:6) = dd(k,1:6, 1:6)
                call dtrf2(tmp, ishtyp, jshtyp)
@@ -349,6 +363,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
                call dtrf2(tmp, ishtyp, jshtyp)
                qq(k, 1:6, 1:6) = tmp(1:6, 1:6)
             enddo
+            end if
             do ii = 1, llao2(ishtyp)
                iao = ii + saoshell(ish,iat)
                do jj = 1, llao2(jshtyp)
@@ -428,14 +443,24 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    integer :: il, jl, itr
    real(wp) :: zi, zj, zetaij, km, hii, hjj, hav, shpoly, dshpoly(3)
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
+   real(wp), allocatable :: alp_min(:,:)
    real(wp), parameter :: rthr = 1600.0_wp
 
    thr2 = intcut
    point = 0.0_wp
+   allocate(alp_min(size(caoshell, 1), nat), source=0.0_wp)
+   do iat = 1, nat
+      izp = at(iat)
+      do ish = 1, nShell(izp)
+         icao = caoshell(ish, iat)
+         iprim = primcount(icao + 1)
+         alp_min(ish, iat) = minval(alp(iprim + 1 : iprim + nprim(icao + 1)))
+      end do
+   end do
    ! call timing(t1,t3)
    !$omp parallel do default(none) &
    !$omp shared(nat, at, xyz, trans, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
-   !$omp& ves, vs, vd, vq, intcut, nprim, primcount, caoshell, saoshell, alp, cont) &
+   !$omp& ves, vs, vd, vq, intcut, nprim, primcount, caoshell, saoshell, alp, cont, alp_min) &
    !$omp private(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp, &
    !$omp& icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp, &
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
@@ -447,53 +472,58 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
       do jat = 1,nat
          if (jat >= iat) cycle
          ri = xyz(:,iat)
-         jzp = at(jat)
          izp = at(iat)
+         jzp = at(jat)
 
-         do ish = 1,nShell(izp)
-            ishtyp = hData%angShell(ish,izp)
-            icao = caoshell(ish,iat)
-            naoi = llao(ishtyp)
-            iptyp = itt(ishtyp)
-            jshmax = nShell(jzp)
-            !              if(iat.eq.jat) jshmax = ish
-            do jsh = 1,jshmax ! jshells
-               jshtyp = hData%angShell(jsh,jzp)
-               jcao = caoshell(jsh,jat)
-               naoj = llao(jshtyp)
-               jptyp = itt(jshtyp)
+         do itr = 1, size(trans, dim=2)
+            rj = xyz(:,jat) + trans(:, itr)
+            rij = ri - rj
+            rij2 = sum( rij**2 )
 
-               il = ishtyp+1
-               jl = jshtyp+1
-               ! diagonals are the same for all H0 elements
-               hii = selfEnergy(ish, iat)
-               hjj = selfEnergy(jsh, jat)
+            if (rij2 > rthr) cycle
 
-               ! we scale the two shells depending on their exponent
-               zi = hData%slaterExponent(ish, izp)
-               zj = hData%slaterExponent(jsh, jzp)
-               zetaij = (2 * sqrt(zi*zj)/(zi+zj))**hData%wExp
-               call h0scal(hData,il,jl,izp,jzp,hData%valenceShell(ish, izp).ne.0, &
-                  & hData%valenceShell(jsh, jzp).ne.0,km)
+            do ish = 1,nShell(izp)
+               alpi = alp_min(ish, iat)
+               ishtyp = hData%angShell(ish,izp)
+               icao = caoshell(ish,iat)
+               naoi = llao(ishtyp)
+               iptyp = itt(ishtyp)
+               jshmax = nShell(jzp)
+               !              if(iat.eq.jat) jshmax = ish
+               do jsh = 1,jshmax ! jshells
+                  alpj = alp_min(jsh, jat)
+                  if (alpi * alpj * rij2 > intcut * (alpi + alpj)) cycle
 
-               ! averaged H0 element (without overlap contribution!)
-               hav = 0.5_wp * km * (hii + hjj) * zetaij * evtoau
+                  jshtyp = hData%angShell(jsh,jzp)
+                  jcao = caoshell(jsh,jat)
+                  naoj = llao(jshtyp)
+                  jptyp = itt(jshtyp)
 
-               do itr = 1, size(trans, dim=2)
-                  rj = xyz(:,jat) + trans(:, itr)
-                  rij = ri - rj
-                  rij2 =  sum( rij**2 )
+                  il = ishtyp+1
+                  jl = jshtyp+1
+                  ! diagonals are the same for all H0 elements
+                  hii = selfEnergy(ish, iat)
+                  hjj = selfEnergy(jsh, jat)
 
-                  if (rij2 > rthr) cycle
+                  ! we scale the two shells depending on their exponent
+                  zi = hData%slaterExponent(ish, izp)
+                  zj = hData%slaterExponent(jsh, jzp)
+                  zetaij = (2 * sqrt(zi*zj)/(zi+zj))**hData%wExp
+                  call h0scal(hData,il,jl,izp,jzp,hData%valenceShell(ish, izp).ne.0, &
+                     & hData%valenceShell(jsh, jzp).ne.0,km)
+
+                  ! averaged H0 element (without overlap contribution!)
+                  hav = 0.5_wp * km * (hii + hjj) * zetaij * evtoau
+
+                  call get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
+                     &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
 
                   ! distance dependent polynomial
                   call dshellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
                      & hData%atomicRad(izp),hData%atomicRad(jzp),rij2,ri,rj,&
                      & shpoly,dshpoly)
 
-                  sdqg = 0;sdq = 0
-                  call get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
-                     &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
+                  if (ishtyp >= 2 .or. jshtyp >= 2) then
                   tmp(1:6,1:6) = sdq(1,1:6,1:6)
                   call dtrf2(tmp,ishtyp,jshtyp)
                   sdq(1,1:6,1:6) = tmp(1:6,1:6)
@@ -506,6 +536,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                         sdqg(ixyz,k,1:6,1:6) = tmp(1:6,1:6)
                      enddo
                   enddo
+                  end if
                   g_xyz(:) = 0.0_wp
                   do ii = 1,llao2(ishtyp)
                      iao = ii+saoshell(ish,iat)
@@ -544,9 +575,9 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                   sigma(:, 1) = sigma(:, 1) + g_xyz(1) * rij
                   sigma(:, 2) = sigma(:, 2) + g_xyz(2) * rij
                   sigma(:, 3) = sigma(:, 3) + g_xyz(3) * rij
-               enddo ! lattice translations
-            enddo ! jsh : loop over shells on jat
-         enddo  ! ish : loop over shells on iat
+               enddo ! jsh : loop over shells on jat
+            enddo  ! ish : loop over shells on iat
+         enddo ! lattice translations
       enddo ! jat
    enddo  ! iat
 
@@ -631,6 +662,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    integer :: il, jl, itr
    real(wp) :: zi, zj, zetaij, km, hii, hjj, hav, shpoly, dshpoly(3), dCN
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
+   real(wp), allocatable :: alp_min(:,:)
    real(wp), parameter :: rthr = 1600.0_wp
 
    ! local OpenMP variables
@@ -638,11 +670,20 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 
    thr2 = intcut
    point = 0.0_wp
+   allocate(alp_min(size(caoshell, 1), nat), source=0.0_wp)
+   do iat = 1, nat
+      izp = at(iat)
+      do ish = 1, nShell(izp)
+         icao = caoshell(ish, iat)
+         iprim = primcount(icao + 1)
+         alp_min(ish, iat) = minval(alp(iprim + 1 : iprim + nprim(icao + 1)))
+      end do
+   end do
    ! call timing(t1,t3)
    !$omp parallel default(none) &
    !$omp shared(nat, at, xyz, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
    !$omp& H0, S, ves, vs, vd, vq, intcut, nprim, primcount, caoshell, saoshell, &
-   !$omp& alp, cont, g, sigma, dhdcn) &
+   !$omp& alp, cont, alp_min, g, sigma, dhdcn) &
    !$omp private(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp,ij,i, &
    !$omp& icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp,dCN, &
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
@@ -662,15 +703,16 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
       do jat = 1,nat
          if (jat >= iat) cycle
          izp = at(iat)
+         ri = xyz(:,iat)
          jzp = at(jat)
 
-         ri = xyz(:,iat)
          rj = xyz(:,jat)
          rij = ri - rj
          rij2 =  sum( rij**2 )
 
          if (rij2 > rthr) cycle
          do ish = 1,nShell(izp)
+            alpi = alp_min(ish, iat)
             ishtyp = hData%angShell(ish,izp)
             icao = caoshell(ish,iat)
             naoi = llao(ishtyp)
@@ -678,10 +720,16 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
             jshmax = nShell(jzp)
             !              if(iat.eq.jat) jshmax = ish
             do jsh = 1,jshmax ! jshells
+               alpj = alp_min(jsh, jat)
+               if (alpi * alpj * rij2 > intcut * (alpi + alpj)) cycle
+
                jshtyp = hData%angShell(jsh,jzp)
                jcao = caoshell(jsh,jat)
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
+
+               call get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
+                  &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
 
                il = ishtyp+1
                jl = jshtyp+1
@@ -697,9 +745,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                ! averaged H0 element (without overlap contribution!)
                hav = 0.5_wp * (hii + hjj)
 
-               sdqg = 0;sdq = 0
-               call get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
-                  &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
+               if (ishtyp >= 2 .or. jshtyp >= 2) then
                do k = 1,19 ! 1 S, 2-4 D, 5-10 Q, 11-13 D, 14-19 Q
                   do ixyz = 1,3
                      ! transform from CAO to SAO
@@ -709,6 +755,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                      sdqg(ixyz,k,1:6,1:6) = tmp(1:6,1:6)
                   enddo
                enddo
+               end if
                g_xyz(:) = 0.0_wp
                dCN = 0.0_wp
                do ii = 1,llao2(ishtyp)
