@@ -228,6 +228,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    use xtb_io_writer
    use xtb_mctc_filetypes, only : fileType
    use xtb_xtb_calculator, only: TxTBCalculator
+   use xtb_fixparam, only : fixset
 
    implicit none
    
@@ -286,6 +287,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    
    integer,allocatable :: idx2(:)
    integer :: i, coord_unit
+   integer :: geometry_state(10)
    logical :: exitRun
 
    ! check whether the calculator is initialized !
@@ -474,6 +476,9 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    end select
    
 
+   ! Whole-system geometry terms must not act on the capped inner region.
+   call suspend_geometry_terms(geometry_state)
+
    ! SP: inner region low-level !
    if (printlevel > 0) then
       write(env%unit,'(a)')
@@ -489,6 +494,12 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
    call self%model_low%singlepoint(env, inner_mol, self%chk_low, printlevel, restart, &
        & energy_model_low, gradient_low, sigma_low, hlgap_low, results_low)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call restore_geometry_terms(geometry_state)
+      return
+   end if
 
 
    ! SP: inner region high-level !
@@ -506,7 +517,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
    call self%model_high%singlepoint(env, inner_mol, self%chk_high, printlevel, restart, &
        & energy_model_high, gradient_high, sigma_high, hlgap_high, results_high)
-   
+
+   call restore_geometry_terms(geometry_state)
+   call env%check(exitRun)
+   if (exitRun) return
+
 
    ! write opt logs for inner region !
    if (set%oniom_settings%logs)then
@@ -542,6 +557,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    do i = 1, size(idx2)
       gradient(:, idx2(i)) = gradient(:, idx2(i)) + gradient_high(:, i) - gradient_low(:, i) 
    end do 
+
+   ! inner region contributions must not move fixed atoms !
+   do i = 1, fixset%n
+      gradient(:, fixset%atoms(i)) = 0.0_wp
+   end do
    results%gnorm=norm2(gradient)   
    deallocate(gradient_high)
    deallocate(gradient_low)
@@ -587,6 +607,8 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, od
    integer,allocatable :: idx2(:)
 
    integer :: ii, jj, ic, jc, im, jm
+   integer :: geometry_state(10)
+   logical :: exitRun
    real(wp), allocatable :: hess_model(:, :), dipgrad_model(:, :)
    type(TMolecule) :: mol_model
    integer, allocatable :: list_model(:)
@@ -608,8 +630,17 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, od
    hess_model(:, :) = 0.0_wp
    dipgrad_model(:, :) = 0.0_wp
 
+   ! Whole-system geometry terms must not act on the capped inner region.
+   call suspend_geometry_terms(geometry_state)
+
    call self%model_low%hessian(env, mol_model, self%chk_low, list_model, step, &
        & hess_model, dipgrad_model)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call restore_geometry_terms(geometry_state)
+      return
+   end if
 
    do ii = 1, size(self%idx)
       im = 3 * (ii - 1)
@@ -628,6 +659,10 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, od
    call self%model_high%hessian(env, mol_model, self%chk_high, list_model, step, &
        & hess_model, dipgrad_model)
 
+   call restore_geometry_terms(geometry_state)
+   call env%check(exitRun)
+   if (exitRun) return
+
    do ii = 1, size(self%idx)
       im = 3 * (ii - 1)
       ic = 3 * (self%idx(ii) - 1)
@@ -641,6 +676,57 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, od
    end do
 
 end subroutine hessian
+
+
+!> Suspend global geometry terms during inner-region calculations
+subroutine suspend_geometry_terms(state)
+   use xtb_fixparam, only : fixset, metaset, rmsdset
+   use xtb_scanparam, only : potset, nconstr
+   use xtb_sphereparam, only : number_walls, wpot
+
+   !> Saved counts for fixed atoms, restraints, walls and bias structures
+   integer, intent(out) :: state(10)
+
+   state(1:7) = [fixset%n, potset%n, potset%pos%n, potset%dist%n, &
+   & potset%angle%n, potset%dihedral%n, nconstr]
+   state(8) = 0
+   if (allocated(wpot)) state(8) = number_walls
+   state(9:10) = [metaset%nstruc, rmsdset%nstruc]
+
+   fixset%n = 0
+   potset%n = 0
+   potset%pos%n = 0
+   potset%dist%n = 0
+   potset%angle%n = 0
+   potset%dihedral%n = 0
+   nconstr = 0
+   number_walls = 0
+   metaset%nstruc = 0
+   rmsdset%nstruc = 0
+end subroutine suspend_geometry_terms
+
+
+!> Restore global geometry terms after inner-region calculations
+subroutine restore_geometry_terms(state)
+   use xtb_fixparam, only : fixset, metaset, rmsdset
+   use xtb_scanparam, only : potset, nconstr
+   use xtb_sphereparam, only : number_walls
+
+   !> Counts saved by suspend_geometry_terms
+   integer, intent(in) :: state(10)
+
+   fixset%n = state(1)
+   potset%n = state(2)
+   potset%pos%n = state(3)
+   potset%dist%n = state(4)
+   potset%angle%n = state(5)
+   potset%dihedral%n = state(6)
+   nconstr = state(7)
+   number_walls = state(8)
+   metaset%nstruc = state(9)
+   rmsdset%nstruc = state(10)
+end subroutine restore_geometry_terms
+
 
 subroutine writeInfo(self, unit, mol)
 
