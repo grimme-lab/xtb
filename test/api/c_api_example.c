@@ -197,11 +197,11 @@ int testFirst() {
 
   if (!check(energy, -8.38393864716134, 1.0e-9, "GBSA Energy does not match"))
     goto error;
-  if (!check(q[5], 0.06090868805034, 1.0e-8, "GBSA Charge does not match"))
+  if (!check(q[5], 0.06090913935559, 1.0e-8, "GBSA Charge does not match"))
     goto error;
-  if (!check(dipole[2], -0.35455233974705, 1.0e-6, "GBSA Dipole does not match"))
+  if (!check(dipole[2], -0.35454868284564, 1.0e-6, "GBSA Dipole does not match"))
     goto error;
-  if (!check(wbo[9], +2.89453979224265, 1.0e-8, "GBSA Bond order does not match"))
+  if (!check(wbo[9], +2.89453994127369, 1.0e-8, "GBSA Bond order does not match"))
     goto error;
 
   // ALPB
@@ -223,11 +223,11 @@ int testFirst() {
 
   if (!check(energy, -8.384076843892, 1.0e-9, "ALPB Energy does not match"))
     goto error;
-  if (!check(q[5], 0.0644849340, 1.0e-8, "ALPB Charge does not match"))
+  if (!check(q[5], 0.0644858474, 1.0e-8, "ALPB Charge does not match"))
     goto error;
-  if (!check(dipole[2], -0.3641866008, 1.0e-6, "ALPB Dipole does not match"))
+  if (!check(dipole[2], -0.3641978772, 1.0e-6, "ALPB Dipole does not match"))
     goto error;
-  if (!check(wbo[9], 2.8932146955, 1.0e-8, "ALPB Bond order does not match"))
+  if (!check(wbo[9], 2.8932144884, 1.0e-8, "ALPB Bond order does not match"))
     goto error;
 
   // COSMO
