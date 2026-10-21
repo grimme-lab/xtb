@@ -82,7 +82,7 @@ module xtb_gfnff_calculator
 contains
 
 
-subroutine newGFFCalculator(env, mol, calc, fname, restart, version, printlevel)
+subroutine newGFFCalculator(env, mol, calc, fname, restart, version, printlevel, write_topology)
    
    use xtb_gfnff_param
    use xtb_gfnff_setup, only : gfnff_setup
@@ -102,6 +102,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version, printlevel)
 
    integer, intent(in), optional :: version
    integer, intent(in), optional :: printlevel
+   logical, intent(in), optional :: write_topology
 
    integer :: ich
    logical :: exist, okbas
@@ -146,7 +147,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version, printlevel)
 
    call gfnff_setup(env, set%verbose, restart, mol, &
       & calc%gen, calc%param, calc%topo, calc%neigh, calc%accuracy, set%efield, calc%version, &
-      & print_setup=print_setup)
+      & print_setup=print_setup, write_topology=write_topology)
 
    call env%check(exitRun)
    if (exitRun) then
