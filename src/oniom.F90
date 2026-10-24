@@ -51,6 +51,30 @@ module xtb_oniom
       character(len=:), allocatable :: first_arg
       character(len=:), allocatable :: second_arg
    end type oniom_input
+
+   !> Saved counts of global geometry terms suspended for the inner region
+   type :: geometry_state_type
+      !> Number of fixed atoms
+      integer :: nfix = 0
+      !> Number of constraining potentials
+      integer :: npot = 0
+      !> Number of constrained atom positions
+      integer :: npos = 0
+      !> Number of distance constraints
+      integer :: ndist = 0
+      !> Number of angle constraints
+      integer :: nangle = 0
+      !> Number of dihedral constraints
+      integer :: ndihedral = 0
+      !> Number of legacy constraints
+      integer :: nconstr = 0
+      !> Number of wall potentials
+      integer :: nwalls = 0
+      !> Number of metadynamics bias structures
+      integer :: nmeta = 0
+      !> Number of RMSD bias structures
+      integer :: nrmsd = 0
+   end type geometry_state_type
    
    !> ONIOM calculator 
    type, extends(TCalculator) :: TOniomCalculator 
@@ -287,7 +311,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    
    integer,allocatable :: idx2(:)
    integer :: i, coord_unit
-   integer :: geometry_state(10)
+   type(geometry_state_type) :: geometry_state
    logical :: exitRun
 
    ! check whether the calculator is initialized !
@@ -607,7 +631,7 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, od
    integer,allocatable :: idx2(:)
 
    integer :: ii, jj, ic, jc, im, jm
-   integer :: geometry_state(10)
+   type(geometry_state_type) :: geometry_state
    logical :: exitRun
    real(wp), allocatable :: hess_model(:, :), dipgrad_model(:, :)
    type(TMolecule) :: mol_model
@@ -685,13 +709,19 @@ subroutine suspend_geometry_terms(state)
    use xtb_sphereparam, only : number_walls, wpot
 
    !> Saved counts for fixed atoms, restraints, walls and bias structures
-   integer, intent(out) :: state(10)
+   type(geometry_state_type), intent(out) :: state
 
-   state(1:7) = [fixset%n, potset%n, potset%pos%n, potset%dist%n, &
-   & potset%angle%n, potset%dihedral%n, nconstr]
-   state(8) = 0
-   if (allocated(wpot)) state(8) = number_walls
-   state(9:10) = [metaset%nstruc, rmsdset%nstruc]
+   state%nfix = fixset%n
+   state%npot = potset%n
+   state%npos = potset%pos%n
+   state%ndist = potset%dist%n
+   state%nangle = potset%angle%n
+   state%ndihedral = potset%dihedral%n
+   state%nconstr = nconstr
+   state%nwalls = 0
+   if (allocated(wpot)) state%nwalls = number_walls
+   state%nmeta = metaset%nstruc
+   state%nrmsd = rmsdset%nstruc
 
    fixset%n = 0
    potset%n = 0
@@ -713,18 +743,18 @@ subroutine restore_geometry_terms(state)
    use xtb_sphereparam, only : number_walls
 
    !> Counts saved by suspend_geometry_terms
-   integer, intent(in) :: state(10)
+   type(geometry_state_type), intent(in) :: state
 
-   fixset%n = state(1)
-   potset%n = state(2)
-   potset%pos%n = state(3)
-   potset%dist%n = state(4)
-   potset%angle%n = state(5)
-   potset%dihedral%n = state(6)
-   nconstr = state(7)
-   number_walls = state(8)
-   metaset%nstruc = state(9)
-   rmsdset%nstruc = state(10)
+   fixset%n = state%nfix
+   potset%n = state%npot
+   potset%pos%n = state%npos
+   potset%dist%n = state%ndist
+   potset%angle%n = state%nangle
+   potset%dihedral%n = state%ndihedral
+   nconstr = state%nconstr
+   number_walls = state%nwalls
+   metaset%nstruc = state%nmeta
+   rmsdset%nstruc = state%nrmsd
 end subroutine restore_geometry_terms
 
 

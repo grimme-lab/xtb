@@ -39,7 +39,8 @@ subroutine collect_oniom(testsuite)
       new_unittest("singlepoint-tblite", test_oniom_singlepoint_tblite), &
       new_unittest("singlepoint-tblite-alpb", test_oniom_singlepoint_tblite_alpb), &
       new_unittest("singlepoint-tblite-gbsa", test_oniom_singlepoint_tblite_gbsa), &
-      new_unittest("singlepoint-fix", test_oniom_singlepoint_fix) &
+      new_unittest("singlepoint-fix", test_oniom_singlepoint_fix), &
+      new_unittest("singlepoint-constrain", test_oniom_singlepoint_constrain) &
       ]
 
 end subroutine collect_oniom 
@@ -625,6 +626,98 @@ subroutine test_oniom_singlepoint_fix(error)
    & 0.0_wp, thr=thr)
 
 end subroutine test_oniom_singlepoint_fix
+
+
+!> Distance constraint between an inner region and an outer region atom
+subroutine test_oniom_singlepoint_constrain(error)
+   use xtb_mctc_accuracy, only : wp
+
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, init
+   use xtb_type_restart, only : TRestart
+   use xtb_type_data, only : scc_results
+
+   use xtb_setparam, only : set
+   use xtb_scanparam, only : potset
+   use xtb_constrainpot, only : constrain_pot
+   use xtb_oniom, only : TOniomCalculator, newOniomCalculator, oniom_input
+
+   !> Error handling
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: thr = 1.0e-10_wp
+   integer, parameter :: nat = 8
+      !! distorted ethane
+   integer, parameter :: at(nat) = [6,6,1,1,1,1,1,1]
+   real(wp), parameter :: xyz(3,nat) = reshape(&
+      [-6.57056194812604_wp,  4.52017706707601_wp,  0.00000514267503_wp, &
+      &-3.44497465898797_wp,  4.42017905349380_wp,  0.09999958529159_wp, &
+      &-7.14339394244295_wp,  4.96696898911297_wp,  1.84484217131586_wp, &
+      &-7.14339651464075_wp,  2.54910578073934_wp, -0.44887528991923_wp, &
+      &-7.14340046326272_wp,  5.74445490934900_wp, -1.39594753088679_wp, &
+      &-2.82213644603571_wp,  3.09590294303751_wp,  1.39595405551176_wp, &
+      &-2.82214050550548_wp,  6.29125104633740_wp,  0.44887759570039_wp, &
+      &-2.82214295551184_wp,  3.87338472886870_wp, -1.84483683242736_wp &
+      & ], shape(xyz))
+   integer, parameter :: pair(2) = [1, 6]
+      !! inner region atom and outer region atom beyond the inner region size
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk_free, chk_constr
+   type(TEnvironment) :: env
+   type(TOniomCalculator) :: calc_free, calc_constr
+   type(oniom_input) :: input
+   type(scc_results) :: results
+   real(wp) :: energy_free, energy_constr, energy_bias, hlgap, sigma(3, 3)
+   real(wp) :: gradient_free(3, nat), gradient_constr(3, nat)
+   real(wp) :: gradient_bias(3, nat)
+   logical :: restored, failed
+
+   call init(env)
+   call init(mol, at, xyz)
+   mol%chrg = 0.0_wp
+
+   ! inner region charge and spin, as determined by the main program !
+   set%oniom_settings%innerchrg = 0
+   set%oniom_settings%innerspin = 0
+
+   ! C-C bond is cut, the inner region has fewer atoms than the indices in potset !
+   input%first_arg = "gfn2:gfn1"
+   input%second_arg = '1,3-5'
+
+   ! reference without constraints !
+   call newOniomCalculator(calc_free, env, mol, input)
+   call calc_free%singlepoint(env, mol, chk_free, 0, .false., energy_free, &
+      & gradient_free, sigma, hlgap, results)
+
+   ! displaced reference distance gives a nonvanishing restraint !
+   call potset%allocate(nat, 1, fc=0.05_wp, expo=2.0_wp)
+   potset%dist%n = 1
+   potset%dist%atoms(1:2) = pair
+   potset%dist%val(1) = norm2(xyz(:, pair(2)) - xyz(:, pair(1))) + 0.3_wp
+
+   ! the restraint must enter exactly once, for the whole system !
+   energy_bias = 0.0_wp
+   gradient_bias(:, :) = 0.0_wp
+   call constrain_pot(potset, nat, at, xyz, gradient_bias, energy_bias)
+
+   call newOniomCalculator(calc_constr, env, mol, input)
+   call calc_constr%singlepoint(env, mol, chk_constr, 0, .false., &
+      & energy_constr, gradient_constr, sigma, hlgap, results)
+   call env%check(failed)
+   restored = potset%n == 1 .and. potset%dist%n == 1
+   call potset%deallocate
+
+   call check_(error, restored .and. .not.failed)
+   if (allocated(error)) return
+   call check_(error, abs(energy_bias) > thr)
+   if (allocated(error)) return
+   call check_(error, energy_constr, energy_free + energy_bias, thr=thr)
+   if (allocated(error)) return
+   call check_(error, maxval(abs(gradient_constr - gradient_free &
+      & - gradient_bias)), 0.0_wp, thr=thr)
+
+end subroutine test_oniom_singlepoint_constrain
 
 
 !---------------------------------------------
