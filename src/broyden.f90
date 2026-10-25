@@ -37,6 +37,7 @@ contains
 subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
       &                   alpha,omega,df,u,a)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_lapack, only : lapack_getrf, lapack_getrs
    implicit none
 
    integer i,j
@@ -51,7 +52,9 @@ subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
    real(wp) df(maxiter,n),u(maxiter,n),a(maxiter,maxiter)
    real(wp) omega(maxiter)
    !     on the fly variables needed for the mixing
-   real(wp), allocatable :: beta(:,:), c(:), gamma(:)
+   real(wp), allocatable :: beta(:,:), c(:), gamma(:,:)
+   integer, allocatable :: ipiv(:)
+   integer :: info
    !      real(wp), allocatable :: beta1(:,:)
 
    !     mixing parameters
@@ -86,7 +89,7 @@ subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
    endif
 
    !     allocate
-   allocate(beta(it1,it1),c(it1),gamma(it1))
+   allocate(beta(it1,it1),c(it1),gamma(it1,1),ipiv(it1))
    !     allocate(beta1(it1,it1))
 
 
@@ -108,15 +111,7 @@ subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
 
    !     Build dF(iter-1)
    df(it1,:)=dq-dqlast
-   inv=sqrt(dot_product(df(it1,:),df(it1,:)))
-   !     no change in the residual carries no new information for the update,
-   !     normalizing would divide by zero: take the full step to the new charges
-   if (inv < 1.0d-14) then
-      dqlast = dq
-      qlast = q
-      q = q + dq
-      return
-   endif
+   inv=max(sqrt(dot_product(df(it1,:),df(it1,:))), epsilon(1.0_wp))
    inv=1.0d0 / inv
    df(it1,:)=inv*df(it1,:)
 
@@ -138,10 +133,17 @@ subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
    enddo
 
    !     build beta^-1
-   call matinv(beta,it1)
-
-   !     build gamma
-   gamma = matmul(c,beta)
+   !     solve beta^T gamma = c via LU decomposition
+   gamma(:,1) = c
+   call lapack_getrf(it1,it1,beta,it1,ipiv,info)
+   if (info == 0) then
+      call lapack_getrs('t',it1,1,beta,it1,ipiv,gamma,it1,info)
+   endif
+   if(info .ne. 0)then
+      write(*,*)"Error in Broyden linear equation solve!"
+      write(*,*)"Error code",info
+      error stop
+   endif
 
    !     Build |u>
    u(it1,:) = alpha * df(it1,:) + inv * (q-qlast) !!!
@@ -154,41 +156,13 @@ subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
    q = q + alpha * dq
 
    do i=1, it1
-      q = q - omega(i) * gamma(i) * u(i,:)
+      q = q - omega(i) * gamma(i,1) * u(i,:)
    enddo
 
-   deallocate(beta,c,gamma)
+   deallocate(beta,c,gamma,ipiv)
 
 end subroutine broyden
 
 
 
-
-subroutine matinv(a, nrow)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_lapack, only : lapack_getrf, lapack_getri
-   integer nRow
-   real(wp) a(nrow,nrow)
-
-   integer info
-   integer, allocatable :: ipiv(:)
-   real(wp), allocatable :: work(:)
-
-
-   allocate(ipiv(nrow),work(nrow))
-   !     LU decomoposition of a general matrix
-   call lapack_getrf(nrow,nrow,a,nrow,ipiv,info)
-   if (info == 0) then
-      !     generate inverse of a matrix given its LU decomposition
-      call lapack_getri(nrow,a,nrow,ipiv,work,nrow,info)
-   endif
-   deallocate(ipiv,work)
-   if(info .ne. 0)then
-      write(*,*)"Error in Broyden matrix inversion!"
-      write(*,*)"Error code",info
-      error stop
-   endif
-
-
-end subroutine matinv
 end module xtb_broyden

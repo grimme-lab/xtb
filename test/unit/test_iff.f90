@@ -92,7 +92,7 @@ subroutine test_iff_sp(error)
    call calc%singlepoint(env, mol, chk, 2, exist, etot, g, sigma, egap, res)
    write(*,*) 'WW', etot
 
-   call check_(error, etot,-0.002628051951328639_wp, thr=thr)
+   call check_(error, etot,-0.002628127549931496_wp, thr=thr)
 
    call mol%deallocate
 

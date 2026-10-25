@@ -273,7 +273,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    damp0=0.20
 !  conv threshold in dRMS q
    qconv=2.d-5*acc
-   if(allocated(xtbData%multipole)) qconv=1.d-4*acc
 
    broy = mol%n > 1
 !  when to start pseudodiag (=1 after one full diag)

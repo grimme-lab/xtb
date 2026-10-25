@@ -41,6 +41,11 @@ module xtb_scc_core
 
    integer, private, parameter :: mmm(20)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
+   !> Weights of the packed quadrupole components (xx,xy,yy,xz,yz,zz) in the
+   !> mixing vector, off-diagonal elements appear twice in the full tensor
+   real(wp), private, parameter :: qpw(6) = &
+      & [1.0_wp, sqrt(2.0_wp), 1.0_wp, sqrt(2.0_wp), sqrt(2.0_wp), 1.0_wp]
+
 
 contains
 
@@ -269,8 +274,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    use xtb_mctc_convert, only : autoev,evtoau
 
    use xtb_disp_dftd4,  only: disppot,edisp_scc
-   use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
-   &                  mmompop,aniso_electro,setvsdq
+   use xtb_aespot, only : mmompop,aniso_electro,setvsdq
    use xtb_embedding, only : electro_pcem
 
    character(len=*), parameter :: source = 'scc_core'
@@ -400,7 +404,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp) :: rmsq
    real(wp) :: nfoda,nfodb
    logical  :: fulldiag
-   logical  :: lastdiag
    integer  :: iter
    integer  :: thisiter
    logical  :: converged
@@ -413,7 +416,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    m_occ = 0
 
    converged = .false.
-   lastdiag = .false.
    ! number of iterations for this iterator
    thisiter = maxiter - jter
 
@@ -468,7 +470,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    ! ------------------------------------------------------------------------
    fulldiag=.false.
    if(iter.lt.startpdiag) fulldiag=.true.
-   if(lastdiag )          fulldiag=.true.
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
@@ -503,11 +504,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    endif
 
    ! save q
-   q_in(1:nshell)=qsh(1:nshell)
-   if (present(aes)) then
-      k=nshell
-      call gfn2broyden_save(n,k,nbr,dipm,qp,q_in)
-   end if
+   call set_mixer(present(aes), qsh, dipm, qp, q_in)
 
    ! Transform only occupied orbitals during SCC iterations
    m_occ = 0
@@ -572,17 +569,21 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    econverged = abs(eel - eold) < scfconv
    ! ------------------------------------------------------------------------
 
-   dq(1:nshell)=qsh(1:nshell)-q_in(1:nshell)
-   if (present(aes)) then
-      k=nshell
-      call gfn2broyden_diff(n,k,nbr,dipm,qp,q_in,dq) ! CAMM case
-   end if
-   rmsq=sum(dq(1:nbr)**2)/dble(n)
+   call diff_mixer(present(aes), qsh, dipm, qp, q_in, dq)
+   rmsq=sum(dq(1:nbr)**2)/dble(nbr)
    rmsq=sqrt(rmsq)
 
    ! ------------------------------------------------------------------------
    ! end of SCC convergence part
    qconverged = rmsq < qconv
+   if (econverged.and.qconverged) then
+      converged = .true.
+      qq=q
+      ! no mixing step in the converged iteration
+      if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
+      &  iter+jter,eel,eel-eold,rmsq,egap,0.0_wp,fulldiag
+      exit scc_iterator
+   end if
    ! ------------------------------------------------------------------------
 
    ! SCC convergence acceleration
@@ -591,24 +592,8 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       ! simple damp
       if(iter.gt.0) then
          omegap=egap
-         ! monopoles only
-         do i=1,nshell
-            qsh(i)=damp*qsh(i)+(1.0_wp-damp)*q_in(i)
-         enddo
-         if (present(aes)) then
-            ! CAMM
-            k=nshell
-            do i=1,n
-               do j=1,3
-                  k=k+1
-                  dipm(j,i)=damp*dipm(j,i)+(1.0_wp-damp)*q_in(k)
-               enddo
-               do j=1,6
-                  k=k+1
-                  qp(j,i)=damp*qp(j,i)+(1.0_wp-damp)*q_in(k)
-               enddo
-            enddo
-         end if
+         q_in = q_in + damp*dq
+         call get_mixer(present(aes), q_in, qsh, dipm, qp)
          if(eel-eold.lt.0.0_wp) then
             damp=damp*1.15_wp
          else
@@ -623,11 +608,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       ! Broyden mixing
       omegap=0.0_wp
       call broyden(nbr,q_in,qlast_in,dq,dqlast,iter,thisiter,broydamp,omega,df,u,a)
-      qsh(1:nshell)=q_in(1:nshell)
-      if (present(aes)) then
-         k=nshell
-         call gfn2broyden_out(n,k,nbr,q_in,dipm,qp) ! CAMM case
-      end if
+      call get_mixer(present(aes), q_in, qsh, dipm, qp)
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
@@ -640,14 +621,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    qq=q
 
 !  end of SCC convergence part
-
-!! ------------------------------------------------------------------------
-   if (econverged.and.qconverged) then
-      converged = .true.
-      if (lastdiag) exit scc_iterator
-      lastdiag = .true.
-   endif
-!! ------------------------------------------------------------------------
 
    enddo scc_iterator
 
@@ -667,6 +640,105 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    fail = .not.converged
 
 end subroutine scc
+
+
+!> Store the shell charges and, if present, the atomic dipole moments and
+!> weighted quadrupole moments as consecutive blocks in the mixing vector
+pure subroutine set_mixer(multipole, qsh, dipm, qp, q_in)
+
+   !> Mixing vector contains atomic multipole moments
+   logical, intent(in) :: multipole
+
+   !> Shell charges
+   real(wp), intent(in) :: qsh(:)
+
+   !> Atomic dipole moments
+   real(wp), intent(in) :: dipm(:, :)
+
+   !> Atomic quadrupole moments in packed form
+   real(wp), intent(in) :: qp(:, :)
+
+   !> Mixing vector
+   real(wp), intent(inout) :: q_in(:)
+
+   integer :: nsh, nat
+
+   nsh = size(qsh)
+   nat = size(dipm, 2)
+   q_in(1:nsh) = qsh
+   if (multipole) then
+      q_in(nsh+1:nsh+3*nat) = reshape(dipm, [3*nat])
+      q_in(nsh+3*nat+1:nsh+9*nat) = reshape(qp * spread(qpw, 2, nat), [6*nat])
+   end if
+
+end subroutine set_mixer
+
+
+!> Residual between the current moments and the stored mixing vector
+pure subroutine diff_mixer(multipole, qsh, dipm, qp, q_in, dq)
+
+   !> Mixing vector contains atomic multipole moments
+   logical, intent(in) :: multipole
+
+   !> Shell charges
+   real(wp), intent(in) :: qsh(:)
+
+   !> Atomic dipole moments
+   real(wp), intent(in) :: dipm(:, :)
+
+   !> Atomic quadrupole moments in packed form
+   real(wp), intent(in) :: qp(:, :)
+
+   !> Mixing vector
+   real(wp), intent(in) :: q_in(:)
+
+   !> Residual vector
+   real(wp), intent(inout) :: dq(:)
+
+   integer :: nsh, nat
+
+   nsh = size(qsh)
+   nat = size(dipm, 2)
+   dq(1:nsh) = qsh - q_in(1:nsh)
+   if (multipole) then
+      dq(nsh+1:nsh+3*nat) = reshape(dipm, [3*nat]) - q_in(nsh+1:nsh+3*nat)
+      dq(nsh+3*nat+1:nsh+9*nat) = reshape(qp * spread(qpw, 2, nat), [6*nat]) &
+         & - q_in(nsh+3*nat+1:nsh+9*nat)
+   end if
+
+end subroutine diff_mixer
+
+
+!> Restore the shell charges and, if present, the atomic dipole moments and
+!> quadrupole moments from the mixing vector
+pure subroutine get_mixer(multipole, q_in, qsh, dipm, qp)
+
+   !> Mixing vector contains atomic multipole moments
+   logical, intent(in) :: multipole
+
+   !> Mixing vector
+   real(wp), intent(in) :: q_in(:)
+
+   !> Shell charges
+   real(wp), intent(inout) :: qsh(:)
+
+   !> Atomic dipole moments
+   real(wp), intent(inout) :: dipm(:, :)
+
+   !> Atomic quadrupole moments in packed form
+   real(wp), intent(inout) :: qp(:, :)
+
+   integer :: nsh, nat
+
+   nsh = size(qsh)
+   nat = size(dipm, 2)
+   qsh = q_in(1:nsh)
+   if (multipole) then
+      dipm = reshape(q_in(nsh+1:nsh+3*nat), [3, nat])
+      qp = reshape(q_in(nsh+3*nat+1:nsh+9*nat), [6, nat]) / spread(qpw, 2, nat)
+   end if
+
+end subroutine get_mixer
 
 
 !> H0 off-diag scaling
