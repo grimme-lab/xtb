@@ -1021,15 +1021,19 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    real(wp),intent(out) :: e_fermi
    logical, intent(in)  :: prt
 
-   real(wp) :: bkt,occt,total_number
+   real(wp) :: bkt,occt,total_number,arg
    real(wp) :: total_dfermi,dfermifunct,fermifunct,s,change_fermi
    real(wp), parameter :: boltz = kB*autoev
-   real(wp), parameter :: thr   = 1e-9_wp
+   real(wp), parameter :: thr = min(sqrt(epsilon(1.0_wp)), &
+      & 1.0e5_wp*epsilon(1.0_wp))
    real(wp), parameter :: sqrttiny = sqrt(tiny(1.0_wp))
    integer :: ncycle,i,j,m,k,i1,i2
 
    bkt = boltz*t
 
+   ! Initialize the Aufbau occupations, including empty and full spectra.
+   occ = 0.0_wp
+   occ(:min(nel, norbs)) = 1.0_wp
 
    ! First we need a good guess for the Fermi level
    if(nel+1 .gt. norbs) then 
@@ -1046,30 +1050,33 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
 
       ! With this we can refine it to meet the definition at the current temperture
       occt=nel
-      do ncycle = 1, 200  ! this loop would be possible instead of gotos
+      do ncycle = 1, 200
+         if (t <= 0.0_wp) exit
          total_number = 0.0_wp
          total_dfermi = 0.0_wp
          do i = 1, norbs
-            fermifunct = 0.0_wp
-            if((eig(i)-e_fermi)/bkt.lt.50) then
-               fermifunct = 1.0_wp/(exp((eig(i)-e_fermi)/bkt)+1.0_wp)
-               dfermifunct = exp((eig(i)-e_fermi)/bkt) / &
-               &       (bkt*(exp((eig(i)-e_fermi)/bkt)+1.0_wp)**2)
-            else
+            arg = (eig(i)-e_fermi)/bkt
+            if (arg > 50.0_wp) then
+               fermifunct = 0.0_wp
                dfermifunct = 0.0_wp
+            else if (arg < -50.0_wp) then
+               fermifunct = 1.0_wp
+               dfermifunct = 0.0_wp
+            else
+               fermifunct = 1.0_wp/(exp(arg)+1.0_wp)
+               dfermifunct = fermifunct*(1.0_wp-fermifunct)/bkt
             end if
             occ(i) = fermifunct
             total_number = total_number + fermifunct
             total_dfermi = total_dfermi + dfermifunct
          end do
+         if (abs(occt-total_number) <= thr) exit
          if (total_dfermi > sqrttiny) then
             change_fermi = (occt-total_number)/total_dfermi
          else
-            change_fermi = 0.0_wp
+            exit
          end if
-         change_fermi = (occt-total_number)/total_dfermi
          e_fermi = e_fermi+change_fermi
-         if (abs(occt-total_number).le.thr) exit
       enddo
    end if 
 
@@ -1078,7 +1085,7 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    do i=1,norbs
       if(occ(i).gt.thr.and.1.0_wp-occ(i).gt.thr) &
       &   s=s+occ(i)*log(occ(i))+(1.0_wp-occ(i))*log(1.0_wp-occ(i))
-      if (eig(i).lt.e_fermi) then
+      if (i.le.nel) then
          fod=fod+1.0_wp-occ(i)
       else
          fod=fod+      occ(i)

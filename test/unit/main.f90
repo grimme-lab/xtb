@@ -28,6 +28,7 @@ program tester
    use test_detrotra, only : collect_detrotra
    use test_docking, only : collect_docking
    use test_eeq, only : collect_eeq
+   use test_fermi, only : collect_fermi
    use test_gfn0, only : collect_gfn0
    use test_gfn1, only : collect_gfn1
    use test_gfn2, only : collect_gfn2
@@ -71,6 +72,7 @@ program tester
       new_testsuite("detrotra", collect_detrotra), &
       new_testsuite("docking", collect_docking), &
       new_testsuite("eeq", collect_eeq), &
+      new_testsuite("fermi", collect_fermi), &
       new_testsuite("gfn0", collect_gfn0), &
       new_testsuite("gfn1", collect_gfn1), &
       new_testsuite("gfn2", collect_gfn2), &

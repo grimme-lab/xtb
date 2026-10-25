@@ -70,6 +70,7 @@ test_srcs = files(
   'molstock.f90',
   #> PTB as additional test since ending is different
   'test_ptb.F90',
+  'test_fermi.F90',
 )
 foreach t : tests
   test_srcs += files('test_@0@.f90'.format(t.underscorify()))
@@ -92,6 +93,7 @@ foreach t : tests
   test(t, tester, args: t, suite: 'unit', env: xtbenv, is_parallel: t not in serial_tests)
 endforeach
 test('ptb', tester, args: 'ptb', suite: 'unit', env: xtbenv)
+test('fermi', tester, args: 'fermi', suite: 'unit', env: xtbenv)
 
 # some very basic checks to see if the executable reacts at all
 test('Argparser print version', xtb_exe, args: '--version', env: xtbenv)
