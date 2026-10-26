@@ -258,9 +258,9 @@ subroutine test_gfn1_heavy(error)
    real(wp),parameter :: xyz2(3,nat2) = reshape(&
       &[0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
       & 1.85000000000000_wp, 1.85000000000000_wp, 1.85000000000000_wp, &
-      &-1.85000000000000_wp,-1.85000000000000_wp, 1.85000000000000_wp, &
+      &-1.85000000000000_wp,-1.85000000000000_wp, 1.95000000000000_wp, &
       &-1.85000000000000_wp, 1.85000000000000_wp,-1.85000000000000_wp, &
-      & 1.85000000000000_wp,-1.85000000000000_wp,-1.85000000000000_wp], shape(xyz2))
+      & 2.00000000000000_wp,-1.85000000000000_wp,-1.85000000000000_wp], shape(xyz2))
    type(scc_options),parameter :: opt = scc_options( &
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
@@ -300,7 +300,8 @@ subroutine test_gfn1_heavy(error)
 
    deallocate(gradient)
 
-   ! stannane
+   ! stannane, slightly distorted since the inertia tensor of an exact
+   ! tetrahedron is isotropic and not supported by the eigenvalue solver
    call init(mol, at2, xyz2)
 
    allocate(gradient(3,mol%n))
@@ -313,12 +314,12 @@ subroutine test_gfn1_heavy(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 8.8297303007391_wp, thr=thr)
-   call check_(error, energy,-4.6287486160793_wp, thr=thr)
-   call check_(error, norm2(gradient), 0.25503852666812E-01_wp, thr=thr)
+   call check_(error, hl_gap, 8.4804757571808_wp, thr=thr)
+   call check_(error, energy,-4.6261097507577_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.34514083548805E-01_wp, thr=thr)
 
-   call check_(error, gradient(1,2), 0.73623281012783E-02_wp, thr=thr)
-   call check_(error, gradient(2,3),-0.73623281012783E-02_wp, thr=thr)
+   call check_(error, gradient(1,2), 0.69627090881014E-02_wp, thr=thr)
+   call check_(error, gradient(3,4),-0.66034977417132E-02_wp, thr=thr)
 
 end subroutine test_gfn1_heavy
 
