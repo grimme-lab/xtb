@@ -41,11 +41,6 @@ module xtb_scc_core
 
    integer, private, parameter :: mmm(20)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
-   !> Weights of the packed quadrupole components (xx,xy,yy,xz,yz,zz) in the
-   !> mixing vector, off-diagonal elements appear twice in the full tensor
-   real(wp), private, parameter :: qpw(6) = &
-      & [1.0_wp, sqrt(2.0_wp), 1.0_wp, sqrt(2.0_wp), sqrt(2.0_wp), 1.0_wp]
-
 
 contains
 
@@ -642,8 +637,8 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 end subroutine scc
 
 
-!> Store the shell charges and, if present, the atomic dipole moments and
-!> weighted quadrupole moments as consecutive blocks in the mixing vector
+!> Store the shell charges and, if present, the atomic dipole and quadrupole
+!> moments as consecutive blocks in the mixing vector
 pure subroutine set_mixer(multipole, qsh, dipm, qp, q_in)
 
    !> Mixing vector contains atomic multipole moments
@@ -656,7 +651,7 @@ pure subroutine set_mixer(multipole, qsh, dipm, qp, q_in)
    real(wp), intent(in) :: dipm(:, :)
 
    !> Atomic quadrupole moments in packed form
-   real(wp), intent(in) :: qp(:, :)
+   real(wp), intent(inout) :: qp(:, :)
 
    !> Mixing vector
    real(wp), intent(inout) :: q_in(:)
@@ -668,7 +663,11 @@ pure subroutine set_mixer(multipole, qsh, dipm, qp, q_in)
    q_in(1:nsh) = qsh
    if (multipole) then
       q_in(nsh+1:nsh+3*nat) = reshape(dipm, [3*nat])
-      q_in(nsh+3*nat+1:nsh+9*nat) = reshape(qp * spread(qpw, 2, nat), [6*nat])
+      ! Scale off-diagonal elements of packed quadrupole tensor in place, since
+      ! they appear twice in the full tensor and enter the residual norm as such
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) * sqrt(2.0_wp)
+      q_in(nsh+3*nat+1:nsh+9*nat) = reshape(qp, [6*nat])
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) / sqrt(2.0_wp)
    end if
 
 end subroutine set_mixer
@@ -687,7 +686,7 @@ pure subroutine diff_mixer(multipole, qsh, dipm, qp, q_in, dq)
    real(wp), intent(in) :: dipm(:, :)
 
    !> Atomic quadrupole moments in packed form
-   real(wp), intent(in) :: qp(:, :)
+   real(wp), intent(inout) :: qp(:, :)
 
    !> Mixing vector
    real(wp), intent(in) :: q_in(:)
@@ -702,15 +701,19 @@ pure subroutine diff_mixer(multipole, qsh, dipm, qp, q_in, dq)
    dq(1:nsh) = qsh - q_in(1:nsh)
    if (multipole) then
       dq(nsh+1:nsh+3*nat) = reshape(dipm, [3*nat]) - q_in(nsh+1:nsh+3*nat)
-      dq(nsh+3*nat+1:nsh+9*nat) = reshape(qp * spread(qpw, 2, nat), [6*nat]) &
+      ! Scale off-diagonal elements of packed quadrupole tensor in place, since
+      ! they appear twice in the full tensor and enter the residual norm as such
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) * sqrt(2.0_wp)
+      dq(nsh+3*nat+1:nsh+9*nat) = reshape(qp, [6*nat]) &
          & - q_in(nsh+3*nat+1:nsh+9*nat)
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) / sqrt(2.0_wp)
    end if
 
 end subroutine diff_mixer
 
 
-!> Restore the shell charges and, if present, the atomic dipole moments and
-!> quadrupole moments from the mixing vector
+!> Restore the shell charges and, if present, the atomic dipole and quadrupole
+!> moments from the mixing vector
 pure subroutine get_mixer(multipole, q_in, qsh, dipm, qp)
 
    !> Mixing vector contains atomic multipole moments
@@ -735,7 +738,9 @@ pure subroutine get_mixer(multipole, q_in, qsh, dipm, qp)
    qsh = q_in(1:nsh)
    if (multipole) then
       dipm = reshape(q_in(nsh+1:nsh+3*nat), [3, nat])
-      qp = reshape(q_in(nsh+3*nat+1:nsh+9*nat), [6, nat]) / spread(qpw, 2, nat)
+      qp = reshape(q_in(nsh+3*nat+1:nsh+9*nat), [6, nat])
+      ! Remove scaling of off-diagonal elements of packed quadrupole tensor
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) / sqrt(2.0_wp)
    end if
 
 end subroutine get_mixer

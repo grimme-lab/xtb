@@ -31,6 +31,7 @@ subroutine collect_gfn2(testsuite)
    testsuite = [ &
       new_unittest("scc", test_gfn2_scc), &
       new_unittest("api", test_gfn2_api), &
+      new_unittest("rotation", test_gfn2_rotation), &
       new_unittest("gbsa", test_gfn2gbsa_api), &
       new_unittest("salt", test_gfn2salt_api), &
       new_unittest("pcem", test_gfn2_pcem_api), &
@@ -234,6 +235,99 @@ subroutine test_gfn2_api(error)
    call check_(error, gradient(3,7), 0.99750262249210E-02_wp, thr=thr)
 
 end subroutine test_gfn2_api
+
+
+!> The SCC mixing vector has to transform orthogonally under rotations of the
+!> molecule, otherwise the Broyden iterations depend on the orientation and
+!> the SCC converges to different charges for rotated copies of one molecule.
+!> This requires the off-diagonal quadrupole components to be weighted by
+!> sqrt(2), which is checked here with default SCC accuracy.
+subroutine test_gfn2_rotation(error)
+   use xtb_mctc_accuracy, only : wp
+
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_data
+   use xtb_type_environment
+
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: thr_energy = 1.0e-10_wp
+   real(wp), parameter :: thr_charge = 1.0e-8_wp
+   real(wp), parameter :: pi = 4.0_wp * atan(1.0_wp)
+   integer, parameter :: nat = 5
+   integer, parameter :: at(nat) = [6, 8, 8, 1, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp, 0.75589045018313_wp, 0.00000000000000_wp, &
+      & 2.17318504427650_wp, 1.54957542287542_wp, 0.18897261254578_wp, &
+      &-1.98421243173072_wp, 2.26767135054939_wp,-0.18897261254578_wp, &
+      & 0.05669178376373_wp,-1.32280828782048_wp, 0.09448630627289_wp, &
+      &-3.59047963836987_wp, 1.51178090036626_wp, 0.00000000000000_wp], &
+      & shape(xyz))
+   !> Rotation axis, generic to produce all components of the quadrupole
+   real(wp), parameter :: axis(3) = [1.0_wp, 2.0_wp, 3.0_wp] / sqrt(14.0_wp)
+   real(wp), parameter :: angle = 0.25_wp * pi
+
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
+
+   integer :: irot, i
+   real(wp) :: rot(3, 3), cross(3, 3), xyz_rot(3, nat)
+   real(wp) :: energy(2), charges(nat, 2)
+   real(wp) :: sigma(3, 3), hl_gap
+   real(wp), allocatable :: gradient(:, :)
+
+   call init(env)
+
+   ! Rotation matrix from the Rodrigues formula
+   cross = reshape([ &
+      &  0.0_wp,    axis(3), -axis(2), &
+      & -axis(3),   0.0_wp,   axis(1), &
+      &  axis(2),  -axis(1),  0.0_wp], [3, 3])
+   rot = (1.0_wp - cos(angle)) * spread(axis, 2, 3) * spread(axis, 1, 3) &
+      & + sin(angle) * cross
+   do i = 1, 3
+      rot(i, i) = rot(i, i) + cos(angle)
+   end do
+   xyz_rot = matmul(rot, xyz)
+
+   allocate(gradient(3, nat))
+
+   do irot = 1, 2
+      if (irot == 1) then
+         call init(mol, at, xyz)
+      else
+         call init(mol, at, xyz_rot)
+      end if
+      energy(irot) = 0.0_wp
+      gradient = 0.0_wp
+
+      call newXTBCalculator(env, mol, calc, method=2)
+      call newWavefunction(env, mol, calc, chk)
+
+      call calc%singlepoint(env, mol, chk, 0, .false., energy(irot), gradient, &
+         & sigma, hl_gap, res)
+      call check_(error, res%converged)
+      if (allocated(error)) return
+
+      charges(:, irot) = chk%wfn%q
+      call mol%deallocate
+   end do
+
+   call check_(error, maxval(abs(charges(:, 2) - charges(:, 1))), 0.0_wp, &
+      & thr=thr_charge)
+   if (allocated(error)) return
+
+   call check_(error, energy(2), energy(1), thr=thr_energy)
+
+end subroutine test_gfn2_rotation
+
 
 subroutine test_gfn2gbsa_api(error)
    use xtb_mctc_accuracy, only : wp
