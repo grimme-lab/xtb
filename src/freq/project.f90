@@ -21,6 +21,7 @@ module xtb_freq_project
    use xtb_mctc_blas, only : mctc_syrk, mctc_symm
    use xtb_mctc_la, only : blckmgs, syprj
    use xtb_mctc_math, only : eigvec3x3, crossProd
+   use xtb_axis, only : is_linear
    use xtb_type_molecule, only : TMolecule
    implicit none
    private
@@ -32,8 +33,8 @@ contains
 
 
 !> Project translations and rotations from the Hessian matrix
-subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, &
-      & fixedAtoms, nModes)
+subroutine projectHessian(hessian, mol, removeTrans, removeRot, fixedAtoms, &
+      & nModes)
 
    !> Mass weighted Hessian matrix
    real(wp), intent(inout) :: hessian(:,:)
@@ -47,9 +48,6 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, &
    !> Rotations should be projected, will be automatically disabled for PBC input
    logical, intent(in) :: removeRot
 
-   !> Molecular structure is linear and has only two rotational modes
-   logical, intent(in), optional :: linear
-
    !> Atoms whose three Cartesian coordinates are fixed. The structure can then
    !> only rotate about axes running through all fixed atoms, and it cannot
    !> translate, so removeTrans should be false.
@@ -62,8 +60,6 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, &
    real(wp), parameter :: unity(3, 3) = reshape(&
       & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
       & [3, 3])
-   ! same collinearity threshold as is_linear (unit masses, Bohr²)
-   real(wp), parameter :: linthr_bohr2 = 1.0e-4_wp
    real(wp) :: center(3), vec(3), r2, inertia(3,3), moments(3), molMass, axes(3,3)
    integer :: ndim, nproj, nrot, nfixed, offset, rotOffset, linearAxis
    integer :: ii, jj, iat, ic, ifixed
@@ -73,8 +69,7 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, &
 
    ndim = 3*mol%n
 
-   isLinear = .false.
-   if (present(linear)) isLinear = linear
+   isLinear = mol%linear
 
    nfixed = 0
    if (present(fixedAtoms)) nfixed = size(fixedAtoms)
@@ -187,9 +182,13 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, linear, &
 
             call eigvec3x3(inertia, moments, axes)
 
-            ! For a linear molecule the only candidate is the molecular axis,
-            ! rotation about it does not displace any atom.
-            freeAxis(:) = moments < linthr_bohr2 .and. .not.isLinear
+            ! Only collinear fixed atoms leave a rotation, about their common
+            ! axis. For a linear molecule this is the molecular axis, rotation
+            ! about which does not displace any atom.
+            freeAxis(:) = .false.
+            if (.not.isLinear .and. is_linear(mol%xyz(:, fixedAtoms))) then
+               freeAxis(minloc(moments, dim=1)) = .true.
+            end if
          end if
       end if
 

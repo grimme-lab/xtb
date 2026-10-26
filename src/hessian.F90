@@ -386,16 +386,15 @@ subroutine numhess( &
       ! Cartesian directions together with the rotations about axes through
       ! all fixed atoms.
       call projectHessian(res%hess, mol, .false., .true., &
-         & linear=res%linear, fixedAtoms=fixset%atoms(:fixset%n), nModes=nproj)
+         & fixedAtoms=fixset%atoms(:fixset%n), nModes=nproj)
       if (set%runtyp == p_run_bhess) then
          call projectHessian(hbias, mol, .false., .true., &
-            & linear=res%linear, fixedAtoms=fixset%atoms(:fixset%n))
+            & fixedAtoms=fixset%atoms(:fixset%n))
       end if
    else
-      call projectHessian(res%hess, mol, .true., .true., linear=res%linear, &
-         & nModes=nproj)
+      call projectHessian(res%hess, mol, .true., .true., nModes=nproj)
       if (set%runtyp == p_run_bhess) then
-         call projectHessian(hbias, mol, .true., .true., linear=res%linear)
+         call projectHessian(hbias, mol, .true., .true.)
       end if
    end if
 

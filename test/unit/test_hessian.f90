@@ -1134,8 +1134,10 @@ subroutine test_linear_projection(error)
    call init(mol, sym, xyz)
    hessian = linear_model_hessian(mol)
 
-   call projectHessian(hessian, mol, .true., .true., linear=.true., &
-      & nModes=nModes)
+   call check(error, mol%linear)
+   if (allocated(error)) return
+
+   call projectHessian(hessian, mol, .true., .true., nModes=nModes)
    call check(error, nModes, 5)
    if (allocated(error)) return
 
@@ -1169,16 +1171,19 @@ subroutine test_fixed_projection(error)
    call init(mol, sym, xyz)
    hessian = spring_model_hessian(mol)
 
+   call check(error, .not.mol%linear)
+   if (allocated(error)) return
+
    ! one fixed atom: three rotations about the fixed atom remain
-   call check_fixed_projection(error, mol, hessian, [1], .false., 6)
+   call check_fixed_projection(error, mol, hessian, [1], 6)
    if (allocated(error)) return
 
    ! two fixed atoms: only the rotation about their connecting axis remains
-   call check_fixed_projection(error, mol, hessian, [1, 2], .false., 7)
+   call check_fixed_projection(error, mol, hessian, [1, 2], 7)
    if (allocated(error)) return
 
    ! three non-collinear fixed atoms: no rotation remains
-   call check_fixed_projection(error, mol, hessian, [1, 3, 4], .false., 9)
+   call check_fixed_projection(error, mol, hessian, [1, 3, 4], 9)
 
 end subroutine test_fixed_projection
 
@@ -1203,19 +1208,22 @@ subroutine test_fixed_linear_projection(error)
    call init(mol, sym, xyz)
    hessian = linear_model_hessian(mol)
 
+   call check(error, mol%linear)
+   if (allocated(error)) return
+
    ! fixed central atom: two rotations about the central atom remain
-   call check_fixed_projection(error, mol, hessian, [2], .true., 5)
+   call check_fixed_projection(error, mol, hessian, [2], 5)
    if (allocated(error)) return
 
    ! two fixed atoms: no rotation remains
-   call check_fixed_projection(error, mol, hessian, [1, 3], .true., 6)
+   call check_fixed_projection(error, mol, hessian, [1, 3], 6)
 
 end subroutine test_fixed_linear_projection
 
 
 !> Project a mass-weighted Hessian with fixed atoms and compare its spectrum
 !> against the mass-weighted Hessian with the fixed atoms deleted.
-subroutine check_fixed_projection(error, mol, hessian, fixed, linear, nref)
+subroutine check_fixed_projection(error, mol, hessian, fixed, nref)
 
    !> Failure report, allocated when the check fails.
    type(error_type), allocatable, intent(out) :: error
@@ -1229,9 +1237,6 @@ subroutine check_fixed_projection(error, mol, hessian, fixed, linear, nref)
    !> Fixed atoms
    integer, intent(in) :: fixed(:)
 
-   !> Molecular structure is linear
-   logical, intent(in) :: linear
-
    !> Expected number of projected modes
    integer, intent(in) :: nref
 
@@ -1241,8 +1246,8 @@ subroutine check_fixed_projection(error, mol, hessian, fixed, linear, nref)
    integer :: nModes, iat, ic
 
    projected = hessian
-   call projectHessian(projected, mol, .false., .true., linear=linear, &
-      & fixedAtoms=fixed, nModes=nModes)
+   call projectHessian(projected, mol, .false., .true., fixedAtoms=fixed, &
+      & nModes=nModes)
    call check(error, nModes, nref)
    if (allocated(error)) return
 
