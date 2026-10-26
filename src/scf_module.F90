@@ -264,7 +264,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    intcut=25.0_wp-10.0*log10(acc)
    intcut=max(20.0_wp,intcut)
 !  integral neglect threshold (the distance criterion used in ovlp limits S to about >1.d-9
-   neglect =10.0d-9*acc
+   neglect =0.0_wp
    neglect2=neglect*10.0_wp
 !  exit if E < scfconv, Hessian sensitive to this
    scfconv=1.d-6*acc

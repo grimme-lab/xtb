@@ -326,7 +326,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    !$omp shared(nat, xyz, at, nShell, hData, saoshell, selfEnergy, caoshell, &
    !$omp& point, intcut, nprim, primcount, alp, cont) &
    !$omp private(iat, ra, izp, ish, ishtyp, iao, i, ii, icao, naoi, iptyp, &
-   !$omp& jsh, jshtyp, jcao, ss, dd, qq, k, tmp, jao, jj, naoj, jptyp)
+   !$omp& jsh, jshtyp, jcao, ss, dd, qq, k, tmp, jao, jj, naoj, jptyp, dtmp, qtmp)
    do iat = 1, nat
       ra = xyz(:, iat)
       izp = at(iat)
@@ -335,8 +335,6 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
          do iao = 1, llao2(ishtyp)
             i = iao+saoshell(ish,iat)
             ii = i*(1+i)/2
-            sint(i,i) = 1.0_wp + sint(i,i)
-            H0(ii) = H0(ii) + selfEnergy(ish, iat)
             H0_noovlp(ii) = H0_noovlp(ii) + selfEnergy(ish, iat)
          end do
 
@@ -348,11 +346,11 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
             jcao = caoshell(jsh,iat)
             naoj = llao(jshtyp)
             jptyp = itt(jshtyp)
-            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,ra, &
                &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
             !transform from CAO to SAO
-            !call dtrf2(ss,ishtyp,jshtyp)
             if (ishtyp >= 2 .or. jshtyp >= 2) then
+            call dtrf2(ss,ishtyp,jshtyp)
             do k = 1,3
                tmp(1:6, 1:6) = dd(k,1:6, 1:6)
                call dtrf2(tmp, ishtyp, jshtyp)
@@ -369,13 +367,24 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
                do jj = 1, llao2(jshtyp)
                   jao = jj + saoshell(jsh,iat)
                   if (jao > iao .and. ish ==  jsh) cycle
-                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dd(1:3, jj, ii)
+                  ! onsite overlap and Hamiltonian from the contracted basis functions
+                  sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
                   if (iao /= jao) then
-                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd(1:3, jj, ii)
+                     sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
                   end if
-                  qpint(1:6, iao, jao) = qpint(1:6, iao, jao) + qq(1:6, jj, ii)
+                  H0(lin(iao, jao)) = H0(lin(iao, jao)) &
+                     & + 0.5_wp * (selfEnergy(ish, iat) + selfEnergy(jsh, iat)) * ss(jj, ii)
+                  ! shift the one-center moments from the atom to the origin with
+                  ! exactly the overlap stored above, keeping S, D and Q consistent
+                  call shift_moments(ra - point, ss(jj, ii), dd(:, jj, ii), &
+                     & qq(:, jj, ii), dtmp, qtmp)
+                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dtmp
+                  if (iao /= jao) then
+                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dtmp
+                  end if
+                  qpint(1:6, iao, jao) = qpint(1:6, iao, jao) + qtmp
                   if (jao /= iao) then
-                     qpint(1:6, jao, iao) = qpint(1:6, jao, iao) + qq(1:6, jj, ii)
+                     qpint(1:6, jao, iao) = qpint(1:6, jao, iao) + qtmp
                   end if
                end do
             end do

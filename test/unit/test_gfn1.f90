@@ -215,7 +215,7 @@ subroutine test_gfn1_api(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 5.6067618147528_wp, thr=thr)
+   call check_(error, hl_gap, 5.6067618151110_wp, thr=thr)
    call check_(error, energy,-8.4156335928615_wp, thr=thr)
    call check_(error, norm2(gradient),0.95790087998601E-02_wp, thr=thr)
 
@@ -389,7 +389,7 @@ subroutine test_gfn1_pcem_api(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 8.7251771863555_wp, thr=thr)
+   call check_(error, hl_gap, 8.7251771874211_wp, thr=thr)
    call check_(error, energy,-11.559896105984_wp, thr=thr)
    call check_(error, norm2(gradient),0.24211924303314E-01_wp, thr=thr)
 
@@ -414,7 +414,7 @@ subroutine test_gfn1_pcem_api(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 8.9181164996787_wp, thr=thr)
+   call check_(error, hl_gap, 8.9181165007295_wp, thr=thr)
    call check_(error, energy,-11.565012263827_wp, thr=thr)
    call check_(error, norm2(gradient),0.23134746641164E-01_wp, thr=thr)
 
@@ -484,12 +484,12 @@ subroutine test_gfn1_xb(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 2.4992557341433_wp, thr=thr)
-   call check_(error, energy,-15.606233877972_wp, thr=thr)
-   call check_(error, norm2(gradient),0.23014498876161E-01_wp, thr=thr)
+   call check_(error, hl_gap, 2.4992555928479_wp, thr=thr)
+   call check_(error, energy,-15.606233893431_wp, thr=thr)
+   call check_(error, norm2(gradient),0.23014500667889E-01_wp, thr=thr)
 
    call check_(error, gradient(1,5),-0.39000062479073E-02_wp, thr=thr)
-   call check_(error, gradient(2,2),-0.49295751742554E-02_wp, thr=thr)
+   call check_(error, gradient(2,2),-0.49295777191606E-02_wp, thr=thr)
    call check_(error, gradient(1,4), 0.17228260050308E-01_wp, thr=thr)
    call check_(error, gradient(3,6), 0.00000000000000E+00_wp, thr=thr)
 
@@ -565,7 +565,7 @@ subroutine test_gfn1_pbc3d(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 7.5302580623077_wp, thr=thr)
+   call check_(error, hl_gap, 7.5302581099357_wp, thr=thr)
    call check_(error, energy,-11.069452578476_wp, thr=thr)
    call check_(error, norm2(gradient), 0.28766518636475E-01_wp, thr=thr)
 

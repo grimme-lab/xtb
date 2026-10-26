@@ -1248,7 +1248,6 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
          ishtyp = angShell(ish,izp)
          do iao = 1, llao2(ishtyp)
             i = iao+saoshell(ish,iat)
-            sint(i,i) = 1.0_wp + sint(i,i)
          end do
 
          icao = caoshell(ish,iat)
@@ -1262,11 +1261,11 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
             ss = 0.0_wp
             dd = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,ra, &
                &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
             !transform from CAO to SAO
-            !call dtrf2(ss,ishtyp,jshtyp)
             if (ishtyp >= 2 .or. jshtyp >= 2) then
+            call dtrf2(ss,ishtyp,jshtyp)
             do k = 1,3
                tmp(1:6, 1:6) = dd(k,1:6, 1:6)
                call dtrf2(tmp, ishtyp, jshtyp)
@@ -1283,13 +1282,21 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
                do jj = 1, llao2(jshtyp)
                   jao = jj + saoshell(jsh,iat)
                   if (jao > iao .and. ish ==  jsh) cycle
-                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dd(1:3, jj, ii)
+                  ! onsite overlap from the contracted basis functions
+                  sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
                   if (iao /= jao) then
-                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd(1:3, jj, ii)
+                     sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
                   end if
-                  qpint(1:6, iao, jao) = qq(1:6, jj, ii)
+                  ! shift the one-center moments from the atom to the origin
+                  call shift_moments(ra - point, ss(jj, ii), dd(:, jj, ii), &
+                     & qq(:, jj, ii), dtmp, qtmp)
+                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dtmp
+                  if (iao /= jao) then
+                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dtmp
+                  end if
+                  qpint(1:6, iao, jao) = qtmp
                   if (jao /= iao) then
-                     qpint(1:6, jao, iao) = qq(1:6, jj, ii)
+                     qpint(1:6, jao, iao) = qtmp
                   end if
                end do
             end do
@@ -1830,7 +1837,6 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
          do iao = 1, llao2(ishtyp)
             i = iao+saoshell(ish,iat)
             ii = i*(1+i)/2
-            sint(i,i) = 1.0_wp + sint(i,i)
          end do
 
          icao = caoshell(ish,iat)
@@ -1844,10 +1850,10 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
             ss = 0.0_wp
             dd2 = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,ra, &
                &               intcut,nprim,primcount,alp,cont,ss,dd2,qq)
             !transform from CAO to SAO
-            !call dtrf2(ss,ishtyp,jshtyp)
+            call dtrf2(ss,ishtyp,jshtyp)
             do k = 1,3
                tmp(1:6, 1:6) = dd2(k,1:6, 1:6)
                call dtrf2(tmp, ishtyp, jshtyp)
@@ -1863,13 +1869,21 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
                do jj = 1, llao2(jshtyp)
                   jao = jj + saoshell(jsh,iat)
                   if (jao > iao .and. ish ==  jsh) cycle
-                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dd2(1:3, jj, ii)
+                  ! onsite overlap from the contracted basis functions
+                  sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
                   if (iao /= jao) then
-                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd2(1:3, jj, ii)
+                     sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
                   end if
-                  qpint(1:6, iao, jao) = qq(1:6, jj, ii)
+                  ! shift the one-center moments from the atom to the origin
+                  call shift_moments(ra - point, ss(jj, ii), dd2(:, jj, ii), &
+                     & qq(:, jj, ii), dtmp, qtmp)
+                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dtmp
+                  if (iao /= jao) then
+                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dtmp
+                  end if
+                  qpint(1:6, iao, jao) = qtmp
                   if (jao /= iao) then
-                     qpint(1:6, jao, iao) = qq(1:6, jj, ii)
+                     qpint(1:6, jao, iao) = qtmp
                   end if
                end do
             end do
@@ -1881,6 +1895,28 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
    !$acc& nprim, primcount, alp, cont, intcut, trans, point, angShell(:, :))
 
 end subroutine sdqint_gpu
+
+
+!> Shift dipole and (cartesian, non-traceless) quadrupole moment integrals
+!> from origin B to origin A, with rab = R_B - R_A.
+!> Quadrupole components are ordered xx, yy, zz, xy, xz, yz.
+pure subroutine shift_moments(rab, s, db, qb, da, qa)
+   !$acc routine seq
+   real(wp), intent(in) :: rab(3)
+   real(wp), intent(in) :: s
+   real(wp), intent(in) :: db(3)
+   real(wp), intent(in) :: qb(6)
+   real(wp), intent(out) :: da(3)
+   real(wp), intent(out) :: qa(6)
+
+   da(:) = db + rab * s
+   qa(1) = qb(1) + 2 * rab(1) * db(1) + rab(1) * rab(1) * s
+   qa(2) = qb(2) + 2 * rab(2) * db(2) + rab(2) * rab(2) * s
+   qa(3) = qb(3) + 2 * rab(3) * db(3) + rab(3) * rab(3) * s
+   qa(4) = qb(4) + rab(1) * db(2) + rab(2) * db(1) + rab(1) * rab(2) * s
+   qa(5) = qb(5) + rab(1) * db(3) + rab(3) * db(1) + rab(1) * rab(3) * s
+   qa(6) = qb(6) + rab(2) * db(3) + rab(3) * db(2) + rab(2) * rab(3) * s
+end subroutine shift_moments
 
 
 end module xtb_intgrad

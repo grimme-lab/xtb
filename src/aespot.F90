@@ -70,13 +70,13 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
          enddo
          if(tmp1.gt.thr2)then
             md = md+1
-            matdlst(1,md) = int(i,2)
-            matdlst(2,md) = int(j,2)
+            matdlst(1,md) = i
+            matdlst(2,md) = j
          endif
          if(tmp2.gt.thr2)then
             mq = mq+1
-            matqlst(1,mq) = int(i,2)
-            matqlst(2,mq) = int(j,2)
+            matqlst(1,mq) = i
+            matqlst(2,mq) = j
          endif
       enddo
    enddo
