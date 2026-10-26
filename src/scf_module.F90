@@ -202,7 +202,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    integer :: is,js,gav
 
    character(len=128) :: atmp,ftmp
-   logical :: ex,minpr,pr,fulldiag,lastdiag,iniqsh,fail
+   logical :: ex,minpr,pr,fulldiag,iniqsh,fail
 
 !  GBSA stuff
    real(wp) :: gborn,ghb,gsasa,gshift
@@ -236,7 +236,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (profile) call timer%new(7,.false.)
    if (profile) call timer%measure(1,"SCC setup")
    rmsq  =1.e+42_wp
-   lastdiag=.false.
    lpcem = pcem%n > 0
    jter=0
 
@@ -273,7 +272,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    damp0=0.20
 !  conv threshold in dRMS q
    qconv=2.d-5*acc
-   if(allocated(xtbData%multipole)) qconv=1.d-4*acc
 
    broy = mol%n > 1
 !  when to start pseudodiag (=1 after one full diag)

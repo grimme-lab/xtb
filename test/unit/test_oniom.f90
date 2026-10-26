@@ -224,8 +224,8 @@ subroutine test_oniom_cutbond(error)
    call calc%real_low%singlepoint(env,mol,chk,0,.false.,energy,gradient,sigma,hlgap,results)
    
    call check_(error,energy, -7.336370550119_wp, thr=thr)
-   call check_(error,hlgap, 15.501740190914_wp, thr=thr)
-   call check_(error,norm2(gradient), 0.000327194200_wp, thr=thr)
+   call check_(error,hlgap, 15.501710887470_wp, thr=thr)
+   call check_(error,norm2(gradient), 0.000325819765_wp, thr=thr)
    
    !> cutbond
    call calc%cutbond(env,mol,chk,calc%topo,inner_mol,jacobian,idx2)
@@ -325,8 +325,8 @@ subroutine test_oniom_singlepoint(error)
    call calc%singlepoint(env,mol,chk,0,.false.,energy,gradient,sigma,hlgap,results)
    
    call check_(error,energy, -10.831044042094_wp, thr=thr)
-   call check_(error,norm2(gradient), 0.034482361663_wp, thr=thr)
-   !call check_(error,hlgap, 15.501740190914_wp, thr=thr)
+   call check_(error,norm2(gradient), 0.034480433219_wp, thr=thr)
+   !call check_(error,hlgap, 15.501710887470_wp, thr=thr)
    
    !> cutbond
    !call calc%cutbond(env,mol,chk,calc%topo,inner_mol,jacobian,idx_orig)

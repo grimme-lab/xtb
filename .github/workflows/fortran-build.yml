@@ -420,7 +420,6 @@ jobs:
               mingw-w64-${{ matrix.arch }}-meson
               mingw-w64-${{ matrix.arch }}-ninja
               mingw-w64-${{ matrix.arch }}-binutils
-              mingw-w64-${{ matrix.arch }}-ntldd
               zip
          # Configure static build with an absolute install location
          - name: Configure build (static)
