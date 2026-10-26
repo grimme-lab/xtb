@@ -46,6 +46,7 @@ module test_hessian
    use xtb_internals_type, only : coord_bond, coord_angle, coord_dihedral, coord_linbend
    use xtb_bmatrix, only : get_bmatrix
    use xtb_o1numhess, only : lr_loop
+   use xtb_freq_project, only : projectHessian
    implicit none
    private
 
@@ -72,7 +73,10 @@ subroutine collect_hessian(testsuite)
       new_unittest("redundant_bmatrix_fd", test_redundant_bmatrix_fd), &
       new_unittest("linear_chain_compliance", test_linear_chain_compliance), &
       new_unittest("near_linear_bmatrix_fd", test_near_linear_bmatrix_fd), &
-      new_unittest("compliance_driver_redundant", test_compliance_driver_redundant) &
+      new_unittest("compliance_driver_redundant", test_compliance_driver_redundant), &
+      new_unittest("linear_projection", test_linear_projection), &
+      new_unittest("fixed_projection", test_fixed_projection), &
+      new_unittest("fixed_linear_projection", test_fixed_linear_projection) &
       ]
 
 end subroutine collect_hessian
@@ -1107,6 +1111,293 @@ subroutine test_covalent_neighbour_list(error)
    call check(error, neighs(3), 0)
 
 end subroutine test_covalent_neighbour_list
+
+
+!> Projecting a linear saddle point must keep both imaginary bending modes
+!> and remove exactly three translations and two rotations.
+subroutine test_linear_projection(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 3
+   character(len=*), parameter :: sym(nat) = ["H", "O", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.0_wp, 0.0_wp, 1.8_wp, &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, -1.8_wp], shape(xyz))
+   real(wp), parameter :: thr = 1.0e-10_wp
+
+   type(TMolecule) :: mol
+   real(wp), allocatable :: hessian(:, :), eig(:)
+   integer :: nModes
+
+   call init(mol, sym, xyz)
+   hessian = linear_model_hessian(mol)
+
+   call check(error, mol%linear)
+   if (allocated(error)) return
+
+   call projectHessian(hessian, mol, .true., .true., nModes=nModes)
+   call check(error, nModes, 5)
+   if (allocated(error)) return
+
+   call get_eigenvalues(error, hessian, eig)
+   if (allocated(error)) return
+   call check(error, count(abs(eig) < thr), 5)
+   if (allocated(error)) return
+   call check(error, count(eig < -thr), 2)
+
+end subroutine test_linear_projection
+
+
+!> Fixing atoms of a non-linear molecule removes their coordinates and leaves
+!> only rotations about axes through all fixed atoms. The vibrations must
+!> match the mass-weighted Hessian with the fixed atoms deleted.
+subroutine test_fixed_projection(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 4
+   character(len=*), parameter :: sym(nat) = ["O", "O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.00_wp, 1.38_wp, -0.12_wp, &
+      & 0.00_wp, -1.38_wp, -0.12_wp, &
+      & 1.62_wp, 1.78_wp, 0.95_wp, &
+      & -1.62_wp, -1.78_wp, 0.95_wp], shape(xyz))
+
+   type(TMolecule) :: mol
+   real(wp), allocatable :: hessian(:, :)
+
+   call init(mol, sym, xyz)
+   hessian = spring_model_hessian(mol)
+
+   call check(error, .not.mol%linear)
+   if (allocated(error)) return
+
+   ! one fixed atom: three rotations about the fixed atom remain
+   call check_fixed_projection(error, mol, hessian, [1], 6)
+   if (allocated(error)) return
+
+   ! two fixed atoms: only the rotation about their connecting axis remains
+   call check_fixed_projection(error, mol, hessian, [1, 2], 7)
+   if (allocated(error)) return
+
+   ! three non-collinear fixed atoms: no rotation remains
+   call check_fixed_projection(error, mol, hessian, [1, 3, 4], 9)
+
+end subroutine test_fixed_projection
+
+
+!> Fixing atoms of a linear molecule leaves only the rotations about the fixed
+!> atoms perpendicular to the molecular axis. The center of mass is off the
+!> fixed atom, so rotations about it would wrongly be projected as well.
+subroutine test_fixed_linear_projection(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 3
+   character(len=*), parameter :: sym(nat) = ["H", "O", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.0_wp, 0.0_wp, 1.8_wp, &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, -2.1_wp], shape(xyz))
+
+   type(TMolecule) :: mol
+   real(wp), allocatable :: hessian(:, :)
+
+   call init(mol, sym, xyz)
+   hessian = linear_model_hessian(mol)
+
+   call check(error, mol%linear)
+   if (allocated(error)) return
+
+   ! fixed central atom: two rotations about the central atom remain
+   call check_fixed_projection(error, mol, hessian, [2], 5)
+   if (allocated(error)) return
+
+   ! two fixed atoms: no rotation remains
+   call check_fixed_projection(error, mol, hessian, [1, 3], 6)
+
+end subroutine test_fixed_linear_projection
+
+
+!> Project a mass-weighted Hessian with fixed atoms and compare its spectrum
+!> against the mass-weighted Hessian with the fixed atoms deleted.
+subroutine check_fixed_projection(error, mol, hessian, fixed, nref)
+
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Mass-weighted model Hessian invariant under rigid-body motions
+   real(wp), intent(in) :: hessian(:, :)
+
+   !> Fixed atoms
+   integer, intent(in) :: fixed(:)
+
+   !> Expected number of projected modes
+   integer, intent(in) :: nref
+
+   real(wp), parameter :: thr = 1.0e-10_wp
+   real(wp), allocatable :: projected(:, :), eig(:), eigref(:)
+   integer, allocatable :: free(:)
+   integer :: nModes, iat, ic
+
+   projected = hessian
+   call projectHessian(projected, mol, .false., .true., fixedAtoms=fixed, &
+      & nModes=nModes)
+   call check(error, nModes, nref)
+   if (allocated(error)) return
+
+   ! coordinates of all atoms that are not fixed
+   free = [((3*(iat-1)+ic, ic = 1, 3), iat = 1, mol%n)]
+   free = pack(free, [(all(fixed /= iat), all(fixed /= iat), &
+      & all(fixed /= iat), iat = 1, mol%n)])
+
+   call get_eigenvalues(error, projected, eig)
+   if (allocated(error)) return
+   call get_eigenvalues(error, hessian(free, free), eigref)
+   if (allocated(error)) return
+
+   ! deleted Cartesian coordinates are not part of the reduced Hessian
+   call check(error, count(abs(eig) < thr), nref)
+   if (allocated(error)) return
+   call check(error, count(abs(eigref) < thr), nref - 3*size(fixed))
+   if (allocated(error)) return
+
+   eig = pack(eig, abs(eig) >= thr)
+   eigref = pack(eigref, abs(eigref) >= thr)
+   call check(error, size(eig), size(eigref))
+   if (allocated(error)) return
+   call check(error, maxval(abs(eig - eigref)), 0.0_wp, thr=thr)
+
+end subroutine check_fixed_projection
+
+
+!> Mass-weighted Hessian of harmonic springs between all atom pairs at their
+!> rest lengths, which is exactly invariant under rigid-body motions.
+function spring_model_hessian(mol) result(hessian)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Mass-weighted Hessian
+   real(wp), allocatable :: hessian(:, :)
+
+   real(wp) :: vec(3), block(3, 3), force
+   integer :: iat, jat, ii, jj
+
+   allocate(hessian(3*mol%n, 3*mol%n), source=0.0_wp)
+   do iat = 1, mol%n
+      do jat = 1, iat - 1
+         ! distinct force constants avoid degenerate eigenvalues
+         force = 0.1_wp * real(iat + 2*jat, wp)
+         vec(:) = mol%xyz(:, iat) - mol%xyz(:, jat)
+         vec(:) = vec / norm2(vec)
+         block(:, :) = force * spread(vec, 1, 3) * spread(vec, 2, 3)
+         ii = 3*(iat-1)
+         jj = 3*(jat-1)
+         hessian(ii+1:ii+3, ii+1:ii+3) = hessian(ii+1:ii+3, ii+1:ii+3) + block
+         hessian(jj+1:jj+3, jj+1:jj+3) = hessian(jj+1:jj+3, jj+1:jj+3) + block
+         hessian(ii+1:ii+3, jj+1:jj+3) = hessian(ii+1:ii+3, jj+1:jj+3) - block
+         hessian(jj+1:jj+3, ii+1:ii+3) = hessian(jj+1:jj+3, ii+1:ii+3) - block
+      end do
+   end do
+
+   call mass_weight(mol, hessian)
+
+end function spring_model_hessian
+
+
+!> Mass-weighted Hessian of a linear triatomic along z with stretching springs
+!> and a negative bending force constant, i.e. a second-order saddle point
+!> like linear water. It is exactly invariant under rigid-body motions.
+function linear_model_hessian(mol) result(hessian)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Mass-weighted Hessian
+   real(wp), allocatable :: hessian(:, :)
+
+   real(wp), parameter :: kbend = -0.05_wp
+   real(wp), parameter :: kstretch(3, 3) = reshape([ &
+      & 0.00_wp, 0.50_wp, 0.01_wp, &
+      & 0.50_wp, 0.00_wp, 0.45_wp, &
+      & 0.01_wp, 0.45_wp, 0.00_wp], [3, 3])
+   real(wp) :: r1, r2, bend(3)
+   integer :: iat, jat, ic
+
+   r1 = abs(mol%xyz(3, 1) - mol%xyz(3, 2))
+   r2 = abs(mol%xyz(3, 3) - mol%xyz(3, 2))
+   ! derivative of the bending angle with respect to the x or y coordinates
+   bend(:) = [1.0_wp/r1, -(1.0_wp/r1 + 1.0_wp/r2), 1.0_wp/r2]
+
+   allocate(hessian(9, 9), source=0.0_wp)
+   do iat = 1, 3
+      do jat = 1, 3
+         do ic = 1, 2
+            hessian(3*(iat-1)+ic, 3*(jat-1)+ic) = kbend * bend(iat) * bend(jat)
+         end do
+         if (iat == jat) then
+            hessian(3*iat, 3*jat) = sum(kstretch(:, iat))
+         else
+            hessian(3*iat, 3*jat) = -kstretch(jat, iat)
+         end if
+      end do
+   end do
+
+   call mass_weight(mol, hessian)
+
+end function linear_model_hessian
+
+
+!> Transform a Cartesian Hessian to mass-weighted coordinates
+subroutine mass_weight(mol, hessian)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Hessian, mass-weighted on exit
+   real(wp), intent(inout) :: hessian(:, :)
+
+   real(wp), allocatable :: invsqrtmass(:)
+   integer :: ii, jj
+
+   invsqrtmass = [(1.0_wp/sqrt(mol%atmass((ii-1)/3+1)), ii = 1, 3*mol%n)]
+   do ii = 1, size(hessian, 2)
+      do jj = 1, size(hessian, 1)
+         hessian(jj, ii) = hessian(jj, ii) * invsqrtmass(jj) * invsqrtmass(ii)
+      end do
+   end do
+
+end subroutine mass_weight
+
+
+!> Eigenvalues of a symmetric matrix in ascending order
+subroutine get_eigenvalues(error, matrix, eig)
+
+   !> Failure report, allocated when the diagonalization fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   !> Symmetric matrix
+   real(wp), intent(in) :: matrix(:, :)
+
+   !> Eigenvalues in ascending order
+   real(wp), allocatable, intent(out) :: eig(:)
+
+   real(wp), allocatable :: work(:), scratch(:, :)
+   integer :: ndim, info
+
+   ndim = size(matrix, 1)
+   scratch = matrix
+   allocate(eig(ndim), work(3*ndim))
+   call dsyev("N", "U", ndim, scratch, ndim, eig, work, size(work), info)
+   call check(error, info, 0)
+
+end subroutine get_eigenvalues
 
 
 !> Build a symmetric neighbour list from undirected atom pairs.

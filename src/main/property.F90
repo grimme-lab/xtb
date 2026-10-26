@@ -788,11 +788,7 @@ module xtb_propertyoutput
       allocate (molvec(mol%n), source=0)
       allocate (xyz0(3, mol%n), h(3 * mol%n, 3 * mol%n), bond(mol%n, mol%n), cn(mol%n), source=0.0_wp)
 
-      if (res%linear) then
-         write (iunit, '(1x,a)') 'vibrational frequencies (cm⁻¹)'
-      else
-         write (iunit, '(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
-      end if
+      write (iunit, '(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
       call PREIGF(iunit, res%freq, res%n3true)
 
       write (iunit, '(1x,a)') 'reduced masses (amu)'

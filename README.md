@@ -175,6 +175,7 @@ features reality:
 - F. Pultar ([@pultar](https://github.com/pultar))
 - J. Seibert ([@liljay42](https://github.com/liljay42))
 - L. M. Seidler ([@lmseidler](https://github.com/lmseidler))
+- C. E. Selzer ([@chselz](https://github.com/chselz))
 - P. Shushkov
 - S. Spicher ([@sespic](https://github.com/sespic))
 - M. Stahn ([@MtoLStoN](https://github.com/mtolston))
