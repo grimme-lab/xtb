@@ -601,7 +601,7 @@ subroutine test_gfn2_pcem_api(error)
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 12.391067835855_wp, thr=thr)
+   call check_(error, hl_gap, 12.391067835960_wp, thr=thr)
    call check_(error, energy,-20.323978512016_wp, thr=thr)
    call check_(error, norm2(gradient),0.78076070662211E-02_wp, thr=thr)
 
@@ -738,7 +738,7 @@ subroutine test_gfn2_pcem_io(error)
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 12.391067835855_wp, thr=thr)
+   call check_(error, hl_gap, 12.391067835960_wp, thr=thr)
    call check_(error, energy,-20.323978512016_wp, thr=thr)
    call check_(error, norm2(gradient),0.78076070662222E-02_wp, thr=thr)
 

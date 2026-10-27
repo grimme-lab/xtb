@@ -161,6 +161,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 ! ========================================================================
    type(TxTBDispersion), allocatable :: scD4
    real(wp) :: embd
+   !> Width of the smooth cutoff of the dispersion interactions, same as tblite
+   real(wp), parameter :: disp_width = 0.05_wp
    integer  :: mbd
    parameter(mbd=3)
    real(wp) :: molc6,molc8,molpol
@@ -525,11 +527,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call latp%getLatticePoints(trans, 60.0_wp)
    if (xtbData%level == 1) then
       call d3_gradient &
-         & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, 60.0_wp, &
-         &  cn, dcndr, dcndL, ed, gradient, sigma)
+         & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, 50.0_wp, &
+         &  cn, dcndr, dcndL, ed, gradient, sigma, width=disp_width)
    else
       allocate(scD4)
-      call init(scD4, xtbData%dispersion, mol)
+      call init(scD4, xtbData%dispersion, mol, width=disp_width)
    endif
 
    if (profile) call timer%measure(2)
@@ -742,14 +744,15 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! dispersion (DFT-D type correction)
    if (allocated(scD4)) then
       call latp%getLatticePoints(trans, 40.0_wp)
-      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
+      call getCoordinationNumber(mol, trans, 30.0_wp, cnType%cov, &
          & cn, dcndr, dcndL)
       call latp%getLatticePoints(trans, 60.0_wp)
       dum = 0.0_wp
       call d4_gradient(mol, xtbData%dispersion%dispm, trans, &
          &  xtbData%dispersion%dpar, scD4%g_a, scD4%g_c, &
-         &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &
-         &  energy=dum, gradient=gradient, sigma=sigma, e3=embd)
+         &  scD4%wf, 50.0_wp, 25.0_wp, cn, dcndr, dcndL, wfn%q, &
+         &  energy=dum, gradient=gradient, sigma=sigma, e3=embd, &
+         &  width=disp_width, width3=disp_width)
    endif
 
    ! ------------------------------------------------------------------------
