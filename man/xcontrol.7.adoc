@@ -425,8 +425,8 @@ $opt
 *exact rf*='bool'::
    use better solver during the rational function optimization
 
-$path (6.1 only)
-~~~~~~~~~~~~~~~~
+$path
+~~~~~
 *nrun*='int'::
    number of path refinement cycles (default: 3)
 *nopt*='int', *npoint*='int'::
@@ -444,7 +444,8 @@ $path (6.1 only)
    positive pull strength keeping optimized points near the path
    (default: 0.05)
 *alp*='real'::
-   controls the width of the Gaussian RMSD biases (default: 0.70)
+   Gaussian RMSD decay parameter; larger values give a narrower bias
+   (default: 0.70)
 *product*='file'::
    file name of the product structure (required; no default)
 *atoms*: 'list',...::
