@@ -275,7 +275,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 !  conv threshold in dRMS q
    qconv=2.d-5*acc
 
-   broy = mol%n > 1
+   ! Use the same Broyden mixer for atoms and molecules as the tblite backend.
+   broy = .true.
 !  when to start pseudodiag (=1 after one full diag)
    startpdiag=1000 !large number=never
 
