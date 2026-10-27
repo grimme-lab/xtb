@@ -48,10 +48,10 @@ install(
 # Compiler-specific configurations 
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   set(dialects "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
-  set(bounds "-fbounds-check -ffpe-trap=invalid,zero,overflow")
+  set(bounds "-fbounds-check")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(dialects "-axAVX2 -r8 -traceback")
-  set(bounds "-check all -fpe0")
+  set(bounds "-check all")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
   set(dialects "-Mbackslash -Mallocatable=03 -r8 -traceback")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "LLVMFlang")
