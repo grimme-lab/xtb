@@ -532,6 +532,23 @@ contains
 
       end if
 
+      ! Remove any gradient left by an earlier ORCA call.
+      i = index(ext%input_file, '.inp')
+      if (i > 0) then
+         outfile = ext%input_file(:i - 1)//'.engrad'
+         tmpfile = ext%input_file(:i - 1)
+      else
+         outfile = ext%input_file//'.engrad'
+         tmpfile = ext%input_file
+      end if
+      inquire (file=outfile, exist=exist)
+      if (exist) then
+         open (newunit=iorca, file=outfile, status='old', iostat=err)
+         if (err /= 0) call raise('E', "Could not remove '"//outfile//"'")
+         close (iorca, status='delete', iostat=err)
+         if (err /= 0) call raise('E', "Could not remove '"//outfile//"'")
+      end if
+
       ! shift responsibility from xtb !
       write (env%unit, '(25x,"*",1x,a)') &
          "ORCA takes the control..."
@@ -548,30 +565,18 @@ contains
 
       ! shift responsibility back !
       write (env%unit, '(2x,72("-"))')
+      ! MPI may write diagnostics to stderr on success or failure.
+      call open_file(eunit, "err", "r")
+      do
+         call getline(eunit, message, err2)
+         if (err2 /= 0) exit
+         write (env%unit, "(a)") message
+      end do
+      call close_file(eunit)
       if (err /= 0) then
          call raise('E', 'ORCA returned with non-zero exit status, doing the same')
       else
-         ! MPI may write non-fatal warnings to stderr even on success.
-         call open_file(eunit, "err", "r")
-         do
-            call getline(eunit, message, err2)
-            if (err2 /= 0) exit
-            write (env%unit, "(a)") message
-         end do
-         call close_file(eunit)
-         write (env%unit, '(10x,"*",1x,a)') &
-            "successful ORCA run, taking over control again..."
          call env%io%deleteFile("err")
-      end if
-
-      ! find output .engrad file !
-      i = index(ext%input_file, '.inp')
-      if (i > 0) then
-         outfile = ext%input_file(:i - 1)//'.engrad'
-         tmpfile = ext%input_file(:i - 1)
-      else
-         outfile = ext%input_file//'.engrad'
-         tmpfile = ext%input_file
       end if
 
       inquire (file=outfile, exist=exist)
@@ -579,6 +584,9 @@ contains
          call raise('E', "Could not find '"//outfile//"', aborting driver run")
 
       else
+
+         write (env%unit, '(10x,"*",1x,a)') &
+            "successful ORCA run, taking over control again..."
 
          ! read .engrad !
          call open_file(iorca, outfile, 'r')
