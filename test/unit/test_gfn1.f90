@@ -31,6 +31,7 @@ subroutine collect_gfn1(testsuite)
    testsuite = [ &
       new_unittest("scc", test_gfn1_scc), &
       new_unittest("api", test_gfn1_api), &
+      new_unittest("heavy", test_gfn1_heavy), &
       new_unittest("gbsa", test_gfn1gbsa_api), &
       new_unittest("pcem", test_gfn1_pcem_api), &
       new_unittest("xb", test_gfn1_xb), &
@@ -225,6 +226,102 @@ subroutine test_gfn1_api(error)
    call check_(error, gradient(3,6),-0.76253144701942E-03_wp, thr=thr)
 
 end subroutine test_gfn1_api
+
+subroutine test_gfn1_heavy(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
+
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_data
+   use xtb_type_restart
+   use xtb_type_environment
+
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+
+   type(error_type), allocatable, intent(out) :: error
+
+   ! Elements with 5sp valence shells (I, Sn) cover the STO-6G expansion
+   ! of the 5s and 5p functions, which is not exercised by any other test
+   real(wp),parameter :: thr = 1.0e-7_wp
+   integer, parameter :: nat1 = 5
+   integer, parameter :: at1(nat1) = [6, 53, 1, 1, 1]
+   real(wp),parameter :: xyz1(3,nat1) = reshape(&
+      &[0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp,-4.05000000000000_wp, &
+      & 1.94000000000000_wp, 0.00000000000000_wp, 0.69000000000000_wp, &
+      &-0.97000000000000_wp, 1.68009920000000_wp, 0.69000000000000_wp, &
+      &-0.97000000000000_wp,-1.68009920000000_wp, 0.69000000000000_wp], shape(xyz1))
+   integer, parameter :: nat2 = 5
+   integer, parameter :: at2(nat2) = [50, 1, 1, 1, 1]
+   real(wp),parameter :: xyz2(3,nat2) = reshape(&
+      &[0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
+      & 1.85000000000000_wp, 1.85000000000000_wp, 1.85000000000000_wp, &
+      &-1.85000000000000_wp,-1.85000000000000_wp, 1.95000000000000_wp, &
+      &-1.85000000000000_wp, 1.85000000000000_wp,-1.85000000000000_wp, &
+      & 2.00000000000000_wp,-1.85000000000000_wp,-1.85000000000000_wp], shape(xyz2))
+   type(scc_options),parameter :: opt = scc_options( &
+      &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
+
+   type(TMolecule)    :: mol
+   type(TEnvironment) :: env
+   type(TRestart) :: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
+
+   real(wp) :: energy, sigma(3, 3)
+   real(wp) :: hl_gap
+   real(wp),allocatable :: gradient(:,:)
+
+   ! setup the environment variables
+   call init(env)
+
+   ! methyl iodide
+   call init(mol, at1, xyz1)
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call check_(error, hl_gap, 4.5821368916337_wp, thr=thr)
+   call check_(error, energy,-7.6689568639736_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.10777047947064E-01_wp, thr=thr)
+
+   call check_(error, gradient(3,1),-0.72530697669606E-02_wp, thr=thr)
+   call check_(error, gradient(3,2), 0.57697004960942E-02_wp, thr=thr)
+   call check_(error, gradient(1,3), 0.31347786926901E-02_wp, thr=thr)
+
+   deallocate(gradient)
+
+   ! stannane, slightly distorted since the inertia tensor of an exact
+   ! tetrahedron is isotropic and not supported by the eigenvalue solver
+   call init(mol, at2, xyz2)
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call check_(error, hl_gap, 8.4804757571808_wp, thr=thr)
+   call check_(error, energy,-4.6261097507577_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.34514083548805E-01_wp, thr=thr)
+
+   call check_(error, gradient(1,2), 0.69627090881014E-02_wp, thr=thr)
+   call check_(error, gradient(3,4),-0.66034977417132E-02_wp, thr=thr)
+
+end subroutine test_gfn1_heavy
 
 subroutine test_gfn1gbsa_api(error)
    use xtb_mctc_accuracy, only : wp
