@@ -428,19 +428,27 @@ $opt
 $path (6.1 only)
 ~~~~~~~~~~~~~~~~
 *nrun*='int'::
-   number of runs for pathfinder
-*nopt*='int'::
-   number of points on the path to optimize
+   number of path refinement cycles (default: 3)
+*nopt*='int', *npoint*='int'::
+   approximate maximum number of retained path points; *npoint* is an alias
+   for *nopt* (default: 50)
 *anopt*='int'::
-   number of steps to optimize the points on the path
+   maximum number of optimization steps per path point (default: 3)
 *kpush*='real'::
-   factor for RMSD criterium pushing away from the reactant structure
+   positive Gaussian RMSD bias prefactor pushing away from the reactant
+   structure (default: 0.05)
 *kpull*='real'::
-   factor for RMSD criterium pulling towards the product structure
+   negative Gaussian RMSD bias prefactor pulling towards the product
+   structure (default: -0.04)
+*ppull*='real'::
+   positive pull strength keeping optimized points near the path
+   (default: 0.05)
 *alp*='real'::
-   width of the RMSD criterium
+   controls the width of the Gaussian RMSD biases (default: 0.70)
 *product*='file'::
-   file name of the product structure
+   file name of the product structure (required; no default)
+*atoms*: 'list',...::
+   atoms used for the RMSD bias (default: all atoms)
 
 $scan
 ~~~~~
