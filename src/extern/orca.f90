@@ -546,15 +546,19 @@ contains
                                    ext%input_file//' 2> err', exitstat=err)
       end if
 
-      ! ORCA dumps mpirun errors into stderr !
-      call open_file(eunit, 'err', 'r')
-      call getline(eunit, message, err2)
-
       ! shift responsibility back !
       write (env%unit, '(2x,72("-"))')
-      if (err .ne. 0 .or. .not. is_iostat_end(err2)) then
+      if (err /= 0) then
          call raise('E', 'ORCA returned with non-zero exit status, doing the same')
       else
+         ! MPI may write non-fatal warnings to stderr even on success.
+         call open_file(eunit, "err", "r")
+         do
+            call getline(eunit, message, err2)
+            if (err2 /= 0) exit
+            write (env%unit, "(a)") message
+         end do
+         call close_file(eunit)
          write (env%unit, '(10x,"*",1x,a)') &
             "successful ORCA run, taking over control again..."
          call env%io%deleteFile("err")
