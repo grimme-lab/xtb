@@ -170,7 +170,7 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.3824793849585, 1.0e-9, "Energy does not match"))
+  if (!check(energy, -8.3824793885230, 1.0e-9, "Energy does not match"))
     goto error;
   if (!check(q[5], 0.0518377916, 1.0e-8, "Charge does not match"))
     goto error;
@@ -195,7 +195,7 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.38393864716134, 1.0e-9, "GBSA Energy does not match"))
+  if (!check(energy, -8.38393865113565, 1.0e-9, "GBSA Energy does not match"))
     goto error;
   if (!check(q[5], 0.0609094442, 1.0e-8, "GBSA Charge does not match"))
     goto error;
@@ -221,7 +221,7 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.384076843892, 1.0e-9, "ALPB Energy does not match"))
+  if (!check(energy, -8.384076847777, 1.0e-9, "ALPB Energy does not match"))
     goto error;
   if (!check(q[5], 0.0644852392, 1.0e-8, "ALPB Charge does not match"))
     goto error;
@@ -260,7 +260,7 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.3857521181, 1.0e-9, "COSMO Energy does not match"))
+  if (!check(energy, -8.3857521222, 1.0e-9, "COSMO Energy does not match"))
     goto error;
   if (!check(q[5], 0.0597931315, 1.0e-8, "COSMO Charge does not match"))
     goto error;
@@ -295,7 +295,7 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.3835199621, 1.0e-9, "CPCM-X Energy does not match"))
+  if (!check(energy, -8.3835199663, 1.0e-9, "CPCM-X Energy does not match"))
     goto error;
   if (!check(solv_energy, -0.0010405774, 1.0e-8, "CPCM-X Solvation Energy does not match"))
     goto error;
@@ -454,7 +454,7 @@ int testSecond() {
   xtb_delete(mol);
   xtb_delete(env);
 
-  if (!check(energy, -10.160927754235, 1.0e-9, "Energy does not match"))
+  if (!check(energy, -10.160927759700, 1.0e-9, "Energy does not match"))
     goto error;
 
   if (!check(grad[0 + 4 * 3], -0.0020334032, 1.0e-8, "grad[1,5] does not match"))

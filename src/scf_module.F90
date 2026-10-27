@@ -263,8 +263,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
 !  numerical stuff
 !  primitive cut-off
-   intcut=25.0_wp-10.0*log10(acc)
-   intcut=max(20.0_wp,intcut)
+   ! same integral cutoff as tblite: 25 for acc <= 1, reduced to 5 for looser accuracies
+   intcut=min(max(25.0_wp-10.0_wp*log10(min(max(acc,1.0e-4_wp),1.0e+3_wp)),5.0_wp),25.0_wp)
 !  integral neglect threshold (the distance criterion used in ovlp limits S to about >1.d-9
    neglect =0.0_wp
    neglect2=neglect*10.0_wp
@@ -493,7 +493,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! Repulsion energy
    ep = 0.0_wp
    call latp%getLatticePoints(trans, 40.0_wp)
-   call repulsionEnGrad(mol, xtbData%repulsion, trans, 40.0_wp, &
+   call repulsionEnGrad(mol, xtbData%repulsion, trans, 25.0_wp, &
       & ep, gradient, sigma)
 
 
@@ -516,10 +516,10 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! Coordination number
    if (xtbData%level == 1) then
       ! D3 part first because we need CN
-      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, cn, dcndr, dcndL)
+      call getCoordinationNumber(mol, trans, 25.0_wp, cnType%exp, cn, dcndr, dcndL)
    else
       ! CN/dCN replaced by special smoother and faster decaying function
-      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, cn, dcndr, dcndL)
+      call getCoordinationNumber(mol, trans, 25.0_wp, cnType%gfn, cn, dcndr, dcndL)
    endif
 
    ! ------------------------------------------------------------------------

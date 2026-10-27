@@ -117,12 +117,12 @@ subroutine test_gfnff_sp(error)
       & g,etot,res_gff,calc%param,calc%topo,calc%neigh,nlist,efield,solvation,.true.,calc%version, &
       & calc%accuracy)
 
-   call check_(error, res_gff%e_total,-0.76480130317838_wp, thr=thr)
-   call check_(error, res_gff%gnorm,   0.06237477492373_wp, thr=thr)
-   call check_(error, res_gff%e_bond, -0.74131049663951_wp, thr=thr)
-   call check_(error, res_gff%e_angl,  0.00633910404059_wp, thr=thr)
+   call check_(error, res_gff%e_total,-0.76480130328909_wp, thr=thr)
+   call check_(error, res_gff%gnorm,   0.06237476775485_wp, thr=thr)
+   call check_(error, res_gff%e_bond, -0.74131050087160_wp, thr=thr)
+   call check_(error, res_gff%e_angl,  0.00633910615752_wp, thr=thr)
    call check_(error, res_gff%e_tors,  0.00004724445432_wp, thr=thr)
-   call check_(error, res_gff%e_es,   -0.05070333390156_wp, thr=thr*10)
+   call check_(error, res_gff%e_es,   -0.05070333195447_wp, thr=thr*10)
    call check_(error, res_gff%e_disp, -0.00224146422313_wp, thr=thr)
    call check_(error, res_gff%e_rep,   0.03086605590295_wp, thr=thr)
    call check_(error, res_gff%e_hb,   -0.00003142616658_wp, thr=thr)
@@ -177,8 +177,8 @@ subroutine test_gfnff_harmonic(error)
    call check_(error, .not.exitRun)
    call check_(error, ieee_is_finite(energy))
    call check_(error, all(ieee_is_finite(gradient)))
-   call check_(error, energy, 0.00476278587765942_wp, thr=thr)
-   call check_(error, norm2(gradient), 0.0478776130669465_wp, thr=thr)
+   call check_(error, energy, 0.00476277749486647_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.0478775550094384_wp, thr=thr)
 
 end subroutine test_gfnff_harmonic
 
@@ -247,9 +247,9 @@ subroutine test_gfnff_hb(error)
    call calc%singlepoint(env, mol, chk, 1, .false., etot, g, sigma, gap, res_gff)
 
    call check_(error, res_gff%e_total,-0.949706677118_wp, thr=thr)
-   call check_(error, res_gff%gnorm,   0.001152720923_wp, thr=thr)
-   call check_(error, res_gff%e_bond, -0.856707643513_wp, thr=thr)
-   call check_(error, res_gff%e_angl,  0.000579711773_wp, thr=thr)
+   call check_(error, res_gff%gnorm,   0.001152722069_wp, thr=thr)
+   call check_(error, res_gff%e_bond, -0.856707644691_wp, thr=thr)
+   call check_(error, res_gff%e_angl,  0.000579711987_wp, thr=thr)
    call check_(error, res_gff%e_tors,  0.000000008811_wp, thr=thr)
    call check_(error, res_gff%e_es,   -0.152313816530_wp, thr=thr*10)
    call check_(error, res_gff%e_disp, -0.001251669186_wp, thr=thr)
@@ -332,10 +332,10 @@ subroutine test_gfnff_gbsa(error)
 
    call calc%singlepoint(env, mol, chk, 1, .false., etot, g, sigma, gap, res_gff)
 
-   call check_(error, res_gff%e_total,-0.964158677062_wp, thr=thr)
-   call check_(error, res_gff%gnorm,   0.013624276205_wp, thr=thr)
-   call check_(error, res_gff%e_bond, -0.856707643513_wp, thr=thr)
-   call check_(error, res_gff%e_angl,  0.000579711773_wp, thr=thr)
+   call check_(error, res_gff%e_total,-0.964158673358_wp, thr=thr)
+   call check_(error, res_gff%gnorm,   0.013624271716_wp, thr=thr)
+   call check_(error, res_gff%e_bond, -0.856707644691_wp, thr=thr)
+   call check_(error, res_gff%e_angl,  0.000579711987_wp, thr=thr)
    call check_(error, res_gff%e_tors,  0.000000008811_wp, thr=thr)
    call check_(error, res_gff%e_es,   -0.150043166563_wp, thr=thr*10)
    call check_(error, res_gff%e_disp, -0.001251669186_wp, thr=thr)
@@ -343,10 +343,10 @@ subroutine test_gfnff_gbsa(error)
    call check_(error, res_gff%e_hb,   -0.006894292337_wp, thr=thr)
    call check_(error, res_gff%e_xb,   -0.000000000000_wp, thr=thr)
    call check_(error, res_gff%e_batm, -0.000000000000_wp, thr=thr)
-   call check_(error, res_gff%g_solv, -0.016722649876_wp, thr=thr)
+   call check_(error, res_gff%g_solv, -0.016722645252_wp, thr=thr)
    call check_(error, res_gff%g_sasa,  0.000126368690_wp, thr=thr)
-   call check_(error, res_gff%g_hb,   -0.009238122476_wp, thr=thr)
-   call check_(error, res_gff%g_born, -0.009468339217_wp, thr=thr)
+   call check_(error, res_gff%g_hb,   -0.009238121227_wp, thr=thr)
+   call check_(error, res_gff%g_born, -0.009468335867_wp, thr=thr)
    call check_(error, res_gff%g_shift, 0.001857443126_wp, thr=thr)
 
    call mol%deallocate
@@ -386,14 +386,14 @@ subroutine test_gfnff_mindless_basic(error)
       & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
       & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
    real(wp), parameter :: ref_energies(10) = &
-      &[-1.6235670601725_wp, -1.2974060907872_wp, -1.5825072926857_wp, &
-      & -1.6086171378897_wp, -1.5093596077875_wp, -1.6076220027918_wp, &
+      &[-1.6235670473950_wp, -1.2974060907872_wp, -1.5825072926857_wp, &
+      & -1.6086171137100_wp, -1.5093596077875_wp, -1.6076220027918_wp, &
       & -1.7328634195448_wp, -1.8875339867396_wp, -1.3924035489143_wp, &
       & -1.9583702712389_wp]
    real(wp), parameter :: ref_gnorms(10) = &
       &[0.11714711890640_wp, 0.08933168067298_wp, 0.15687133018871_wp, &
-      & 0.09820451651462_wp, 0.08460010429134_wp, 0.08787739425161_wp, &
-      & 0.12463658172704_wp, 0.10062734775717_wp, 0.06347506656236_wp, &
+      & 0.09820449598566_wp, 0.08460010429134_wp, 0.08787739425161_wp, &
+      & 0.12463658172704_wp, 0.10062733351355_wp, 0.06347505376937_wp, &
       & 0.09445561400996_wp]
 
    call init(env)
@@ -464,14 +464,14 @@ subroutine test_gfnff_mindless_solvation(error)
       & "h2o", "chcl3", "thf", "acetonitrile", "toluene", &
       & "ch2cl2", "ether", "methanol", "cs2", "dmso"]
    real(wp), parameter :: ref_energies(10) = &
-      &[-1.6540916426629_wp, -1.3143056510098_wp, -1.6141899469716_wp, &
-      & -1.6204572392623_wp, -1.5288738676799_wp, -1.6293089943213_wp, &
+      &[-1.6540916244790_wp, -1.3143056510098_wp, -1.6141899469716_wp, &
+      & -1.6204572122425_wp, -1.5288738676799_wp, -1.6293089943213_wp, &
       & -1.7562513711414_wp, -1.9034123090085_wp, -1.4068010735061_wp, &
       & -1.9722601751413_wp]
    real(wp), parameter :: ref_gnorms(10) = &
       &[0.11594122130461_wp, 0.08871796411903_wp, 0.15190830479600_wp, &
-      & 0.09873901233954_wp, 0.08427306878219_wp, 0.08670875610818_wp, &
-      & 0.11948602245812_wp, 0.10022284156198_wp, 0.06288313258789_wp, &
+      & 0.09873899177968_wp, 0.08427306878219_wp, 0.08670875610818_wp, &
+      & 0.11948602245812_wp, 0.10022282792406_wp, 0.06288311963180_wp, &
       & 0.09564569352042_wp]
 
    call init(env)
@@ -542,11 +542,11 @@ subroutine test_gfnff_scaleup(error)
    character(len=*), parameter :: solvents(5) = [character(len=20) ::&
       & "h2o", "acetonitrile", "toluene", "ether", "dmso"]
    real(wp), parameter :: ref_energies(5) = &
-      &[-4.6919926039901_wp, -8.8807760138817_wp, -13.40715596616603_wp, &
-      & -13.822994859730_wp, -20.577952329212_wp]
+      &[-4.6919926186376_wp, -8.8807760297235_wp, -13.40715596616603_wp, &
+      & -13.822994859730_wp, -20.577952291079_wp]
    real(wp), parameter :: ref_gnorms(5) = &
       &[0.05947676640487_wp, 0.09522104624089_wp, 0.1753769495334539_wp, &
-      & 0.12496592222660_wp, 0.19366599743810_wp]
+      & 0.12496594906548_wp, 0.19366601941116_wp]
 
    call init(env)
    do iMol = 1, 5
@@ -611,7 +611,7 @@ subroutine test_gfnff_pdb(error)
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
    real(wp), parameter :: ref_energies(3) = &
-      &[-12.358885277947_wp, -12.442589851697_wp, -12.442131341448_wp]
+      &[-12.358885277947_wp, -12.442589821081_wp, -12.442131311040_wp]
    real(wp), parameter :: ref_gnorms(3) = &
       &[0.15855661051730_wp, 0.15148957207346_wp, 0.15151167424491_wp]
 
@@ -682,7 +682,7 @@ subroutine test_gfnff_sdf(error)
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
    real(wp), parameter :: ref_energies(3) = &
-      &[-0.98330642628373_wp, -1.0826001974262_wp, -1.0826319137928_wp]
+      &[-0.98330642628373_wp, -1.0826001865313_wp, -1.0826319029633_wp]
    real(wp), parameter :: ref_gnorms(3) = &
       &[0.11515550863614e-2_wp, 0.59760221346330e-2_wp, 0.59645861418074e-2_wp]
 
@@ -758,18 +758,18 @@ subroutine test_gfnff_pbc(error)
        & "x06_b", "mcv15", "Th_15"]
     !> references for original GFN-FF
     real(wp), parameter :: ref_energies(3) = &
-        & [-9.522300429916_wp, -11.059826732607_wp, -46.265672914_wp ]
+        & [-9.522300465997_wp, -11.059826760233_wp, -46.265672821_wp ]
     real(wp), parameter :: ref_gnorms(3) = &
-        & [ 0.083513313043_wp, 0.083870455567_wp, 1.6127503408_wp ]
+        & [ 0.083513313043_wp, 0.083870455567_wp, 1.6127503967_wp ]
     real(wp), parameter :: ref_snorm(2) = &
-        & [ 1.410826672_wp, 0.419545156_wp ]
+        & [ 1.410826798_wp, 0.419545170_wp ]
     !> references for mcGFN-FF
     real(wp), parameter :: mcref_energies(2) = &
-        & [-9.419561502589_wp, -10.850342398282_wp ]
+        & [-9.419561538766_wp, -10.850342427712_wp ]
     real(wp), parameter :: mcref_gnorms(2) = &
-        & [ 0.071130586474_wp, 0.104285414859_wp ]
+        & [ 0.071130542937_wp, 0.104285414859_wp ]
     real(wp), parameter :: mcref_snorm(2) = &
-        & [ 0.839554942_wp, 0.729174866_wp ]
+        & [ 0.839555069_wp, 0.729174967_wp ]
 
     call init(env)
     do iMol = 1, 2
@@ -1046,8 +1046,8 @@ subroutine test_gfnff_LnAn_H(error)
       & -0.14264511_wp, -0.12548232_wp, -0.01061975_wp, -0.40598965_wp,  0.13119126_wp, &
       &  0.11822500_wp,  0.13303034_wp,  0.25781424_wp &
       & ]
-    real(wp), parameter :: ref_energy = -3.550331926678 ! reference energy
-    real(wp), parameter :: ref_gnorm = 0.213662542141 ! reference gradient norm
+    real(wp), parameter :: ref_energy = -3.550331904533 ! reference energy
+    real(wp), parameter :: ref_gnorm = 0.213662567181 ! reference gradient norm
     ! number of neighbors and sum of neighbor indices for atom 1 (Ce)
     integer, parameter :: ref_numnb_1 = 9
     integer, parameter :: ref_sumnb_1 = 177 ! 2+5+8+22+24+25+26+27+29 +9

@@ -268,10 +268,10 @@ subroutine test_peeq_api(error)
    inv_lat = mat_inv_3x3(mol%lattice)
    call sigma_to_latgrad(sigma,inv_lat,gradlatt)
 
-   call check_(error, hl_gap, 4.9685235017906_wp, thr=thr)
-   call check_(error, energy,-8.4863996084661_wp, thr=thr)
+   call check_(error, hl_gap, 4.9685235420434_wp, thr=thr)
+   call check_(error, energy,-8.4863996099372_wp, thr=thr)
    call check_(error, norm2(gradient),0.33507483384363E-04_wp, thr=thr)
-   call check_(error, norm2(gradlatt),0.33064163041261E-02_wp, thr=thr)
+   call check_(error, norm2(gradlatt),0.33064155400315E-02_wp, thr=thr)
 
 end subroutine test_peeq_api
 
@@ -378,20 +378,20 @@ subroutine test_peeq_api_srb(error)
    inv_lat = mat_inv_3x3(mol%lattice)
    call sigma_to_latgrad(sigma,inv_lat,gradlatt)
 
-   call check_(error, hl_gap, 3.2452476555284_wp, thr=thr)
-   call check_(error, energy,-47.338099017467_wp, thr=thr)
-   call check_(error, norm2(gradient),0.60674690405096E-01_wp, thr=thr)
-   call check_(error, norm2(gradlatt),0.25787608030965E-01_wp, thr=thr)
+   call check_(error, hl_gap, 3.2452470713416_wp, thr=thr)
+   call check_(error, energy,-47.338099121858_wp, thr=thr)
+   call check_(error, norm2(gradient),0.60674995483032E-01_wp, thr=thr)
+   call check_(error, norm2(gradlatt),0.25787939024755E-01_wp, thr=thr)
 
-   call check_(error, gradient(1, 3), 0.15527599551578E-02_wp, thr=thr)
-   call check_(error, gradient(2,11), 0.14689883866846E-01_wp, thr=thr)
+   call check_(error, gradient(1, 3), 0.15527664300525E-02_wp, thr=thr)
+   call check_(error, gradient(2,11), 0.14689929305671E-01_wp, thr=thr)
    call check_(error, gradient(1, 6),-0.18911924607680E-02_wp, thr=thr)
-   call check_(error, gradient(3, 5), 0.15935221260425E-02_wp, thr=thr)
-   call check_(error, gradient(1, 8), 0.25516596273654E-02_wp, thr=thr)
+   call check_(error, gradient(3, 5), 0.15935272726057E-02_wp, thr=thr)
+   call check_(error, gradient(1, 8), 0.25516575427947E-02_wp, thr=thr)
 
-   call check_(error, gradlatt(1,3), 0.24324041066017E-03_wp, thr=thr)
-   call check_(error, gradlatt(2,2), 0.11757572269151E-01_wp, thr=thr)
-   call check_(error, gradlatt(1,2), 0.60490544331116E-03_wp, thr=thr)
+   call check_(error, gradlatt(1,3), 0.24322911777109E-03_wp, thr=thr)
+   call check_(error, gradlatt(2,2), 0.11757770383396E-01_wp, thr=thr)
+   call check_(error, gradlatt(1,2), 0.60489800680655E-03_wp, thr=thr)
 
 end subroutine test_peeq_api_srb
 

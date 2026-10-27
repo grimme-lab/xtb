@@ -41,6 +41,7 @@
 !! ========================================================================
 module xtb_disp_ncoord
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_convert, only : aatoau
    implicit none
 
    real(wp),private,parameter :: cnthr = 1600.0_wp
@@ -84,7 +85,7 @@ module xtb_disp_ncoord
    &      1.49,1.51,1.51,1.48,1.50,1.56,1.58, & ! Cm-No
    &           1.45,1.41,1.34,1.29,1.27,1.21,1.16,1.15,1.09,1.22, & ! Lr-Cn
    &           1.22,1.29,1.46,1.58,1.48,1.41 /) ! Nh-Og
-   real(wp),parameter :: rcov(max_elem) = 4.0_wp/3.0_wp*rad/0.52917726_wp
+   real(wp),parameter :: rcov(max_elem) = 4.0_wp/3.0_wp*rad*aatoau
 
 !  pauling EN's
    real(wp),parameter :: en(max_elem) = (/ &
