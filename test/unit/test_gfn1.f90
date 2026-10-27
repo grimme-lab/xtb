@@ -663,14 +663,14 @@ subroutine test_gfn1_pbc3d(error)
       & hl_gap, res)
 
    call check_(error, hl_gap, 7.5302581099357_wp, thr=thr)
-   call check_(error, energy,-11.069452578476_wp, thr=thr)
-   call check_(error, norm2(gradient), 0.28766518636475E-01_wp, thr=thr)
+   call check_(error, energy,-11.069438083662_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.28766600740683E-01_wp, thr=thr)
 
-   call check_(error, gradient(1,1),-0.18972454825631E-03_wp, thr=thr)
-   call check_(error, gradient(1,2),-0.66834799702025E-02_wp, thr=thr)
-   call check_(error, gradient(1,3), 0.68732047705008E-02_wp, thr=thr)
-   call check_(error, gradient(2,1),-0.26831102888425E-03_wp, thr=thr)
-   call check_(error, gradient(3,3), 0.16835844585390E-01_wp, thr=thr)
+   call check_(error, gradient(1,1),-0.18972747572175E-03_wp, thr=thr)
+   call check_(error, gradient(1,2),-0.66834979341591E-02_wp, thr=thr)
+   call check_(error, gradient(1,3), 0.68732254098808E-02_wp, thr=thr)
+   call check_(error, gradient(2,1),-0.26831516931963E-03_wp, thr=thr)
+   call check_(error, gradient(3,3), 0.16835895141340E-01_wp, thr=thr)
 
 end subroutine test_gfn1_pbc3d
 

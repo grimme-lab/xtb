@@ -21,6 +21,7 @@ module xtb_disp_dftd4
    use xtb_mctc_constants, only : pi
    use xtb_mctc_param, only: gam => chemical_hardness
    use xtb_mctc_blas, only : mctc_gemv
+   use xtb_disp_cutoff, only : smooth_cutoff
    !! ========================================================================
    !  mix in the covalent coordination number from the ncoord module
    !  also get the CN-Parameters to inline the CN-derivative in the gradient
@@ -624,7 +625,7 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
             norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
-      if (norm > 1e-80_wp) then
+      if (norm > sqrt(tiny(1.0_wp))) then
          norm = 1._wp / norm
       else
          norm = 0.0_wp
@@ -657,7 +658,7 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
 end subroutine d4
 
 
-subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
+subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat,width)
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
@@ -668,11 +669,14 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    real(wp),intent(in)  :: c6abns(:, :)
    real(wp),intent(in)  :: gw(:)
    real(wp),intent(out) :: wdispmat(:, :)
+   !> Width of the smooth cutoff, default is a hard cutoff
+   real(wp),intent(in), optional :: width
 
    integer :: i,ii,ia,j,jj,ja,k,l
    real(wp) :: c8abns,c10abns,r2,cutoff,oor6,oor8,oor10,r,gwgw,r4r2ij
-   real(wp), parameter :: rthr = 72.0_wp ! slightly larger than in gradient
-   real(wp), parameter :: gwcut = 1.0e-7_wp
+   real(wp) :: swidth,sw,dswdr
+   real(wp), parameter :: rthr = 50.0_wp
+   real(wp), parameter :: gwcut = 0.0_wp
 
    ! acc enter data create(wdispmat) copyin(at, xyz, itbl, dispm, dispm%nref, &
    ! acc& c6abns, gw, par)
@@ -680,15 +684,17 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    ! acc kernels default(present)
    wdispmat = 0.0_wp
    ! acc end kernels
+   swidth = 0.0_wp
+   if (present(width)) swidth = width
 
 !#ifdef XTB_GPU
    ! acc parallel default(present)
    ! acc loop gang collapse(2) private(r4r2ij, cutoff, r2, oor6, oor8, oor10)
 !#else
    !$omp parallel do shared(wdispmat) &
-   !$omp shared(nat, at, xyz, itbl, par, dispm, c6abns, gw) &
+   !$omp shared(nat, at, xyz, itbl, par, dispm, c6abns, gw, swidth) &
    !$omp private(ia, k, j, ja, l, r4r2ij, cutoff, r2, oor6, oor8, oor10, &
-   !$omp& ii, jj, gwgw, c8abns, c10abns) &
+   !$omp& ii, jj, gwgw, c8abns, c10abns, r, sw, dswdr) &
    !$omp schedule(dynamic,32) collapse(2)
 !#endif
    do i = 1, nat
@@ -702,9 +708,12 @@ subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
          cutoff = par%a1*sqrt(r4r2ij)+par%a2
          r2 = sum( (xyz(:,j)-xyz(:,i))**2 )
          if (r2.gt.rthr*rthr) cycle
-         oor6  = 1.0_wp/(r2**3 + cutoff**6 )
-         oor8  = 1.0_wp/(r2**4 + cutoff**8 )
-         oor10 = 1.0_wp/(r2**5 + cutoff**10)
+         r = sqrt(r2)
+         call smooth_cutoff(r, rthr, swidth, sw, dswdr)
+         if (sw <= 0.0_wp) cycle
+         oor6  = sw/(r2**3 + cutoff**6 )
+         oor8  = sw/(r2**4 + cutoff**8 )
+         oor10 = sw/(r2**5 + cutoff**10)
          ! acc loop seq
          do ii = 1, dispm%nref(ia)
             ! acc loop seq private(gwgw, c8abns, c10abns)
@@ -747,7 +756,7 @@ subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
 
    integer  :: iat,ii,k,ati
    real(wp) :: qmod,iz
-   real(wp),parameter   :: gw_cut = 1.0e-7_wp
+   real(wp),parameter   :: gw_cut = 0.0_wp
    real(wp),allocatable :: zetavec(:)
    real(wp),allocatable :: zerovec(:)
    real(wp),allocatable :: dumvec(:)
@@ -833,7 +842,7 @@ function edisp_scc(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw) result(ed)
 
    integer  :: iat,ii,k,ati
    real(wp) :: qmod,iz
-   real(wp),parameter   :: gw_cut = 1.0e-7_wp
+   real(wp),parameter   :: gw_cut = 0.0_wp
    real(wp),allocatable :: zetavec(:)
    real(wp),allocatable :: dumvec(:)
 
@@ -903,7 +912,7 @@ subroutine pbc_d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
             norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
-      if (norm > 1e-80_wp) then
+      if (norm > sqrt(tiny(1.0_wp))) then
          norm = 1._wp / norm
       else
          norm = 0.0_wp
@@ -1018,7 +1027,7 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
             dnorm = dnorm + 2*twf*(dispm%cn(iref, ati) - cn(iat)) * gw
          enddo
       end do
-      if (norm > 1e-80_wp) then
+      if (norm > sqrt(tiny(1.0_wp))) then
          norm = 1.0_wp / norm
       else
          norm = 0.0_wp
@@ -1623,7 +1632,8 @@ end subroutine atm_gradient_neigh
 !  periodicity due to the static neighbourlist.
 subroutine d4_full_gradient_latp &
       & (mol, dispm, trans, par, g_a, g_c, wf, cutoff, cutoff3, &
-      &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, e2, e3)
+      &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, e2, e3, &
+      &  width, width3)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
@@ -1683,6 +1693,12 @@ subroutine d4_full_gradient_latp &
    real(wp), intent(out), optional :: e2
    real(wp), intent(out), optional :: e3
 
+   !> Width of the smooth cutoff for pairwise interactions, default is a hard cutoff
+   real(wp), intent(in), optional :: width
+
+   !> Width of the smooth cutoff for threebody interactions, default is a hard cutoff
+   real(wp), intent(in), optional :: width3
+
    integer :: nat, max_ref
 
    real(wp), allocatable :: zetavec(:, :), zetadcn(:, :), zetadq(:, :)
@@ -1704,7 +1720,7 @@ subroutine d4_full_gradient_latp &
       & c6, dc6dcn, dc6dq)
 
    call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, dc6dq, &
-      &  energies, gradient, sigma, dEdcn, dEdq)
+      &  energies, gradient, sigma, dEdcn, dEdq, width)
 
    if (present(e2)) e2 = sum(energies)
    if (par%s9 /= 0.0_wp) then
@@ -1712,10 +1728,10 @@ subroutine d4_full_gradient_latp &
          & c6, dc6dcn, dc6dq)
 #ifdef XTB_GPU
       call atm_gradient_latp_gpu(mol, trans, cutoff3, par, sqrtZr4r2, c6, dc6dcn, &
-         & energies3, gradient, sigma, dEdcn)
+         & energies3, gradient, sigma, dEdcn, width3)
 #else
       call atm_gradient_latp(mol, trans, cutoff3, par, sqrtZr4r2, c6, dc6dcn, &
-         & energies3, gradient, sigma, dEdcn)
+         & energies3, gradient, sigma, dEdcn, width3)
 #endif
    end if
    if (present(e3)) e3 = sum(energies3)
@@ -1831,7 +1847,7 @@ end subroutine d4_gradient_latp
 
 subroutine disp_gradient_latp &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, dc6dq, &
-      &  energies, gradient, sigma, dEdcn, dEdq)
+      &  energies, gradient, sigma, dEdcn, dEdq, width)
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1866,19 +1882,24 @@ subroutine disp_gradient_latp &
 
    real(wp), intent(inout) :: dEdq(:)
 
+   !> Width of the smooth cutoff, default is a hard cutoff
+   real(wp), intent(in), optional :: width
+
    integer :: iat, jat, nat, ati, atj, itr
 
-   real(wp) :: cutoff2
+   real(wp) :: cutoff2, swidth, r, sw, dswdr
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
    nat = len(mol)
    cutoff2 = cutoff**2
+   swidth = 0.0_wp
+   if (present(width)) swidth = width
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
-   !$omp shared(nat, mol, trans, cutoff2, par, r4r2, c6, dc6dcn, dc6dq) &
+   !$omp shared(nat, mol, trans, cutoff, cutoff2, swidth, par, r4r2, c6, dc6dcn, dc6dq) &
    !$omp private(iat, jat, itr, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
-   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS) &
+   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS, r, sw, dswdr) &
    !$omp schedule(dynamic,32) collapse(2)
    do iat = 1, nat
       do jat = 1, nat
@@ -1892,6 +1913,9 @@ subroutine disp_gradient_latp &
             rij = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
             r2 = sum(rij**2)
             if (r2 > cutoff2 .or. r2 < 1.0e-10_wp) cycle
+            r = sqrt(r2)
+            call smooth_cutoff(r, cutoff, swidth, sw, dswdr)
+            if (sw <= 0.0_wp) cycle
 
             t6 = 1._wp/(r2**3+r0**6)
             t8 = 1._wp/(r2**4+r0**8)
@@ -1905,6 +1929,9 @@ subroutine disp_gradient_latp &
                &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10
             ddisp= par%s6*d6 + par%s8*r4r2ij*d8 &
                & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*d10
+            ! switch the pair interaction off towards the cutoff
+            ddisp = sw * ddisp + dswdr * disp / r
+            disp = sw * disp
 
             dE = -c6(iat, jat)*disp * 0.5_wp
             dG = -c6(iat, jat)*ddisp*rij
@@ -2022,7 +2049,7 @@ end subroutine d4_atm_gradient_latp
 
 subroutine atm_gradient_latp &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
-      &  energies, gradient, sigma, dEdcn)
+      &  energies, gradient, sigma, dEdcn, width)
 
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
@@ -2041,20 +2068,26 @@ subroutine atm_gradient_latp &
    real(wp), intent(inout) :: sigma(:, :)
    real(wp), intent(inout) :: dEdcn(:)
 
+   !> Width of the smooth cutoff, default is a hard cutoff
+   real(wp), intent(in), optional :: width
+
    integer :: iat, jat, kat, nat, ati, atj, atk, jtr, ktr
-   real(wp) :: cutoff2
+   real(wp) :: cutoff2, swidth, sw, dswdr
    real(wp) :: rij(3), rjk(3), rik(3), r2ij, r2jk, r2ik
    real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
    logical :: doPBC
    real(wp), allocatable :: r2_mat(:,:), inv_r1_mat(:,:), cralp_mat(:,:), sc6_mat(:,:)
+   real(wp), allocatable :: swc6_mat(:,:)
    real(wp), allocatable :: energies_omp(:), gradient_omp(:,:), sigma_omp(:,:), dEdcn_omp(:)
    real(wp) :: alp3, s9, inv_r1, inv_r1ij, inv_r2ij, cralp_ij, sc6_ij, r2ij_2, r2ij_3
    real(wp) :: c9, cralp, fdmp, dfdmp, rrr2, rrr3, ang_fact, ang, dang1, s1, d1
    real(wp) :: dg1_acc, e1_acc, g_ij, e_ij
 
    cutoff2 = cutoff**2
+   swidth = 0.0_wp
+   if (present(width)) swidth = width
    nat = len(mol) ! workaround for legacy Intel Fortran compilers
 
    doPBC = .false.
@@ -2062,7 +2095,7 @@ subroutine atm_gradient_latp &
 
    if (doPBC) then
       !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
-      !$omp shared(mol, r4r2, par, trans, cutoff2, c6, dc6dcn, nat) &
+      !$omp shared(mol, r4r2, par, trans, cutoff, cutoff2, swidth, c6, dc6dcn, nat) &
       !$omp private(iat, ati, jat, atj, kat, atk, c6ij, cij, c6ik, c6jk, cik, cjk, &
       !$omp& rij, r2ij, jtr, ktr, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN) &
       !$omp collapse(2) schedule(dynamic,32)
@@ -2102,6 +2135,8 @@ subroutine atm_gradient_latp &
                         & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
                         & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
                         & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+                     call switch_atm_triple(rij, rjk, rik, cutoff, swidth, &
+                        & dE, dG, dS, dCN)
 
                      scale = par%s9 * triple_scale(iat, jat, kat)
                      energies(iat) = energies(iat) + dE * scale / 3.0_wp
@@ -2127,12 +2162,14 @@ subroutine atm_gradient_latp &
       alp3 = real(par%alp, kind=wp) / 3.0_wp
       s9 = par%s9
       allocate(r2_mat(nat, nat), inv_r1_mat(nat, nat), &
-         &     cralp_mat(nat, nat), sc6_mat(nat, nat), source=0.0_wp)
+         &     cralp_mat(nat, nat), sc6_mat(nat, nat), swc6_mat(nat, nat), &
+         &     source=0.0_wp)
 
       !$omp parallel do default(none) &
-      !$omp shared(nat, mol, r4r2, par, c6, alp3, cutoff2, &
-      !$omp& r2_mat, inv_r1_mat, cralp_mat, sc6_mat) &
-      !$omp private(iat, jat, ati, atj, rij, r2ij, cij, inv_r1, cralp, scale) &
+      !$omp shared(nat, mol, r4r2, par, c6, alp3, cutoff, cutoff2, swidth, &
+      !$omp& r2_mat, inv_r1_mat, cralp_mat, sc6_mat, swc6_mat) &
+      !$omp private(iat, jat, ati, atj, rij, r2ij, cij, inv_r1, cralp, scale, &
+      !$omp& sw, dswdr) &
       !$omp collapse(2) schedule(dynamic, 32)
       do iat = 1, nat
          do jat = 1, nat
@@ -2154,18 +2191,23 @@ subroutine atm_gradient_latp &
             cralp_mat(iat, jat) = cralp
             sc6_mat(jat, iat) = scale
             sc6_mat(iat, jat) = scale
+            ! switched for the pairs closing a triple, the pair itself is
+            ! switched after the summation to include the switching derivative
+            call smooth_cutoff(sqrt(r2ij), cutoff, swidth, sw, dswdr)
+            swc6_mat(jat, iat) = sw * scale
+            swc6_mat(iat, jat) = sw * scale
          end do
       end do
       !$omp end parallel do
 
       !$omp parallel default(none) &
-      !$omp shared(nat, mol, c6, dc6dcn, alp3, s9, &
-      !$omp& r2_mat, inv_r1_mat, cralp_mat, sc6_mat, &
+      !$omp shared(nat, mol, c6, dc6dcn, alp3, s9, cutoff, swidth, &
+      !$omp& r2_mat, inv_r1_mat, cralp_mat, sc6_mat, swc6_mat, &
       !$omp& energies, gradient, sigma, dEdcn) &
       !$omp private(iat, jat, kat, rij, r2ij, r2ik, r2jk, r2ij_2, r2ij_3, &
       !$omp& inv_r1ij, inv_r2ij, cralp_ij, sc6_ij, dg1_acc, e1_acc, &
       !$omp& c9, cralp, fdmp, dfdmp, inv_r1, rrr2, rrr3, ang_fact, &
-      !$omp& s1, d1, ang, dang1, g_ij, e_ij, scale, &
+      !$omp& s1, d1, ang, dang1, g_ij, e_ij, scale, sw, dswdr, &
       !$omp& energies_omp, gradient_omp, sigma_omp, dEdcn_omp)
 
       allocate(energies_omp(size(energies, 1)), &
@@ -2193,7 +2235,7 @@ subroutine atm_gradient_latp &
             do kat = 1, nat
                r2jk = r2_mat(kat, jat)
                r2ik = r2_mat(kat, iat)
-               c9 = sc6_ij * sc6_mat(kat, iat) * sc6_mat(kat, jat)
+               c9 = sc6_ij * swc6_mat(kat, iat) * swc6_mat(kat, jat)
                cralp = cralp_ij * cralp_mat(kat, iat) * cralp_mat(kat, jat)
                fdmp = 1.0_wp / (1.0_wp + cralp)
                dfdmp = -(alp3 * cralp) * fdmp * fdmp
@@ -2208,8 +2250,9 @@ subroutine atm_gradient_latp &
                dg1_acc = dg1_acc + (-dang1 * fdmp + dfdmp * ang) * c9
                e1_acc = e1_acc - fdmp * ang * c9
             end do
-            g_ij = dg1_acc * inv_r2ij
-            e_ij = e1_acc
+            call smooth_cutoff(sqrt(r2ij), cutoff, swidth, sw, dswdr)
+            g_ij = sw * dg1_acc * inv_r2ij + dswdr * e1_acc * inv_r1ij
+            e_ij = sw * e1_acc
             if (g_ij == 0.0_wp .and. e_ij == 0.0_wp) cycle
             rij = mol%xyz(1:3, jat) - mol%xyz(1:3, iat)
             gradient_omp(:, iat) = gradient_omp(:, iat) - g_ij * rij
@@ -2241,7 +2284,7 @@ end subroutine atm_gradient_latp
 
 subroutine atm_gradient_latp_gpu &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
-      &  energies, gradient, sigma, dEdcn)
+      &  energies, gradient, sigma, dEdcn, width)
 
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
@@ -2260,8 +2303,11 @@ subroutine atm_gradient_latp_gpu &
    real(wp), intent(inout) :: sigma(:, :)
    real(wp), intent(inout) :: dEdcn(:)
 
+   !> Width of the smooth cutoff, default is a hard cutoff
+   real(wp), intent(in), optional :: width
+
    integer :: iat, jat, kat, ati, atj, atk, jtr, ktr
-   real(wp) :: cutoff2
+   real(wp) :: cutoff2, swidth
    real(wp) :: rij(3), rjk(3), rik(3), r2ij, r2jk, r2ik
    real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
@@ -2271,6 +2317,8 @@ subroutine atm_gradient_latp_gpu &
    real(wp) :: c9, dc9, ccc1, rrr1, rrr2, rrr3, ang, dang, fdmp, dfdmp, dGr, cr
 
    cutoff2 = cutoff**2
+   swidth = 0.0_wp
+   if (present(width)) swidth = width
    mlen = len(mol)
 
    !$acc enter data copyin(par,trans,r4r2,c6,dc6dcn,energies,gradient,sigma,dEdcn, &
@@ -2317,6 +2365,8 @@ subroutine atm_gradient_latp_gpu &
                      & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
                      & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
                      & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+                  call switch_atm_triple(rij, rjk, rik, cutoff, swidth, &
+                     & dE, dG, dS, dCN)
 
    !c9 = -sqrt(c6ij*c6ik*c6jk)
 
@@ -2494,6 +2544,67 @@ pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
    dCN(3) = -ang*fdmp*dc9
 
 end subroutine deriv_atm_triple
+
+
+!> Apply the smooth cutoff to the contributions of a single triple, the switching
+!> function is the product of the switching functions of all three pairs
+pure subroutine switch_atm_triple(rij, rjk, rik, cutoff, width, dE, dG, dS, dCN)
+   !$acc routine seq
+
+   !> Distance vectors of the three pairs
+   real(wp), intent(in) :: rij(3), rjk(3), rik(3)
+
+   !> Cutoff for threebody interactions
+   real(wp), intent(in) :: cutoff
+
+   !> Width of the smooth cutoff
+   real(wp), intent(in) :: width
+
+   !> Energy contribution of the triple
+   real(wp), intent(inout) :: dE
+
+   !> Gradient contributions of the triple
+   real(wp), intent(inout) :: dG(3, 3)
+
+   !> Strain derivative contributions of the triple
+   real(wp), intent(inout) :: dS(3, 3)
+
+   !> Coordination number derivative contributions of the triple
+   real(wp), intent(inout) :: dCN(3)
+
+   integer :: k
+   real(wp) :: r(3), sw(3), dswdr(3), swt, dGr(3)
+
+   if (width <= 0.0_wp) return
+
+   r(1) = sqrt(sum(rij**2))
+   r(2) = sqrt(sum(rik**2))
+   r(3) = sqrt(sum(rjk**2))
+   do k = 1, 3
+      call smooth_cutoff(r(k), cutoff, width, sw(k), dswdr(k))
+   end do
+   swt = sw(1) * sw(2) * sw(3)
+
+   ! derivative of the switching function w.r.t. the i-j, i-k and j-k distance
+   dGr(1) = dE * dswdr(1) * sw(2) * sw(3) / r(1)
+   dGr(2) = dE * dswdr(2) * sw(1) * sw(3) / r(2)
+   dGr(3) = dE * dswdr(3) * sw(1) * sw(2) / r(3)
+
+   dG(:, :) = swt * dG
+   dG(:, 1) = dG(:, 1) - dGr(1) * rij - dGr(2) * rik
+   dG(:, 2) = dG(:, 2) + dGr(1) * rij - dGr(3) * rjk
+   dG(:, 3) = dG(:, 3) + dGr(2) * rik + dGr(3) * rjk
+
+   dS(:, :) = swt * dS
+   do k = 1, 3
+      dS(:, k) = dS(:, k) + 0.5_wp * (dGr(1) * rij(k) * rij + dGr(2) * rik(k) * rik &
+         & + dGr(3) * rjk(k) * rjk)
+   end do
+
+   dCN(:) = swt * dCN
+   dE = swt * dE
+
+end subroutine switch_atm_triple
 
 
 !> Logic exercise to distribute a triple energy to atomwise energies.
