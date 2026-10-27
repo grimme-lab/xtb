@@ -532,15 +532,18 @@ contains
 
       end if
 
-      ! Remove any gradient left by an earlier ORCA call.
-      i = index(ext%input_file, '.inp')
-      if (i > 0) then
-         outfile = ext%input_file(:i - 1)//'.engrad'
-         tmpfile = ext%input_file(:i - 1)
-      else
-         outfile = ext%input_file//'.engrad'
-         tmpfile = ext%input_file
+      ! ORCA removes a trailing .inp from the filename, not from its path.
+      i = len(ext%input_file)
+      j = index(ext%input_file, '/', back=.true.)
+      tmpfile = ext%input_file
+      if (i - j > 4) then
+         if (ext%input_file(i - 3:i) == '.inp') then
+            tmpfile = ext%input_file(:i - 4)
+         end if
       end if
+      outfile = tmpfile//'.engrad'
+
+      ! Remove any gradient left by an earlier ORCA call.
       inquire (file=outfile, exist=exist)
       if (exist) then
          open (newunit=iorca, file=outfile, status='old', iostat=err)
