@@ -273,6 +273,7 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
    use xtb_type_atomlist
    use xtb_fixparam
    use xtb_setparam
+   use xtb_mctc_symbols, only : toNumber
    implicit none
    character(len=*), parameter :: source = 'userdata_fix'
    type(TEnvironment), intent(inout) :: env
@@ -290,6 +291,12 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
    integer  :: idum
    integer  :: nlist
    integer, allocatable :: list(:)
+   !> variable to mark each atom as fixed or not
+   !> .true. -> atom will be fixed
+   logical, allocatable :: mask(:)
+   !> comma-separated entry of the input
+   character(len=:), allocatable :: item
+   integer  :: ist, ie
    real(wp) :: ddum
    logical  :: ldum
 
@@ -341,6 +348,52 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
          call env%warning('something is wrong in the fixing list',source)
          return
       endif
+      if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
+      call atl%to_list(list)
+      fixset%atoms = list
+      fixset%n = size(list)
+   case('free')
+      ! fix all atoms except the listed atoms and elements
+      ! i.e. start with every atom marked as fixed
+      allocate(mask(nat), source=.true.)
+      call atl%new
+      ist = 1
+      ! split the list at the commas
+      do while (ist <= len(val))
+         ie = index(val(ist:), comma)
+         if (ie == 0) then
+            ie = len(val) + 1
+         else
+            ie = ist + ie - 1
+         endif
+         item = trim(adjustl(val(ist:ie-1)))
+         ist = ie + 1
+         if (len(item) == 0) cycle
+         ! look if the entry starts with a digit because then atom number or range
+         if (scan(item(1:1), '0123456789') > 0) then
+            ! atom number or range of atom numbers
+            call atl%add(item)
+         else if (idMap%has(item)) then
+            call idMap%get(list, item)
+            if (allocated(list)) mask(list) = .false.
+         else if (toNumber(item) > 0) then
+            where(at == toNumber(item)) mask = .false.
+         else
+            call env%warning("Unknown element: '"//item//"'",source)
+            return
+         endif
+      enddo
+      if (atl%get_error()) then
+         call env%warning('something is wrong in the free atom list',source)
+         return
+      endif
+      call atl%to_list(list)
+      if (any(list > nat)) then
+         call env%warning('Attempted to free atom not present in molecule.',source)
+         return
+      endif
+      mask(list) = .false.
+      call atl%new(mask)
       if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
       call atl%to_list(list)
       fixset%atoms = list

@@ -44,7 +44,8 @@ subroutine collect_atomlist(testsuite)
       new_unittest("constr3", test_atomlist_constr3), &
       new_unittest("constr4", test_atomlist_constr4), &
       new_unittest("manip1", test_atomlist_manip1), &
-      new_unittest("manip2", test_atomlist_manip2) &
+      new_unittest("manip2", test_atomlist_manip2), &
+      new_unittest("fix_free", test_fix_free) &
       ]
 
 end subroutine collect_atomlist
@@ -152,5 +153,73 @@ subroutine test_atomlist_manip2(error)
    call check(error, string, '1:9')
 
 end subroutine test_atomlist_manip2
+
+!> Fix all atoms except the ones selected with the free key in $fix
+subroutine test_fix_free(error)
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, init
+   use xtb_type_identitymap, only : TIdentityMap, init
+   use xtb_fixparam, only : fixset
+   use xtb_constrain_param, only : set_fix
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 6
+   integer, parameter :: at(nat) = [8, 1, 1, 8, 1, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.0_wp, 0.0_wp, 0.0_wp, 1.8_wp, 0.0_wp, 0.0_wp, -0.4_wp, 1.7_wp, 0.0_wp, &
+      & 5.5_wp, 0.0_wp, 0.0_wp, 6.0_wp, 1.7_wp, 0.0_wp, 6.0_wp, -0.8_wp, 1.5_wp], &
+      & shape(xyz))
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TIdentityMap) :: idMap
+
+   call init(env)
+   call init(mol, at, xyz)
+   call init(idMap, mol)
+
+   call fixset%deallocate
+   call set_fix(env, 'free', '2-3', nat, at, idMap, xyz)
+   call check(error, fixset%n, 4)
+   if (.not.allocated(error)) call check(error, all(fixset%atoms(:fixset%n) == [1, 4, 5, 6]))
+   call fixset%deallocate
+   if (allocated(error)) return
+
+   ! atoms selected by other keys stay fixed
+   call set_fix(env, 'free', '4-6', nat, at, idMap, xyz)
+   call set_fix(env, 'atoms', '5', nat, at, idMap, xyz)
+   call check(error, fixset%n, 4)
+   if (.not.allocated(error)) call check(error, all(fixset%atoms(:fixset%n) == [1, 2, 3, 5]))
+   call fixset%deallocate
+   if (allocated(error)) return
+
+   ! elements can be freed by symbol and mixed with atom numbers
+   call set_fix(env, 'free', 'H', nat, at, idMap, xyz)
+   call check(error, fixset%n, 2)
+   if (.not.allocated(error)) call check(error, all(fixset%atoms(:fixset%n) == [1, 4]))
+   call fixset%deallocate
+   if (allocated(error)) return
+
+   call set_fix(env, 'free', 'h, 4', nat, at, idMap, xyz)
+   call check(error, fixset%n, 1)
+   if (.not.allocated(error)) call check(error, all(fixset%atoms(:fixset%n) == [1]))
+   call fixset%deallocate
+   if (allocated(error)) return
+
+   ! elements not present in the molecule free nothing
+   call set_fix(env, 'free', 'N', nat, at, idMap, xyz)
+   call check(error, fixset%n, nat)
+   call fixset%deallocate
+   if (allocated(error)) return
+
+   ! atoms not present in the molecule and unknown elements are rejected
+   call set_fix(env, 'free', '1,7', nat, at, idMap, xyz)
+   call check(error, fixset%n, 0)
+   call fixset%deallocate
+   if (allocated(error)) return
+
+   call set_fix(env, 'free', 'H,Xx', nat, at, idMap, xyz)
+   call check(error, fixset%n, 0)
+   call fixset%deallocate
+
+end subroutine test_fix_free
 
 end module test_atomlist

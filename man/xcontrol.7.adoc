@@ -209,6 +209,15 @@ NOTE: the fix group refers to exact fixing. For geometry optimizations
     This is automatically deactivated for molecular dynamics since
     it leads to instabilities.
 
+*free*: 'list'|'symbol',...::
+    fixes all atoms except those in 'list' and all atoms of the elements
+    given by their element symbol, i.e. only these atoms are optimized.
+    Numbers always refer to atoms, not to atomic numbers.
+    Can be combined with *atoms* and *elements*, atoms selected there
+    stay fixed.
+    This is automatically deactivated for molecular dynamics since
+    it leads to instabilities.
+
 *freeze frequency*='real'::
     diagonal element used for freezing atoms in numerical Hessian calculation
 
