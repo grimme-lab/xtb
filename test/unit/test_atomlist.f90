@@ -45,7 +45,8 @@ subroutine collect_atomlist(testsuite)
       new_unittest("constr4", test_atomlist_constr4), &
       new_unittest("manip1", test_atomlist_manip1), &
       new_unittest("manip2", test_atomlist_manip2), &
-      new_unittest("fix_free", test_fix_free) &
+      new_unittest("fix_free", test_fix_free), &
+      new_unittest("constrain_free", test_constrain_free) &
       ]
 
 end subroutine collect_atomlist
@@ -221,5 +222,54 @@ subroutine test_fix_free(error)
    call fixset%deallocate
 
 end subroutine test_fix_free
+
+!> Constrain all atoms except the ones selected with the free key in $constrain
+subroutine test_constrain_free(error)
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, init
+   use xtb_type_identitymap, only : TIdentityMap, init
+   use xtb_scanparam, only : potset
+   use xtb_constrain_param, only : set_constr
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 6
+   integer, parameter :: at(nat) = [8, 1, 1, 8, 1, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.0_wp, 0.0_wp, 0.0_wp, 1.8_wp, 0.0_wp, 0.0_wp, -0.4_wp, 1.7_wp, 0.0_wp, &
+      & 5.5_wp, 0.0_wp, 0.0_wp, 6.0_wp, 1.7_wp, 0.0_wp, 6.0_wp, -0.8_wp, 1.5_wp], &
+      & shape(xyz))
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TIdentityMap) :: idMap
+
+   call init(env)
+   call init(mol, at, xyz)
+   call init(idMap, mol)
+
+   call potset%pos%deallocate
+   call set_constr(env, 'free', 'H', nat, at, idMap, xyz)
+   call check(error, potset%pos%n, 2)
+   if (.not.allocated(error)) call check(error, all(potset%pos%atoms(:potset%pos%n) == [1, 4]))
+   call potset%pos%deallocate
+   if (allocated(error)) return
+
+   ! atoms selected by other keys stay constrained
+   call set_constr(env, 'free', '4-6', nat, at, idMap, xyz)
+   call set_constr(env, 'atoms', '5', nat, at, idMap, xyz)
+   call check(error, potset%pos%n, 4)
+   if (.not.allocated(error)) call check(error, all(potset%pos%atoms(:potset%pos%n) == [1, 2, 3, 5]))
+   call potset%pos%deallocate
+   if (allocated(error)) return
+
+   ! atoms not present in the molecule and unknown elements are rejected
+   call set_constr(env, 'free', 'Xx', nat, at, idMap, xyz)
+   call check(error, potset%pos%n, 0)
+   call potset%pos%deallocate
+   if (allocated(error)) return
+
+   call set_constr(env, 'atoms', '2,7', nat, at, idMap, xyz)
+   call check(error, potset%pos%n, 0)
+   call potset%pos%deallocate
+
+end subroutine test_constrain_free
 
 end module test_atomlist

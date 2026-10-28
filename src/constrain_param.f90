@@ -68,7 +68,7 @@ module xtb_constrain_param
 
    implicit none
 
-   private :: getline,getValue, handlerInterface
+   private :: getline,getValue, handlerInterface, get_free_mask
 
    character,private,parameter :: flag = '$'
    character,private,parameter :: colon = ':'
@@ -269,11 +269,83 @@ subroutine rdblock(env,handler,line,id,nat,at,idMap,xyz,err)
 
 end subroutine rdblock
 
+!> Select all atoms except the listed atoms and elements for the free keyword
+!>
+!> Numbers in the list refer to atoms or ranges of atoms, symbols to elements.
+!> The mask is not allocated if the list could not be processed.
+subroutine get_free_mask(env,val,nat,at,idMap,mask)
+   use xtb_type_atomlist
+   use xtb_mctc_symbols, only : toNumber
+   implicit none
+   character(len=*), parameter :: source = 'userdata_free'
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+   !> Comma separated list of atoms and elements
+   character(len=*),intent(in) :: val
+   !> Number of atoms
+   integer, intent(in) :: nat
+   !> Atomic numbers
+   integer, intent(in) :: at(nat)
+   !> Map from element symbols to atoms
+   type(TIdentityMap), intent(in) :: idMap
+   !> Mark for each atom, .true. -> atom is selected, i.e. not listed in val
+   logical, allocatable, intent(out) :: mask(:)
+
+   type(TAtomList) :: atl
+   integer, allocatable :: list(:)
+   !> comma-separated entry of the input
+   character(len=:), allocatable :: item
+   integer  :: ist, ie
+
+   ! start with every atom selected
+   allocate(mask(nat), source=.true.)
+   call atl%new
+   ist = 1
+   ! split the list at the commas
+   do while (ist <= len(val))
+      ie = index(val(ist:), comma)
+      if (ie == 0) then
+         ie = len(val) + 1
+      else
+         ie = ist + ie - 1
+      endif
+      item = trim(adjustl(val(ist:ie-1)))
+      ist = ie + 1
+      if (len(item) == 0) cycle
+      ! entries starting with a digit are atom numbers or ranges
+      if (scan(item(1:1), '0123456789') > 0) then
+         ! only collected here, checked and applied after the loop
+         call atl%add(item)
+      else if (idMap%has(item)) then
+         call idMap%get(list, item)
+         if (allocated(list)) mask(list) = .false.
+      else if (toNumber(item) > 0) then
+         where(at == toNumber(item)) mask = .false.
+      else
+         call env%warning("Unknown element: '"//item//"'",source)
+         deallocate(mask)
+         return
+      endif
+   enddo
+   if (atl%get_error()) then
+      call env%warning('something is wrong in the free atom list',source)
+      deallocate(mask)
+      return
+   endif
+   call atl%to_list(list)
+   if (any(list > nat)) then
+      call env%warning('Attempted to free atom not present in molecule.',source)
+      deallocate(mask)
+      return
+   endif
+   mask(list) = .false.
+
+end subroutine get_free_mask
+
 subroutine set_fix(env,key,val,nat,at,idMap,xyz)
    use xtb_type_atomlist
    use xtb_fixparam
    use xtb_setparam
-   use xtb_mctc_symbols, only : toNumber
    implicit none
    character(len=*), parameter :: source = 'userdata_fix'
    type(TEnvironment), intent(inout) :: env
@@ -294,9 +366,6 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
    !> variable to mark each atom as fixed or not
    !> .true. -> atom will be fixed
    logical, allocatable :: mask(:)
-   !> comma-separated entry of the input
-   character(len=:), allocatable :: item
-   integer  :: ist, ie
    real(wp) :: ddum
    logical  :: ldum
 
@@ -354,45 +423,8 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
       fixset%n = size(list)
    case('free')
       ! fix all atoms except the listed atoms and elements
-      ! i.e. start with every atom marked as fixed
-      allocate(mask(nat), source=.true.)
-      call atl%new
-      ist = 1
-      ! split the list at the commas
-      do while (ist <= len(val))
-         ie = index(val(ist:), comma)
-         if (ie == 0) then
-            ie = len(val) + 1
-         else
-            ie = ist + ie - 1
-         endif
-         item = trim(adjustl(val(ist:ie-1)))
-         ist = ie + 1
-         if (len(item) == 0) cycle
-         ! look if the entry starts with a digit because then atom number or range
-         if (scan(item(1:1), '0123456789') > 0) then
-            ! atom number or range of atom numbers
-            call atl%add(item)
-         else if (idMap%has(item)) then
-            call idMap%get(list, item)
-            if (allocated(list)) mask(list) = .false.
-         else if (toNumber(item) > 0) then
-            where(at == toNumber(item)) mask = .false.
-         else
-            call env%warning("Unknown element: '"//item//"'",source)
-            return
-         endif
-      enddo
-      if (atl%get_error()) then
-         call env%warning('something is wrong in the free atom list',source)
-         return
-      endif
-      call atl%to_list(list)
-      if (any(list > nat)) then
-         call env%warning('Attempted to free atom not present in molecule.',source)
-         return
-      endif
-      mask(list) = .false.
+      call get_free_mask(env,val,nat,at,idMap,mask)
+      if (.not.allocated(mask)) return
       call atl%new(mask)
       if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
       call atl%to_list(list)
@@ -460,6 +492,9 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    real(wp) :: ddum
    integer  :: nlist
    integer, allocatable :: list(:)
+   !> variable to mark each atom as constrained or not
+   !> .true. -> atom will be constrained
+   logical, allocatable :: mask(:)
    logical  :: ldum
    integer  :: i,j,k,l
    real(wp) :: phi,dist,ra(3),rb(3)
@@ -519,9 +554,23 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
             call env%warning('something is wrong in the fixing list',source)
             return
          endif
+         call atl%to_list(list)
+         if (any(list > nat)) then
+            call env%warning('Attempted constrain atom not present in molecule.',source)
+            return
+         endif
          if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
          call atl%to_list(list)
       endif
+      potset%pos%atoms = list
+      potset%pos%n = size(list)
+   case('free')
+      ! constrain all atoms except the listed atoms and elements
+      call get_free_mask(env,val,nat,at,idMap,mask)
+      if (.not.allocated(mask)) return
+      call atl%new(mask)
+      if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
+      call atl%to_list(list)
       potset%pos%atoms = list
       potset%pos%n = size(list)
 
