@@ -33,13 +33,21 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-latest]
-            version: [12, 13, 14]
             include:
                - os: ubuntu-22.04
                  version: 10
                - os: ubuntu-22.04
                  version: 11
+               - os: ubuntu-24.04
+                 version: 12
+               - os: ubuntu-24.04
+                 version: 13
+               - os: ubuntu-latest
+                 version: 14
+               - os: ubuntu-latest
+                 version: 15
+               - os: ubuntu-latest
+                 version: 16
                - os: ubuntu-24.04-arm
                  version: 14
                - os: macos-15-intel
@@ -62,10 +70,14 @@ jobs:
             echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
             echo "LDFLAGS=-L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
             echo "CPPFLAGS=-I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
-         - name: Install OpenBLAS (ubuntu-latest)
-           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+         - name: Install GNU compilers and OpenBLAS
+           if: ${{ contains(matrix.os, 'ubuntu') }}
            run: |
-            sudo apt-get install libopenblas-dev
+            sudo apt-get update
+            sudo apt-get install -y \
+              gcc-${{ matrix.version }} \
+              gfortran-${{ matrix.version }} \
+              libopenblas-dev
          - name: Install meson
            run: pip install meson==1.7.0 ninja
          - name: Configure build
@@ -89,10 +101,23 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-latest, ubuntu-24.04-arm]
-            fc: [gfortran-14]
-            cc: [gcc-14]
-            build: [Release, Debug]
+            include:
+               - os: ubuntu-latest
+                 fc: gfortran-15
+                 cc: gcc-15
+                 build: Release
+               - os: ubuntu-latest
+                 fc: gfortran-15
+                 cc: gcc-15
+                 build: Debug
+               - os: ubuntu-24.04-arm
+                 fc: gfortran-14
+                 cc: gcc-14
+                 build: Release
+               - os: ubuntu-24.04-arm
+                 fc: gfortran-14
+                 cc: gcc-14
+                 build: Debug
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -103,7 +128,8 @@ jobs:
          - name: Install OpenBLAS (ubuntu-latest)
            if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
            run: |
-            sudo apt-get install libopenblas-dev
+            sudo apt-get update
+            sudo apt-get install -y ${{ matrix.cc }} ${{ matrix.fc }} libopenblas-dev
          - name: Install CMake
            run: pip install ninja cmake
          - name: Configure build
@@ -125,8 +151,8 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            fc: [gfortran-14]
-            cc: [gcc-14]
+            fc: [gfortran-15]
+            cc: [gcc-15]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -137,7 +163,8 @@ jobs:
          - name: Install OpenBLAS (ubuntu-latest)
            if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
            run: |
-            sudo apt-get install libopenblas-dev
+            sudo apt-get update
+            sudo apt-get install -y ${{ matrix.cc }} ${{ matrix.fc }} libopenblas-dev
          - name: Install meson
            run: pip3 install meson==0.62.0 ninja cmake
          - name: Configure build
@@ -160,8 +187,8 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            fc: [gfortran-14]
-            cc: [gcc-14]
+            fc: [gfortran-15]
+            cc: [gcc-15]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -172,7 +199,8 @@ jobs:
          - name: Install OpenBLAS (ubuntu-latest)
            if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
            run: |
-            sudo apt-get install libopenblas-dev
+            sudo apt-get update
+            sudo apt-get install -y ${{ matrix.cc }} ${{ matrix.fc }} libopenblas-dev
          - name: Install CMake
            run: pip3 install ninja cmake
          - name: Configure build
@@ -234,7 +262,7 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-latest]
+            os: [ubuntu-24.04]
             fc: [ifort]
             cc: [icc]
       env:
@@ -253,10 +281,11 @@ jobs:
          - name: Add Intel repository
            if: contains(matrix.os, 'ubuntu')
            run: |
-            wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-            sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-            rm GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-            echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+            wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+              | gpg --dearmor \
+              | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+            echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+              | sudo tee /etc/apt/sources.list.d/oneAPI.list
             sudo apt-get update
          - name: Install Intel oneAPI compiler
            if: contains(matrix.os, 'ubuntu')
@@ -279,6 +308,7 @@ jobs:
             --no-rebuild --suite xtb -t 120
            env:
             OMP_NUM_THREADS: 2,1
+
          - name: Install package
            run: |
             meson install -C ${{ env.BUILD_DIR }} --no-rebuild
@@ -299,32 +329,35 @@ jobs:
          matrix:
             os: [ubuntu-latest]
             build: [Release]
-            toolchain:
-              - {compiler: intel, version: '2024.1'}
-#               - {compiler: intel, version: '2025.0'} SegFault in disp/ncoord.f90 near 'do concurrent(tx = -rep_cn(1):rep_cn(1), &'
-#               - {compiler: intel, version: '2025.1'} # Worked fine as of Jul 2, 2025; commit d3f212ba83287290efafee6580670d02d7b2f49d
-              - {compiler: intel, version: '2025.2'}
+            version: ['2026.2']
       env:
+         CC: icx
+         FC: ifx
          APT_PACKAGES: >-
-            intel-oneapi-mkl-${{ matrix.toolchain.version }} intel-oneapi-mkl-devel-${{ matrix.toolchain.version }}
+            intel-oneapi-compiler-fortran-${{ matrix.version }} intel-oneapi-compiler-dpcpp-cpp-${{ matrix.version }} intel-oneapi-mkl-${{ matrix.version }} intel-oneapi-mkl-devel-${{ matrix.version }}
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
-         - name: Setup Fortran
-           uses: fortran-lang/setup-fortran@v1
-           with:
-            compiler: ${{ matrix.toolchain.compiler }}
-            version: ${{ matrix.toolchain.version }}
          - name: Setup Python
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
          - run: pip3 install cmake ninja --user
-         - name: Install Intel MKL
-           if: contains(matrix.os, 'ubuntu')
+         - name: Install Intel oneAPI compiler and MKL
            run: |
-            sudo apt-get install ${APT_PACKAGES}
+            sudo apt-get update
+            sudo apt-get install -y gpg wget
+            wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+              | gpg --dearmor \
+              | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+            echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+              | sudo tee /etc/apt/sources.list.d/oneAPI.list
+            sudo apt-get update
+            apt-cache policy ${APT_PACKAGES}
+            sudo apt-get install -y ${APT_PACKAGES}
             source /opt/intel/oneapi/setvars.sh --force
+            ifx --version
+            icx --version
             printenv >> $GITHUB_ENV
          - name: Configure cmake build
            run: >
@@ -349,36 +382,41 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            toolchain:
-              - {compiler: intel, version: '2024.1'}
-#               - {compiler: intel, version: '2025.0'} SegFault in disp/ncoord.f90 near 'do concurrent(tx = -rep_cn(1):rep_cn(1), &'
-              - {compiler: intel, version: '2025.1'}
+            version: ['2026.2']
       env:
+         CC: icx
+         FC: ifx
          APT_PACKAGES: >-
-            intel-oneapi-mkl-${{ matrix.toolchain.version }} intel-oneapi-mkl-devel-${{ matrix.toolchain.version }}
+            intel-oneapi-compiler-fortran-${{ matrix.version }} intel-oneapi-compiler-dpcpp-cpp-${{ matrix.version }} intel-oneapi-mkl-${{ matrix.version }} intel-oneapi-mkl-devel-${{ matrix.version }}
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
-         - name: Setup Fortran
-           uses: fortran-lang/setup-fortran@v1
-           with:
-            compiler: ${{ matrix.toolchain.compiler }}
-            version: ${{ matrix.toolchain.version }}
          - name: Setup Python
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
          - run: pip3 install meson==1.7.0 ninja --user
-         - name: Install Intel MKL
-           if: contains(matrix.os, 'ubuntu')
+         - name: Install Intel oneAPI compiler and MKL
            run: |
-            sudo apt-get install ${APT_PACKAGES}
+            sudo apt-get update
+            sudo apt-get install -y gpg wget
+            wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+              | gpg --dearmor \
+              | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+            echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+              | sudo tee /etc/apt/sources.list.d/oneAPI.list
+            sudo apt-get update
+            apt-cache policy ${APT_PACKAGES}
+            sudo apt-get install -y ${APT_PACKAGES}
             source /opt/intel/oneapi/setvars.sh --force
+            ifx --version
+            icx --version
             printenv >> $GITHUB_ENV
          - name: Configure meson build
            run: >
             CC=${{ env.CC }} FC=${{ env.FC }} meson setup ${{ env.BUILD_DIR }}
             --prefix=/ --libdir=lib
+            -Dfortran_args=-fp-model=precise
             -Dfortran_link_args="-lifcoremt -static"
             -Ddefault_library=static
             -Dlapack=mkl
