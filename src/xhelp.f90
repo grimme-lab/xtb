@@ -123,8 +123,7 @@ subroutine help(iunit)
    "                           (doublet) for odd electron number)",&
    "      --gfn INT            specify parametrisation of GFN-xTB (default = 2)",&
    "      --gfnff, --gff       specify parametrisation of GFN-FF",&
-   "      --tblite             use tblite library as implementation for xTB, please note that solvation",&
-   "                           is not yet implemented within tblite",&
+   "      --tblite             use tblite library as implementation for xTB",&
    "      --ptb                performs single-point calculation with the density tight-binding method",&
    "                           PTB. Provides electronic structure and properties, such as, e.g., atomic",&
    "                           charges, bond orders, and dipole moments, but does not provide any",&
