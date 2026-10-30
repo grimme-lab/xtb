@@ -141,7 +141,7 @@ jobs:
          - name: Build project
            run: cmake --build ${{ env.BUILD_DIR }}
          - name: Run unit tests
-           run: ctest --parallel --output-on-failure -R 'xtb/*' -E 'tblite/gfn1-xtb'
+           run: ctest --parallel --output-on-failure -R '^xtb/'
            working-directory: ${{ env.BUILD_DIR }}
            env:
             OMP_NUM_THREADS: 2,1
@@ -212,7 +212,7 @@ jobs:
          - name: Build project
            run: cmake --build ${{ env.BUILD_DIR }}
          - name: Run unit tests
-           run: ctest --parallel --output-on-failure -R 'xtb/*'
+           run: ctest --parallel --output-on-failure -R '^xtb/'
            working-directory: ${{ env.BUILD_DIR }}
            env:
             OMP_NUM_THREADS: 2,1
@@ -359,7 +359,7 @@ jobs:
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
          - name: Run unit tests
-           run: ctest --parallel --output-on-failure -R 'xtb/*'
+           run: ctest --parallel --output-on-failure -R '^xtb/'
            working-directory: ${{ env.BUILD_DIR }}
            env:
             OMP_NUM_THREADS: 2,1
@@ -466,7 +466,7 @@ jobs:
               -DOpenMP_iomp5_LIBRARY="$compiler_root/lib/libiomp5.a" \
               -DOpenMP_Fortran_LIB_NAMES=iomp5 -DOpenMP_C_LIB_NAMES=iomp5 \
               -DBLAS_LIBRARIES="$mkl" -DLAPACK_LIBRARIES="$mkl" \
-              -DBUILD_SHARED_LIBS=OFF -DWITH_OBJECT=OFF -DWITH_TBLITE=ON -DWITH_CPCMX=ON \
+              -DBUILD_SHARED_LIBS=OFF -DWITH_TBLITE=ON -DWITH_CPCMX=ON \
               -DCMAKE_EXE_LINKER_FLAGS='-static -static-intel -fiopenmp -qopenmp-link=static' \
               -DCMAKE_INSTALL_PREFIX="$PWD/stage"
          - name: Build and install
