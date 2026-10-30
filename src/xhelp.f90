@@ -102,298 +102,177 @@ subroutine help(iunit)
    implicit none
    integer, intent(in) :: iunit
    write(iunit,'(a)') &
-   "Usage: xtb [options] <geometry> [options]", &
+   "Usage: xtb [options] <geometry> [options]",&
    "",&
    "<geometry> may be provided as valid TM coordinate file (*coord in Bohr),",&
    "in xmol format (*.xyz in Ångström), sdf or mol file format, PDB format",&
    "genFormat input or Vasp's POSCAR format.",&
    "",&
-   "For a full list visit: https://grimme-lab.github.io/mctc-lib/page/index.html", &
+   "For a full list visit: https://grimme-lab.github.io/mctc-lib/page/index.html",&
    "",&
    "Options:",&
    "",&
-   "-c, --chrg INT",&
-   "    specify molecular charge as INT, overrides .CHRG file and xcontrol option",&
-   "",&
-   "--ceh <grad> [REAL]",&
-   "    calculate CEH (Charge-Extended Hückel model) charges and write them to the ceh.charges file",&
-   "    optionally, calculate numerical gradients and write them to the ceh.charges.numgrad file",&
-   "    with an adjustable step size for the numerical gradients.",&
-   "",&
-   "-u, --uhf INT",&
-   "    specify number of unpaired electrons as INT, overrides .UHF file and xcontrol option",&
-   "    (default: 0 (singlet) for even electron number, 1 (doublet) for odd electron number)",&
-   "",&
-   "--gfn INT",&
-   "    specify parametrisation of GFN-xTB (default = 2)",&
-   "",&
-   "--gfnff, --gff",&
-   "    specify parametrisation of GFN-FF",&
-   "",&
-   "--tblite,",&
-   "    use tblite library as implementation for xTB, please note that solvation is not yet implemented within tblite",&
-   "",&
-   "--ptb,",&
-   "    performs single-point calculation with the density tight-binding method PTB.", &
-   "    Provides electronic structure and properties, such as, e.g., atomic charges, bond orders, and dipole moments,", & 
-   "    but does not provide any energy-related properties, such as, e.g., total energy, nuclear gradients, or vibrational frequencies.", &
-   "",&
-   "--spinpol,",&
-   "    enables spin-polarization for xTB methods (tblite required)",&
-   "",&
-   "--oniom METHOD LIST", &
-   "    use subtractive embedding via ONIOM method. 'METHOD' is given as 'inner:outer'", &
-   "    where 'inner' can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and", &
-   "    'outer' can be 'gfn2', 'gfn1', or 'gfnff'.", &
-   "    The inner region is given as a comma separated indices directly in the commandline", &
-   "    or in a file with each index on a separate line.", &
-   "    Combine with --tblite to evaluate 'gfn2' and 'gfn1' with the tblite library.", &
-   "",&
-   "--efield REAL,REAL,REAL",&
-   "    static electric field in Cartesian coordinates, overrides '.EFIELD' file,",&
-   "    works only via tblite for the xTB Hamiltonians, or with GFN-FF and PTB.",&
-   "",&
-   "--etemp REAL",&
-   "    electronic temperature (default = 300K)",&
-   "",&
-   "--esp",&
-   "    calculate electrostatic potential on VdW-grid",&
-   "",&
-   "--stm",&
-   "    calculate STM image",&
-   "",&
-   "-a, --acc REAL",&
-   "    accuracy for SCC calculation, lower is better (default = 1.0),",&
-   "    overwrites also tighter defaults for optimization and hessians",&
-   "",&
-   "--vparam FILE",&
-   "    Parameter file for vTB calculation",&
-   "",&
-   "--xparam FILE",&
-   "    Parameter file for xTB calculation (not used)",&
-   "",&
-   "--alpb SOLVENT [STATE]",&
-   "    analytical linearized Poisson-Boltzmann (ALPB) model,",&
-   "    available solvents are acetone, acetonitrile, aniline, benzaldehyde,",&
-   "    benzene, ch2cl2, chcl3, cs2, dioxane, dmf, dmso, ether, ethylacetate, furane,", &
-   "    hexandecane, hexane, methanol, nitromethane, octanol, woctanol, phenol, toluene,",&
-   "    thf, water.",&
-   "    The solvent input is not case-sensitive. The Gsolv",&
-   "    reference state can be chosen as reference, bar1M, or gsolv (default).",&
-   "",&
-   "-g, --gbsa SOLVENT [STATE]",&
-   "    generalized born (GB) model with solvent accessable surface (SASA) model,",&
-   "    available solvents are acetone, acetonitrile, benzene (only GFN1-xTB), CH2Cl2,",&
-   "    CHCl3, CS2, DMF (only GFN2-xTB), DMSO, ether, H2O, methanol,",&
-   "    n-hexane (only GFN2-xTB), THF and toluene.",&
-   "    The solvent input is not case-sensitive.", &
-   "    The Gsolv reference state can be chosen as reference, bar1M, or gsolv (default).",&
-   "",&
-   "--gbe SOLVENT/EPSILON",&
-   "    generalized Born for finite epsilon (GBe) solvation model (tblite required),", &
-   "    includes only the electrostatic solvation contribution (no SASA model),", &
-   "    available solvents are all solvents that are available for alpb.", &
-   "    Additionally, the dielectric constant can be set manually.", &
-   "",&
-   "--gb SOLVENT/EPSILON",&
-   "    generalized Born (GB) solvation model (tblite required),", &
-   "    includes only the electrostatic solvation contribution (no SASA model),", &
-   "    available solvents are all solvents that are available for alpb.", &
-   "    Additionally, the dielectric constant can be set manually.", &
-   "",&
-   "--cosmo SOLVENT/EPSILON",&
-   "    domain decomposition conductor-like screening model (ddCOSMO),",&
-   "    available solvents are all solvents that are available for alpb.",&
-   "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
-   "    can be chosen by setting epsilon to infinity.",&
-   "    Available via tblite or in the legacy version in xtb lacking density response",&
-   "    to the continuum polarization (non-variational).",&
-   "",&
-   "--cpcm SOLVENT/EPSILON",&
-   "    domain decomposition conductor-like polarizable continuum solvation model (ddCPCM),",&
-   "    available solvents are all solvents that are available for alpb.",&
-   "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
-   "    can be chosen by setting epsilon to infinity.",&
-   "    Only available via tblite.",&
-   "",&
-   "--pcm SOLVENT/EPSILON",&
-   "    domain decomposition polarizable continuum model (ddPCM),",&
-   "    available solvents are all solvents that are available for alpb.",&
-   "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
-   "    can be chosen by setting epsilon to infinity.",&
-   "    Only available via tblite.",&
-   "",&
-   "--tmcosmo SOLVENT/EPSILON",&
-   "    same as --cosmo, but uses TM convention for writing the .cosmo files.",&
-   "",&
-   "--cpcmx SOLVENT",&
-   "    extended conduction-like polarizable continuum solvation model (CPCM-X),",&
-   "    available solvents are all solvents included in the Minnesota Solvation Database.",&
-   "",&
-   "--cma",&
-   "    shifts molecule to center of mass and transforms cartesian coordinates into the",&
-   "    coordinate system of the principle axis (not affected by ‘isotopes’-file).",&
-   "",&
-   "--pop",&
-   "    requests printout of Mulliken population analysis",&
-   "",&
-   "--molden",&
-   "    requests printout of molden file (name: molden.input), format differs with --tblite",&
-   "",&
-   "--dipole",&
-   "    requests dipole printout",&
-   "",&
-   "--quadrupole",&
-   "    requests quadrupole printout",&
-   "",&
-   "--raman", &
-   "    requests Raman spectrum calculation via combination of GFN2-xTB and PTB",&
-   "    using the temperature 'REAL' (default 298.15 K) and the wavelength of the",& 
-   "    incident laser which must be given in nm 'REAL' (default 514 nm).",&
-   "",&
-   "--alpha",&
-   "    requests the extension of electrical properties to static molecular dipole polarizabilities. ",&
-   "",&
-   "--wbo",&
-   "    requests Wiberg bond order printout",&
-   "",&
-   "--lmo",&
-   "    requests localization of orbitals",&
-   "",&
-   "--fod",&
-   "    requests FOD calculation",&
-   "",&
-   "--scc, --sp",&
-   "    performs a single point calculation",&
-   "",&
-   "--vip",&
-   "    performs calculation of ionisation potential. This needs the param_ipea-xtb.txt",&
-   "    parameters and a GFN1 Hamiltonian.",&
-   "",&
-   "--vea",&
-   "    performs calculation of electron affinity. This needs the param_ipea-xtb.txt",&
-   "    parameters and a GFN1 Hamiltonian.",&
-   "",&
-   "--vipea",&
-   "    performs calculation of electron affinity and ionisation potential.",&
-   "    This needs the param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
-   "",&
-   "--vfukui",&
-   "    performs calculation of Fukui indices.",&
-   "",&
-   "--vomega",&
-   "    performs calculation of electrophilicity index. This needs the param_ipea-xtb.txt",&
-   "    parameters and a GFN1 Hamiltonian.",&
-   "",&
-   "--grad",&
-   "    performs a gradient calculation",&
-   "",&
-   "-o, --opt [LEVEL]",&
-   "    call ancopt(3) to perform a geometry optimization, levels from crude, sloppy,", &
-   "    loose, normal (default), tight [0.5], verytight [0.2] to extreme [0.2] can be chosen,",&
-   "    level tightens also the default accuracy setting", &
-   "    (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)", &
-   "",&
-   "--cycles [int]",&
-   "    maximum number of optimization cycles.",&
-   "",&
-   "--hess",&
-   "    perform a numerical hessian calculation on input geometry,",&
-   "    tightens default accuracy setting to 0.2 (overwritten by --acc flag)", &
-   "",&
-   "--ohess [LEVEL]",&
-   "    perform a numerical hessian calculation on an ancopt(3) optimized geometry,",&
-   "    tightens default accuracy setting to 0.2 (overwritten by --acc flag)", &
-   "",&
-   "--bhess [LEVEL]",&
-   "    perform a biased numerical hessian calculation on an ancopt(3) optimized geometry,",&
-   "    tightens default accuracy setting to 0.2 (overwritten by --acc flag).", &
-   "",&
-   "    Molecular Hessian runs with more than one atom, no frozen atoms, and no periodicity",&
-   "    automatically print compliance constants, relaxed force constants, and bond local-mode",&
-   "    frequencies, and write compliance.dat.",&
-   "",&
-   "--o1nh",&
-   "    perform the numerical hessian calculation using the ODLR approximation (O1NumHess)",&
-   "",&
-   "--imagmin REAL",&
-   "    magnitudes below this value (cm⁻¹) are ignored in the O1NumHess",&
-   "    imaginary frequency repair (default 5)",&
-   "",&
-   "--imagmax REAL",&
-   "    deepest imaginary frequency (cm⁻¹) considered in the O1NumHess",&
-   "    imaginary frequency repair (default 200)",&
-   "",&
-   "--ithr REAL",&
-   "    imaginary frequencies between this cutoff (cm⁻¹) and zero are treated",&
-   "    as vibrations in the RRHO calculation (default 20)",&
-   "",&
-   "--md",&
-   "    molecular dynamics simulation on start geometry",&
-   "",&
-   "--metadyn [int]",&
-   "    meta dynamics simulation on start geometry, saving int snapshots of the", &
-   "    trajectory to bias the simulation",&
-   "",&
-   "--omd",&
-   "    molecular dynamics simulation on ancopt(3) optimized geometry,", &
-   "    a loose optimization level will be chosen",&
-   "",&
-   "--metaopt [LEVEL]",&
-   "    call ancopt(3) to perform a geometry optimization, then try to find other", &
-   "    minimas by meta dynamics, level tightens also the default accuracy setting",&
-   "    (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)", &
-   "",&
-   "--path [FILE]",&
-   "    use meta dynamics to calculate a path from the input geometry to the given", &
-   "    product structure",&
-   "",&
-   "--modef INT",&
-   "    modefollowing algorithm. INT specifies the mode that should be used for the", &
-   "    modefollowing.",&
-   "",&
-   "-I, --input FILE",&
-   "    use FILE as input source for xcontrol(7) instructions",&
-   "",&
-   "--namespace STRING",&
-   "    give this xtb(1) run a namespace. All files, even temporary ones, will be named",&
-   "    according to STRING (might not work everywhere).",&
-   "",&
-   "--[no]copy",&
-   "    copies the xcontrol file at startup (default = true)",&
-   "",&
-   "--[no]restart",&
-   "    restarts calculation from xtbrestart (default = true)",&
-   "",&
-   "-P, --parallel INT",&
-   "    number of parallel processes",&
-   "",&
-   "--define",&
-   "    performs automatic check of input and terminate",&
-   "",&
-   "--json",&
-   "    write xtbout.json file",&
-   "",&
-   "--citation",&
-   "    print citation and terminate",&
-   "",&
-   "--license",&
-   "    print license and terminate",&
-   "",&
-   "-v, --verbose",&
-   "    be more verbose (not supported in every unit)",&
-   "",&
-   "-s, --silent",&
-   "    clutter the screen less (not supported in every unit)",&
-   "",&
-   "--ceasefiles",&
-   "    reduce the amount of output and files written",&
-   "",&
-   "--strict",&
-   "    turns all warnings into hard errors",&
-   "",&
-   "-h, --help",&
-   "    show help page",&
+   "  -c, --chrg INT           specify molecular charge as INT, overrides .CHRG file and xcontrol option",&
+   "      --ceh <grad> [REAL]  calculate CEH (Charge-Extended Hückel model) charges and write them to",&
+   "                           the ceh.charges file",&
+   "                           optionally, calculate numerical gradients and write them to the",&
+   "                           ceh.charges.numgrad file with an adjustable step size for the numerical",&
+   "                           gradients.",&
+   "  -u, --uhf INT            specify number of unpaired electrons as INT, overrides .UHF file and",&
+   "                           xcontrol option (default: 0 (singlet) for even electron number, 1",&
+   "                           (doublet) for odd electron number)",&
+   "      --gfn INT            specify parametrisation of GFN-xTB (default = 2)",&
+   "      --gfnff, --gff       specify parametrisation of GFN-FF",&
+   "      --tblite             use tblite library as implementation for xTB, please note that solvation",&
+   "                           is not yet implemented within tblite",&
+   "      --ptb                performs single-point calculation with the density tight-binding method",&
+   "                           PTB. Provides electronic structure and properties, such as, e.g., atomic",&
+   "                           charges, bond orders, and dipole moments, but does not provide any",&
+   "                           energy-related properties, such as, e.g., total energy, nuclear",&
+   "                           gradients, or vibrational frequencies.",&
+   "      --spinpol            enables spin-polarization for xTB methods (tblite required)",&
+   "      --oniom METHOD LIST  use subtractive embedding via ONIOM method. 'METHOD' is given as",&
+   "                           'inner:outer' where 'inner' can be 'orca', 'turbomole', 'gfn2', 'gfn1',",&
+   "                           or 'gfnff' and 'outer' can be 'gfn2', 'gfn1', or 'gfnff'. The inner",&
+   "                           region is given as a comma separated indices directly in the commandline",&
+   "                           or in a file with each index on a separate line. Combine with --tblite to",&
+   "                           evaluate 'gfn2' and 'gfn1' with the tblite library.",&
+   "      --efield REAL,REAL,REAL",&
+   "                           static electric field in Cartesian coordinates, overrides '.EFIELD' file,",&
+   "                           works only via tblite for the xTB Hamiltonians, or with GFN-FF and PTB.",&
+   "      --etemp REAL         electronic temperature (default = 300K)",&
+   "      --esp                calculate electrostatic potential on VdW-grid",&
+   "      --stm                calculate STM image",&
+   "  -a, --acc REAL           accuracy for SCC calculation, lower is better (default = 1.0), overwrites",&
+   "                           also tighter defaults for optimization and hessians",&
+   "      --vparam FILE        Parameter file for vTB calculation",&
+   "      --xparam FILE        Parameter file for xTB calculation (not used)",&
+   "      --alpb SOLVENT [STATE]",&
+   "                           analytical linearized Poisson-Boltzmann (ALPB) model, available solvents",&
+   "                           are acetone, acetonitrile, aniline, benzaldehyde, benzene, ch2cl2, chcl3,",&
+   "                           cs2, dioxane, dmf, dmso, ether, ethylacetate, furane, hexandecane,",&
+   "                           hexane, methanol, nitromethane, octanol, woctanol, phenol, toluene, thf,",&
+   "                           water. The solvent input is not case-sensitive. The Gsolv reference state",&
+   "                           can be chosen as reference, bar1M, or gsolv (default).",&
+   "  -g, --gbsa SOLVENT [STATE]",&
+   "                           generalized born (GB) model with solvent accessable surface (SASA) model,",&
+   "                           available solvents are acetone, acetonitrile, benzene (only GFN1-xTB),",&
+   "                           CH2Cl2, CHCl3, CS2, DMF (only GFN2-xTB), DMSO, ether, H2O, methanol,",&
+   "                           n-hexane (only GFN2-xTB), THF and toluene. The solvent input is not",&
+   "                           case-sensitive. The Gsolv reference state can be chosen as reference,",&
+   "                           bar1M, or gsolv (default).",&
+   "      --gbe SOLVENT/EPSILON",&
+   "                           generalized Born for finite epsilon (GBe) solvation model (tblite",&
+   "                           required), includes only the electrostatic solvation contribution (no",&
+   "                           SASA model), available solvents are all solvents that are available for",&
+   "                           alpb. Additionally, the dielectric constant can be set manually.",&
+   "      --gb SOLVENT/EPSILON",&
+   "                           generalized Born (GB) solvation model (tblite required), includes only",&
+   "                           the electrostatic solvation contribution (no SASA model), available",&
+   "                           solvents are all solvents that are available for alpb. Additionally, the",&
+   "                           dielectric constant can be set manually.",&
+   "      --cosmo SOLVENT/EPSILON",&
+   "                           domain decomposition conductor-like screening model (ddCOSMO), available",&
+   "                           solvents are all solvents that are available for alpb. Additionally, the",&
+   "                           dielectric constant can be set manually or an ideal conductor can be",&
+   "                           chosen by setting epsilon to infinity. Available via tblite or in the",&
+   "                           legacy version in xtb lacking density response to the continuum",&
+   "                           polarization (non-variational).",&
+   "      --cpcm SOLVENT/EPSILON",&
+   "                           domain decomposition conductor-like polarizable continuum solvation model",&
+   "                           (ddCPCM), available solvents are all solvents that are available for",&
+   "                           alpb. Additionally, the dielectric constant can be set manually or an",&
+   "                           ideal conductor can be chosen by setting epsilon to infinity. Only",&
+   "                           available via tblite.",&
+   "      --pcm SOLVENT/EPSILON",&
+   "                           domain decomposition polarizable continuum model (ddPCM), available",&
+   "                           solvents are all solvents that are available for alpb. Additionally, the",&
+   "                           dielectric constant can be set manually or an ideal conductor can be",&
+   "                           chosen by setting epsilon to infinity. Only available via tblite.",&
+   "      --tmcosmo SOLVENT/EPSILON",&
+   "                           same as --cosmo, but uses TM convention for writing the .cosmo files.",&
+   "      --cpcmx SOLVENT      extended conduction-like polarizable continuum solvation model (CPCM-X),",&
+   "                           available solvents are all solvents included in the Minnesota Solvation",&
+   "                           Database.",&
+   "      --cma                shifts molecule to center of mass and transforms cartesian coordinates",&
+   "                           into the coordinate system of the principle axis (not affected by",&
+   "                           ‘isotopes’-file).",&
+   "      --pop                requests printout of Mulliken population analysis",&
+   "      --molden             requests printout of molden file (name: molden.input), format differs",&
+   "                           with --tblite",&
+   "      --dipole             requests dipole printout",&
+   "      --quadrupole         requests quadrupole printout",&
+   "      --raman              requests Raman spectrum calculation via combination of GFN2-xTB and PTB",&
+   "                           using the temperature 'REAL' (default 298.15 K) and the wavelength of the",&
+   "                           incident laser which must be given in nm 'REAL' (default 514 nm).",&
+   "      --alpha              requests the extension of electrical properties to static molecular",&
+   "                           dipole polarizabilities.",&
+   "      --wbo                requests Wiberg bond order printout",&
+   "      --lmo                requests localization of orbitals",&
+   "      --fod                requests FOD calculation",&
+   "      --scc, --sp          performs a single point calculation",&
+   "      --vip                performs calculation of ionisation potential. This needs the",&
+   "                           param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
+   "      --vea                performs calculation of electron affinity. This needs the",&
+   "                           param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
+   "      --vipea              performs calculation of electron affinity and ionisation potential. This",&
+   "                           needs the param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
+   "      --vfukui             performs calculation of Fukui indices.",&
+   "      --vomega             performs calculation of electrophilicity index. This needs the",&
+   "                           param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
+   "      --grad               performs a gradient calculation",&
+   "  -o, --opt [LEVEL]        call ancopt(3) to perform a geometry optimization, levels from crude,",&
+   "                           sloppy, loose, normal (default), tight [0.5], verytight [0.2] to extreme",&
+   "                           [0.2] can be chosen, level tightens also the default accuracy setting",&
+   "                           (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)",&
+   "      --cycles [int]       maximum number of optimization cycles.",&
+   "      --hess               perform a numerical hessian calculation on input geometry, tightens",&
+   "                           default accuracy setting to 0.2 (overwritten by --acc flag)",&
+   "      --ohess [LEVEL]      perform a numerical hessian calculation on an ancopt(3) optimized",&
+   "                           geometry, tightens default accuracy setting to 0.2 (overwritten by --acc",&
+   "                           flag)",&
+   "      --bhess [LEVEL]      perform a biased numerical hessian calculation on an ancopt(3) optimized",&
+   "                           geometry, tightens default accuracy setting to 0.2 (overwritten by --acc",&
+   "                           flag).",&
+   "",&
+   "                           Molecular Hessian runs with more than one atom, no frozen atoms, and no",&
+   "                           periodicity automatically print compliance constants, relaxed force",&
+   "                           constants, and bond local-mode frequencies, and write compliance.dat.",&
+   "      --o1nh               perform the numerical hessian calculation using the ODLR approximation",&
+   "                           (O1NumHess)",&
+   "      --imagmin REAL       magnitudes below this value (cm⁻¹) are ignored in the O1NumHess imaginary",&
+   "                           frequency repair (default 5)",&
+   "      --imagmax REAL       deepest imaginary frequency (cm⁻¹) considered in the O1NumHess imaginary",&
+   "                           frequency repair (default 200)",&
+   "      --ithr REAL          imaginary frequencies between this cutoff (cm⁻¹) and zero are treated as",&
+   "                           vibrations in the RRHO calculation (default 20)",&
+   "      --md                 molecular dynamics simulation on start geometry",&
+   "      --metadyn [int]      meta dynamics simulation on start geometry, saving int snapshots of the",&
+   "                           trajectory to bias the simulation",&
+   "      --omd                molecular dynamics simulation on ancopt(3) optimized geometry, a loose",&
+   "                           optimization level will be chosen",&
+   "      --metaopt [LEVEL]    call ancopt(3) to perform a geometry optimization, then try to find other",&
+   "                           minimas by meta dynamics, level tightens also the default accuracy",&
+   "                           setting (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)",&
+   "      --path [FILE]        use meta dynamics to calculate a path from the input geometry to the",&
+   "                           given product structure",&
+   "      --modef INT          modefollowing algorithm. INT specifies the mode that should be used for",&
+   "                           the modefollowing.",&
+   "  -I, --input FILE         use FILE as input source for xcontrol(7) instructions",&
+   "      --namespace STRING   give this xtb(1) run a namespace. All files, even temporary ones, will be",&
+   "                           named according to STRING (might not work everywhere).",&
+   "      --[no]copy           copies the xcontrol file at startup (default = true)",&
+   "      --[no]restart        restarts calculation from xtbrestart (default = true)",&
+   "  -P, --parallel INT       number of parallel processes",&
+   "      --define             performs automatic check of input and terminate",&
+   "      --json               write xtbout.json file",&
+   "      --citation           print citation and terminate",&
+   "      --license            print license and terminate",&
+   "  -v, --verbose            be more verbose (not supported in every unit)",&
+   "  -s, --silent             clutter the screen less (not supported in every unit)",&
+   "      --ceasefiles         reduce the amount of output and files written",&
+   "      --strict             turns all warnings into hard errors",&
+   "  -h, --help               show help page",&
    "",&
    "Useful Maschine Settings:",&
    "",&
