@@ -98,8 +98,11 @@ elif fc_id == 'pgi' or fc_id == 'nvidia_hpc'
 endif
 add_project_arguments(fopts, language: 'fortran')
 
-# fix compiliation problems with of symmetry/symmetry_i.c
-add_project_arguments('-D_Float128=__float128', language: 'c')
+# Older compilers need this for symmetry/symmetry_i.c, while modern
+# Intel LLVM provides _Float128 through the system headers.
+if cc_id != 'intel-llvm'
+  add_project_arguments('-D_Float128=__float128', language: 'c')
+endif
 
 ## ========================================== ##
 ## LIBRARIES
