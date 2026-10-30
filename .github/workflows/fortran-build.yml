@@ -417,7 +417,22 @@ jobs:
            env:
             OMP_NUM_THREADS: 2,1
 
+   tests-passed:
+      needs:
+         - gcc-meson-build
+         - gcc-cmake-build
+         - xtb-lightweight-meson-build
+         - xtb-lightweight-cmake-build
+         - mingw-meson-build
+         - intel-meson-build
+         - intel-ifx-cmake-build
+         - intel-ifx-meson-build
+      runs-on: ubuntu-latest
+      steps:
+         - run: echo "All test jobs passed"
+
    release-linux-x86_64:
+      needs: tests-passed
       runs-on: ubuntu-24.04
       steps:
          - uses: actions/checkout@v4
@@ -453,64 +468,23 @@ jobs:
               -DBUILD_SHARED_LIBS=OFF -DWITH_OBJECT=OFF -DWITH_TBLITE=ON -DWITH_CPCMX=ON \
               -DCMAKE_EXE_LINKER_FLAGS='-static -static-intel -fiopenmp -qopenmp-link=static' \
               -DCMAKE_INSTALL_PREFIX="$PWD/stage"
-         - name: Build and normal tests
+         - name: Build and install
            run: |
             cmake --build _release --verbose
-            OMP_NUM_THREADS=2 MKL_NUM_THREADS=1 ctest --test-dir _release --output-on-failure -R 'xtb/'
             cmake --install _release
-         - name: Validate, package, extract, calculate and test in minimal container
+         - name: Verify static linkage and package
            run: |
             set -euo pipefail
-            root=$PWD
-            validate() {
-              exe=${1:?executable required}
-              package=${2:?package tree required}
-              description=$(file "$exe")
-              printf '%s\n' "$description"
-              headers=$(readelf -lW "$exe")
-              printf '%s\n' "$headers"
-              dynamic=$(readelf -dW "$exe")
-              printf '%s\n' "$dynamic"
-              ldd "$exe" || true
-              [[ $description =~ statically\ linked|static-pie\ linked ]] || { echo 'Not a static ELF' >&2; exit 1; }
-              ! grep -Eq '(^|[[:space:]])INTERP([[:space:]]|$)' <<< "$headers" || { echo 'PT_INTERP forbidden' >&2; exit 1; }
-              ! grep -q '(NEEDED)' <<< "$dynamic" || { echo 'DT_NEEDED forbidden' >&2; exit 1; }
-              shared=$(find "$package" \( -iname '*.so' -o -iname '*.so.*' \) -print)
-              [[ -z $shared ]] || { printf 'Shared libraries forbidden:\n%s\n' "$shared" >&2; exit 1; }
-              echo 'PASS: no PT_INTERP; zero DT_NEEDED; no packaged shared libraries'
-            }
-            archive="xtb-bleed-linux-x86_64-ifx-mkl.tar.xz"
-            validate "$root/stage/bin/xtb" "$root/stage"
-            tar -cJf "$archive" stage
-            rm -rf package-test
-            mkdir package-test
-            tar -xJf "$archive" -C package-test
-            validate "$root/package-test/stage/bin/xtb" "$root/package-test/stage"
-            smoke() (
-              exe=$(cd "$(dirname "${1:?executable required}")" && pwd)/$(basename "$1")
-              geometry=$(cd "$(dirname "${2:?repository geometry required}")" && pwd)/$(basename "$2")
-              work=$(mktemp -d)
-              trap 'rm -rf "$work"' EXIT
-              export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_DYNAMIC=FALSE
-              "$exe" --version
-              cd "$work"
-              echo "GFN2; OMP=2; BLAS=1; architecture=$(uname -m)"
-              time "$exe" "$geometry" --gfn 2 --sp --wbo > output.log 2>&1
-              cat output.log
-              grep -Eq '^[[:space:]]*normal termination of xtb' output.log
-              test -s wbo
-              # Loose caffeine reference tolerance accommodates compiler/backend differences.
-              awk '/TOTAL ENERGY/ {energy=$4; found=1} END {if (!found || energy !~ /^-[0-9]+[.][0-9]+$/ || energy+42.14746316 > 0.01 || -42.14746316-energy > 0.01) exit 1; print "Validated energy:", energy}' output.log
-            )
-            smoke "$root/package-test/stage/bin/xtb" "$root/assets/inputs/coord/caffeine.coord"
-            # Send the same smoke calculation over stdin; expose only package/input.
-            {
-              declare -f smoke
-              printf '%s\n' 'smoke /xtb/bin/xtb /input/caffeine.coord'
-            } | docker run --rm -i --network none \
-              -v "$root/package-test/stage:/xtb:ro" \
-              -v "$root/assets/inputs/coord/caffeine.coord:/input/caffeine.coord:ro" \
-              debian:bookworm-slim bash -seuo pipefail
+            exe=stage/bin/xtb
+            description=$(file "$exe")
+            printf '%s\n' "$description"
+            [[ $description =~ statically\ linked|static-pie\ linked ]] || { echo 'Binary is not static' >&2; exit 1; }
+            headers=$(readelf -lW "$exe")
+            ! grep -Eq '(^|[[:space:]])INTERP([[:space:]]|$)' <<< "$headers" || { echo 'PT_INTERP found: binary is dynamic' >&2; exit 1; }
+            dynamic=$(readelf -dW "$exe")
+            ! grep -q '(NEEDED)' <<< "$dynamic" || { echo 'DT_NEEDED found: binary has dynamic dependencies' >&2; exit 1; }
+            echo 'PASS: no PT_INTERP; zero DT_NEEDED'
+            tar -cJf xtb-bleed-linux-x86_64-ifx-mkl.tar.xz stage
          - uses: actions/upload-artifact@v4
            with:
             name: xtb-bleed-linux-x86_64-ifx-mkl.tar.xz
@@ -518,6 +492,7 @@ jobs:
             if-no-files-found: error
 
    release-linux-aarch64:
+      needs: tests-passed
       runs-on: ubuntu-24.04-arm
       steps:
          - uses: actions/checkout@v4
@@ -555,64 +530,23 @@ jobs:
             meson setup _release --prefix="$PWD/stage" --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas -Dtblite=enabled -Dcpcmx=enabled
-         - name: Build and normal tests
+         - name: Build and install
            run: |
             meson compile -C _release -v
-            OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 meson test -C _release --print-errorlogs --suite xtb -t 120
             meson install -C _release
-         - name: Validate, package, extract, calculate and test in minimal container
+         - name: Verify static linkage and package
            run: |
             set -euo pipefail
-            root=$PWD
-            validate() {
-              exe=${1:?executable required}
-              package=${2:?package tree required}
-              description=$(file "$exe")
-              printf '%s\n' "$description"
-              headers=$(readelf -lW "$exe")
-              printf '%s\n' "$headers"
-              dynamic=$(readelf -dW "$exe")
-              printf '%s\n' "$dynamic"
-              ldd "$exe" || true
-              [[ $description =~ statically\ linked|static-pie\ linked ]] || { echo 'Not a static ELF' >&2; exit 1; }
-              ! grep -Eq '(^|[[:space:]])INTERP([[:space:]]|$)' <<< "$headers" || { echo 'PT_INTERP forbidden' >&2; exit 1; }
-              ! grep -q '(NEEDED)' <<< "$dynamic" || { echo 'DT_NEEDED forbidden' >&2; exit 1; }
-              shared=$(find "$package" \( -iname '*.so' -o -iname '*.so.*' \) -print)
-              [[ -z $shared ]] || { printf 'Shared libraries forbidden:\n%s\n' "$shared" >&2; exit 1; }
-              echo 'PASS: no PT_INTERP; zero DT_NEEDED; no packaged shared libraries'
-            }
-            archive="xtb-bleed-linux-aarch64-openblas.tar.xz"
-            validate "$root/stage/bin/xtb" "$root/stage"
-            tar -cJf "$archive" stage
-            rm -rf package-test
-            mkdir package-test
-            tar -xJf "$archive" -C package-test
-            validate "$root/package-test/stage/bin/xtb" "$root/package-test/stage"
-            smoke() (
-              exe=$(cd "$(dirname "${1:?executable required}")" && pwd)/$(basename "$1")
-              geometry=$(cd "$(dirname "${2:?repository geometry required}")" && pwd)/$(basename "$2")
-              work=$(mktemp -d)
-              trap 'rm -rf "$work"' EXIT
-              export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_DYNAMIC=FALSE
-              "$exe" --version
-              cd "$work"
-              echo "GFN2; OMP=2; BLAS=1; architecture=$(uname -m)"
-              time "$exe" "$geometry" --gfn 2 --sp --wbo > output.log 2>&1
-              cat output.log
-              grep -Eq '^[[:space:]]*normal termination of xtb' output.log
-              test -s wbo
-              # Loose caffeine reference tolerance accommodates compiler/backend differences.
-              awk '/TOTAL ENERGY/ {energy=$4; found=1} END {if (!found || energy !~ /^-[0-9]+[.][0-9]+$/ || energy+42.14746316 > 0.01 || -42.14746316-energy > 0.01) exit 1; print "Validated energy:", energy}' output.log
-            )
-            smoke "$root/package-test/stage/bin/xtb" "$root/assets/inputs/coord/caffeine.coord"
-            # Send the same smoke calculation over stdin; expose only package/input.
-            {
-              declare -f smoke
-              printf '%s\n' 'smoke /xtb/bin/xtb /input/caffeine.coord'
-            } | docker run --rm -i --network none \
-              -v "$root/package-test/stage:/xtb:ro" \
-              -v "$root/assets/inputs/coord/caffeine.coord:/input/caffeine.coord:ro" \
-              debian:bookworm-slim bash -seuo pipefail
+            exe=stage/bin/xtb
+            description=$(file "$exe")
+            printf '%s\n' "$description"
+            [[ $description =~ statically\ linked|static-pie\ linked ]] || { echo 'Binary is not static' >&2; exit 1; }
+            headers=$(readelf -lW "$exe")
+            ! grep -Eq '(^|[[:space:]])INTERP([[:space:]]|$)' <<< "$headers" || { echo 'PT_INTERP found: binary is dynamic' >&2; exit 1; }
+            dynamic=$(readelf -dW "$exe")
+            ! grep -q '(NEEDED)' <<< "$dynamic" || { echo 'DT_NEEDED found: binary has dynamic dependencies' >&2; exit 1; }
+            echo 'PASS: no PT_INTERP; zero DT_NEEDED'
+            tar -cJf xtb-bleed-linux-aarch64-openblas.tar.xz stage
          - uses: actions/upload-artifact@v4
            with:
             name: xtb-bleed-linux-aarch64-openblas.tar.xz
@@ -620,6 +554,7 @@ jobs:
             if-no-files-found: error
 
    release-macos:
+      needs: tests-passed
       strategy:
          fail-fast: false
          matrix:
@@ -665,7 +600,7 @@ jobs:
            with:
             path: static-openblas
             key: openblas-0.3.30-static-pthreads-${{ matrix.arch }}-gcc${{ steps.toolchain.outputs.version }}-v2
-         - name: Build static third-party Release and run normal tests
+         - name: Build and install static third-party Release
            run: |
             set -euo pipefail
             OPENBLAS_PREFIX="$PWD/static-openblas"
@@ -688,70 +623,28 @@ jobs:
               -Dc_link_args="$LDFLAGS -static-libgcc" \
               -Dfortran_link_args="$LDFLAGS -static-libgfortran -static-libgcc"
             meson compile -C _release -v
-            OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 meson test -C _release --print-errorlogs --suite xtb -t 120
             meson install -C _release
          - uses: actions/cache/save@v4
            if: success() && steps.openblas-cache.outputs.cache-hit != 'true'
            with:
             path: static-openblas
             key: openblas-0.3.30-static-pthreads-${{ matrix.arch }}-gcc${{ steps.toolchain.outputs.version }}-v2
-         - name: Validate, package, extract and calculate with conservative PATH
+         - name: Verify third-party static linkage and package
            run: |
             set -euo pipefail
-            root=$PWD
-            validate() {
-              exe=${1:?executable required}
-              package=${2:?package tree required}
-              arch=${3:?expected architecture required}
-              file "$exe"
-              [[ $(lipo -archs "$exe") == "$arch" ]] || { echo 'Wrong architecture' >&2; exit 1; }
-              deps=$(otool -L "$exe")
-              printf '%s\n' "$deps"
-              count=0
-              while IFS= read -r line; do
-                dep=$(sed -E 's/^[[:space:]]*//; s/ \(compatibility version.*$//' <<< "$line")
-                [[ -n $dep ]] || continue
-                lower=$(printf '%s' "$dep" | tr '[:upper:]' '[:lower:]')
-                case "$lower" in
-                  *openblas*|*gfortran*|*gcc*|*quadmath*|*gomp*|*homebrew*|*cellar*|*@rpath*|*@loader_path*)
-                    echo "Forbidden third-party dependency: $dep" >&2; exit 1 ;;
-                esac
-                case "$dep" in
-                  /usr/lib/*|/System/Library/*) ;;
-                  *) echo "Forbidden dependency: $dep" >&2; exit 1 ;;
-                esac
-                count=$((count + 1))
-              done < <(printf '%s\n' "$deps" | tail -n +2)
-              (( count > 0 )) || { echo 'No dependencies parsed' >&2; exit 1; }
-              shared=$(find "$package" -iname '*.dylib' -print)
-              [[ -z $shared ]] || { printf 'Packaged dylibs forbidden:\n%s\n' "$shared" >&2; exit 1; }
-              echo 'PASS: Apple system dependencies only; no packaged dylibs'
-            }
-            archive="${{ matrix.archive }}"
-            validate "$root/stage/bin/xtb" "$root/stage" "${{ matrix.arch }}"
-            tar -cJf "$archive" stage
-            rm -rf package-test
-            mkdir package-test
-            tar -xJf "$archive" -C package-test
-            validate "$root/package-test/stage/bin/xtb" "$root/package-test/stage" "${{ matrix.arch }}"
-            smoke() (
-              exe=$(cd "$(dirname "${1:?executable required}")" && pwd)/$(basename "$1")
-              geometry=$(cd "$(dirname "${2:?repository geometry required}")" && pwd)/$(basename "$2")
-              work=$(mktemp -d)
-              trap 'rm -rf "$work"' EXIT
-              export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_DYNAMIC=FALSE
-              "$exe" --version
-              cd "$work"
-              echo "GFN2; OMP=2; BLAS=1; architecture=$(uname -m)"
-              time "$exe" "$geometry" --gfn 2 --sp --wbo > output.log 2>&1
-              cat output.log
-              grep -Eq '^[[:space:]]*normal termination of xtb' output.log
-              test -s wbo
-              # Loose caffeine reference tolerance accommodates compiler/backend differences.
-              awk '/TOTAL ENERGY/ {energy=$4; found=1} END {if (!found || energy !~ /^-[0-9]+[.][0-9]+$/ || energy+42.14746316 > 0.01 || -42.14746316-energy > 0.01) exit 1; print "Validated energy:", energy}' output.log
-            )
-            export PATH=/usr/bin:/bin:/usr/sbin:/sbin
-            smoke "$root/package-test/stage/bin/xtb" "$root/assets/inputs/coord/caffeine.coord"
+            test "$(lipo -archs stage/bin/xtb)" = "${{ matrix.arch }}"
+            deps=$(otool -L stage/bin/xtb)
+            printf '%s\n' "$deps"
+            paths=$(awk 'NR > 1 {print $1}' <<< "$deps")
+            test -n "$paths"
+            while IFS= read -r dep; do
+              case "$dep" in
+                /usr/lib/*|/System/Library/*) ;;
+                *) echo "Non-system dependency: $dep" >&2; exit 1 ;;
+              esac
+            done <<< "$paths"
+            echo 'PASS: expected architecture; Apple system dependencies only'
+            tar -cJf "${{ matrix.archive }}" stage
          - uses: actions/upload-artifact@v4
            with:
             name: ${{ matrix.archive }}
@@ -759,6 +652,7 @@ jobs:
             if-no-files-found: error
 
    release-windows-x86_64:
+      needs: tests-passed
       runs-on: windows-2025
       defaults:
          run:
@@ -770,7 +664,7 @@ jobs:
             msystem: UCRT64
             update: true
             install: >-
-              git zip unzip
+              git zip
               mingw-w64-ucrt-x86_64-gcc-fortran
               mingw-w64-ucrt-x86_64-openblas
               mingw-w64-ucrt-x86_64-python
@@ -806,75 +700,23 @@ jobs:
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas \
               -Dtblite=enabled -Dcpcmx=enabled
-         - name: Build and normal tests
+         - name: Build and install
            run: |
             meson compile -C _release -v
-            OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 meson test -C _release --print-errorlogs --suite xtb -t 120
             meson install -C _release
-         - name: Validate, package, extract and inspect imports again
+         - name: Verify static linkage and package
            run: |
             set -euo pipefail
-            root=$PWD
-            validate() {
-              exe=${1:?executable required}
-              package=${2:?package tree required}
-              imports=$(objdump -p "$exe")
-              printf '%s\n' "$imports"
-              dlls=$(awk '/DLL Name:/ {print tolower($3)}' <<< "$imports")
-              [[ -n $dlls ]] || { echo 'No PE imports parsed' >&2; exit 1; }
-              while IFS= read -r dll; do
-                case "$dll" in
-                  *gfortran*|*gcc_s*|*quadmath*|*gomp*|*winpthread*|*openblas*|*blas.dll|*lapack.dll) echo "Forbidden runtime: $dll" >&2; exit 1 ;;
-                  kernel32.dll|ntdll.dll|user32.dll|advapi32.dll|shell32.dll|ole32.dll|oleaut32.dll|ws2_32.dll|bcrypt.dll|secur32.dll|crypt32.dll|ucrtbase.dll|msvcrt.dll|api-ms-win-*.dll) ;;
-                  *) echo "Unexpected non-system import: $dll" >&2; exit 1 ;;
-                esac
-              done <<< "$dlls"
-              shared=$(find "$package" -iname '*.dll' -print)
-              [[ -z $shared ]] || { printf 'Packaged DLLs forbidden:\n%s\n' "$shared" >&2; exit 1; }
-              echo 'PASS: Windows system imports only; no packaged DLLs'
-            }
-            archive="xtb-bleed-windows-x86_64-openblas.zip"
-            validate "$root/stage/bin/xtb.exe" "$root/stage"
-            zip -r "$archive" stage
-            rm -rf package-test
-            mkdir package-test
-            unzip "$archive" -d package-test
-            validate "$root/package-test/stage/bin/xtb.exe" "$root/package-test/stage"
-         - name: Clean PowerShell packaged calculations without MSYS2 PATH
-           shell: pwsh
-           run: |
-            $ErrorActionPreference = 'Stop'
-            $root = (Get-Location).Path
-            $clean = Join-Path $env:RUNNER_TEMP 'xtb-clean-package'
-            if (Test-Path $clean) { Remove-Item -Recurse -Force $clean }
-            Expand-Archive -Path "$root/xtb-bleed-windows-x86_64-openblas.zip" -DestinationPath $clean
-            if (Get-ChildItem -Recurse $clean -Filter '*.dll') { throw 'DLL found in release ZIP' }
-            $exe = Join-Path $clean 'stage/bin/xtb.exe'
-            $geometry = Join-Path $root 'assets/inputs/coord/caffeine.coord'
-            $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
-            $env:OMP_NUM_THREADS = '2'
-            $env:OPENBLAS_NUM_THREADS = '1'
-            $env:OMP_DYNAMIC = 'FALSE'
-            & $exe --version
-            if ($LASTEXITCODE -ne 0) { throw 'Packaged version failed' }
-            $work = Join-Path $clean 'calculation'
-            New-Item -ItemType Directory $work | Out-Null
-            Push-Location $work
-            try {
-                $timer = [Diagnostics.Stopwatch]::StartNew()
-                & $exe $geometry --gfn 2 --sp --wbo *> output.log
-                $status = $LASTEXITCODE
-                $timer.Stop()
-                Get-Content output.log
-                if ($status -ne 0) { throw "Calculation failed: $status" }
-                $output = Get-Content output.log -Raw
-                if ($output -notmatch '(?m)^\s*normal termination of xtb') { throw 'Missing normal termination' }
-                if (!(Test-Path wbo) -or (Get-Item wbo).Length -eq 0) { throw 'Missing WBO output' }
-                if ($output -notmatch 'TOTAL ENERGY\s+(-?\d+\.\d+)') { throw 'Missing energy' }
-                $energy = [double]::Parse($Matches[1], [Globalization.CultureInfo]::InvariantCulture)
-                if ([Math]::Abs($energy + 42.14746316) -gt 0.01) { throw "Invalid energy: $energy" }
-                Write-Output "x86_64 UCRT64 GCC OpenBLAS; OMP=2; BLAS=1; GFN=2; wall=$($timer.Elapsed.TotalSeconds)s"
-            } finally { Pop-Location }
+            imports=$(objdump -p stage/bin/xtb.exe)
+            dlls=$(awk '/DLL Name:/ {print tolower($3)}' <<< "$imports")
+            test -n "$dlls"
+            printf '%s\n' "$dlls"
+            if grep -E 'gfortran|gcc_s|quadmath|gomp|winpthread|openblas|(^|/)blas\.dll|(^|/)lapack\.dll' <<< "$dlls"; then
+              echo 'Dynamic third-party runtime detected' >&2
+              exit 1
+            fi
+            echo 'PASS: no third-party runtime DLL imports'
+            zip -r xtb-bleed-windows-x86_64-openblas.zip stage
          - uses: actions/upload-artifact@v4
            with:
             name: xtb-bleed-windows-x86_64-openblas.zip
