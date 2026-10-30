@@ -68,7 +68,8 @@ module xtb_constrain_param
 
    implicit none
 
-   private :: getline,getValue, handlerInterface, get_free_atoms
+   private :: getline,getValue, handlerInterface, add_free_atoms, &
+      & apply_free_atoms
 
    character,private,parameter :: flag = '$'
    character,private,parameter :: colon = ':'
@@ -88,8 +89,8 @@ module xtb_constrain_param
    integer,private,parameter :: p_arg_length = 96
 
 !  Atoms selected by the free keyword in $fix and $constrain are collected
-!  over all lines first and only applied in apply_free_atoms, such that
-!  repeated free keywords are combined. .true. -> atom stays free
+!  over all lines first and only applied at the end of read_userdata, such
+!  that repeated free keywords are combined. .true. -> atom stays free
    logical,private,allocatable :: fixFree(:)
    logical,private,allocatable :: constrFree(:)
 
@@ -112,6 +113,7 @@ contains
 
 subroutine read_userdata(fname,env,mol)
    use xtb_readin, only : find_new_name
+   use xtb_fixparam
    use xtb_scanparam
    implicit none
    character(len=*), parameter :: source = 'userdata_read'
@@ -200,41 +202,44 @@ subroutine read_userdata(fname,env,mol)
 !     if (index(line,flag_end).ne.0) exit readflags ! compatibility reasons
    enddo readflags
 
-   call apply_free_atoms
+   call apply_free_atoms(fixFree,fixset)
+   call apply_free_atoms(constrFree,potset%pos)
+
+   ! the potential acts between pairs of atoms, a single atom is invalid
+   if (potset%pos%n == 1) then
+      call env%warning('Constraining atom positions needs at least two atoms, '//&
+         & 'the position constraint is ignored.',source)
+      potset%pos%n = 0
+   endif
 
    if (set%verbose) write(env%unit,'(72("$"))')
    call close_file(id)
 end subroutine read_userdata
 
-!> Fix and constrain all atoms not selected by any free keyword
+!> Add all atoms not selected by any free keyword to the atom set
 !>
-!> Called after all data groups are read, the atoms are added to the ones
-!> already selected by the atoms and elements keywords.
-subroutine apply_free_atoms
+!> Called after all data groups are read, such that the atoms already
+!> selected by the atoms and elements keywords are kept.
+subroutine apply_free_atoms(free,atomset)
    use xtb_type_atomlist
-   use xtb_fixparam
-   use xtb_scanparam
+   use xtb_type_setvar, only : fix_setvar
    implicit none
+   !> Mark for each atom, .true. -> atom stays free, deallocated on return
+   logical, allocatable, intent(inout) :: free(:)
+   !> Fixed or constrained atoms
+   type(fix_setvar), intent(inout) :: atomset
+
    type(TAtomList) :: atl
    integer, allocatable :: list(:)
 
-   if (allocated(fixFree)) then
-      call atl%new(.not.fixFree)
-      if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
-      call atl%to_list(list)
-      fixset%atoms = list
-      fixset%n = size(list)
-      deallocate(fixFree)
-   endif
+   if (.not.allocated(free)) return
 
-   if (allocated(constrFree)) then
-      call atl%new(.not.constrFree)
-      if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
-      call atl%to_list(list)
-      potset%pos%atoms = list
-      potset%pos%n = size(list)
-      deallocate(constrFree)
-   endif
+   call atl%new(.not.free)
+   if (atomset%n > 0) call atl%add(atomset%atoms(:atomset%n))
+   call atl%to_list(list)
+   atomset%atoms = list
+   atomset%n = size(list)
+   deallocate(free)
 
 end subroutine apply_free_atoms
 
@@ -312,87 +317,98 @@ subroutine rdblock(env,handler,line,id,nat,at,idMap,xyz,err)
 
 end subroutine rdblock
 
-!> Select the listed atoms and elements for the free keyword
+!> Add the atoms and elements listed with a free keyword to the free atoms
 !>
-!> Numbers in the list refer to atoms or ranges of atoms, symbols to elements.
-!> The free atoms are not allocated if the list could not be processed.
-subroutine get_free_atoms(env,val,nat,at,idMap,free)
+!> Numbers refer to atoms or ranges of atoms, symbols to elements. Any other
+!> entry is an error, since a misread entry would silently fix or constrain
+!> the atoms meant to stay free. The free atoms are not changed on error.
+subroutine add_free_atoms(env,argv,narg,nat,at,idMap,free)
    use xtb_type_atomlist
    use xtb_mctc_symbols, only : toNumber
    implicit none
    character(len=*), parameter :: source = 'userdata_free'
+   character(len=*), parameter :: digits = '0123456789'
+   character(len=*), parameter :: letters = &
+      & 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
-   !> Comma separated list of atoms and elements
-   character(len=*),intent(in) :: val
+   !> Entries of the comma separated list
+   character(len=*), intent(in) :: argv(:)
+   !> Number of entries found in the list
+   integer, intent(in) :: narg
    !> Number of atoms
    integer, intent(in) :: nat
    !> Atomic numbers
    integer, intent(in) :: at(nat)
    !> Map from element symbols to atoms
    type(TIdentityMap), intent(in) :: idMap
-   !> Mark for each atom, .true. -> atom is listed in val and stays free
-   logical, allocatable, intent(out) :: free(:)
+   !> Mark for each atom, .true. -> atom stays free
+   logical, allocatable, intent(inout) :: free(:)
 
    type(TAtomList) :: atl
    integer, allocatable :: list(:)
-   !> comma-separated entry of the input
-   character(len=:), allocatable :: item
-   integer  :: ist, ie
+   ! atoms selected by this list
+   logical :: selected(nat)
+   integer :: i, iat
 
-   if (len_trim(val) == 0) then
-      call env%warning('The free atom list is empty.',source)
+   if (narg == 0) then
+      call env%error('The free atom list is empty.',source)
+      return
+   endif
+   if (narg > size(argv)) then
+      call env%error('Too many entries in the free atom list.',source)
       return
    endif
 
-   ! start with no atom selected
-   allocate(free(nat), source=.false.)
+   selected = .false.
    call atl%new
-   ist = 1
-   ! split the list at the commas
-   do while (ist <= len(val))
-      ie = index(val(ist:), comma)
-      if (ie == 0) then
-         ie = len(val) + 1
-      else
-         ie = ist + ie - 1
-      endif
-      item = trim(adjustl(val(ist:ie-1)))
-      ist = ie + 1
-      if (len(item) == 0) then
-         call env%warning('Empty entry in the free atom list.',source)
-         deallocate(free)
+   call atl%resize(nat)
+   do i = 1, narg
+      if (len_trim(argv(i)) == 0) then
+         call env%error('Empty entry in the free atom list.',source)
          return
       endif
-      ! entries starting with a digit are atom numbers or ranges
-      if (scan(item(1:1), '0123456789') > 0) then
-         ! only collected here, checked and applied after the loop
-         call atl%add(item)
-      else if (idMap%has(item)) then
-         call idMap%get(list, item)
-         if (allocated(list)) free(list) = .true.
-      else if (toNumber(item) > 0) then
-         where(at == toNumber(item)) free = .true.
+      if (verify(trim(argv(i)), digits//'-') == 0) then
+         ! atom numbers or ranges, only collected here and checked after the loop
+         call atl%add(trim(argv(i)))
+      else if (idMap%has(trim(argv(i)))) then
+         call idMap%get(list, trim(argv(i)))
+         if (allocated(list)) selected(list) = .true.
       else
-         call env%warning("Unknown element: '"//item//"'",source)
-         deallocate(free)
-         return
+         ! only plain element symbols, toNumber would also read 'C1' as carbon
+         iat = 0
+         if (len_trim(argv(i)) <= 2 .and. verify(trim(argv(i)), letters) == 0) &
+            & iat = toNumber(trim(argv(i)))
+         if (iat == 0) then
+            call env%error("Unknown entry in the free atom list: '"// &
+               & trim(argv(i))//"'",source)
+            return
+         endif
+         if (.not.any(at == iat)) then
+            call env%warning("Element '"//trim(argv(i))//"' in the free atom "// &
+               & "list is not present in the molecule.",source)
+         endif
+         where(at == iat) selected = .true.
       endif
    enddo
    if (atl%get_error()) then
-      call env%warning('something is wrong in the free atom list',source)
-      deallocate(free)
+      call env%error('something is wrong in the free atom list',source)
       return
    endif
    call atl%to_list(list)
    if (any(list > nat)) then
-      call env%warning('Attempted to free atom not present in molecule.',source)
-      deallocate(free)
+      call env%error('Attempted to free atom not present in molecule.',source)
       return
    endif
-   free(list) = .true.
+   selected(list) = .true.
 
-end subroutine get_free_atoms
+   if (allocated(free)) then
+      free = free .or. selected
+   else
+      free = selected
+   endif
+
+end subroutine add_free_atoms
 
 subroutine set_fix(env,key,val,nat,at,idMap,xyz)
    use xtb_type_atomlist
@@ -415,9 +431,6 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
    integer  :: idum
    integer  :: nlist
    integer, allocatable :: list(:)
-   !> variable to mark each atom as free or not
-   !> .true. -> atom stays free
-   logical, allocatable :: free(:)
    real(wp) :: ddum
    logical  :: ldum
 
@@ -469,24 +482,28 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
          call env%warning('something is wrong in the fixing list',source)
          return
       endif
+      call atl%to_list(list)
+      if (any(list > nat)) then
+         call env%warning('Attempted to fix atom not present in molecule.',source)
+         return
+      endif
       if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
       call atl%to_list(list)
       fixset%atoms = list
       fixset%n = size(list)
    case('free')
       ! fix all atoms except the listed atoms and elements,
-      ! collected over all free keywords and applied in apply_free_atoms
-      call get_free_atoms(env,val,nat,at,idMap,free)
-      if (.not.allocated(free)) return
-      if (allocated(fixFree)) then
-         fixFree = fixFree .or. free
-      else
-         call move_alloc(free, fixFree)
-      endif
+      ! collected over all free keywords and applied in read_userdata
+      call add_free_atoms(env,argv,narg,nat,at,idMap,fixFree)
    case('freeze')
       call atl%new(val)
       if (atl%get_error()) then
          call env%warning('something is wrong in the freezing list',source)
+         return
+      endif
+      call atl%to_list(list)
+      if (any(list > nat)) then
+         call env%warning('Attempted to freeze atom not present in molecule.',source)
          return
       endif
       if (freezeset%n > 0) call atl%add(freezeset%atoms(:freezeset%n))
@@ -545,9 +562,6 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    real(wp) :: ddum
    integer  :: nlist
    integer, allocatable :: list(:)
-   !> variable to mark each atom as free or not
-   !> .true. -> atom stays free
-   logical, allocatable :: free(:)
    logical  :: ldum
    integer  :: i,j,k,l
    real(wp) :: phi,dist,ra(3),rb(3)
@@ -619,14 +633,8 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       potset%pos%n = size(list)
    case('free')
       ! constrain all atoms except the listed atoms and elements,
-      ! collected over all free keywords and applied in apply_free_atoms
-      call get_free_atoms(env,val,nat,at,idMap,free)
-      if (.not.allocated(free)) return
-      if (allocated(constrFree)) then
-         constrFree = constrFree .or. free
-      else
-         call move_alloc(free, constrFree)
-      endif
+      ! collected over all free keywords and applied in read_userdata
+      call add_free_atoms(env,argv,narg,nat,at,idMap,constrFree)
 
    case('DISTANCE')
       if (narg.lt.3 .or. narg.gt.4) then
