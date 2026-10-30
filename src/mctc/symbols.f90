@@ -98,7 +98,7 @@ elemental subroutine symbolToNumber(number, symbol)
 
    k = 0
    do j = 1, len_trim(symbol)
-      if (k > 2) exit
+      if (k >= 2) exit
       l = iachar(symbol(j:j))
       if (k >= 1 .and. l == iachar(' ')) exit
       if (k >= 1 .and. l == 9) exit

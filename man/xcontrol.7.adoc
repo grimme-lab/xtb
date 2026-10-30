@@ -90,8 +90,16 @@ NOTE: This data group refers to constraining the gradient by appling
     constrains all elements of the same type, the atom type is determined
     by the ordinal number or the element symbol
 *atoms*: 'list',...::
-     constrains the atom positions of all atoms in 'list'. Needs at
-     least two atoms since potential is applied on all atoms in 'list'.
+    constrains the atom positions of all atoms in 'list'. Needs at
+    least two atoms since potential is applied on all atoms in 'list'.
+*free*: 'list'|'symbol',...::
+    constrains the atom positions of all atoms except those in 'list'
+    and all atoms of the elements given by their element symbol.
+    Numbers always refer to atoms, not to atomic numbers.
+    Any other entry stops the run with an error.
+    Can be given multiple times, the free atoms of all entries are combined.
+    Can be combined with *atoms* and *elements*, atoms selected there
+    stay constrained. Needs at least two constrained atoms.
 *distance*: 'i','j',auto|'real'::
     constrain the distance between atom 'i' and 'j' to the actual 
     length (auto) or the value 'real', which has to be given in
@@ -206,6 +214,17 @@ NOTE: the fix group refers to exact fixing. For geometry optimizations
 
 *atoms*: 'list',...::
     fixes all atoms in 'list' by setting the gradient to zero.
+    This is automatically deactivated for molecular dynamics since
+    it leads to instabilities.
+
+*free*: 'list'|'symbol',...::
+    fixes all atoms except those in 'list' and all atoms of the elements
+    given by their element symbol, i.e. only these atoms are optimized.
+    Numbers always refer to atoms, not to atomic numbers.
+    Any other entry stops the run with an error.
+    Can be given multiple times, the free atoms of all entries are combined.
+    Can be combined with *atoms* and *elements*, atoms selected there
+    stay fixed.
     This is automatically deactivated for molecular dynamics since
     it leads to instabilities.
 

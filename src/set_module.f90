@@ -2543,7 +2543,7 @@ subroutine set_fix(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by fix",source)
-   case('elements','atoms','freeze','shake')
+   case('elements','atoms','free','freeze','shake')
       call colon_only_error(env,'fix',key,val,source)
    case('freeze frequency')
       if (getValue(env,val,ddum).and.set1) freezeset%fc = ddum
@@ -2571,8 +2571,8 @@ subroutine set_constr(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by constrain",source)
-   case('elements','atoms','DISTANCE','ANGLE','DIHEDRAL','distance','angle', &
-         & 'dihedral','center','cma','cma interface','z')
+   case('elements','atoms','free','DISTANCE','ANGLE','DIHEDRAL','distance', &
+         & 'angle','dihedral','center','cma','cma interface','z')
       call colon_only_error(env,'constrain',key,val,source)
    case('force constant')
       if (getValue(env,val,ddum).and.set1) fcconstr = ddum
