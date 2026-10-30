@@ -725,7 +725,7 @@ jobs:
             if-no-files-found: error
 
    continuous-delivery:
-      if: github.event_name == 'push' && github.repository == 'grimme-lab/xtb' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       runs-on: ubuntu-24.04
       permissions:
          contents: write
