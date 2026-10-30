@@ -38,7 +38,7 @@ set(CMAKE_INSTALL_Fortran_MODULES
 # Set a default for single-configuration generators
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE
-      "RelWithDebInfo"
+      "Release"
       CACHE STRING "Build type to be used." FORCE)
   message(
     STATUS "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified.")
