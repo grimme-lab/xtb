@@ -86,13 +86,16 @@ elif fc_id == 'pgi' or fc_id == 'nvidia_hpc'
     add_project_arguments('-acc', '-Minfo=accel', '-DXTB_GPU', language: 'fortran')
     add_project_link_arguments('-acc', '-Minfo=accel', language: 'fortran')
 
-    gpu_arch = get_option('gpu_arch') 
-    add_project_arguments('-ta=tesla:cc@0@'.format(gpu_arch), language: 'fortran')
-    add_project_link_arguments('-ta=tesla:cc@0@'.format(gpu_arch), language: 'fortran')
+    # Modern NVIDIA HPC SDK (nvfortran) flag. The legacy '-ta=tesla:ccNN' form is
+    # deprecated/removed in recent releases; '-gpu=ccNN -acc' is the supported form.
+    gpu_arch = get_option('gpu_arch')
+    add_project_arguments('-gpu=cc@0@'.format(gpu_arch), language: 'fortran')
+    add_project_link_arguments('-gpu=cc@0@'.format(gpu_arch), language: 'fortran')
 
     if get_option('cusolver')
-      add_project_arguments('-Mcudalib=cusolver,cublas', '-DUSE_CUSOLVER', '-DUSE_CUBLAS', language: 'fortran')
-      add_project_link_arguments('-Mcudalib=cusolver,cublas', language: 'fortran')
+      # -cudalib is the current spelling (-Mcudalib still accepted as an alias).
+      add_project_arguments('-cudalib=cusolver,cublas', '-DUSE_CUSOLVER', '-DUSE_CUBLAS', language: 'fortran')
+      add_project_link_arguments('-cudalib=cusolver,cublas', language: 'fortran')
     endif
   endif
 endif
