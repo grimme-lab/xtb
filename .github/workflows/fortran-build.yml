@@ -44,9 +44,10 @@ jobs:
                  version: 13
                - os: ubuntu-latest
                  version: 14
-               - os: ubuntu-latest
+               # GCC 15/16 need 26.04 even while ubuntu-latest still serves 24.04.
+               - os: ubuntu-26.04
                  version: 15
-               - os: ubuntu-latest
+               - os: ubuntu-26.04
                  version: 16
                - os: ubuntu-24.04-arm
                  version: 14
@@ -102,11 +103,11 @@ jobs:
          fail-fast: false
          matrix:
             include:
-               - os: ubuntu-latest
+               - os: ubuntu-26.04
                  fc: gfortran-15
                  cc: gcc-15
                  build: Release
-               - os: ubuntu-latest
+               - os: ubuntu-26.04
                  fc: gfortran-15
                  cc: gcc-15
                  build: Debug
@@ -125,8 +126,8 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
-         - name: Install OpenBLAS (ubuntu-latest)
-           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+         - name: Install GNU compilers and OpenBLAS
+           if: ${{ contains(matrix.os, 'ubuntu') }}
            run: |
             sudo apt-get update
             sudo apt-get install -y ${{ matrix.cc }} ${{ matrix.fc }} libopenblas-dev
@@ -150,7 +151,7 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-latest]
+            os: [ubuntu-26.04]
             fc: [gfortran-15]
             cc: [gcc-15]
       steps:
@@ -160,8 +161,8 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.10.x
-         - name: Install OpenBLAS (ubuntu-latest)
-           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+         - name: Install GNU compilers and OpenBLAS
+           if: ${{ contains(matrix.os, 'ubuntu') }}
            run: |
             sudo apt-get update
             sudo apt-get install -y ${{ matrix.cc }} ${{ matrix.fc }} libopenblas-dev
@@ -186,7 +187,7 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-latest]
+            os: [ubuntu-26.04]
             fc: [gfortran-15]
             cc: [gcc-15]
       steps:
@@ -196,8 +197,8 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
-         - name: Install OpenBLAS (ubuntu-latest)
-           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+         - name: Install GNU compilers and OpenBLAS
+           if: ${{ contains(matrix.os, 'ubuntu') }}
            run: |
             sudo apt-get update
             sudo apt-get install -y ${{ matrix.cc }} ${{ matrix.fc }} libopenblas-dev
