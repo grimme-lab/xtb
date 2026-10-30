@@ -21,7 +21,7 @@ add_executable(
 target_link_libraries(
   "${PROJECT_NAME}_tests_capi"
   PUBLIC
-  "lib-${PROJECT_NAME}-shared"
+  "${PROJECT_NAME}::${PROJECT_NAME}"
 )
 
 add_test(

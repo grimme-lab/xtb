@@ -85,7 +85,7 @@ For more information on the build with meson see the instructions [here](./meson
 
 ### CMake
 
-The CMake build system requires both make and CMake to be installed, the latter has to be version 3.9 or newer.
+The CMake build system requires both make and CMake to be installed, the latter has to be version 3.17 or newer.
 
 Building `xtb` with CMake works with the following chain of commands:
 

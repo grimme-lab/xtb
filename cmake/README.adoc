@@ -1,7 +1,7 @@
 = Building xtb with CMake
 
 To build `xtb` from the source in this repository the https://cmake.org/[CMake build system] can be employed.
-The build files used require a CMake verson version of >= 3.9 or newer.
+The build files require CMake version 3.17 or newer.
 We highly recommend to use CMake together with the https://ninja-build.org/[ninja] (version 1.10 required), but the default make build will work as well.
 
 == Getting CMake
@@ -94,6 +94,21 @@ The build can be performed just like before:
 ninja -C _build
 ----
 
+== Build options
+
+User-configurable options are collected near the beginning of the top-level
+`CMakeLists.txt`:
+
+[cols="1,1,3",options="header"]
+|===
+|Option |Default |Purpose
+|`BUILD_SHARED_LIBS` |`OFF` |Build `libxtb` as a shared library; `OFF` builds a static library.
+|`WITH_OpenMP` |`ON` |Enable OpenMP parallelisation.
+|`WITH_TBLITE` |`ON` |Enable the tblite backend.
+|`WITH_CPCMX` |`ON` |Enable CPCM-X solvation.
+|`WITH_TESTS` |`ON` |Build and register tests, including C API tests for either library type.
+|===
+
 == Testing the build with CTest
 
 After successfully building the `xtb` program ensure that it is working as expected.
@@ -151,18 +166,17 @@ usr
 ├── bin
 │   └── xtb
 ├── include
-│   └── xtb.h
+│   ├── xtb.h
+│   └── xtb
+│       └── *.mod
 ├── lib
 │   ├── cmake
 │   │   └── xtb
-│   │       ├── xtbConfig.cmake
-│   │       ├── xtbConfigVersion.cmake
-│   │       ├── xtbTargets.cmake
-│   │       └── xtbTargets-noconfig.cmake
-│   ├── libxtb.a
-│   ├── libxtb.so -> libxtb.so.6
-│   ├── libxtb.so.6 -> libxtb.so.6.3.2
-│   └── libxtb.so.6.3.2
+│   │       ├── xtb-config.cmake
+│   │       ├── xtb-config-version.cmake
+│   │       ├── xtb-targets.cmake
+│   │       └── xtb-targets-<config>.cmake
+│   └── libxtb.a
 └── share
     └── xtb
         ├── param_gfn0-xtb.txt

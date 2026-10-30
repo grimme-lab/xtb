@@ -15,13 +15,6 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 cmake_minimum_required(VERSION 3.17)
-option(WITH_OBJECT "To build using object library" TRUE)
-option(INSTALL_MODULES "Install Fortran module files to include directory." FALSE)
-
-# Buggy CMake versions
-if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0 AND CMAKE_VERSION VERSION_LESS 3.28.0)
-   set(WITH_OBJECT FALSE)
-endif()
 
 # Setup the xtb Project
 project(
@@ -30,13 +23,58 @@ project(
   LANGUAGES "C" "Fortran"
 )
 
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" ON)
+option(WITH_TBLITE "Use tblite library as backend for xTB" ON)
+option(WITH_CPCMX "Use CPCM-X solvation library for xTB" ON)
+option(WITH_TESTS "Enable compilation of unit tests" ON)
+
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
+set(CMAKE_INSTALL_Fortran_MODULES "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}"
+  CACHE STRING "Installation directory for xTB Fortran module files")
 
+# Set a default for single-configuration generators
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type to be used." FORCE)
+  message(STATUS "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified.")
+endif()
 
-# Include CMake specific configurations
-add_subdirectory("cmake")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
 include("${PROJECT_SOURCE_DIR}/cmake/modules/xtb-utils.cmake")
+
+# Compiler-specific options, applied only to xTB targets
+set(xtb-fortran-options)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+  set(xtb-fortran-options -fdefault-real-8 -fdefault-double-8 -ffree-line-length-none
+    -fbacktrace "$<$<CONFIG:Debug>:-fbounds-check>")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+  set(xtb-fortran-options -axAVX2 -r8 -traceback "$<$<CONFIG:Debug>:-check;all>")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
+  set(xtb-fortran-options -Mbackslash -Mallocatable=03 -r8 -traceback)
+elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
+  set(xtb-fortran-options -fdefault-real-8 -fdefault-double-8)
+endif()
+
+# Populate xtb_version.fh with metadata
+set(version "${PROJECT_VERSION}")
+execute_process(COMMAND git rev-parse HEAD
+  WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+  RESULT_VARIABLE git_return
+  OUTPUT_VARIABLE commit
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
+if(git_return)
+  set(commit "unknown-commit")
+endif()
+string(TIMESTAMP date "%Y/%m/%d")
+set(author "$ENV{USERNAME}")
+set(origin "${CMAKE_HOST_SYSTEM_NAME}")
+configure_file(
+  "${PROJECT_SOURCE_DIR}/assets/templates/version.f90"
+  "${PROJECT_BINARY_DIR}/include/xtb_version.fh"
+  @ONLY
+)
 
 # Check a specific CMake targets for xtb build & execute corresponding Find scripts
 if(NOT TARGET "mctc-lib::mctc-lib")
@@ -45,7 +83,6 @@ endif()
 
 if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
    find_package("tblite" REQUIRED)
-   add_compile_definitions(WITH_TBLITE)
 endif()
 
 foreach(_xtb_dep IN ITEMS toml-f test-drive mstore multicharge dftd4 s-dftd3 tblite)
@@ -55,7 +92,6 @@ unset(_xtb_dep)
 
 if(NOT TARGET "cpcmx::cpcmx" AND WITH_CPCMX)
    find_package("cpcmx" REQUIRED)
-   add_compile_definitions(WITH_CPCMX)
 endif()
 
 foreach(_xtb_dep IN ITEMS cpcmx numsa toml-f test-drive mctc-lib)
@@ -81,144 +117,47 @@ if(NOT TARGET "OpenMP::OpenMP_Fortran" AND WITH_OpenMP)
   find_package("OpenMP" REQUIRED)
 endif()
 find_package("LAPACK" REQUIRED)
-find_package("BLAS" REQUIRED)
 
 
-if(NOT EXISTS "${PROJECT_BINARY_DIR}/include")
-   file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-endif()
-
-##################
-# OBJECT LIBRARY #
-##################
-if(WITH_OBJECT)
-   
-   add_library(
-      "${PROJECT_NAME}-object"
-      OBJECT
-      ${srcs}
-   )
-
-
-   # customize object library
-   set_target_properties(
-      "${PROJECT_NAME}-object"
-      PROPERTIES
-      Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
-      POSITION_INDEPENDENT_CODE ON
-   )
-
-   # link object library against mctc-lib &
-   # & conditionally against OpenMP, tblite, cpcmx
-   target_link_libraries(
-      "${PROJECT_NAME}-object"
-      PUBLIC
-      "mctc-lib::mctc-lib"
-      "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
-      "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
-      "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
-   )
-
-   # include directories
-   target_include_directories(
-      "${PROJECT_NAME}-object"
-      PUBLIC
-      ${xtb-config-dir}
-      ${PROJECT_BINARY_DIR}
-      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-      $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
-   )
-
-endif()
-
-##################
-# Static Library #
-##################
-if(WITH_OBJECT)
-   add_library(
-      "lib-${PROJECT_NAME}-static"
-      STATIC
-      $<TARGET_OBJECTS:${PROJECT_NAME}-object>
-   )
-else()
-   add_library(
-      "lib-${PROJECT_NAME}-static"
-      STATIC
-      ${srcs}
-   )
-endif()
-
+# Library type is selected by BUILD_SHARED_LIBS
+add_library("${PROJECT_NAME}-lib" ${srcs})
+add_library("${PROJECT_NAME}::${PROJECT_NAME}" ALIAS "${PROJECT_NAME}-lib")
 
 target_link_libraries(
-   "lib-${PROJECT_NAME}-static"
-   PUBLIC
-   ${BLAS_LIBRARIES}
-   ${LAPACK_LIBRARIES}
-   "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
-   "mctc-lib::mctc-lib"
-   "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
-   $<$<BOOL:${WITH_TBLITE}>:tblite::tblite>
+  "${PROJECT_NAME}-lib"
+  PUBLIC
+  ${LAPACK_LIBRARIES}
+  "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
+  "mctc-lib::mctc-lib"
+  "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
+  "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
 )
 
-set_target_properties(
-   "lib-${PROJECT_NAME}-static"
-   PROPERTIES
-   Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
-   ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
-   POSITION_INDEPENDENT_CODE ON
-   OUTPUT_NAME "${PROJECT_NAME}"
- )
+target_compile_options("${PROJECT_NAME}-lib" PRIVATE
+  "$<$<COMPILE_LANGUAGE:Fortran>:${xtb-fortran-options}>")
+target_compile_definitions("${PROJECT_NAME}-lib" PUBLIC
+  "$<$<BOOL:${WITH_TBLITE}>:WITH_TBLITE>"
+  "$<$<BOOL:${WITH_CPCMX}>:WITH_CPCMX>")
 
+set_target_properties(
+  "${PROJECT_NAME}-lib"
+  PROPERTIES
+  Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
+  POSITION_INDEPENDENT_CODE ON
+  OUTPUT_NAME "${PROJECT_NAME}"
+  EXPORT_NAME "${PROJECT_NAME}"
+  VERSION "${PROJECT_VERSION}"
+  SOVERSION "${PROJECT_VERSION_MAJOR}"
+)
 
 target_include_directories(
-  "lib-${PROJECT_NAME}-static"
+  "${PROJECT_NAME}-lib"
   PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_Fortran_MODULES}>
 )
-
-
-##################
-# Shared Library #
-##################
-if (WITH_OBJECT) 
-   add_library(
-      "lib-${PROJECT_NAME}-shared"
-      SHARED
-      $<TARGET_OBJECTS:${PROJECT_NAME}-object>
-   )
-
-   target_link_libraries(
-      "lib-${PROJECT_NAME}-shared"
-      PUBLIC
-      ${BLAS_LIBRARIES}
-      ${LAPACK_LIBRARIES}
-      "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
-      "mctc-lib::mctc-lib"
-      "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
-      "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
-   )
-
-   set_target_properties(
-      "lib-${PROJECT_NAME}-shared"
-      PROPERTIES
-      Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
-      LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
-      OUTPUT_NAME "${PROJECT_NAME}"
-      VERSION "${PROJECT_VERSION}"
-      SOVERSION "${PROJECT_VERSION_MAJOR}"
-   )
-
-   target_include_directories(
-      "lib-${PROJECT_NAME}-shared"
-      PUBLIC
-      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-      $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
-   )
-endif()
 
 ###############
 # Executables #
@@ -232,22 +171,17 @@ add_executable(
 target_link_libraries(
    ${PROJECT_NAME}-exe
    PRIVATE
-   "lib-${PROJECT_NAME}-static"
+   "${PROJECT_NAME}::${PROJECT_NAME}"
 )
+
+target_compile_options("${PROJECT_NAME}-exe" PRIVATE
+  "$<$<COMPILE_LANGUAGE:Fortran>:${xtb-fortran-options}>")
 
 set_target_properties(
   ${PROJECT_NAME}-exe
   PROPERTIES
   Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include
-  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
   OUTPUT_NAME "${PROJECT_NAME}"
-)
-
-target_include_directories(
-   ${PROJECT_NAME}-exe 
-   PRIVATE 
-   ${PROJECT_SOURCE_DIR}/include
-   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
 
 ######################
@@ -255,20 +189,15 @@ target_include_directories(
 ######################
 # API for C/C++
 install(
-   FILES
-   "${PROJECT_SOURCE_DIR}/include/xtb.h"
-   DESTINATION
-   "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES "${PROJECT_SOURCE_DIR}/include/xtb.h"
+  TYPE INCLUDE
 )
 
-if (INSTALL_MODULES)
-   install(
-      DIRECTORY
-      "${PROJECT_BINARY_DIR}/include/"
-      DESTINATION
-      "${CMAKE_INSTALL_INCLUDEDIR}"
-   )
-endif()
+install(
+  DIRECTORY "${PROJECT_BINARY_DIR}/include/"
+  DESTINATION "${CMAKE_INSTALL_Fortran_MODULES}"
+  FILES_MATCHING PATTERN "*.mod" PATTERN "*.smod"
+)
 
 # xtb-parameters 
 install(
@@ -284,29 +213,16 @@ install(
 )
 
 # Build output artifacts
-if (WITH_OBJECT)
-   install(
-      TARGETS
-      "lib-${PROJECT_NAME}-static"
-      "lib-${PROJECT_NAME}-shared"
-      "${PROJECT_NAME}-exe"
-      EXPORT "${PROJECT_NAME}-targets"
-      LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-      ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-      INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"   
-   )
-else()
-   install(
-      TARGETS
-      "lib-${PROJECT_NAME}-static"
-      "${PROJECT_NAME}-exe"
-      EXPORT "${PROJECT_NAME}-targets"
-      ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-      INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-   )
-endif()
+install(
+  TARGETS "${PROJECT_NAME}-lib" "${PROJECT_NAME}-exe"
+  EXPORT "${PROJECT_NAME}-targets"
+)
+
+# Find modules used by the installed package configuration
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/cmake/modules/"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+)
 
 # CMake package files
 include(CMakePackageConfigHelpers)
@@ -334,24 +250,9 @@ install(
 )
 
 # -- Targets file
-# -- This makes the project importable from the build directory
-# mctc-lib (>= 0.5.2) provides real targets, which must be exported
-if(TARGET "mctc-lib")
-   export(
-      TARGETS "mctc-lib" "mctc-lib-lib"
-      NAMESPACE "mctc-lib::"
-      FILE "${PROJECT_BINARY_DIR}/mctc-lib-targets.cmake"
-   )
-endif()
-export(
-   EXPORT "${PROJECT_NAME}-targets"
-   FILE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-targets.cmake"
-)
-
-# -- This makes the project importable from the install directory
 install(
    EXPORT "${PROJECT_NAME}-targets"
-   FILE "${PROJECT_NAME}-targets.cmake"
+   NAMESPACE "${PROJECT_NAME}::"
    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
    
