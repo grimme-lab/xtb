@@ -78,9 +78,12 @@ add_executable(
 target_link_libraries(
   "${PROJECT_NAME}-tester"
   PRIVATE
-  "lib-${PROJECT_NAME}-static" # static xtb
+  "${PROJECT_NAME}::${PROJECT_NAME}"
   "test-drive::test-drive"     # testing framework
 )
+
+target_compile_options("${PROJECT_NAME}-tester" PRIVATE
+  "$<$<COMPILE_LANGUAGE:Fortran>:${xtb-fortran-options}>")
 
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include")
   file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
