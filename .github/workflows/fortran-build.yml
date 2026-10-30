@@ -712,7 +712,7 @@ jobs:
             dlls=$(awk '/DLL Name:/ {print tolower($3)}' <<< "$imports")
             test -n "$dlls"
             printf '%s\n' "$dlls"
-            if grep -E 'gfortran|gcc_s|quadmath|gomp|winpthread|openblas|(^|/)blas\.dll|(^|/)lapack\.dll' <<< "$dlls"; then
+            if grep -E 'gfortran|gcc_s|quadmath|gomp|winpthread|openblas|(^|/)(lib)?(blas|lapack)\.dll' <<< "$dlls"; then
               echo 'Dynamic third-party runtime detected' >&2
               exit 1
             fi
