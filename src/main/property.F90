@@ -1441,6 +1441,11 @@ module xtb_propertyoutput
          write (iunit, intfmt) "rotational number", int(symnum)
          write (iunit, dblfmt) "scaling factor   ", scale_factor, "    "
          write (iunit, dblfmt) "rotor cutoff     ", set%thermo_sthr, "cm⁻¹"
+         if (set%thermo_sthr > 0.0_wp) then
+            write (iunit, chrfmt) "entropy treatment", "mRRHO"
+         else
+            write (iunit, chrfmt) "entropy treatment", "RRHO"
+         end if
          write (iunit, dblfmt) "imag. cutoff     ", ithr, "cm⁻¹"
          write (iunit, '(10x,":",49("."),":")')
       end if
@@ -1494,6 +1499,20 @@ module xtb_propertyoutput
       write (iunit, outfmt) "G(RRHO) w/o ZPVE  ", gtot - zp, "Eh  "
       write (iunit, outfmt) "G(RRHO) contrib.  ", gtot, "Eh  "
       write (iunit, '(9x,53(":"))')
+
+      if (set%thermo_sthr > 0.0_wp) then
+         write (iunit, '(a)')
+         write (iunit, '(10x,a)') "Note: G(RRHO) includes mRRHO vibrational treatment."
+         write (iunit, '(10x,a)') "      For conventional RRHO, set sthr=0.0 in $thermo in xcontrol."
+         write (iunit, '(10x,a)') "      Ref.: S. Grimme, Chem. Eur. J. 2012, 18, 9955-9964."
+         write (iunit, '(10x,a)') "      DOI: 10.1002/chem.201200497"
+      else if (set%thermo_sthr < 0.0_wp) then
+         write (iunit, '(a)')
+         write (iunit, '(10x,a)') "Warning: negative sthr disables mRRHO; RRHO is used."
+         write (iunit, '(10x,a)') "         Use a positive value for sthr in $thermo in xcontrol for mRRHO."
+         write (iunit, '(10x,a)') "         Ref.: S. Grimme, Chem. Eur. J. 2012, 18, 9955-9964."
+         write (iunit, '(10x,a)') "         DOI: 10.1002/chem.201200497"
+      end if
 
    end subroutine print_thermo
 
