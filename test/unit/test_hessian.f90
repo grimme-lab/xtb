@@ -1262,6 +1262,10 @@ subroutine test_fixed_packed_projection(error)
 
    ! all atoms fixed: no degree of freedom remains
    call check_packed_projection(error, mol, unitMol, hessian, [1, 2, 3, 4], 12)
+   if (allocated(error)) return
+
+   ! duplicated fixed atoms are only removed once
+   call check_packed_projection(error, mol, unitMol, hessian, [1, 2, 1], 7)
 
 end subroutine test_fixed_packed_projection
 
