@@ -19,6 +19,7 @@
 module xtb_disp_dftd3
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
+   use xtb_disp_cutoff, only : smooth_cutoff
    use xtb_disp_dftd3param
    use xtb_param_sqrtzr4r2, only : sqrtZr4r2
    use xtb_type_molecule
@@ -84,7 +85,7 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
          norm = norm + gw
          dnorm = dnorm + 2*wf*(reference_cn(iref, ati) - cn(iat)) * gw
       end do
-      if (norm > 1e-80_wp) then
+      if (norm >= tiny(1.0_wp)) then
          norm = 1.0_wp / norm
       else
          norm = 0.0_wp
@@ -218,7 +219,7 @@ end subroutine d3_full_gradient_latp
 
 subroutine d3_gradient_latp &
       & (mol, trans, par, weighting_factor, cutoff, &
-      &  cn, dcndr, dcndL, energy, gradient, sigma)
+      &  cn, dcndr, dcndL, energy, gradient, sigma, width)
 
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
@@ -237,6 +238,9 @@ subroutine d3_gradient_latp &
    real(wp), intent(inout) :: gradient(:, :)
    real(wp), intent(inout) :: sigma(:, :)
 
+   !> Width of the smooth cutoff for pairwise interactions, default is a hard cutoff
+   real(wp), intent(in), optional :: width
+
    integer :: nat, max_ref
    real(wp), allocatable :: gw(:, :), dgwdcn(:, :)
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :)
@@ -252,7 +256,7 @@ subroutine d3_gradient_latp &
    call get_atomic_c6(nat, mol%at, gw, dgwdcn, c6, dc6dcn)
 
    call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
-      &  energies, gradient, sigma, dEdcn)
+      &  energies, gradient, sigma, dEdcn, width)
 
    call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
    call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
@@ -265,7 +269,7 @@ end subroutine d3_gradient_latp
 !> Implementation of the pairwise dispersion energy
 subroutine disp_gradient_latp &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
-      &  energies, gradient, sigma, dEdcn)
+      &  energies, gradient, sigma, dEdcn, width)
 
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
@@ -284,18 +288,23 @@ subroutine disp_gradient_latp &
    real(wp), intent(inout) :: sigma(:, :)
    real(wp), intent(inout) :: dEdcn(:)
 
+   !> Width of the smooth cutoff, default is a hard cutoff
+   real(wp), intent(in), optional :: width
+
    integer :: iat, jat, ati, atj, itr
 
-   real(wp) :: cutoff2
+   real(wp) :: cutoff2, swidth, r, sw, dswdr
    real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
    real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
    cutoff2 = cutoff**2
+   swidth = 0.0_wp
+   if (present(width)) swidth = width
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn) &
-   !$omp shared(mol, trans, cutoff2, par, r4r2, c6, dc6dcn) &
+   !$omp shared(mol, trans, cutoff, cutoff2, swidth, par, r4r2, c6, dc6dcn) &
    !$omp private(iat, jat, itr, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
-   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS)
+   !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS, r, sw, dswdr)
    do iat = 1, len(mol)
       ati = mol%at(iat)
       do jat = 1, iat
@@ -306,7 +315,9 @@ subroutine disp_gradient_latp &
             rij = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
             r2 = sum(rij**2)
             if (r2 > cutoff2 .or. r2 < 1.0e-10_wp) cycle
-
+            r = sqrt(r2)
+            call smooth_cutoff(r, cutoff, swidth, sw, dswdr)
+            if (sw <= 0.0_wp) cycle
 
             t6 = 1._wp/(r2**3+r0**6)
             t8 = 1._wp/(r2**4+r0**8)
@@ -320,6 +331,9 @@ subroutine disp_gradient_latp &
                &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10
             ddisp= par%s6*d6 + par%s8*r4r2ij*d8 &
                & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*d10
+            ! switch the pair interaction off towards the cutoff
+            ddisp = sw * ddisp + dswdr * disp / r
+            disp = sw * disp
 
             dE = -c6(iat, jat)*disp * 0.5_wp
             dG = -c6(iat, jat)*ddisp*rij

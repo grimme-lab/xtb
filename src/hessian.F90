@@ -20,7 +20,7 @@ module xtb_hessian
    use xtb_mctc_accuracy, only : wp
    use xtb_freq_io, only : rdhess, wrhess, writeHessianOut, &
       & write_tm_vibspectrum, g98fake, g98fake2, rddipd
-   use xtb_freq_project, only : trproj
+   use xtb_freq_project, only : projectHessian, trproj
    use xtb_compliance, only : compliance_driver
    implicit none
    private
@@ -86,9 +86,8 @@ subroutine numhess( &
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
-   integer  :: nread,kend,lowmode,nzero
+   integer  :: nread,kend,lowmode,nzero,nproj
    integer  :: nonfrozh
-   integer  :: fixmode
    integer, allocatable :: nb(:,:)
    integer, allocatable :: indx(:),molvec(:),izero(:)
    real(wp),allocatable :: bond(:,:)
@@ -358,35 +357,12 @@ subroutine numhess( &
          enddo
       enddo
    end if
-   ! project
-   if(.not.res%linear)then ! projection does not work for linear mol.
-      fixmode = 0 ! no fixing
-      if (fixset%n > 0) fixmode = -1 ! fixing
-      if (set%runtyp.eq.p_run_bhess) then
-         call trproj(mol%n,n3,mol%xyz,hsb,.false.,fixmode,res%freq,1) ! freq is dummy
-      end if
-      call trproj(mol%n,n3,mol%xyz,hss,.false.,fixmode,res%freq,1) ! freq is dummy
-   endif
-   ! non mass weigthed Hessian in hss
-   hname = 'hessian'
-   write(env%unit,'(a)')
-   write(env%unit,'("writing file <",a,">, containing the non-mass-weighted Hessian matrix in atomic units (Eₕ/Bohr²).")') hname
-   call wrhess(n3,hss,hname)
-
-   ! non mass weigthed biased Hessian in hsb
-   if (set%runtyp .eq. p_run_bhess) then
-      hname = 'hessian_sph'
-      write (env%unit, '(a)')
-      write (env%unit, '("writing file <",a,">.")') hname
-      call wrhess(n3, hsb, hname)
-   end if
-
    ! include masses
    k=0
    do i=1,n3
       do j=1,i
          k=k+1
-         res%hess(j,i)=hss(k)*amass_au(i)*amass_au(j)*scalh
+         res%hess(j,i)=hss(k)*amass_au(i)*amass_au(j)
          res%hess(i,j)=res%hess(j,i)
       enddo
    enddo
@@ -396,11 +372,64 @@ subroutine numhess( &
       do i=1,n3
          do j=1,i
             k=k+1
-            hbias(j,i)=hsb(k)*amass_au(i)*amass_au(j)*scalh
+            hbias(j,i)=hsb(k)*amass_au(i)*amass_au(j)
             hbias(i,j)=hbias(j,i)
          enddo
       enddo
    end if
+   ! Translational and rotational projection is defined in mass-weighted
+   ! Cartesian coordinates. This is equivalent to transforming the
+   ! mass-weighted Hessian to its 3N-6 (3N-5 for linear molecules)
+   ! vibrational subspace before diagonalization.
+   if (fixset%n > 0) then
+      ! Fixed coordinates remove overall translation. Project the fixed
+      ! Cartesian directions together with the rotations about axes through
+      ! all fixed atoms.
+      call projectHessian(res%hess, mol, .false., .true., &
+         & fixedAtoms=fixset%atoms(:fixset%n), nModes=nproj)
+      if (set%runtyp == p_run_bhess) then
+         call projectHessian(hbias, mol, .false., .true., &
+            & fixedAtoms=fixset%atoms(:fixset%n))
+      end if
+   else
+      call projectHessian(res%hess, mol, .true., .true., nModes=nproj)
+      if (set%runtyp == p_run_bhess) then
+         call projectHessian(hbias, mol, .true., .true.)
+      end if
+   end if
+
+   ! Convert the correctly projected Hessians back to Cartesian coordinates
+   ! for the non-mass-weighted Turbomole output files.
+   k=0
+   do i=1,n3
+      do j=1,i
+         k=k+1
+         hss(k)=res%hess(j,i)/(amass_au(i)*amass_au(j))
+         if (set%runtyp == p_run_bhess) then
+            hsb(k)=hbias(j,i)/(amass_au(i)*amass_au(j))
+         end if
+      enddo
+   enddo
+
+   ! non mass weighted Hessian in hss
+   hname = 'hessian'
+   write(env%unit,'(a)')
+   write(env%unit,'("writing file <",a,">, containing the non-mass-weighted, projected Hessian matrix in atomic units (Eₕ/Bohr²).")') hname
+   call wrhess(n3,hss,hname)
+
+   ! non mass weighted biased Hessian in hsb
+   if (set%runtyp .eq. p_run_bhess) then
+      hname = 'hessian_sph'
+      write (env%unit, '(a)')
+      write (env%unit, '("writing file <",a,">.")') hname
+      call wrhess(n3, hsb, hname)
+   end if
+
+   ! Apply the user-selected frequency scale only to the Hessians used for
+   ! vibrational analysis, not to the Cartesian Hessian output files.
+   res%hess = res%hess*scalh
+   if (set%runtyp == p_run_bhess) hbias = hbias*scalh
+
    ! calcualte htb without RMSD bias
    if (set%runtyp.eq.p_run_bhess) htb=res%hess-hbias
    ! diag
@@ -419,11 +448,7 @@ subroutine numhess( &
    end if 
 
    write(env%unit,'(a)')
-   if(res%linear)then
-      write(env%unit,'(1x,a)') 'vibrational frequencies (cm⁻¹)'
-   else
-      write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
-   endif
+   write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
    k=0
    izero=[(i, i=1,n3)]
    do i=1,n3
@@ -458,14 +483,9 @@ subroutine numhess( &
    if (mol%n > 1) then
       kend=0
       if (freezeset%n == 0) then
-         kend=6
-         if(res%linear)then
-            kend=5
-            do i=1,kend
-               izero(i)=i
-            enddo
-            res%freq(1:kend)=0
-         else if (nzero < kend) then
+         ! number of rot/trans (and fixed) modes removed by the projection
+         kend=nproj
+         if (nzero < kend) then
             call env%error('Too few rot/trans modes found, hessian is unusable', &
                & source)
             return

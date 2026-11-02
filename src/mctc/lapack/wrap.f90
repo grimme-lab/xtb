@@ -22,7 +22,7 @@ module xtb_mctc_lapack_wrap
    use xtb_mctc_lapack_trf, only : mctc_getrf, mctc_sytrf, mctc_sptrf, &
       & mctc_potrf, mctc_pptrf
    use xtb_mctc_lapack_tri, only : mctc_getri, mctc_sytri, mctc_sptri, &
-      & mctc_potri, mctc_pptri
+      & mctc_potri, mctc_pptri, mctc_trtri
    use xtb_mctc_lapack_trs, only : mctc_getrs, mctc_sytrs, mctc_sptrs, &
       & mctc_potrs, mctc_pptrs
    use xtb_type_environment, only : TEnvironment
@@ -32,7 +32,7 @@ module xtb_mctc_lapack_wrap
    public :: mctc_sygst, mctc_spgst
    public :: mctc_getrs, mctc_sytrs, mctc_sptrs, mctc_potrs, mctc_pptrs
    public :: mctc_getrf, mctc_sytrf, mctc_sptrf, mctc_potrf, mctc_pptrf
-   public :: mctc_getri, mctc_sytri, mctc_sptri, mctc_potri, mctc_pptri
+   public :: mctc_getri, mctc_sytri, mctc_sptri, mctc_potri, mctc_pptri, mctc_trtri
 
 
    interface mctc_getrs

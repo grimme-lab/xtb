@@ -239,8 +239,10 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
    integer i,j,k,l,m,ii,jj,ij,ioff,joff,kk
    real(wp) thr2,ci,cc,cj,alpi,rab2,ab,est,alpj
 
-   real(wp) ra(3),rb(3),point(3)
+   real(wp) ra(3),rb(3),point(3),rab(3)
    real(wp) dtmp(3),qtmp(6),ss(6,6),dd(6,6,3),qq(6,6,6),tmp(6,6),dd2(3,6,6)
+   !> Cartesian components of the quadrupole order xx, yy, zz, xy, xz, yz
+   integer, parameter :: kx(6) = [1, 2, 3, 1, 1, 2], ky(6) = [1, 2, 3, 2, 3, 3]
    integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,jshmax
    integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
    integer :: il, jl, itr
@@ -713,8 +715,6 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
          do iao = 1, llao2(ishtyp)
             i = iao+saoshell(ish,iat)
             ii = i*(1+i)/2
-            sint(i,i) = 1.0_wp + sint(i,i)
-            H0(ii) = H0(ii) + selfEnergy(ish, iat)
             H0_noovlp(ii) = H0_noovlp(ii) + selfEnergy(ish, iat)
          end do
 
@@ -729,10 +729,10 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
             ss = 0.0_wp
             dd2 = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,ra, &
                &               intcut,nprim,primcount,alp,cont,ss,dd2,qq)
             !transform from CAO to SAO
-            !call dtrf2(ss,ishtyp,jshtyp)
+            call dtrf2(ss,ishtyp,jshtyp)
             do k = 1,3
                tmp(1:6, 1:6) = dd2(k,1:6, 1:6)
                call dtrf2(tmp, ishtyp, jshtyp)
@@ -748,13 +748,28 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
                do jj = 1, llao2(jshtyp)
                   jao = jj + saoshell(jsh,iat)
                   if (jao > iao .and. ish ==  jsh) cycle
-                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dd2(1:3, jj, ii)
+                  ! onsite overlap and Hamiltonian from the contracted basis functions
+                  sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
                   if (iao /= jao) then
-                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd2(1:3, jj, ii)
+                     sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
                   end if
-                  qpint(1:6, iao, jao) = qq(1:6, jj, ii)
+                  H0(lin(iao, jao)) = H0(lin(iao, jao)) &
+                     & + 0.5_wp * (selfEnergy(ish, iat) + selfEnergy(jsh, iat)) * ss(jj, ii)
+                  ! shift the one-center moments from the atom to the origin with
+                  ! exactly the overlap stored above, keeping S, D and Q consistent
+                  rab = ra - point
+                  dtmp(:) = dd2(1:3, jj, ii) + rab * ss(jj, ii)
+                  do k = 1, 6
+                     qtmp(k) = qq(k, jj, ii) + rab(kx(k)) * dd2(ky(k), jj, ii) &
+                        & + rab(ky(k)) * dd2(kx(k), jj, ii) + rab(kx(k)) * rab(ky(k)) * ss(jj, ii)
+                  end do
+                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dtmp
+                  if (iao /= jao) then
+                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dtmp
+                  end if
+                  qpint(1:6, iao, jao) = qtmp
                   if (jao /= iao) then
-                     qpint(1:6, jao, iao) = qq(1:6, jj, ii)
+                     qpint(1:6, jao, iao) = qtmp
                   end if
                end do
             end do

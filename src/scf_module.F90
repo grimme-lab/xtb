@@ -123,7 +123,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
 ! ========================================================================
    real(wp),allocatable :: cn(:)
-   real(wp),allocatable :: X(:,:)
    real(wp),allocatable :: S(:,:)
    real(wp),allocatable :: S12(:,:)
    real(wp),allocatable :: H0(:)
@@ -162,6 +161,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 ! ========================================================================
    type(TxTBDispersion), allocatable :: scD4
    real(wp) :: embd
+   !> Width of the smooth cutoff of the dispersion interactions, same as tblite
+   real(wp), parameter :: disp_width = 0.05_wp
    integer  :: mbd
    parameter(mbd=3)
    real(wp) :: molc6,molc8,molpol
@@ -203,7 +204,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    integer :: is,js,gav
 
    character(len=128) :: atmp,ftmp
-   logical :: ex,minpr,pr,fulldiag,lastdiag,iniqsh,fail
+   logical :: ex,minpr,pr,fulldiag,iniqsh,fail
 
 !  GBSA stuff
    real(wp) :: gborn,ghb,gsasa,gshift
@@ -237,7 +238,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (profile) call timer%new(7,.false.)
    if (profile) call timer%measure(1,"SCC setup")
    rmsq  =1.e+42_wp
-   lastdiag=.false.
    lpcem = pcem%n > 0
    jter=0
 
@@ -263,10 +263,10 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
 !  numerical stuff
 !  primitive cut-off
-   intcut=25.0_wp-10.0*log10(acc)
-   intcut=max(20.0_wp,intcut)
+   ! same integral cutoff as tblite: 25 for acc <= 1, reduced to 5 for looser accuracies
+   intcut=min(max(25.0_wp-10.0_wp*log10(min(max(acc,1.0e-4_wp),1.0e+3_wp)),5.0_wp),25.0_wp)
 !  integral neglect threshold (the distance criterion used in ovlp limits S to about >1.d-9
-   neglect =10.0d-9*acc
+   neglect =0.0_wp
    neglect2=neglect*10.0_wp
 !  exit if E < scfconv, Hessian sensitive to this
    scfconv=1.d-6*acc
@@ -274,9 +274,9 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    damp0=0.20
 !  conv threshold in dRMS q
    qconv=2.d-5*acc
-   if(allocated(xtbData%multipole)) qconv=1.d-4*acc
 
-   broy = mol%n > 1
+   ! Use the same Broyden mixer for atoms and molecules as the tblite backend.
+   broy = .true.
 !  when to start pseudodiag (=1 after one full diag)
    startpdiag=1000 !large number=never
 
@@ -324,7 +324,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    allocate(H0(basis%nao*(basis%nao+1)/2), &
    &        H0_noovlp(basis%nao*(basis%nao+1)/2), &
    &        S(basis%nao,basis%nao),tmp(basis%nao), &
-   &        X(basis%nao,basis%nao), &
    &        ves(basis%nshell), &
    &        zsh(basis%nshell),&
    &        matlist (2,basis%nao*(basis%nao+1)/2))
@@ -495,7 +494,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! Repulsion energy
    ep = 0.0_wp
    call latp%getLatticePoints(trans, 40.0_wp)
-   call repulsionEnGrad(mol, xtbData%repulsion, trans, 40.0_wp, &
+   call repulsionEnGrad(mol, xtbData%repulsion, trans, 25.0_wp, &
       & ep, gradient, sigma)
 
 
@@ -518,10 +517,10 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! Coordination number
    if (xtbData%level == 1) then
       ! D3 part first because we need CN
-      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, cn, dcndr, dcndL)
+      call getCoordinationNumber(mol, trans, 25.0_wp, cnType%exp, cn, dcndr, dcndL)
    else
       ! CN/dCN replaced by special smoother and faster decaying function
-      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, cn, dcndr, dcndL)
+      call getCoordinationNumber(mol, trans, 25.0_wp, cnType%gfn, cn, dcndr, dcndL)
    endif
 
    ! ------------------------------------------------------------------------
@@ -529,11 +528,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call latp%getLatticePoints(trans, 60.0_wp)
    if (xtbData%level == 1) then
       call d3_gradient &
-         & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, 60.0_wp, &
-         &  cn, dcndr, dcndL, ed, gradient, sigma)
+         & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, 50.0_wp, &
+         &  cn, dcndr, dcndL, ed, gradient, sigma, width=disp_width)
    else
       allocate(scD4)
-      call init(scD4, xtbData%dispersion, mol)
+      call init(scD4, xtbData%dispersion, mol, width=disp_width)
    endif
 
    if (profile) call timer%measure(2)
@@ -629,7 +628,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       &     et,wfn%focc,wfn%focca,wfn%foccb,wfn%efa,wfn%efb, &
       &     eel,ees,eaes,epol,ed,epcem,egap, &
       &     wfn%emo,wfn%ihomo,wfn%ihomoa,wfn%ihomob, &
-      &     H0,wfn%C,S,dpint,qpint,X,wfn%P,ies, &
+      &     H0,wfn%C,S,dpint,qpint,wfn%P,ies, &
       &     maxiter,startpdiag,scfconv,qconv, &
       &     minpr,pr, &
       &     fail,jter)
@@ -746,14 +745,15 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! dispersion (DFT-D type correction)
    if (allocated(scD4)) then
       call latp%getLatticePoints(trans, 40.0_wp)
-      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
+      call getCoordinationNumber(mol, trans, 30.0_wp, cnType%cov, &
          & cn, dcndr, dcndL)
       call latp%getLatticePoints(trans, 60.0_wp)
       dum = 0.0_wp
       call d4_gradient(mol, xtbData%dispersion%dispm, trans, &
          &  xtbData%dispersion%dpar, scD4%g_a, scD4%g_c, &
-         &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &
-         &  energy=dum, gradient=gradient, sigma=sigma, e3=embd)
+         &  scD4%wf, 50.0_wp, 25.0_wp, cn, dcndr, dcndL, wfn%q, &
+         &  energy=dum, gradient=gradient, sigma=sigma, e3=embd, &
+         &  width=disp_width, width3=disp_width)
    endif
 
    ! ------------------------------------------------------------------------

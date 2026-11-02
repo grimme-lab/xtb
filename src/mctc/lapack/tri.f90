@@ -22,9 +22,10 @@ module xtb_mctc_lapack_tri
    implicit none
    private
 
-   public :: mctc_getri, mctc_sytri, mctc_sptri, mctc_potri, mctc_pptri
+   public :: mctc_getri, mctc_sytri, mctc_sptri, mctc_potri, mctc_pptri, mctc_trtri
 
-   public :: lapack_getri, lapack_sytri, lapack_sptri, lapack_potri, lapack_pptri
+   public :: lapack_getri, lapack_sytri, lapack_sptri, lapack_potri, lapack_pptri, &
+      & lapack_trtri
 
 
    interface mctc_getri
@@ -51,6 +52,11 @@ module xtb_mctc_lapack_tri
       module procedure :: mctc_spptri
       module procedure :: mctc_dpptri
    end interface mctc_pptri
+
+   interface mctc_trtri
+      module procedure :: mctc_strtri
+      module procedure :: mctc_dtrtri
+   end interface mctc_trtri
 
 
    interface lapack_getri
@@ -177,6 +183,45 @@ module xtb_mctc_lapack_tri
          complex(dp), intent(in) :: work(*)
       end subroutine zsptri
    end interface lapack_sptri
+
+   interface lapack_trtri
+      pure subroutine strtri(uplo, diag, n, a, lda, info)
+         import :: sp
+         real(sp), intent(inout) :: a(lda, *)
+         character(len=1), intent(in) :: uplo
+         character(len=1), intent(in) :: diag
+         integer, intent(out) :: info
+         integer, intent(in) :: n
+         integer, intent(in) :: lda
+      end subroutine strtri
+      pure subroutine dtrtri(uplo, diag, n, a, lda, info)
+         import :: dp
+         real(dp), intent(inout) :: a(lda, *)
+         character(len=1), intent(in) :: uplo
+         character(len=1), intent(in) :: diag
+         integer, intent(out) :: info
+         integer, intent(in) :: n
+         integer, intent(in) :: lda
+      end subroutine dtrtri
+      pure subroutine ctrtri(uplo, diag, n, a, lda, info)
+         import :: sp
+         complex(sp), intent(inout) :: a(lda, *)
+         character(len=1), intent(in) :: uplo
+         character(len=1), intent(in) :: diag
+         integer, intent(out) :: info
+         integer, intent(in) :: n
+         integer, intent(in) :: lda
+      end subroutine ctrtri
+      pure subroutine ztrtri(uplo, diag, n, a, lda, info)
+         import :: dp
+         complex(dp), intent(inout) :: a(lda, *)
+         character(len=1), intent(in) :: uplo
+         character(len=1), intent(in) :: diag
+         integer, intent(out) :: info
+         integer, intent(in) :: n
+         integer, intent(in) :: lda
+      end subroutine ztrtri
+   end interface lapack_trtri
 
    interface lapack_potri
       pure subroutine spotri(uplo, n, a, lda, info)
@@ -524,6 +569,60 @@ subroutine mctc_dpptri(env, amat, uplo)
       call env%error("Inverting matrix failed", source)
    end if
 end subroutine mctc_dpptri
+
+
+subroutine mctc_strtri(env, amat, uplo, diag)
+   character(len=*), parameter :: source = 'mctc_lapack_trtri'
+   type(TEnvironment), intent(inout) :: env
+   real(sp), intent(inout) :: amat(:, :)
+   character(len=1), intent(in), optional :: uplo
+   character(len=1), intent(in), optional :: diag
+   character(len=1) :: ula, dia
+   integer :: info, n, lda
+   if (present(uplo)) then
+      ula = uplo
+   else
+      ula = 'u'
+   end if
+   if (present(diag)) then
+      dia = diag
+   else
+      dia = 'n'
+   end if
+   lda = max(1, size(amat, 1))
+   n = size(amat, 2)
+   call lapack_trtri(ula, dia, n, amat, lda, info)
+   if (info /= 0) then
+      call env%error("Inverting matrix failed", source)
+   end if
+end subroutine mctc_strtri
+
+
+subroutine mctc_dtrtri(env, amat, uplo, diag)
+   character(len=*), parameter :: source = 'mctc_lapack_trtri'
+   type(TEnvironment), intent(inout) :: env
+   real(dp), intent(inout) :: amat(:, :)
+   character(len=1), intent(in), optional :: uplo
+   character(len=1), intent(in), optional :: diag
+   character(len=1) :: ula, dia
+   integer :: info, n, lda
+   if (present(uplo)) then
+      ula = uplo
+   else
+      ula = 'u'
+   end if
+   if (present(diag)) then
+      dia = diag
+   else
+      dia = 'n'
+   end if
+   lda = max(1, size(amat, 1))
+   n = size(amat, 2)
+   call lapack_trtri(ula, dia, n, amat, lda, info)
+   if (info /= 0) then
+      call env%error("Inverting matrix failed", source)
+   end if
+end subroutine mctc_dtrtri
 
 
 end module xtb_mctc_lapack_tri

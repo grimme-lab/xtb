@@ -20,7 +20,7 @@ module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
    use xtb_mctc_lapack, only : lapack_sygvd
-   use xtb_mctc_blas, only : blas_gemm, mctc_symv, mctc_gemm
+   use xtb_mctc_blas, only : mctc_symv, mctc_gemm, mctc_syrk
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
@@ -262,16 +262,14 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        pcem,shellShift,externShift, &
       &        et,focc,focca,foccb,efa,efb, &
       &        eel,ees,eaes,epol,ed,epcem,egap,emo,ihomo,ihomoa,ihomob, &
-      &        H0,H,S,dpint,qpint,X,P,ies, &
+      &        H0,H,S,dpint,qpint,P,ies, &
       &        maxiter,startpdiag,scfconv,qconv, &
       &        minpr,pr, &
       &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_mctc_lapack_trf, only : mctc_potrf
 
    use xtb_disp_dftd4,  only: disppot,edisp_scc
-   use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
-   &                  mmompop,aniso_electro,setvsdq
+   use xtb_aespot, only : mmompop,aniso_electro,setvsdq
    use xtb_embedding, only : electro_pcem
 
    character(len=*), parameter :: source = 'scc_core'
@@ -363,8 +361,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),allocatable   :: dqlast(:)
    real(wp),allocatable   :: omega(:)
 !! ------------------------------------------------------------------------
-!  Factorized overlap to avoid multiple factorizations
-   real(wp), allocatable :: S_factorized(:,:)
+!  AO eigenvector buffer for occupied-orbital back-transformation
+   real(wp), allocatable :: C_occ(:,:)
+   integer  :: m_occ
 !! ------------------------------------------------------------------------
 !  results of the SCC iterator
    real(wp),intent(out)   :: eel
@@ -382,7 +381,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
    real(wp),intent(out)   :: H(ndim,ndim)
    real(wp),intent(inout) :: P(ndim,ndim)
-   real(wp),intent(inout) :: X(ndim,ndim)
    real(wp),intent(in)    :: S(ndim,ndim)
    real(wp),intent(in)    :: dpint(3,ndim,ndim)
    real(wp),intent(in)    :: qpint(6,ndim,ndim)
@@ -401,19 +399,18 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp) :: rmsq
    real(wp) :: nfoda,nfodb
    logical  :: fulldiag
-   logical  :: lastdiag
    integer  :: iter
    integer  :: thisiter
    logical  :: converged
    logical  :: econverged
    logical  :: qconverged
 
-   allocate(S_factorized(ndim, ndim), source = 0.0_wp )
-   S_factorized = S
-   call mctc_potrf(env, S_factorized)
+   call env%check(fail)
+   if (fail) return
+   allocate(C_occ(ndim, ndim), source = 0.0_wp)
+   m_occ = 0
 
    converged = .false.
-   lastdiag = .false.
    ! number of iterations for this iterator
    thisiter = maxiter - jter
 
@@ -468,16 +465,15 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    ! ------------------------------------------------------------------------
    fulldiag=.false.
    if(iter.lt.startpdiag) fulldiag=.true.
-   if(lastdiag )          fulldiag=.true.
 
    !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
-   call solver%fact_solve(env, H, S_factorized, emo)
+   call solver%fact_solve_subspace(env, H, emo)
    call env%check(fail)
-   if(fail)then
+   if (fail) then
       call env%error("Diagonalization of Hamiltonian failed", source)
       return
-   endif
+   end if
 
    if(ihomo+1.le.ndim.and.ihomo.ge.1)egap=emo(ihomo+1)-emo(ihomo)
    ! automatic reset to small value
@@ -503,14 +499,27 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    endif
 
    ! save q
-   q_in(1:nshell)=qsh(1:nshell)
-   if (present(aes)) then
-      k=nshell
-      call gfn2broyden_save(n,k,nbr,dipm,qp,q_in)
+   call set_mixer(present(aes), qsh, dipm, qp, q_in)
+
+   ! Transform only occupied orbitals during SCC iterations
+   m_occ = 0
+   do i = ndim, 1, -1
+      if (abs(focc(i)) > 1.0e-16_wp) then
+         m_occ = i
+         exit
+      end if
+   end do
+   if (m_occ > 0) then
+      call solver%fact_backtransform(env, H, C_occ, 1, m_occ)
+      call env%check(fail)
+      if (fail) then
+         call env%error("Diagonalization of Hamiltonian failed", source)
+         return
+      end if
    end if
 
    ! density matrix
-   call dmat(ndim,focc,H,P)
+   call dmat(ndim,focc,C_occ,P)
 
    ! new q
    call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
@@ -555,17 +564,21 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    econverged = abs(eel - eold) < scfconv
    ! ------------------------------------------------------------------------
 
-   dq(1:nshell)=qsh(1:nshell)-q_in(1:nshell)
-   if (present(aes)) then
-      k=nshell
-      call gfn2broyden_diff(n,k,nbr,dipm,qp,q_in,dq) ! CAMM case
-   end if
-   rmsq=sum(dq(1:nbr)**2)/dble(n)
+   call diff_mixer(present(aes), qsh, dipm, qp, q_in, dq)
+   rmsq=sum(dq(1:nbr)**2)/dble(nbr)
    rmsq=sqrt(rmsq)
 
    ! ------------------------------------------------------------------------
    ! end of SCC convergence part
    qconverged = rmsq < qconv
+   if (econverged.and.qconverged) then
+      converged = .true.
+      qq=q
+      ! no mixing step in the converged iteration
+      if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
+      &  iter+jter,eel,eel-eold,rmsq,egap,0.0_wp,fulldiag
+      exit scc_iterator
+   end if
    ! ------------------------------------------------------------------------
 
    ! SCC convergence acceleration
@@ -574,24 +587,8 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       ! simple damp
       if(iter.gt.0) then
          omegap=egap
-         ! monopoles only
-         do i=1,nshell
-            qsh(i)=damp*qsh(i)+(1.0_wp-damp)*q_in(i)
-         enddo
-         if (present(aes)) then
-            ! CAMM
-            k=nshell
-            do i=1,n
-               do j=1,3
-                  k=k+1
-                  dipm(j,i)=damp*dipm(j,i)+(1.0_wp-damp)*q_in(k)
-               enddo
-               do j=1,6
-                  k=k+1
-                  qp(j,i)=damp*qp(j,i)+(1.0_wp-damp)*q_in(k)
-               enddo
-            enddo
-         end if
+         q_in = q_in + damp*dq
+         call get_mixer(present(aes), q_in, qsh, dipm, qp)
          if(eel-eold.lt.0.0_wp) then
             damp=damp*1.15_wp
          else
@@ -606,11 +603,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       ! Broyden mixing
       omegap=0.0_wp
       call broyden(nbr,q_in,qlast_in,dq,dqlast,iter,thisiter,broydamp,omega,df,u,a)
-      qsh(1:nshell)=q_in(1:nshell)
-      if (present(aes)) then
-         k=nshell
-         call gfn2broyden_out(n,k,nbr,q_in,dipm,qp) ! CAMM case
-      end if
+      call get_mixer(present(aes), q_in, qsh, dipm, qp)
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
@@ -624,20 +617,133 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
 !  end of SCC convergence part
 
-!! ------------------------------------------------------------------------
-   if (econverged.and.qconverged) then
-      converged = .true.
-      if (lastdiag) exit scc_iterator
-      lastdiag = .true.
-   endif
-!! ------------------------------------------------------------------------
-
    enddo scc_iterator
+
+   if (thisiter >= 1) then
+      if (m_occ < ndim) then
+         call solver%fact_backtransform(env, H, C_occ, m_occ + 1, ndim)
+         call env%check(fail)
+         if (fail) then
+            call env%error("Diagonalization of Hamiltonian failed", source)
+            return
+         end if
+      end if
+      H = C_occ
+   end if
 
    jter = jter + min(iter,thisiter)
    fail = .not.converged
 
 end subroutine scc
+
+
+!> Store the shell charges and, if present, the atomic dipole and quadrupole
+!> moments as consecutive blocks in the mixing vector
+pure subroutine set_mixer(multipole, qsh, dipm, qp, q_in)
+
+   !> Mixing vector contains atomic multipole moments
+   logical, intent(in) :: multipole
+
+   !> Shell charges
+   real(wp), intent(in) :: qsh(:)
+
+   !> Atomic dipole moments
+   real(wp), intent(in) :: dipm(:, :)
+
+   !> Atomic quadrupole moments in packed form
+   real(wp), intent(inout) :: qp(:, :)
+
+   !> Mixing vector
+   real(wp), intent(inout) :: q_in(:)
+
+   integer :: nsh, nat
+
+   nsh = size(qsh)
+   nat = size(dipm, 2)
+   q_in(1:nsh) = qsh
+   if (multipole) then
+      q_in(nsh+1:nsh+3*nat) = reshape(dipm, [3*nat])
+      ! Scale off-diagonal elements of packed quadrupole tensor in place, since
+      ! they appear twice in the full tensor and enter the residual norm as such
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) * sqrt(2.0_wp)
+      q_in(nsh+3*nat+1:nsh+9*nat) = reshape(qp, [6*nat])
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) / sqrt(2.0_wp)
+   end if
+
+end subroutine set_mixer
+
+
+!> Residual between the current moments and the stored mixing vector
+pure subroutine diff_mixer(multipole, qsh, dipm, qp, q_in, dq)
+
+   !> Mixing vector contains atomic multipole moments
+   logical, intent(in) :: multipole
+
+   !> Shell charges
+   real(wp), intent(in) :: qsh(:)
+
+   !> Atomic dipole moments
+   real(wp), intent(in) :: dipm(:, :)
+
+   !> Atomic quadrupole moments in packed form
+   real(wp), intent(inout) :: qp(:, :)
+
+   !> Mixing vector
+   real(wp), intent(in) :: q_in(:)
+
+   !> Residual vector
+   real(wp), intent(inout) :: dq(:)
+
+   integer :: nsh, nat
+
+   nsh = size(qsh)
+   nat = size(dipm, 2)
+   dq(1:nsh) = qsh - q_in(1:nsh)
+   if (multipole) then
+      dq(nsh+1:nsh+3*nat) = reshape(dipm, [3*nat]) - q_in(nsh+1:nsh+3*nat)
+      ! Scale off-diagonal elements of packed quadrupole tensor in place, since
+      ! they appear twice in the full tensor and enter the residual norm as such
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) * sqrt(2.0_wp)
+      dq(nsh+3*nat+1:nsh+9*nat) = reshape(qp, [6*nat]) &
+         & - q_in(nsh+3*nat+1:nsh+9*nat)
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) / sqrt(2.0_wp)
+   end if
+
+end subroutine diff_mixer
+
+
+!> Restore the shell charges and, if present, the atomic dipole and quadrupole
+!> moments from the mixing vector
+pure subroutine get_mixer(multipole, q_in, qsh, dipm, qp)
+
+   !> Mixing vector contains atomic multipole moments
+   logical, intent(in) :: multipole
+
+   !> Mixing vector
+   real(wp), intent(in) :: q_in(:)
+
+   !> Shell charges
+   real(wp), intent(inout) :: qsh(:)
+
+   !> Atomic dipole moments
+   real(wp), intent(inout) :: dipm(:, :)
+
+   !> Atomic quadrupole moments in packed form
+   real(wp), intent(inout) :: qp(:, :)
+
+   integer :: nsh, nat
+
+   nsh = size(qsh)
+   nat = size(dipm, 2)
+   qsh = q_in(1:nsh)
+   if (multipole) then
+      dipm = reshape(q_in(nsh+1:nsh+3*nat), [3, nat])
+      qp = reshape(q_in(nsh+3*nat+1:nsh+9*nat), [6, nat])
+      ! Remove scaling of off-diagonal elements of packed quadrupole tensor
+      qp([2, 4, 5], :) = qp([2, 4, 5], :) / sqrt(2.0_wp)
+   end if
+
+end subroutine get_mixer
 
 
 !> H0 off-diag scaling
@@ -962,8 +1068,8 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    else
 !                                                     call timing(t0,w0)
 !     go to MO basis using trafo(X) from first iteration (=full diag)
-      call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,H,ndim,X,ndim,0.0_wp,P,ndim)
-      call blas_gemm('T','N',ndim,ndim,ndim,1.0_wp,X,ndim,P,ndim,0.0_wp,H,ndim)
+      call mctc_gemm(H, X, P)
+      call mctc_gemm(X, P, H, transa='t')
 !                                                     call timing(t1,w1)
 !                       call prtime(6,1.5*(t1-t0),1.5*(w1-w0),'3xdgemm')
 !                                                     call timing(t0,w0)
@@ -972,7 +1078,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                call prtime(6,t1-t0,w1-w0,'pseudodiag')
 
 !     C = X C', P=scratch
-      call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,X,ndim,H,ndim,0.0_wp,P,ndim)
+      call mctc_gemm(X, H, P)
 !     save and output MO matrix in AO basis
       H = P
    endif
@@ -992,15 +1098,19 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    real(wp),intent(out) :: e_fermi
    logical, intent(in)  :: prt
 
-   real(wp) :: bkt,occt,total_number
+   real(wp) :: bkt,occt,total_number,arg
    real(wp) :: total_dfermi,dfermifunct,fermifunct,s,change_fermi
    real(wp), parameter :: boltz = kB*autoev
-   real(wp), parameter :: thr   = 1e-9_wp
+   real(wp), parameter :: thr = min(sqrt(epsilon(1.0_wp)), &
+      & 1.0e5_wp*epsilon(1.0_wp))
    real(wp), parameter :: sqrttiny = sqrt(tiny(1.0_wp))
    integer :: ncycle,i,j,m,k,i1,i2
 
    bkt = boltz*t
 
+   ! Initialize the Aufbau occupations, including empty and full spectra.
+   occ = 0.0_wp
+   occ(:min(nel, norbs)) = 1.0_wp
 
    ! First we need a good guess for the Fermi level
    if(nel+1 .gt. norbs) then 
@@ -1017,30 +1127,33 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
 
       ! With this we can refine it to meet the definition at the current temperture
       occt=nel
-      do ncycle = 1, 200  ! this loop would be possible instead of gotos
+      do ncycle = 1, 200
+         if (t <= 0.0_wp) exit
          total_number = 0.0_wp
          total_dfermi = 0.0_wp
          do i = 1, norbs
-            fermifunct = 0.0_wp
-            if((eig(i)-e_fermi)/bkt.lt.50) then
-               fermifunct = 1.0_wp/(exp((eig(i)-e_fermi)/bkt)+1.0_wp)
-               dfermifunct = exp((eig(i)-e_fermi)/bkt) / &
-               &       (bkt*(exp((eig(i)-e_fermi)/bkt)+1.0_wp)**2)
-            else
+            arg = (eig(i)-e_fermi)/bkt
+            if (arg > 50.0_wp) then
+               fermifunct = 0.0_wp
                dfermifunct = 0.0_wp
+            else if (arg < -50.0_wp) then
+               fermifunct = 1.0_wp
+               dfermifunct = 0.0_wp
+            else
+               fermifunct = 1.0_wp/(exp(arg)+1.0_wp)
+               dfermifunct = fermifunct*(1.0_wp-fermifunct)/bkt
             end if
             occ(i) = fermifunct
             total_number = total_number + fermifunct
             total_dfermi = total_dfermi + dfermifunct
          end do
+         if (abs(occt-total_number) <= thr) exit
          if (total_dfermi > sqrttiny) then
             change_fermi = (occt-total_number)/total_dfermi
          else
-            change_fermi = 0.0_wp
+            exit
          end if
-         change_fermi = (occt-total_number)/total_dfermi
          e_fermi = e_fermi+change_fermi
-         if (abs(occt-total_number).le.thr) exit
       enddo
    end if 
 
@@ -1049,7 +1162,7 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    do i=1,norbs
       if(occ(i).gt.thr.and.1.0_wp-occ(i).gt.thr) &
       &   s=s+occ(i)*log(occ(i))+(1.0_wp-occ(i))*log(1.0_wp-occ(i))
-      if (eig(i).lt.e_fermi) then
+      if (i.le.nel) then
          fod=fod+1.0_wp-occ(i)
       else
          fod=fod+      occ(i)
@@ -1179,10 +1292,40 @@ subroutine dmat(ndim,focc,C,P)
    real(wp),intent(in)  :: focc(:)
    real(wp),intent(in)  :: C(:,:)
    real(wp),intent(out) :: P(:,:)
-   integer :: i,m
+   integer :: i,m,m_occ,m_core,n_act
    real(wp),allocatable :: Ptmp(:,:)
 
-   allocate(Ptmp(ndim,ndim))
+   m_occ = 0
+   do m = min(ndim, size(focc), size(C, 2)), 1, -1
+      if (abs(focc(m)) > 1.0e-16_wp) then
+         m_occ = m
+         exit
+      end if
+   end do
+   if (m_occ == 0) then
+      P = 0.0_wp
+      return
+   end if
+   m_core = 0
+   if (focc(1) > 0.0_wp) then
+      do m = 1, m_occ
+         if (focc(m) /= focc(1)) exit
+         m_core = m
+      end do
+      if (m_core < m_occ .and. m_core < 2) m_core = 0
+   end if
+   if (m_core > 0) then
+      call mctc_syrk(C(:, 1:m_core), P, alpha=focc(1))
+      do m = 1, ndim
+         do i = 1, m - 1
+            P(m, i) = P(i, m)
+         end do
+      end do
+      if (m_core == m_occ) return
+   end if
+
+   n_act = m_occ - m_core
+   allocate(Ptmp(ndim,n_act))
    ! acc enter data create(Ptmp(:,:)) copyin(C(:, :), focc(:), P(:, :))
    ! acc kernels default(present)
    Ptmp = 0.0_wp
@@ -1190,14 +1333,18 @@ subroutine dmat(ndim,focc,C,P)
 
    ! acc parallel
    ! acc loop gang collapse(2)
-   do m=1,ndim
+   do m=1,n_act
       do i=1,ndim
-         Ptmp(i,m)=C(i,m)*focc(m)
+         Ptmp(i,m)=C(i,m_core+m)*focc(m_core+m)
       enddo
    enddo
    ! acc end parallel
    ! acc update host(Ptmp)
-   call mctc_gemm(C, Ptmp, P, transb='t')
+   if (m_core > 0) then
+      call mctc_gemm(C(:, m_core+1:m_occ), Ptmp, P, transb='t', beta=1.0_wp)
+   else
+      call mctc_gemm(C(:, 1:m_occ), Ptmp, P, transb='t')
+   end if
    ! acc exit data copyout(P(:,:)) delete(C(:,:), focc(:), Ptmp(:, :))
 
    deallocate(Ptmp)
@@ -1218,7 +1365,7 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    integer i,j,k,m
 
    allocate(Ptmp(ndim,ndim))
-   call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
+   call mctc_gemm(P, S, Ptmp)
    wb = 0
    !$omp parallel do default(none) &
    !$omp private(i,j,k,m,xsum,rab) &
@@ -1263,10 +1410,10 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    allocate(Ptmp_b(ndim,ndim))
 
    ! P^(alpha) * S !
-   call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,Pa,ndim,S,ndim,0.0_wp,Ptmp_a,ndim)
+   call mctc_gemm(Pa, S, Ptmp_a)
    
    ! P^(beta) * S !
-   call blas_gemm('N','N',ndim,ndim,ndim,1.0_wp,Pb,ndim,S,ndim,0.0_wp,Ptmp_b,ndim)
+   call mctc_gemm(Pb, S, Ptmp_b)
    
    wb = 0
    !$omp parallel do default(none) &

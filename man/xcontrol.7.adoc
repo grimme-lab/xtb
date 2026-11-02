@@ -90,8 +90,16 @@ NOTE: This data group refers to constraining the gradient by appling
     constrains all elements of the same type, the atom type is determined
     by the ordinal number or the element symbol
 *atoms*: 'list',...::
-     constrains the atom positions of all atoms in 'list'. Needs at
-     least two atoms since potential is applied on all atoms in 'list'.
+    constrains the atom positions of all atoms in 'list'. Needs at
+    least two atoms since potential is applied on all atoms in 'list'.
+*free*: 'list'|'symbol',...::
+    constrains the atom positions of all atoms except those in 'list'
+    and all atoms of the elements given by their element symbol.
+    Numbers always refer to atoms, not to atomic numbers.
+    Any other entry stops the run with an error.
+    Can be given multiple times, the free atoms of all entries are combined.
+    Can be combined with *atoms* and *elements*, atoms selected there
+    stay constrained. Needs at least two constrained atoms.
 *distance*: 'i','j',auto|'real'::
     constrain the distance between atom 'i' and 'j' to the actual 
     length (auto) or the value 'real', which has to be given in
@@ -206,6 +214,17 @@ NOTE: the fix group refers to exact fixing. For geometry optimizations
 
 *atoms*: 'list',...::
     fixes all atoms in 'list' by setting the gradient to zero.
+    This is automatically deactivated for molecular dynamics since
+    it leads to instabilities.
+
+*free*: 'list'|'symbol',...::
+    fixes all atoms except those in 'list' and all atoms of the elements
+    given by their element symbol, i.e. only these atoms are optimized.
+    Numbers always refer to atoms, not to atomic numbers.
+    Any other entry stops the run with an error.
+    Can be given multiple times, the free atoms of all entries are combined.
+    Can be combined with *atoms* and *elements*, atoms selected there
+    stay fixed.
     This is automatically deactivated for molecular dynamics since
     it leads to instabilities.
 
@@ -425,22 +444,31 @@ $opt
 *exact rf*='bool'::
    use better solver during the rational function optimization
 
-$path (6.1 only)
-~~~~~~~~~~~~~~~~
+$path
+~~~~~
 *nrun*='int'::
-   number of runs for pathfinder
-*nopt*='int'::
-   number of points on the path to optimize
+   number of path refinement cycles (default: 3)
+*nopt*='int', *npoint*='int'::
+   approximate maximum number of retained path points; *npoint* is an alias
+   for *nopt* (default: 50)
 *anopt*='int'::
-   number of steps to optimize the points on the path
+   maximum number of optimization steps per path point (default: 3)
 *kpush*='real'::
-   factor for RMSD criterium pushing away from the reactant structure
+   positive Gaussian RMSD bias prefactor pushing away from the reactant
+   structure (default: 0.05)
 *kpull*='real'::
-   factor for RMSD criterium pulling towards the product structure
+   negative Gaussian RMSD bias prefactor pulling towards the product
+   structure (default: -0.04)
+*ppull*='real'::
+   positive pull strength keeping optimized points near the path
+   (default: 0.05)
 *alp*='real'::
-   width of the RMSD criterium
+   Gaussian RMSD decay parameter; larger values give a narrower bias
+   (default: 0.70)
 *product*='file'::
-   file name of the product structure
+   file name of the product structure (required; no default)
+*atoms*: 'list',...::
+   atoms used for the RMSD bias (default: all atoms)
 
 $scan
 ~~~~~

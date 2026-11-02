@@ -165,16 +165,16 @@ subroutine test_dftd4_pbc3d_neighbourlist(error)
    call d4_gradient(mol, dispm, neighs, neighList, dparam_pbe, g_a, g_c, wf, &
       & cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
 
-   call check(error, energy, -0.73670210332109E-01_wp, thr=thr)
-   call check(error, norm2(gradient), 0.67876404541808E-03_wp, thr=thr)
+   call check(error, energy, -0.73670188905245E-01_wp, thr=thr)
+   call check(error, norm2(gradient), 0.67876362057400E-03_wp, thr=thr)
 
    call check(error, gradient(1, 3), -0.48796348327688E-04_wp, thr=thr)
    call check(error, gradient(2, 7),  0.85632660892000E-04_wp, thr=thr)
    call check(error, gradient(3,12),  0.15057422955536E-04_wp, thr=thr)
 
-   call check(error, sigma(1,1),  0.80650010267247E-01_wp, thr=thr)
+   call check(error, sigma(1,1),  0.80649987838600E-01_wp, thr=thr)
    call check(error, sigma(2,1), -0.20505317558255E-03_wp, thr=thr)
-   call check(error, sigma(3,2),  0.21880502391427E-02_wp, thr=thr)
+   call check(error, sigma(3,2),  0.21880494940277E-02_wp, thr=thr)
 
    ! check numerical gradient
    ! reduce the number of numerical gradient evaluations significantly
@@ -380,16 +380,16 @@ subroutine test_dftd4_pbc3d_latticepoints(error)
    call d4_gradient(mol, dispm, trans, dparam_pbe, g_a, g_c, wf, 60.0_wp, &
       & cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
 
-   call check(error, energy, -0.73670210332109E-01_wp, thr=thr)
-   call check(error, norm2(gradient), 0.67876404541808E-03_wp, thr=thr)
+   call check(error, energy, -0.73670188905245E-01_wp, thr=thr)
+   call check(error, norm2(gradient), 0.67876362057400E-03_wp, thr=thr)
 
    call check(error, gradient(1, 3), -0.48796348327688E-04_wp, thr=thr)
    call check(error, gradient(2, 7),  0.85632660892001E-04_wp, thr=thr)
    call check(error, gradient(3,12),  0.15057422955536E-04_wp, thr=thr)
 
-   call check(error, sigma(1,1),  0.80650010267246E-01_wp, thr=thr)
+   call check(error, sigma(1,1),  0.80649987838600E-01_wp, thr=thr)
    call check(error, sigma(2,1), -0.20505317558255E-03_wp, thr=thr)
-   call check(error, sigma(3,2),  0.21880502391427E-02_wp, thr=thr)
+   call check(error, sigma(3,2),  0.21880494940277E-02_wp, thr=thr)
 
    ! check numerical gradient
    do ii = 1, nat, 9
@@ -581,7 +581,7 @@ subroutine test_dftd4_pbc3d_threebody_neighs(error)
    call d4_atm_gradient(mol, dispm, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
       & cn, dcndr, dcndL, energy, gradient, sigma)
 
-   call check(error, energy, 0.44030151321408E-03_wp, thr=thr)
+   call check(error, energy, 0.44030138304838E-03_wp, thr=thr)
    call check(error, norm2(gradient), 0.54938536852646E-04_wp, thr=thr)
 
    call check(error, gradient(1, 3), -0.44803663456486E-05_wp, thr=thr)
@@ -764,7 +764,7 @@ subroutine test_dftd4_pbc3d_threebody_latp(error)
    call d4_atm_gradient(mol, dispm, trans, dparam_pbe, g_a, g_c, wf, 15.0_wp, &
       & cn, dcndr, dcndL, energy, gradient, sigma)
 
-   call check(error, energy, 0.44070137748975E-03_wp, thr=thr)
+   call check(error, energy, 0.44070124709389E-03_wp, thr=thr)
    call check(error, norm2(gradient), 0.54976067894467E-04_wp, thr=thr)
 
    call check(error, gradient(1, 3), -0.44417914354499E-05_wp, thr=thr)

@@ -25,11 +25,11 @@ module xtb_mctc_lapack
    use xtb_mctc_lapack_stdeigval, only : mctc_syev, lapack_syev, lapack_syevd, lapack_syevx, &
       & lapack_syevr, lapack_spev, lapack_spevd, lapack_spevx, lapack_heev, &
       & lapack_heevd, lapack_heevx, lapack_heevr, lapack_hpev, lapack_hpevd, &
-      & lapack_hpevx
+      & lapack_hpevx, lapack_sytrd, lapack_stedc, lapack_ormtr
    use xtb_mctc_lapack_trf, only : lapack_getrf, lapack_sytrf, lapack_sptrf, &
       & lapack_potrf, lapack_pptrf
    use xtb_mctc_lapack_tri, only : lapack_getri, lapack_sytri, lapack_sptri, &
-      & lapack_potri, lapack_pptri
+      & lapack_potri, lapack_pptri, lapack_trtri
    use xtb_mctc_lapack_trs, only : lapack_getrs, lapack_sytrs, lapack_sptrs, &
       & lapack_potrs, lapack_pptrs
    use xtb_mctc_lapack_wrap

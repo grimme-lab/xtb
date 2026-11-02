@@ -22,7 +22,7 @@ module xtb_mctc_convert
    public :: autoaa4byamu, m4bykgtoang4byamu
    private
 !  convert bohr (a.u.) to Ångström and back
-   real(wp), public, parameter :: autoaa = 0.52917726_wp
+   real(wp), public, parameter :: autoaa = 5.29177210904492434e-1_wp
    real(wp), public, parameter :: aatoau = 1.0_wp / autoaa
 !  convert Hartree to eV and back
    real(wp), public, parameter :: autoev = 27.21138505_wp

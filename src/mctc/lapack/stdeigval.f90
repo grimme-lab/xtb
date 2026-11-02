@@ -27,12 +27,108 @@ module xtb_mctc_lapack_stdeigval
    public :: lapack_spevd, lapack_spevx
    public :: lapack_heev, lapack_heevd, lapack_heevx, lapack_heevr, lapack_hpev
    public :: lapack_hpevd, lapack_hpevx
+   public :: lapack_sytrd, lapack_stedc, lapack_ormtr
 
 
    interface mctc_syev
       module procedure :: mctc_ssyev
       module procedure :: mctc_dsyev
    end interface mctc_syev
+
+   interface lapack_sytrd
+      pure subroutine ssytrd(uplo, n, a, lda, d, e, tau, work, lwork, info)
+         import :: sp
+         character(len=1), intent(in) :: uplo
+         integer, intent(in) :: n
+         integer, intent(in) :: lda
+         real(sp), intent(inout) :: a(lda, *)
+         real(sp), intent(out) :: d(*)
+         real(sp), intent(out) :: e(*)
+         real(sp), intent(out) :: tau(*)
+         real(sp), intent(inout) :: work(*)
+         integer, intent(in) :: lwork
+         integer, intent(out) :: info
+      end subroutine ssytrd
+      pure subroutine dsytrd(uplo, n, a, lda, d, e, tau, work, lwork, info)
+         import :: dp
+         character(len=1), intent(in) :: uplo
+         integer, intent(in) :: n
+         integer, intent(in) :: lda
+         real(dp), intent(inout) :: a(lda, *)
+         real(dp), intent(out) :: d(*)
+         real(dp), intent(out) :: e(*)
+         real(dp), intent(out) :: tau(*)
+         real(dp), intent(inout) :: work(*)
+         integer, intent(in) :: lwork
+         integer, intent(out) :: info
+      end subroutine dsytrd
+   end interface lapack_sytrd
+
+   interface lapack_stedc
+      pure subroutine sstedc(compz, n, d, e, z, ldz, work, lwork, iwork, liwork, info)
+         import :: sp
+         character(len=1), intent(in) :: compz
+         integer, intent(in) :: n
+         integer, intent(in) :: ldz
+         real(sp), intent(inout) :: d(*)
+         real(sp), intent(inout) :: e(*)
+         real(sp), intent(inout) :: z(ldz, *)
+         real(sp), intent(inout) :: work(*)
+         integer, intent(in) :: lwork
+         integer, intent(inout) :: iwork(*)
+         integer, intent(in) :: liwork
+         integer, intent(out) :: info
+      end subroutine sstedc
+      pure subroutine dstedc(compz, n, d, e, z, ldz, work, lwork, iwork, liwork, info)
+         import :: dp
+         character(len=1), intent(in) :: compz
+         integer, intent(in) :: n
+         integer, intent(in) :: ldz
+         real(dp), intent(inout) :: d(*)
+         real(dp), intent(inout) :: e(*)
+         real(dp), intent(inout) :: z(ldz, *)
+         real(dp), intent(inout) :: work(*)
+         integer, intent(in) :: lwork
+         integer, intent(inout) :: iwork(*)
+         integer, intent(in) :: liwork
+         integer, intent(out) :: info
+      end subroutine dstedc
+   end interface lapack_stedc
+
+   interface lapack_ormtr
+      pure subroutine sormtr(side, uplo, trans, m, n, a, lda, tau, c, ldc, work, lwork, info)
+         import :: sp
+         character(len=1), intent(in) :: side
+         character(len=1), intent(in) :: uplo
+         character(len=1), intent(in) :: trans
+         integer, intent(in) :: m
+         integer, intent(in) :: n
+         integer, intent(in) :: lda
+         integer, intent(in) :: ldc
+         real(sp), intent(in) :: a(lda, *)
+         real(sp), intent(in) :: tau(*)
+         real(sp), intent(inout) :: c(ldc, *)
+         real(sp), intent(inout) :: work(*)
+         integer, intent(in) :: lwork
+         integer, intent(out) :: info
+      end subroutine sormtr
+      pure subroutine dormtr(side, uplo, trans, m, n, a, lda, tau, c, ldc, work, lwork, info)
+         import :: dp
+         character(len=1), intent(in) :: side
+         character(len=1), intent(in) :: uplo
+         character(len=1), intent(in) :: trans
+         integer, intent(in) :: m
+         integer, intent(in) :: n
+         integer, intent(in) :: lda
+         integer, intent(in) :: ldc
+         real(dp), intent(in) :: a(lda, *)
+         real(dp), intent(in) :: tau(*)
+         real(dp), intent(inout) :: c(ldc, *)
+         real(dp), intent(inout) :: work(*)
+         integer, intent(in) :: lwork
+         integer, intent(out) :: info
+      end subroutine dormtr
+   end interface lapack_ormtr
 
 
    interface lapack_syev

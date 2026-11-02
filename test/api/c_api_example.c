@@ -94,6 +94,135 @@ static int testOutputFileDescriptorRelease(void) {
 #endif
 }
 
+static int testGFN0DoesNotContaminateGFN2(void) {
+  int const natoms = 7;
+  int const attyp[7] = {6, 6, 6, 1, 1, 1, 1};
+  double const coord[3 * 7] = {
+      +0.00000000000000, +0.00000000000000, -1.79755622305860,
+      +0.00000000000000, +0.00000000000000, +0.95338756106749,
+      +0.00000000000000, +0.00000000000000, +3.22281255790261,
+      -0.96412815539807, -1.66991895015711, -2.53624948351102,
+      -0.96412815539807, +1.66991895015711, -2.53624948351102,
+      +1.92825631079613, +0.00000000000000, -2.53624948351102,
+      +0.00000000000000, +0.00000000000000, +5.23010455462158};
+
+  xtb_TEnvironment env = NULL;
+  xtb_TMolecule mol = NULL;
+  xtb_TCalculator calc = NULL;
+  xtb_TResults res = NULL;
+  double *emo_before = NULL;
+  double *emo_after = NULL;
+  double energy_before = 0.0;
+  double energy_after = 0.0;
+  int nao_before = 0;
+  int nao_after = 0;
+
+  env = xtb_newEnvironment();
+  xtb_setVerbosity(env, XTB_VERBOSITY_MUTED);
+  mol = xtb_newMolecule(env, &natoms, attyp, coord, NULL, NULL, NULL, NULL);
+  calc = xtb_newCalculator();
+  res = xtb_newResults();
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_loadGFN2xTB(env, mol, calc, NULL);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_singlepoint(env, mol, calc, res);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_getEnergy(env, res, &energy_before);
+  xtb_getNao(env, res, &nao_before);
+  if (xtb_checkEnvironment(env) || nao_before <= 0)
+    goto error;
+
+  emo_before = (double *)malloc((size_t)nao_before * sizeof(double));
+  if (!emo_before)
+    goto error;
+  xtb_getOrbitalEigenvalues(env, res, emo_before);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
+
+  env = xtb_newEnvironment();
+  xtb_setVerbosity(env, XTB_VERBOSITY_MUTED);
+  mol = xtb_newMolecule(env, &natoms, attyp, coord, NULL, NULL, NULL, NULL);
+  calc = xtb_newCalculator();
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_loadGFN0xTB(env, mol, calc, NULL);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
+
+  env = xtb_newEnvironment();
+  xtb_setVerbosity(env, XTB_VERBOSITY_MUTED);
+  mol = xtb_newMolecule(env, &natoms, attyp, coord, NULL, NULL, NULL, NULL);
+  calc = xtb_newCalculator();
+  res = xtb_newResults();
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_loadGFN2xTB(env, mol, calc, NULL);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_singlepoint(env, mol, calc, res);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_getEnergy(env, res, &energy_after);
+  xtb_getNao(env, res, &nao_after);
+  if (xtb_checkEnvironment(env) || !check(nao_after, nao_before, "NAO changed after loading GFN0"))
+    goto error;
+
+  emo_after = (double *)malloc((size_t)nao_after * sizeof(double));
+  if (!emo_after)
+    goto error;
+  xtb_getOrbitalEigenvalues(env, res, emo_after);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  if (!check(energy_after, energy_before, 1.0e-12,
+             "GFN2 energy changed after loading GFN0"))
+    goto error;
+
+  for (int i = 0; i < nao_before; ++i) {
+    if (!check(emo_after[i], emo_before[i], 1.0e-12,
+               "GFN2 orbital eigenvalue changed after loading GFN0"))
+      goto error;
+  }
+
+  free(emo_before);
+  free(emo_after);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
+  return EXIT_SUCCESS;
+
+error:
+  if (env)
+    xtb_showEnvironment(env, NULL);
+  free(emo_before);
+  free(emo_after);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
+  return EXIT_FAILURE;
+}
+
 int testFirst() {
   // first molecule, various solvent models
   double* q;
@@ -170,9 +299,9 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.3824793849585, 1.0e-9, "Energy does not match"))
+  if (!check(energy, -8.3824793885230, 1.0e-9, "Energy does not match"))
     goto error;
-  if (!check(q[5], 0.05184019996829, 1.0e-8, "Charge does not match"))
+  if (!check(q[5], 0.0518377916, 1.0e-8, "Charge does not match"))
     goto error;
   if (!check(dipole[2], -0.298279305689518, 1.0e-6, "Dipole does not match"))
     goto error;
@@ -195,9 +324,9 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.38393864716134, 1.0e-9, "GBSA Energy does not match"))
+  if (!check(energy, -8.38393865113565, 1.0e-9, "GBSA Energy does not match"))
     goto error;
-  if (!check(q[5], 0.06090868805034, 1.0e-8, "GBSA Charge does not match"))
+  if (!check(q[5], 0.0609094442, 1.0e-8, "GBSA Charge does not match"))
     goto error;
   if (!check(dipole[2], -0.35455233974705, 1.0e-6, "GBSA Dipole does not match"))
     goto error;
@@ -221,13 +350,13 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.384076843892, 1.0e-9, "ALPB Energy does not match"))
+  if (!check(energy, -8.384076847777, 1.0e-9, "ALPB Energy does not match"))
     goto error;
-  if (!check(q[5], 0.0644849340, 1.0e-8, "ALPB Charge does not match"))
+  if (!check(q[5], 0.0644852392, 1.0e-8, "ALPB Charge does not match"))
     goto error;
   if (!check(dipole[2], -0.3641866008, 1.0e-6, "ALPB Dipole does not match"))
     goto error;
-  if (!check(wbo[9], 2.8932146955, 1.0e-8, "ALPB Bond order does not match"))
+  if (!check(wbo[9], 2.8932147105, 1.0e-8, "ALPB Bond order does not match"))
     goto error;
 
   // COSMO
@@ -260,13 +389,13 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.385752224008, 1.0e-9, "COSMO Energy does not match"))
+  if (!check(energy, -8.3857521222, 1.0e-9, "COSMO Energy does not match"))
     goto error;
-  if (!check(q[5], 0.0597931738, 1.0e-8, "COSMO Charge does not match"))
+  if (!check(q[5], 0.0597931315, 1.0e-8, "COSMO Charge does not match"))
     goto error;
-  if (!check(dipole[2], -0.3709356947, 1.0e-6, "COSMO Dipole does not match"))
+  if (!check(dipole[2], -0.3709802845, 1.0e-6, "COSMO Dipole does not match"))
     goto error;
-  if (!check(wbo[9], 2.8940365143, 1.0e-8, "COSMO Bond order does not match"))
+  if (!check(wbo[9], 2.8940354459, 1.0e-8, "COSMO Bond order does not match"))
     goto error;
 
 
@@ -295,15 +424,15 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(energy, -8.383520040765, 1.0e-9, "CPCM-X Energy does not match"))
+  if (!check(energy, -8.3835199663, 1.0e-9, "CPCM-X Energy does not match"))
     goto error;
-  if (!check(solv_energy, -0.0010406558065, 1.0e-8, "CPCM-X Solvation Energy does not match"))
+  if (!check(solv_energy, -0.0010405774, 1.0e-8, "CPCM-X Solvation Energy does not match"))
     goto error;
-  if (!check(q[5], 0.0518386448, 1.0e-8, "CPCM-X Charge does not match"))
+  if (!check(q[5], 0.0518382669, 1.0e-8, "CPCM-X Charge does not match"))
     goto error;
-  if (!check(dipole[2], -0.2983150104, 1.0e-6, "CPCM-X Dipole does not match"))
+  if (!check(dipole[2], -0.2983224210, 1.0e-6, "CPCM-X Dipole does not match"))
     goto error;
-  if (!check(wbo[9], 2.8982388543, 1.0e-8, "CPCM-X Bond order does not match"))
+  if (!check(wbo[9], 2.8982386873, 1.0e-8, "CPCM-X Bond order does not match"))
     goto error;
 
 #endif
@@ -319,13 +448,13 @@ int testFirst() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  if (!check(hess[0], 0.4790088649, 1.0e-9, "Hessian[0,0] does not match"))
+  if (!check(hess[0], 0.4790051572, 1.0e-9, "Hessian[0,0] does not match"))
     goto error;
-  if (!check(hess[3], -0.0528761190, 1.0e-9, "Hessian[0,3] does not match"))
+  if (!check(hess[3], -0.0528767636, 1.0e-9, "Hessian[0,3] does not match"))
     goto error;
   if (!check(hess[3], hess[63], 1.0e-9, "Hessian[0,3] != Hessian[3,0]"))
     goto error;
-  if (!check(hess[(9*natsq)-1], 0.3636571159, 1.0e-9, "Hessian[21,21] does not match"))
+  if (!check(hess[(9*natsq)-1], 0.3636566714, 1.0e-9, "Hessian[21,21] does not match"))
     goto error;
 
 
@@ -454,23 +583,23 @@ int testSecond() {
   xtb_delete(mol);
   xtb_delete(env);
 
-  if (!check(energy, -10.160927754235, 1.0e-9, "Energy does not match"))
+  if (!check(energy, -10.160927759700, 1.0e-9, "Energy does not match"))
     goto error;
 
-  if (!check(grad[0 + 4 * 3], -2.0326750053811E-03, 1.0e-8, "grad[1,5] does not match"))
+  if (!check(grad[0 + 4 * 3], -0.0020334032, 1.0e-8, "grad[1,5] does not match"))
     goto error;
-  if (!check(grad[1 + 1 * 3], 3.3125460324302E-03, 1.0e-8, "grad[2,2] does not match"))
+  if (!check(grad[1 + 1 * 3], 0.0033126834, 1.0e-8, "grad[2,2] does not match"))
     goto error;
-  if (!check(grad[0 + 3 * 3], -1.1929405354823E-03, 1.0e-8, "grad[1,4] does not match"))
+  if (!check(grad[0 + 3 * 3], -0.0011907188, 1.0e-8, "grad[1,4] does not match"))
     goto error;
-  if (!check(grad[2 + 5 * 3], -1.6607683158587E-03, 1.0e-8, "grad[3,6] does not match"))
+  if (!check(grad[2 + 5 * 3], -0.0016630880, 1.0e-8, "grad[3,6] does not match"))
     goto error;
 
   if (!check(pcgrad[0 + 4 * 3], -0.000248319582, 1.0e-8, "pcgrad[1,5] does not match"))
     goto error;
   if (!check(pcgrad[1 + 1 * 3], 0.001420844475, 1.0e-8, "pcgrad[2,2] does not match"))
     goto error;
-  if (!check(pcgrad[0 + 3 * 3], 0.003746685275, 1.0e-8, "pcgrad[1,4] does not match"))
+  if (!check(pcgrad[0 + 3 * 3], 0.0037466632, 1.0e-8, "pcgrad[1,4] does not match"))
     goto error;
   if (!check(pcgrad[2 + 5 * 3], 0.000651613444, 1.0e-8, "pcgrad[3,6] does not match"))
     goto error;
@@ -491,5 +620,6 @@ int main(int argc, char **argv) {
   stat += testFirst();
   stat += testSecond();
   stat += testOutputFileDescriptorRelease();
+  stat += testGFN0DoesNotContaminateGFN2();
   return stat > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

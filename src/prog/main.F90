@@ -463,6 +463,8 @@ contains
       ! CONSTRAINTS & SCANS
       ! now we are at a point that we can check for requested constraints
       call read_userdata(xcontrol, env, mol)
+
+      call env%checkpoint("Reading constraints from '"//xcontrol//"' failed")
       ! ------------------------------------------------------------------------
       ! get some memory
       allocate (cn(mol%n), sat(mol%n), g(3, mol%n), source=0.0_wp)

@@ -31,6 +31,7 @@ subroutine collect_gfn1(testsuite)
    testsuite = [ &
       new_unittest("scc", test_gfn1_scc), &
       new_unittest("api", test_gfn1_api), &
+      new_unittest("heavy", test_gfn1_heavy), &
       new_unittest("gbsa", test_gfn1gbsa_api), &
       new_unittest("pcem", test_gfn1_pcem_api), &
       new_unittest("xb", test_gfn1_xb), &
@@ -136,11 +137,11 @@ subroutine test_gfn1_scc(error)
    call check_(error, res%converged)
 
    call check_(error, res%e_total,-5.768694907835_wp, thr=thr)
-   call check_(error, res%gnorm,   0.006990472552_wp, thr=thr*10)
+   call check_(error, res%gnorm,   0.006991474745_wp, thr=thr*10)
    ! value in electron volt
    call check_(error, res%hl_gap,  9.314571212134_wp, thr=1.0e-4_wp)
    call check_(error, res%e_elec, -5.805476374506_wp, thr=thr)
-   call check_(error, res%e_es,    0.050114150158_wp, thr=thr)
+   call check_(error, res%e_es,    0.050115468904_wp, thr=thr)
    call check_(error, res%e_disp, -0.000137581088_wp, thr=thr)
    call check_(error, res%e_rep,   0.036919047759_wp, thr=thr)
 
@@ -151,7 +152,7 @@ subroutine test_gfn1_scc(error)
 
    call check_(error, wfn%ihomo,4)
    call check_(error, wfn%ihomoa,wfn%ihomob)
-   call check_(error, wfn%emo(wfn%ihomo),-13.612017816475_wp, thr=thr2)
+   call check_(error, wfn%emo(wfn%ihomo),-13.612098312207_wp, thr=thr2)
    call check_(error, wfn%focca(wfn%ihomo),wfn%foccb(wfn%ihomo), thr=thr2)
    call check_(error, wfn%focc(wfn%ihomo),2.0_wp, thr=thr2)
 
@@ -215,16 +216,112 @@ subroutine test_gfn1_api(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 5.6067613073468_wp, thr=thr)
-   call check_(error, energy,-8.4156335928615_wp, thr=thr)
-   call check_(error, norm2(gradient),0.95790240549503E-02_wp, thr=thr)
+   call check_(error, hl_gap, 5.6067618078431_wp, thr=thr)
+   call check_(error, energy,-8.4156335981300_wp, thr=thr)
+   call check_(error, norm2(gradient),0.95790090424852E-02_wp, thr=thr)
 
-   call check_(error, gradient(1,5), 0.18116310445596E-02_wp, thr=thr)
+   call check_(error, gradient(1,5), 0.18116553473062E-02_wp, thr=thr)
    call check_(error, gradient(2,2), 0.00000000000000E+00_wp, thr=thr)
-   call check_(error, gradient(1,4),-0.18116310445594E-02_wp, thr=thr)
-   call check_(error, gradient(3,6),-0.76256813454808E-03_wp, thr=thr)
+   call check_(error, gradient(1,4),-0.18116553473064E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.76253157022711E-03_wp, thr=thr)
 
 end subroutine test_gfn1_api
+
+subroutine test_gfn1_heavy(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
+
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_data
+   use xtb_type_restart
+   use xtb_type_environment
+
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+
+   type(error_type), allocatable, intent(out) :: error
+
+   ! Elements with 5sp valence shells (I, Sn) cover the STO-6G expansion
+   ! of the 5s and 5p functions, which is not exercised by any other test
+   real(wp),parameter :: thr = 1.0e-7_wp
+   integer, parameter :: nat1 = 5
+   integer, parameter :: at1(nat1) = [6, 53, 1, 1, 1]
+   real(wp),parameter :: xyz1(3,nat1) = reshape(&
+      &[0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
+      & 0.00000000000000_wp, 0.00000000000000_wp,-4.05000000000000_wp, &
+      & 1.94000000000000_wp, 0.00000000000000_wp, 0.69000000000000_wp, &
+      &-0.97000000000000_wp, 1.68009920000000_wp, 0.69000000000000_wp, &
+      &-0.97000000000000_wp,-1.68009920000000_wp, 0.69000000000000_wp], shape(xyz1))
+   integer, parameter :: nat2 = 5
+   integer, parameter :: at2(nat2) = [50, 1, 1, 1, 1]
+   real(wp),parameter :: xyz2(3,nat2) = reshape(&
+      &[0.00000000000000_wp, 0.00000000000000_wp, 0.00000000000000_wp, &
+      & 1.85000000000000_wp, 1.85000000000000_wp, 1.85000000000000_wp, &
+      &-1.85000000000000_wp,-1.85000000000000_wp, 1.95000000000000_wp, &
+      &-1.85000000000000_wp, 1.85000000000000_wp,-1.85000000000000_wp, &
+      & 2.00000000000000_wp,-1.85000000000000_wp,-1.85000000000000_wp], shape(xyz2))
+   type(scc_options),parameter :: opt = scc_options( &
+      &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
+
+   type(TMolecule)    :: mol
+   type(TEnvironment) :: env
+   type(TRestart) :: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
+
+   real(wp) :: energy, sigma(3, 3)
+   real(wp) :: hl_gap
+   real(wp),allocatable :: gradient(:,:)
+
+   ! setup the environment variables
+   call init(env)
+
+   ! methyl iodide
+   call init(mol, at1, xyz1)
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call check_(error, hl_gap, 4.5821368916337_wp, thr=thr)
+   call check_(error, energy,-7.6689568639736_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.10777047947064E-01_wp, thr=thr)
+
+   call check_(error, gradient(3,1),-0.72530697669606E-02_wp, thr=thr)
+   call check_(error, gradient(3,2), 0.57697004960942E-02_wp, thr=thr)
+   call check_(error, gradient(1,3), 0.31347786926901E-02_wp, thr=thr)
+
+   deallocate(gradient)
+
+   ! stannane, slightly distorted since the inertia tensor of an exact
+   ! tetrahedron is isotropic and not supported by the eigenvalue solver
+   call init(mol, at2, xyz2)
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call check_(error, hl_gap, 8.4804757571808_wp, thr=thr)
+   call check_(error, energy,-4.6261097507577_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.34514083548805E-01_wp, thr=thr)
+
+   call check_(error, gradient(1,2), 0.69627090881014E-02_wp, thr=thr)
+   call check_(error, gradient(3,4),-0.66034977417132E-02_wp, thr=thr)
+
+end subroutine test_gfn1_heavy
 
 subroutine test_gfn1gbsa_api(error)
    use xtb_mctc_accuracy, only : wp
@@ -286,10 +383,10 @@ subroutine test_gfn1gbsa_api(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 6.641641300724_wp, thr=1e-4_wp)
+   call check_(error, hl_gap, 6.641469982355_wp, thr=1e-4_wp)
    call check_(error, energy,-14.215790820910_wp, thr=thr)
-   call check_(error, norm2(gradient),0.14758139345468E-01_wp, thr=thr)
-   call check_(error, gradient(2,3),0.1002863160985e-01_wp, thr=thr)
+   call check_(error, norm2(gradient),0.14758421349075E-01_wp, thr=thr)
+   call check_(error, gradient(2,3),0.1002882653346e-01_wp, thr=thr)
    call check_(error, gradient(3,5),-gradient(3,7), thr=thr)
    call check_(error, gradient(1,7),-0.6983782950712e-03_wp, thr=thr)
    call check_(error, gradient(3,8),0.9313074280892e-03_wp, thr=thr)
@@ -360,14 +457,14 @@ subroutine test_gfn1_pcem_api(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 9.0155275960407_wp, thr=thr*10)
-   call check_(error, energy,-23.113490914998_wp, thr=thr)
-   call check_(error, norm2(gradient),0.11143014174684E-01_wp, thr=thr)
+   call check_(error, hl_gap, 9.0155263809256_wp, thr=thr*10)
+   call check_(error, energy,-23.113490931847_wp, thr=thr)
+   call check_(error, norm2(gradient),0.11143046108613E-01_wp, thr=thr)
 
-   call check_(error, gradient(1,5),-0.17083259496397E-02_wp, thr=thr)
-   call check_(error, gradient(2,2), 0.17083259496398E-02_wp, thr=thr)
-   call check_(error, gradient(1,4), 0.27992413917387E-02_wp, thr=thr)
-   call check_(error, gradient(3,6),-0.10966149569550E-02_wp, thr=thr)
+   call check_(error, gradient(1,5),-0.17083320570111E-02_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.17083320570110E-02_wp, thr=thr)
+   call check_(error, gradient(1,4), 0.27992735037182E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.10966273400897E-02_wp, thr=thr)
 
    ! reset
    call mol%deallocate
@@ -389,20 +486,20 @@ subroutine test_gfn1_pcem_api(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 8.7253450652232_wp, thr=thr)
-   call check_(error, energy,-11.559896105984_wp, thr=thr)
-   call check_(error, norm2(gradient),0.24211484942219E-01_wp, thr=thr)
+   call check_(error, hl_gap, 8.7251772635203_wp, thr=thr)
+   call check_(error, energy,-11.559896113789_wp, thr=thr)
+   call check_(error, norm2(gradient),0.24211925832280E-01_wp, thr=thr)
 
-   call check_(error, gradient(1,5),-0.16368872701817E-02_wp, thr=thr)
-   call check_(error, gradient(2,2), 0.34511834874966E-02_wp, thr=thr)
-   call check_(error, gradient(1,4),-0.27846344196073E-02_wp, thr=thr)
-   call check_(error, gradient(3,6),-0.12174494093948E-02_wp, thr=thr)
+   call check_(error, gradient(1,5),-0.16369208859684E-02_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.34511615007829E-02_wp, thr=thr)
+   call check_(error, gradient(1,4),-0.27846663969147E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.12172970039721E-02_wp, thr=thr)
 
-   call check_(error, norm2(calc%pcem%grd),0.12965281862178E-01_wp, thr=thr)
-   call check_(error, calc%pcem%grd(1,5),-0.65532598920592E-03_wp, thr=thr)
-   call check_(error, calc%pcem%grd(2,2), 0.17820246510446E-02_wp, thr=thr)
-   call check_(error, calc%pcem%grd(1,4), 0.60888638785130E-02_wp, thr=thr)
-   call check_(error, calc%pcem%grd(3,6), 0.86753094430381E-03_wp, thr=thr)
+   call check_(error, norm2(calc%pcem%grd),0.12965272381631E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,5),-0.65535083622257E-03_wp, thr=thr)
+   call check_(error, calc%pcem%grd(2,2), 0.17820485074561E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,4), 0.60889168360438E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(3,6), 0.86753420850359E-03_wp, thr=thr)
 
    ! reset
    energy = 0.0_wp
@@ -414,20 +511,20 @@ subroutine test_gfn1_pcem_api(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 8.9183046283326_wp, thr=thr)
-   call check_(error, energy,-11.565012263827_wp, thr=thr)
-   call check_(error, norm2(gradient),0.23134284179991E-01_wp, thr=thr)
+   call check_(error, hl_gap, 8.9181165786419_wp, thr=thr)
+   call check_(error, energy,-11.565012271610_wp, thr=thr)
+   call check_(error, norm2(gradient),0.23134747850448E-01_wp, thr=thr)
 
-   call check_(error, gradient(1,5),-0.63000570838230E-03_wp, thr=thr)
-   call check_(error, gradient(2,2), 0.28673054867063E-02_wp, thr=thr)
-   call check_(error, gradient(1,4),-0.75488974649673E-02_wp, thr=thr)
-   call check_(error, gradient(3,6),-0.12128428341685E-02_wp, thr=thr)
+   call check_(error, gradient(1,5),-0.63003810023097E-03_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.28672774098732E-02_wp, thr=thr)
+   call check_(error, gradient(1,4),-0.75489084958916E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.12126926086201E-02_wp, thr=thr)
 
-   call check_(error, norm2(calc%pcem%grd),0.18251544072073E-01_wp, thr=thr)
-   call check_(error, calc%pcem%grd(1,5),-0.16079631752423E-02_wp, thr=thr)
-   call check_(error, calc%pcem%grd(2,2), 0.23749979339001E-02_wp, thr=thr)
-   call check_(error, calc%pcem%grd(1,4), 0.10140193991067E-01_wp, thr=thr)
-   call check_(error, calc%pcem%grd(3,6), 0.11833638475792E-02_wp, thr=thr)
+   call check_(error, norm2(calc%pcem%grd),0.18251542582434E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,5),-0.16079978457523E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(2,2), 0.23750272542147E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,4), 0.10140274089826E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(3,6), 0.11833684312000E-02_wp, thr=thr)
 
 end subroutine test_gfn1_pcem_api
 
@@ -484,13 +581,13 @@ subroutine test_gfn1_xb(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 2.4991941159068_wp, thr=thr)
-   call check_(error, energy,-15.606233877972_wp, thr=thr)
-   call check_(error, norm2(gradient),0.23014320345408E-01_wp, thr=thr)
+   call check_(error, hl_gap, 2.4992555770301_wp, thr=thr)
+   call check_(error, energy,-15.606233901800_wp, thr=thr)
+   call check_(error, norm2(gradient),0.23014502016730E-01_wp, thr=thr)
 
-   call check_(error, gradient(1,5),-0.39000047348209E-02_wp, thr=thr)
-   call check_(error, gradient(2,2),-0.49294645520340E-02_wp, thr=thr)
-   call check_(error, gradient(1,4), 0.17228152301357E-01_wp, thr=thr)
+   call check_(error, gradient(1,5),-0.39000062479073E-02_wp, thr=thr)
+   call check_(error, gradient(2,2),-0.49295695858821E-02_wp, thr=thr)
+   call check_(error, gradient(1,4), 0.17228261962481E-01_wp, thr=thr)
    call check_(error, gradient(3,6), 0.00000000000000E+00_wp, thr=thr)
 
 end subroutine test_gfn1_xb
@@ -565,15 +662,15 @@ subroutine test_gfn1_pbc3d(error)
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call check_(error, hl_gap, 7.5302549612743_wp, thr=thr)
-   call check_(error, energy,-11.069452578476_wp, thr=thr)
-   call check_(error, norm2(gradient), 0.28766497266274E-01_wp, thr=thr)
+   call check_(error, hl_gap, 7.5303554532198_wp, thr=thr)
+   call check_(error, energy,-11.069440027133_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.28766535013323E-01_wp, thr=thr)
 
-   call check_(error, gradient(1,1),-0.18972454825631E-03_wp, thr=thr)
-   call check_(error, gradient(1,2),-0.66834750631031E-02_wp, thr=thr)
-   call check_(error, gradient(1,3), 0.68731996113594E-02_wp, thr=thr)
-   call check_(error, gradient(2,1),-0.26831102888425E-03_wp, thr=thr)
-   call check_(error, gradient(3,3), 0.16835831947879E-01_wp, thr=thr)
+   call check_(error, gradient(1,1),-0.18972772349541E-03_wp, thr=thr)
+   call check_(error, gradient(1,2),-0.66834823084326E-02_wp, thr=thr)
+   call check_(error, gradient(1,3), 0.68732100319280E-02_wp, thr=thr)
+   call check_(error, gradient(2,1),-0.26831551972435E-03_wp, thr=thr)
+   call check_(error, gradient(3,3), 0.16835857473202E-01_wp, thr=thr)
 
 end subroutine test_gfn1_pbc3d
 
@@ -610,20 +707,20 @@ subroutine test_gfn1_mindless_basic(error)
       & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
       & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
    real(wp), parameter :: ref_energies(10) = &
-      &[-33.040345103560_wp, -26.858637887392_wp, -25.818131312372_wp, &
-      & -24.896623131166_wp, -29.038403257541_wp, -20.596982571512_wp, &
-      & -35.754243805311_wp, -33.088749099589_wp, -21.414820157390_wp, &
-      & -26.650774557476_wp]
+      &[-33.040345115467_wp, -26.858637902923_wp, -25.818131312372_wp, &
+      & -24.896623131166_wp, -29.038403271430_wp, -20.596982571512_wp, &
+      & -35.754243824941_wp, -33.088749111385_wp, -21.414820173133_wp, &
+      & -26.650774569459_wp]
    real(wp), parameter :: ref_gnorms(10) = &
-      &[0.049510354228196_wp, 0.062164738458454_wp, 0.050970505747783_wp, &
-      & 0.089329244570940_wp, 0.049188889391502_wp, 0.059353809155596_wp, &
-      & 0.063932193893054_wp, 0.059154356097925_wp, 0.043307936447560_wp, &
-      & 0.043009212776427_wp]
+      &[0.049511012828239_wp, 0.062164535741469_wp, 0.050970379218436_wp, &
+      & 0.089329119085910_wp, 0.049187948039353_wp, 0.059354443034588_wp, &
+      & 0.063931958282716_wp, 0.059153850571371_wp, 0.043308153196369_wp, &
+      & 0.043009186658671_wp]
    real(wp), parameter :: ref_hlgaps(10) = &
-      &[3.4192962150687_wp, 1.6702597448498_wp, 2.4899572196060_wp, &
-      & 1.6706491472352_wp, 2.4613273978074_wp, 3.9778768185046_wp, &
-      & 2.5370236462819_wp, 1.3590769445407_wp, 4.0816020166740_wp, &
-      & 1.3640382002752_wp]
+      &[3.4192924430198_wp, 1.6702720947619_wp, 2.4899354244259_wp, &
+      & 1.6706542694313_wp, 2.4613663450246_wp, 3.9778145158178_wp, &
+      & 2.5369741565742_wp, 1.3590704963205_wp, 4.0815997449053_wp, &
+      & 1.3640393294771_wp]
 
    call init(env)
    do iMol = 1, 10
@@ -694,20 +791,20 @@ subroutine test_gfn1_mindless_solvation(error)
       & "h2o", "chcl3", "thf", "acetonitrile", "toluene", &
       & "ch2cl2", "ether", "methanol", "cs2", "dmso"]
    real(wp), parameter :: ref_energies(10) = &
-      &[-33.075972501756_wp, -26.890550325491_wp, -25.875403448921_wp, &
-      & -24.905567384699_wp, -29.056610710932_wp, -20.626564707704_wp, &
-      & -35.787363117115_wp, -33.103345507512_wp, -21.425126566837_wp, &
-      & -26.683086381488_wp]
+      &[-33.075972501756_wp, -26.890550338794_wp, -25.875403448921_wp, &
+      & -24.905567384699_wp, -29.056610725870_wp, -20.626564707704_wp, &
+      & -35.787363134533_wp, -33.103345520790_wp, -21.425126581738_wp, &
+      & -26.683086395133_wp]
    real(wp), parameter :: ref_gnorms(10) = &
-      &[0.058132809354921_wp, 0.061771913881691_wp, 0.056320324680277_wp, &
-      & 0.094108546452594_wp, 0.049107097494380_wp, 0.056792563143050_wp, &
-      & 0.063361086949237_wp, 0.059227312312587_wp, 0.041889795619126_wp, &
-      & 0.045018190836542_wp]
+      &[0.058132319775704_wp, 0.061771791928070_wp, 0.056320658647760_wp, &
+      & 0.094108321785749_wp, 0.049107732913765_wp, 0.056792270927399_wp, &
+      & 0.063360697329010_wp, 0.059227387236917_wp, 0.041889911457433_wp, &
+      & 0.045018593389814_wp]
    real(wp), parameter :: ref_hlgaps(10) = &
-      &[3.5484557435287_wp, 1.6696997912942_wp, 2.5331364339285_wp, &
-      & 1.6610531980301_wp, 2.3956600668633_wp, 3.7354634449786_wp, &
-      & 2.6533136247624_wp, 1.3546253158640_wp, 4.0956047417239_wp, &
-      & 1.3095666818230_wp]
+      &[3.5484493897886_wp, 1.6697113229607_wp, 2.5331240043956_wp, &
+      & 1.6610557644776_wp, 2.3957226370644_wp, 3.7354677092599_wp, &
+      & 2.6533563379687_wp, 1.3546217861400_wp, 4.0956192322644_wp, &
+      & 1.3095350519794_wp]
 
 
    call init(env)
@@ -829,9 +926,9 @@ subroutine test_ipea_indole(error)
    call check_(error, .not.exitRun)
    if (.not.exitRun) then
 
-      call check_(error, energy, -26.590861716652_wp, thr=thr)
-      call check_(error, norm2(gradient), 0.84641833840045E-01_wp, thr=thr)
-      call check_(error, hl_gap, 2.5955961749533_wp, thr=thr)
+      call check_(error, energy, -26.590861694752_wp, thr=thr)
+      call check_(error, norm2(gradient), 0.84641977700707E-01_wp, thr=thr)
+      call check_(error, hl_gap, 2.5956237071631_wp, thr=thr)
 
    end if
 
@@ -875,20 +972,20 @@ subroutine test_gfn1_mindless_cosmo(error)
       & "h2o", "chcl3", "thf", "acetonitrile", "toluene", &
       & "ch2cl2", "ether", "methanol", "cs2", "dmso"]
    real(wp), parameter :: ref_energies(10) = &
-      &[-33.086826283006_wp,-26.892421337119_wp,-25.862366080135_wp, &
-      & -24.929812068243_wp,-29.068535381601_wp,-20.631250827831_wp, &
-      & -35.780608195840_wp,-33.119209493948_wp,-21.444833411574_wp, &
-      & -26.674508354162_wp]
+      &[-33.086826328982_wp,-26.892421157014_wp,-25.862366002296_wp, &
+      & -24.929812238139_wp,-29.068535353489_wp,-20.631251045425_wp, &
+      & -35.780608239111_wp,-33.119209598199_wp,-21.444833477845_wp, &
+      & -26.674507771541_wp]
    real(wp), parameter :: ref_gnorms(10) = &
-      &[0.056910263744_wp, 0.059732400683_wp, 0.052197041661_wp, &
-      & 0.097844384419_wp, 0.047961348424_wp, 0.057230114090_wp, &
-      & 0.060889237549_wp, 0.068600226343_wp, 0.042102755940_wp, &
-      & 0.042610278777_wp]
+      &[0.056910443984_wp, 0.059732368118_wp, 0.052196930249_wp, &
+      & 0.097844394536_wp, 0.047961212224_wp, 0.057229874514_wp, &
+      & 0.060889251332_wp, 0.068599757525_wp, 0.042102585891_wp, &
+      & 0.042610069723_wp]
    real(wp), parameter :: ref_hlgaps(10) = &
-      &[3.560961680882_wp, 1.701178515210_wp, 2.575575698307_wp, &
-      & 1.642444939544_wp, 2.389954524574_wp, 3.624912973388_wp, &
-      & 2.770751688023_wp, 1.357191094207_wp, 4.102623151933_wp, &
-      & 1.391461153653_wp]
+      &[3.560961775796_wp, 1.701181773218_wp, 2.575588177801_wp, &
+      & 1.642442618926_wp, 2.389958060569_wp, 3.624942137733_wp, &
+      & 2.770747752278_wp, 1.357190954276_wp, 4.102622313077_wp, &
+      & 1.391454451911_wp]
 
    call init(env)
    do iMol = 1,10

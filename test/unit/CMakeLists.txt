@@ -66,6 +66,7 @@ foreach(t IN LISTS tests)
 endforeach()
 # add PTB explicitly since it is not part of the tests list (different ending)
 list(APPEND test-srcs "test_ptb.F90")
+list(APPEND test-srcs "test_fermi.F90")
 
 
 # executable
@@ -115,6 +116,8 @@ set_tests_properties(
   PROPERTIES
   ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR}"
 )
+# add Fermi smearing explicitly since it is preprocessed (different ending)
+add_test("${PROJECT_NAME}/fermi" "${PROJECT_NAME}-tester" "fermi")
 
 # xtb 
 set(XTB-EXE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}")

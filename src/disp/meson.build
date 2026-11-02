@@ -17,6 +17,7 @@
 
 srcs += files(
   'coordinationnumber.F90',
+  'cutoff.f90',
   'dftd3.f',
   'dftd3.f90',
   'dftd3_parameters.f90',

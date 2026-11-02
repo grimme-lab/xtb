@@ -292,22 +292,22 @@ subroutine test_coulomb_point_pbc3d(error)
    call coulomb%getCoulombMatrix(mol, jmat)
 
    do ii = 1, nat
-      call check(error, jmat(ii,ii), -0.22693841283719_wp, thr=thr)
+      call check(error, jmat(ii,ii), -0.22693839173624_wp, thr=thr)
       do jj = 1, ii-1
          call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
-   call check(error, jmat( 1, 3),-0.11073168961581E-01_wp, thr=thr)
-   call check(error, jmat( 2, 3),-0.59052463388022E-01_wp, thr=thr)
-   call check(error, jmat( 4, 6),-0.21264008600309E-01_wp, thr=thr)
+   call check(error, jmat( 1, 3),-0.11073167924336E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3),-0.59052457829601E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6),-0.21264006626337E-01_wp, thr=thr)
    call check(error, jmat( 3,10),-0.24000444326437E-02_wp, thr=thr)
-   call check(error, jmat( 6, 3),-0.36037976935086E-01_wp, thr=thr)
-   call check(error, jmat( 7,18), 0.45116733777831E-01_wp, thr=thr)
-   call check(error, jmat(12,20),-0.47663492130087E-01_wp, thr=thr)
+   call check(error, jmat( 6, 3),-0.36037973589945E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.45116729592399E-01_wp, thr=thr)
+   call check(error, jmat(12,20),-0.47663487703569E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call check(error, energy,-0.19871381077095_wp, thr=thr)
+   call check(error, energy,-0.19871379229944_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
@@ -731,17 +731,17 @@ subroutine test_coulomb_gfn1_pbc3d(error)
          call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
-   call check(error, jmat( 1, 3),-0.26692685831907E-01_wp, thr=thr)
-   call check(error, jmat( 2, 3),-0.68773950642218E-01_wp, thr=thr)
-   call check(error, jmat( 4, 6),-0.38988468002079E-01_wp, thr=thr)
-   call check(error, jmat( 3,10),-0.23000529589385E-01_wp, thr=thr)
-   call check(error, jmat( 6, 3),-0.51594544630953E-01_wp, thr=thr)
-   call check(error, jmat( 7,18), 0.41437913557408E-02_wp, thr=thr)
-   call check(error, jmat(12,20),-0.64306568194767E-01_wp, thr=thr)
+   call check(error, jmat( 1, 3),-0.26692680558429E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3),-0.68773942411419E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6),-0.38988461229956E-01_wp, thr=thr)
+   call check(error, jmat( 3,10),-0.23000523825004E-01_wp, thr=thr)
+   call check(error, jmat( 6, 3),-0.51594537055072E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.41437975882420E-02_wp, thr=thr)
+   call check(error, jmat(12,20),-0.64306559239549E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call check(error, energy, 0.10334568151034_wp, thr=thr)
+   call check(error, energy, 0.10334569022364_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
@@ -810,17 +810,17 @@ subroutine test_coulomb_gfn1_pbc3d(error)
          call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
-   call check(error, jmat( 1, 3),-0.13464382457757E-01_wp, thr=thr)
-   call check(error, jmat( 2, 3),-0.60078828891465E-01_wp, thr=thr)
-   call check(error, jmat( 4, 6),-0.24046964967552E-01_wp, thr=thr)
-   call check(error, jmat( 3,10),-0.60407457734382E-02_wp, thr=thr)
-   call check(error, jmat( 6, 3),-0.38251294880785E-01_wp, thr=thr)
+   call check(error, jmat( 1, 3),-0.13464380540591E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3),-0.60078822953044E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6),-0.24046961970475E-01_wp, thr=thr)
+   call check(error, jmat( 3,10),-0.60407442152941E-02_wp, thr=thr)
+   call check(error, jmat( 6, 3),-0.38251290720389E-01_wp, thr=thr)
    call check(error, jmat( 7,18), 0.32150302911807E-01_wp, thr=thr)
-   call check(error, jmat(12,20),-0.50061175269104E-01_wp, thr=thr)
+   call check(error, jmat(12,20),-0.50061169958289E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call check(error, energy, 0.86046710402599E-01_wp, thr=thr)
+   call check(error, energy, 0.86046720872543E-01_wp, thr=thr)
 
 end subroutine test_coulomb_gfn1_pbc3d
 
@@ -1209,17 +1209,17 @@ subroutine test_coulomb_gfn2_pbc3d(error)
       end do
    end do
 
-   call check(error, jmat( 1, 3), -0.65948223431173E-01_wp, thr=thr)
-   call check(error, jmat( 2, 3), -0.63531253417773E-01_wp, thr=thr)
-   call check(error, jmat( 4, 6), -0.71249446497053E-01_wp, thr=thr)
-   call check(error, jmat( 3,10), -0.47826859938370E-01_wp, thr=thr)
-   call check(error, jmat( 6, 3), -0.72960918626276E-01_wp, thr=thr)
-   call check(error, jmat( 7,18), -0.57502477782259E-01_wp, thr=thr)
-   call check(error, jmat(12,20), -0.13191548797843E-01_wp, thr=thr)
+   call check(error, jmat( 1, 3), -0.65948213989766E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3), -0.63531244617981E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6), -0.71249437596303E-01_wp, thr=thr)
+   call check(error, jmat( 3,10), -0.47826852585824E-01_wp, thr=thr)
+   call check(error, jmat( 6, 3), -0.72960909264814E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), -0.57502469905173E-01_wp, thr=thr)
+   call check(error, jmat(12,20), -0.13191544202625E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, shellCharges)
    energy = 0.5_wp*dot_product(shellCharges, shift)
-   call check(error, energy, 0.93929971020624E-01_wp, thr=thr)
+   call check(error, energy, 0.93929981877825E-01_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, shellCharges, djdr, djdtr, djdL)
    call contract(djdr, shellCharges, gradient)
@@ -1540,17 +1540,17 @@ subroutine test_coulomb_gaussian_pbc3d(error)
          call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
-   call check(error, jmat( 1, 3),-0.11073244345567E-01_wp, thr=thr)
-   call check(error, jmat( 2, 3),-0.59052463388029E-01_wp, thr=thr)
-   call check(error, jmat( 4, 6),-0.21273998758336E-01_wp, thr=thr)
+   call check(error, jmat( 1, 3),-0.11073243308122E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3),-0.59052457829608E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6),-0.21273996767020E-01_wp, thr=thr)
    call check(error, jmat( 3,10),-0.24405713033154E-02_wp, thr=thr)
-   call check(error, jmat( 6, 3),-0.36042624892326E-01_wp, thr=thr)
-   call check(error, jmat( 7,18), 0.43960420991048E-01_wp, thr=thr)
-   call check(error, jmat(12,20),-0.47663494495435E-01_wp, thr=thr)
+   call check(error, jmat( 6, 3),-0.36042621538873E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.43960417865745E-01_wp, thr=thr)
+   call check(error, jmat(12,20),-0.47663490068910E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call check(error, energy, 0.17261986036367_wp, thr=thr)
+   call check(error, energy, 0.17261986907469_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)

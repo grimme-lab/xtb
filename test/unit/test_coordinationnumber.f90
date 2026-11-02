@@ -114,7 +114,7 @@ subroutine test_ncoord_pbc3d_latticepoints(error)
    call check(error, cn(18), 1.0075732171735_wp, thr=thr)
    call check(error, cn(19), 1.0059732047433_wp, thr=thr)
    call check(error, cn(26), 1.0076129647756_wp, thr=thr)
-   call check(error, norm2(dcndr), 1.0111771304250_wp, thr=thr)
+   call check(error, norm2(dcndr), 1.0111770366110_wp, thr=thr)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%erf, &
       & cn, dcndr, dcndL)
@@ -126,7 +126,7 @@ subroutine test_ncoord_pbc3d_latticepoints(error)
    call check(error, cn(15), 3.9804643916712_wp, thr=thr)
    call check(error, cn(16), 3.9809919526339_wp, thr=thr)
    call check(error, cn(31), 0.9937992456497_wp, thr=thr)
-   call check(error, norm2(dcndr), 0.56981134655575_wp, thr=thr)
+   call check(error, norm2(dcndr), 0.56981129369033_wp, thr=thr)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
       & cn, dcndr, dcndL)
@@ -137,18 +137,18 @@ subroutine test_ncoord_pbc3d_latticepoints(error)
    call check(error, cn(21), 0.9245161490576_wp, thr=thr)
    call check(error, cn(22), 0.9236911432582_wp, thr=thr)
    call check(error, cn(30), 0.9241833212868_wp, thr=thr)
-   call check(error, norm2(dcndr), 0.53663107191832_wp, thr=thr)
+   call check(error, norm2(dcndr), 0.53663102213127_wp, thr=thr)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, &
       & cn, dcndr, dcndL)
 
-   call check(error, cn( 3), 1.1819234421527_wp, thr=thr)
-   call check(error, cn( 5), 4.2453004956734_wp, thr=thr)
-   call check(error, cn(10), 3.3142686980438_wp, thr=thr)
-   call check(error, cn(23), 1.0257176118018_wp, thr=thr)
-   call check(error, cn(24), 1.0254266219049_wp, thr=thr)
-   call check(error, cn(32), 1.0249293241088_wp, thr=thr)
-   call check(error, norm2(dcndr), 2.9659913317090_wp, thr=thr)
+   call check(error, cn( 3), 1.1819234352964_wp, thr=thr)
+   call check(error, cn( 5), 4.2453004841264_wp, thr=thr)
+   call check(error, cn(10), 3.3142686826007_wp, thr=thr)
+   call check(error, cn(23), 1.0257176079002_wp, thr=thr)
+   call check(error, cn(24), 1.0254266177338_wp, thr=thr)
+   call check(error, cn(32), 1.0249293194646_wp, thr=thr)
+   call check(error, norm2(dcndr), 2.9659911059113_wp, thr=thr)
 
 end subroutine test_ncoord_pbc3d_latticepoints
 
@@ -237,7 +237,7 @@ subroutine test_ncoord_pbc3d_neighbourlist(error)
    call check(error, cn(18), 1.0075732171735_wp, thr=thr)
    call check(error, cn(19), 1.0059732047433_wp, thr=thr)
    call check(error, cn(26), 1.0076129647756_wp, thr=thr)
-   call check(error, norm2(dcndr), 1.0111771304250_wp, thr=thr)
+   call check(error, norm2(dcndr), 1.0111770366110_wp, thr=thr)
 
    call getCoordinationNumber(mol, neighs, neighList, cnType%erf, &
       & cn, dcndr, dcndL)
@@ -249,7 +249,7 @@ subroutine test_ncoord_pbc3d_neighbourlist(error)
    call check(error, cn(15), 3.9804643916712_wp, thr=thr)
    call check(error, cn(16), 3.9809919526339_wp, thr=thr)
    call check(error, cn(31), 0.9937992456497_wp, thr=thr)
-   call check(error, norm2(dcndr), 0.56981134655575_wp, thr=thr)
+   call check(error, norm2(dcndr), 0.56981129369033_wp, thr=thr)
 
    call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
       & cn, dcndr, dcndL)
@@ -260,18 +260,18 @@ subroutine test_ncoord_pbc3d_neighbourlist(error)
    call check(error, cn(21), 0.9245161490576_wp, thr=thr)
    call check(error, cn(22), 0.9236911432582_wp, thr=thr)
    call check(error, cn(30), 0.9241833212868_wp, thr=thr)
-   call check(error, norm2(dcndr), 0.53663107191832_wp, thr=thr)
+   call check(error, norm2(dcndr), 0.53663102213127_wp, thr=thr)
 
    call getCoordinationNumber(mol, neighs, neighList, cnType%gfn, &
       & cn, dcndr, dcndL)
 
-   call check(error, cn( 3), 1.1819234421527_wp, thr=thr)
-   call check(error, cn( 5), 4.2453004956734_wp, thr=thr)
-   call check(error, cn(10), 3.3142686980438_wp, thr=thr)
-   call check(error, cn(23), 1.0257176118018_wp, thr=thr)
-   call check(error, cn(24), 1.0254266219049_wp, thr=thr)
-   call check(error, cn(32), 1.0249293241088_wp, thr=thr)
-   call check(error, norm2(dcndr), 2.9659913317090_wp, thr=thr)
+   call check(error, cn( 3), 1.1819234352964_wp, thr=thr)
+   call check(error, cn( 5), 4.2453004841264_wp, thr=thr)
+   call check(error, cn(10), 3.3142686826007_wp, thr=thr)
+   call check(error, cn(23), 1.0257176079002_wp, thr=thr)
+   call check(error, cn(24), 1.0254266177338_wp, thr=thr)
+   call check(error, cn(32), 1.0249293194646_wp, thr=thr)
+   call check(error, norm2(dcndr), 2.9659911059113_wp, thr=thr)
 
 end subroutine test_ncoord_pbc3d_neighbourlist
 

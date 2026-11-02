@@ -245,7 +245,7 @@ subroutine test_repulsion_pbc3d(error)
 
    call repulsionEnGrad(mol, rep, trans, 40.0_wp, energy, gradient, sigma)
 
-   call check(error, energy, 0.58472111816325_wp, thr=thr)
+   call check(error, energy, 0.58472061743944_wp, thr=thr)
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp
@@ -253,7 +253,7 @@ subroutine test_repulsion_pbc3d(error)
 
    call repulsionEnGrad(mol, rep, neighs, neighList, energy, gradient, sigma)
 
-   call check(error, energy, 0.58472111816325_wp, thr=thr)
+   call check(error, energy, 0.58472061743944_wp, thr=thr)
 
    ! check numerical gradient
    do ii = 1, nat, 5

@@ -66,13 +66,16 @@ module xtb_xtb_dispersion
 contains
 
 
-subroutine initDispersion(self, input, mol)
+subroutine initDispersion(self, input, mol, width)
 
    type(TxTBDispersion), intent(out) :: self
 
    type(TDispersionData), intent(in), target :: input
 
    type(TMolecule), intent(in) :: mol
+
+   !> Width of the smooth cutoff for pairwise interactions, default is a hard cutoff
+   real(wp), intent(in), optional :: width
 
    real(wp), allocatable :: cn(:)
 
@@ -97,11 +100,11 @@ subroutine initDispersion(self, input, mol)
       k = k + self%dispm%nref(mol%at(iat))
    enddo
 
-   call ncoord_d4(mol%n, mol%at, mol%xyz, cn, thr=1600.0_wp)
+   call ncoord_d4(mol%n, mol%at, mol%xyz, cn, thr=900.0_wp)
    call d4(self%dispm, mol%n, self%ndim, mol%at, self%wf, self%g_a, &
       & self%g_c, cn, self%gweight, self%refC6)
    call build_wdispmat(self%dispm, mol%n, self%ndim, mol%at, self%itbl, mol%xyz, &
-      & input%dpar, self%refC6, self%gweight, self%dispmat)
+      & input%dpar, self%refC6, self%gweight, self%dispmat, width)
 
 end subroutine initDispersion
 
