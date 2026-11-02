@@ -94,6 +94,135 @@ static int testOutputFileDescriptorRelease(void) {
 #endif
 }
 
+static int testGFN0DoesNotContaminateGFN2(void) {
+  int const natoms = 7;
+  int const attyp[7] = {6, 6, 6, 1, 1, 1, 1};
+  double const coord[3 * 7] = {
+      +0.00000000000000, +0.00000000000000, -1.79755622305860,
+      +0.00000000000000, +0.00000000000000, +0.95338756106749,
+      +0.00000000000000, +0.00000000000000, +3.22281255790261,
+      -0.96412815539807, -1.66991895015711, -2.53624948351102,
+      -0.96412815539807, +1.66991895015711, -2.53624948351102,
+      +1.92825631079613, +0.00000000000000, -2.53624948351102,
+      +0.00000000000000, +0.00000000000000, +5.23010455462158};
+
+  xtb_TEnvironment env = NULL;
+  xtb_TMolecule mol = NULL;
+  xtb_TCalculator calc = NULL;
+  xtb_TResults res = NULL;
+  double *emo_before = NULL;
+  double *emo_after = NULL;
+  double energy_before = 0.0;
+  double energy_after = 0.0;
+  int nao_before = 0;
+  int nao_after = 0;
+
+  env = xtb_newEnvironment();
+  xtb_setVerbosity(env, XTB_VERBOSITY_MUTED);
+  mol = xtb_newMolecule(env, &natoms, attyp, coord, NULL, NULL, NULL, NULL);
+  calc = xtb_newCalculator();
+  res = xtb_newResults();
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_loadGFN2xTB(env, mol, calc, NULL);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_singlepoint(env, mol, calc, res);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_getEnergy(env, res, &energy_before);
+  xtb_getNao(env, res, &nao_before);
+  if (xtb_checkEnvironment(env) || nao_before <= 0)
+    goto error;
+
+  emo_before = (double *)malloc((size_t)nao_before * sizeof(double));
+  if (!emo_before)
+    goto error;
+  xtb_getOrbitalEigenvalues(env, res, emo_before);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
+
+  env = xtb_newEnvironment();
+  xtb_setVerbosity(env, XTB_VERBOSITY_MUTED);
+  mol = xtb_newMolecule(env, &natoms, attyp, coord, NULL, NULL, NULL, NULL);
+  calc = xtb_newCalculator();
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_loadGFN0xTB(env, mol, calc, NULL);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
+
+  env = xtb_newEnvironment();
+  xtb_setVerbosity(env, XTB_VERBOSITY_MUTED);
+  mol = xtb_newMolecule(env, &natoms, attyp, coord, NULL, NULL, NULL, NULL);
+  calc = xtb_newCalculator();
+  res = xtb_newResults();
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_loadGFN2xTB(env, mol, calc, NULL);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_singlepoint(env, mol, calc, res);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_getEnergy(env, res, &energy_after);
+  xtb_getNao(env, res, &nao_after);
+  if (xtb_checkEnvironment(env) || !check(nao_after, nao_before, "NAO changed after loading GFN0"))
+    goto error;
+
+  emo_after = (double *)malloc((size_t)nao_after * sizeof(double));
+  if (!emo_after)
+    goto error;
+  xtb_getOrbitalEigenvalues(env, res, emo_after);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  if (!check(energy_after, energy_before, 1.0e-12,
+             "GFN2 energy changed after loading GFN0"))
+    goto error;
+
+  for (int i = 0; i < nao_before; ++i) {
+    if (!check(emo_after[i], emo_before[i], 1.0e-12,
+               "GFN2 orbital eigenvalue changed after loading GFN0"))
+      goto error;
+  }
+
+  free(emo_before);
+  free(emo_after);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
+  return EXIT_SUCCESS;
+
+error:
+  if (env)
+    xtb_showEnvironment(env, NULL);
+  free(emo_before);
+  free(emo_after);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
+  return EXIT_FAILURE;
+}
+
 int testFirst() {
   // first molecule, various solvent models
   double* q;
@@ -491,5 +620,6 @@ int main(int argc, char **argv) {
   stat += testFirst();
   stat += testSecond();
   stat += testOutputFileDescriptorRelease();
+  stat += testGFN0DoesNotContaminateGFN2();
   return stat > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

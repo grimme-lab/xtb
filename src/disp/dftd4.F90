@@ -119,33 +119,6 @@ subroutine newD4Model(dispm,g_a,g_c,mode)
 
    call init(dispm)
 
-   secq = 0.0_wp
-   select case(mode)
-   case(p_refq_hirshfeld,p_refq_periodic)
-!     print'(1x,''* using PBE0/def2-TZVP Hirshfeld charges'')'
-      refq = dftq
-      refh = dfth
-      secq = dfts
-!  case(2)
-!     refq = pbcq
-!     refh = pbch
-!     secq = pbcs
-   case(p_refq_gasteiger)
-!     print'(1x,''* using classical Gasteiger charges'')'
-      refq = gffq
-      refh = gffh
-      secq = gffs
-   case(p_refq_goedecker)
-      refq = clsq
-      refh = clsh
-      secq = clss
-   case(p_refq_gfn2xtb_gbsa_h2o)
-!     print'(1x,''* using GFN2-xTB//GBSA(H2O) charges'')'
-      refq = solq
-      refh = solh
-      secq = sols
-   end select
-
    select case(mode)
    case(p_refq_hirshfeld,p_refq_periodic)
       dispm%q = dftq
@@ -175,7 +148,7 @@ subroutine newD4Model(dispm,g_a,g_c,mode)
          is = refsys(j,ia)
          iz = zeff(is)
          sec_al = sscale(is)*secaiw(:,is) &
-            &  * zeta(g_a,gam(is)*g_c,secq(is)+iz,tmp_hq(j,ia)+iz)
+            &  * zeta(g_a,gam(is)*g_c,iz,tmp_hq(j,ia)+iz)
          dispm%cn(j,ia) = refcovcn(j,ia)
          icn =nint(refcn(j,ia))
          cncount(icn) = cncount(icn) + 1

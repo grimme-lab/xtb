@@ -206,7 +206,7 @@ subroutine test_gfn2_api(error)
    type(TRestart) :: chk
    type(TEnvironment) :: env
    type(scc_results) :: res
-   type(TxTBCalculator) :: calc
+   type(TxTBCalculator) :: calc0, calc
 
    real(wp) :: energy, sigma(3, 3)
    real(wp) :: hl_gap
@@ -220,6 +220,9 @@ subroutine test_gfn2_api(error)
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
+
+   ! Ensure loading GFN0-xTB does not overwrite global D4 reference charges
+   call newXTBCalculator(env, mol, calc0, method=0)
 
    call newXTBCalculator(env, mol, calc, method=2)
    call newWavefunction(env, mol, calc, chk)
