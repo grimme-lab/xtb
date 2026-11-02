@@ -81,16 +81,16 @@ module xtb_constrain_param
    character,private,parameter :: dot = '.'
    character(len=*),private,parameter :: flag_end = flag//'end'
 
-!  Using allocatable arrays of dynamic length strings is only possible
-!  with a lot of hacks, so we use good'ol fixed size stack arrays.
-!  Let's choose something different from 42 that is not dividable by 10... ;)
-!  Happy debugging!
+   ! Using allocatable arrays of dynamic length strings is only possible
+   ! with a lot of hacks, so we use good'ol fixed size stack arrays.
+   ! Let's choose something different from 42 that is not dividable by 10... ;)
+   ! Happy debugging!
    integer,private,parameter :: p_str_length = 48
    integer,private,parameter :: p_arg_length = 96
 
-!  Atoms selected by the free keyword in $fix and $constrain are collected
-!  over all lines first and only applied at the end of read_userdata, such
-!  that repeated free keywords are combined. .true. -> atom stays free
+   ! Atoms selected by the free keyword in $fix and $constrain are collected
+   ! over all lines first and only applied at the end of read_userdata, such
+   ! that repeated free keywords are combined. .true. -> atom stays free
    logical,private,allocatable :: fixFree(:)
    logical,private,allocatable :: constrFree(:)
 
@@ -152,11 +152,11 @@ subroutine read_userdata(fname,env,mol)
    if (allocated(fixFree)) deallocate(fixFree)
    if (allocated(constrFree)) deallocate(constrFree)
 
-!  read first line before the readloop starts, I have to do this
-!  to avoid using backspace on id (dammit Turbomole format)
+   ! read first line before the readloop starts, I have to do this
+   ! to avoid using backspace on id (dammit Turbomole format)
    call getline(id,line,err)
    readflags: do
-      !  check if there is a $ in the *first* column
+      ! check if there is a $ in the *first* column
       if (index(line,flag).eq.1) then
          select case(line(2:))
          case('fix'      )
@@ -197,9 +197,9 @@ subroutine read_userdata(fname,env,mol)
       else ! not a keyword -> ignore
          call getline(id,line,err)
       endif
-   !  check for end of file, which I will tolerate as alternative to $end
+      ! check for end of file, which I will tolerate as alternative to $end
       if (is_iostat_end(err)) exit readflags
-!     if (index(line,flag_end).ne.0) exit readflags ! compatibility reasons
+      ! if (index(line,flag_end).ne.0) exit readflags ! compatibility reasons
    enddo readflags
 
    call apply_free_atoms(fixFree,fixset)
@@ -440,7 +440,7 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
    call atl%resize(nat)
 
    call parse(val,comma,argv,narg)
-!  some debug xtb_printout
+   ! some debug xtb_printout
    if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
@@ -643,7 +643,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       endif
       ioffset = 2*potset%dist%n
       potset%dist%n = potset%dist%n+1
-   !  part 1: get the constrained atoms
+      ! part 1: get the constrained atoms
       do i = 1, 2
          if (getValue(env,trim(argv(i)),idum)) then
             potset%dist%atoms(ioffset+i) = idum
@@ -653,7 +653,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
             return
          endif
       enddo
-   !  part 2: get the distance between those atoms
+      ! part 2: get the distance between those atoms
       i = potset%dist%atoms(ioffset+1)
       j = potset%dist%atoms(ioffset+2)
       if (any([i, j] > nat .or. [i, j] < 1)) then
@@ -703,7 +703,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       endif
       ioffset = 3*potset%angle%n
       potset%angle%n = potset%angle%n+1
-   !  part 1: get the constrained atoms
+      ! part 1: get the constrained atoms
       do i = 1, narg-1
          if (getValue(env,trim(argv(i)),idum)) then
             potset%angle%atoms(ioffset+i) = idum
@@ -713,7 +713,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
             return
          endif
       enddo
-   !  part 2: get the angle between the constrained atoms
+      ! part 2: get the angle between the constrained atoms
       i = potset%angle%atoms(ioffset+1)
       j = potset%angle%atoms(ioffset+2)
       k = potset%angle%atoms(ioffset+3)
@@ -746,7 +746,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
          call env%error('This should never happen! Let somebody check set_constr',source)
          return
       end if
-   !  part 1: get the constrained atoms
+      ! part 1: get the constrained atoms
       do i = 1, narg-1
          if (getValue(env,trim(argv(i)),idum)) then
             potset%dihedral%atoms(ioffset+i) = idum
@@ -756,7 +756,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
             return
          endif
       enddo
-   !  part 2: get the angle between the constrained atoms
+      ! part 2: get the angle between the constrained atoms
       i = potset%dihedral%atoms(ioffset+1)
       j = potset%dihedral%atoms(ioffset+2)
       k = potset%dihedral%atoms(ioffset+3)
@@ -789,7 +789,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
          call env%error('This should never happen! Let somebody check set_constr',source)
          return
       end if
-   !  part 1: get the constrained atoms
+      ! part 1: get the constrained atoms
       do i = 1, narg-1
          if (getValue(env,trim(argv(i)),idum)) then
             atconstr(i,nconstr) = idum
@@ -799,7 +799,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
             return
          endif
       enddo
-   !  part 2: get the distance between those atoms
+      ! part 2: get the distance between those atoms
       i = atconstr(1,nconstr)
       j = atconstr(2,nconstr)
       if (any([i, j] > nat .or. [i, j] < 1)) then
@@ -833,7 +833,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
          call env%error('This should never happen! Let somebody check set_constr',source)
          return
       end if
-   !  part 1: get the constrained atoms
+      ! part 1: get the constrained atoms
       do i = 1, narg-1
          if (getValue(env,trim(argv(i)),idum)) then
             atconstr(i,nconstr) = idum
@@ -843,7 +843,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
             return
          endif
       enddo
-   !  part 2: get the angle between the constrained atoms
+      ! part 2: get the angle between the constrained atoms
       i = atconstr(1,nconstr)
       j = atconstr(2,nconstr)
       k = atconstr(3,nconstr)
@@ -878,7 +878,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
          call env%error('This should never happen! Let somebody check set_constr',source)
          return
       end if
-   !  part 1: get the constrained atoms
+      ! part 1: get the constrained atoms
       do i = 1, narg-1
          if (getValue(env,trim(argv(i)),idum)) then
             atconstr(i,nconstr) = idum
@@ -888,7 +888,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
             return
          endif
       enddo
-   !  part 2: get the angle between the constrained atoms
+      ! part 2: get the angle between the constrained atoms
       i = atconstr(1,nconstr)
       j = atconstr(2,nconstr)
       k = atconstr(3,nconstr)
@@ -1156,7 +1156,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          call env%error("Not enough arguments to set up a spherical wall",source)
          return
       endif
-   !  part 1: get the sphere radius
+      ! part 1: get the sphere radius
       if (trim(argv(1)).eq.'auto') then
          call get_sphere_radius(nat,at,xyz,center,radius,do_trafo=.false.)
       else
@@ -1168,7 +1168,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
             return ! something went wrong
          endif
       endif
-   !  part 2: get atoms
+      ! part 2: get atoms
       if (trim(argv(2)).eq.'all') then
          call set_sphere_radius(radius,center)
       else
@@ -1199,7 +1199,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          call env%error("Not enough arguments to set up an ellipsoidal wall",source)
          return
       endif
-   !  part 1: get ellipsoid axis
+      ! part 1: get ellipsoid axis
       if ((trim(argv(1)).eq.'auto').or.(trim(argv(2)).eq.'auto').or. &
           (trim(argv(3)).eq.'auto')) then
          ! use get_ellipsoid_radius if you manage to implement it
@@ -1218,7 +1218,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
             endif
          endif
       enddo
-   !  part 2: get atoms
+      ! part 2: get atoms
       if (trim(argv(4)).eq.'all') then
          call set_sphere_radius(radii,center)
       else
@@ -1249,11 +1249,11 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          call env%error("Not enough arguments to set up sandwich walls",source)
          return
       endif
-   !  part 1: get the sandwich distance
+      ! part 1: get the sandwich distance
       wpot%sandwich = .true.
       set%do_cma_trafo = .true.
       center = 0.0_wp
-!      number_walls=1
+      ! number_walls=1
       call get_sphere_radius(nat,at,xyz,center,radius,do_trafo=.true.)
       if (trim(argv(1)).eq.'auto') then
             radius=(maxval(xyz(3,:))-minval(xyz(3,:)))/2.0_wp ! need to set $cma in xcontrol, not done automatically
@@ -1268,7 +1268,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
             endif
       endif
    
-   !  part 2: get atoms 
+      ! part 2: get atoms 
       if (trim(argv(2)).eq.'all') then
          call set_sphere_radius(radius,center)
       else
@@ -1285,7 +1285,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
                list(nlist+1:nlist+ntlist) = tlist
                nlist = nlist + ntlist
 
-               !get auto sandwich distance for list of atoms
+               ! get auto sandwich distance for list of atoms
                max_z = 0.0_wp
                min_z = 0.0_wp
                do i = 1, nat
