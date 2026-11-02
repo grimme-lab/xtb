@@ -219,9 +219,14 @@ subroutine getNullSpace(nullvec, fixed, mol, removeTrans, removeRot, &
 
    isLinear = mol%linear
 
-   ! duplicated entries are only counted once
+   ! duplicated entries are only counted once, assign element-wise since a
+   ! vector subscript with repeated indices must not be defined
    allocate(fixed(mol%n), source=.false.)
-   if (present(fixedAtoms)) fixed(fixedAtoms) = .true.
+   if (present(fixedAtoms)) then
+      do ii = 1, size(fixedAtoms)
+         fixed(fixedAtoms(ii)) = .true.
+      end do
+   end if
    nfixed = count(fixed)
 
    nproj = 0
