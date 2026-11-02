@@ -651,7 +651,7 @@ subroutine test_gfn1_mindless_ddx(error)
       & "mindless01", "mindless02", "mindless03"]
    character(len=*), parameter :: solv_model(3) = [&
       & "cosmo", "cpcm ", "pcm  "]
-   ! References use ddX v1.0.0 with lmax=6 and switching=1.
+   ! References use ddX v1.0.2 with lmax=6 and switching=1.
    real(wp), parameter :: ref_energies(3) = [&
       & -33.075720271033_wp, -26.878402440179_wp, -25.840886464606_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
@@ -732,7 +732,7 @@ subroutine test_gfn2_mindless_ddx(error)
       & "mindless01", "mindless02", "mindless03"]
    character(len=*), parameter :: solv_model(3) = [&
       & "cosmo", "cpcm ", "pcm  "]
-   ! References use ddX v1.0.0 with lmax=6 and switching=1.
+   ! References use ddX v1.0.2 with lmax=6 and switching=1.
    real(wp), parameter :: ref_energies(3) = [&
       & -30.389981765099_wp, -24.114459414282_wp, -23.769434437075_wp]
    real(wp), parameter :: ref_gnorms(3) = [&
