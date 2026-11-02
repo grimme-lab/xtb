@@ -134,7 +134,7 @@ subroutine loadGFNFF_api(venv, vmol, vcalc, charptr) &
 
       allocate(gff)
       call newGFFCalculator(env%ptr, mol%ptr, gff, filename, .false., &
-         & printlevel=env%verbosity)
+         & printlevel=env%verbosity, write_topology=.false.)
 
       call env%ptr%check(exitRun)
       if (exitRun) then

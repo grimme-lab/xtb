@@ -28,7 +28,7 @@ module xtb_gfnff_setup
 
 contains
 
-subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efield,version,print_setup)
+subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efield,version,print_setup,write_topology)
   use xtb_restart
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule, only : TMolecule
@@ -45,6 +45,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
   logical,intent(in) :: restart
   logical,intent(in) :: verbose
   logical,intent(in), optional :: print_setup
+  logical,intent(in), optional :: write_topology
   real(wp),intent(in) :: accuracy
   real(wp),intent(in) :: efield(3)
   type(TMolecule)  :: mol
@@ -54,9 +55,12 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
   logical            :: success
   logical :: exitRun
   logical :: do_print
+  logical :: do_write
 
   do_print = .true.
   if (present(print_setup)) do_print = print_setup
+  do_write = .true.
+  if (present(write_topology)) do_write = write_topology
 
   call gfnff_input(env, mol, topo, neigh, print_setup=do_print)
   call env%check(exitRun)
@@ -87,7 +91,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
      return
   end if
 
-  if (.not.mol%info%two_dimensional) then
+  if ((restart .or. do_write) .and. .not.mol%info%two_dimensional) then
      call write_restart_gff(env,'gfnff_topo',mol%n,version,topo,neigh)
   end if
 
