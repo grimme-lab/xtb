@@ -46,7 +46,7 @@ module test_hessian
    use xtb_internals_type, only : coord_bond, coord_angle, coord_dihedral, coord_linbend
    use xtb_bmatrix, only : get_bmatrix
    use xtb_o1numhess, only : lr_loop
-   use xtb_freq_project, only : projectHessian
+   use xtb_freq_project, only : projectHessian, projectFixedAtoms, fixedAtomModes
    implicit none
    private
 
@@ -76,7 +76,8 @@ subroutine collect_hessian(testsuite)
       new_unittest("compliance_driver_redundant", test_compliance_driver_redundant), &
       new_unittest("linear_projection", test_linear_projection), &
       new_unittest("fixed_projection", test_fixed_projection), &
-      new_unittest("fixed_linear_projection", test_fixed_linear_projection) &
+      new_unittest("fixed_linear_projection", test_fixed_linear_projection), &
+      new_unittest("fixed_packed_projection", test_fixed_packed_projection) &
       ]
 
 end subroutine collect_hessian
@@ -1219,6 +1220,94 @@ subroutine test_fixed_linear_projection(error)
    call check_fixed_projection(error, mol, hessian, [1, 3], 6)
 
 end subroutine test_fixed_linear_projection
+
+
+!> The optimizers project fixed atoms from a packed Cartesian Hessian. This
+!> must match the projection of the full Hessian with unit masses, independent
+!> of the actual atomic masses.
+subroutine test_fixed_packed_projection(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 4
+   character(len=*), parameter :: sym(nat) = ["O", "O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.00_wp, 1.38_wp, -0.12_wp, &
+      & 0.00_wp, -1.38_wp, -0.12_wp, &
+      & 1.62_wp, 1.78_wp, 0.95_wp, &
+      & -1.62_wp, -1.78_wp, 0.95_wp], shape(xyz))
+
+   type(TMolecule) :: mol, unitMol
+   real(wp), allocatable :: hessian(:, :)
+
+   call init(mol, sym, xyz)
+   call init(unitMol, sym, xyz)
+   unitMol%atmass(:) = 1.0_wp
+   ! mass weighting with unit masses leaves the Cartesian Hessian
+   hessian = spring_model_hessian(unitMol)
+
+   ! one fixed atom: three rotations about the fixed atom remain
+   call check_packed_projection(error, mol, unitMol, hessian, [1], 6)
+   if (allocated(error)) return
+
+   ! two fixed atoms: only the rotation about their connecting axis remains
+   call check_packed_projection(error, mol, unitMol, hessian, [1, 2], 7)
+   if (allocated(error)) return
+
+   ! three non-collinear fixed atoms: no rotation remains
+   call check_packed_projection(error, mol, unitMol, hessian, [1, 3, 4], 9)
+
+end subroutine test_fixed_packed_projection
+
+
+!> Project a packed Cartesian Hessian with fixed atoms and compare against the
+!> projection of the full Hessian with unit masses.
+subroutine check_packed_projection(error, mol, unitMol, hessian, fixed, nref)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Molecular structure data with unit masses
+   type(TMolecule), intent(in) :: unitMol
+
+   !> Cartesian Hessian
+   real(wp), intent(in) :: hessian(:, :)
+
+   !> Fixed atoms
+   integer, intent(in) :: fixed(:)
+
+   !> Expected number of projected modes
+   integer, intent(in) :: nref
+
+   real(wp), parameter :: thr = 1.0e-10_wp
+   real(wp), allocatable :: projected(:, :), hessp(:)
+   real(wp) :: maxdiff
+   integer :: nModes, ii, jj, ij
+
+   projected = hessian
+   call projectHessian(projected, unitMol, .false., .true., fixedAtoms=fixed, &
+      & nModes=nModes)
+   call check(error, nModes, nref)
+   if (allocated(error)) return
+   call check(error, fixedAtomModes(mol, fixed), nref)
+   if (allocated(error)) return
+
+   hessp = [((hessian(jj, ii), jj = 1, ii), ii = 1, size(hessian, 2))]
+   call projectFixedAtoms(hessp, mol, fixed)
+
+   maxdiff = 0.0_wp
+   ij = 0
+   do ii = 1, size(hessian, 2)
+      do jj = 1, ii
+         ij = ij + 1
+         maxdiff = max(maxdiff, abs(hessp(ij) - projected(jj, ii)))
+      end do
+   end do
+   call check(error, maxdiff, 0.0_wp, thr=thr)
+
+end subroutine check_packed_projection
 
 
 !> Project a mass-weighted Hessian with fixed atoms and compare its spectrum

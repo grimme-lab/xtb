@@ -15,9 +15,11 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module test_optimizer
-   use testdrive, only : new_unittest, unittest_type, error_type, check
+   use testdrive, only : new_unittest, unittest_type, error_type, check, &
+      & test_failed
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
+   use xtb_mctc_convert, only : aatoau
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_restart, only : TRestart
@@ -26,6 +28,8 @@ module test_optimizer
    use xtb_setparam, only : p_olev_normal
    use xtb_optimizer, only : ancopt
    use xtb_relaxation_engine, only : fire, l_ancopt
+   use xtb_fixparam, only : fixset
+   use xtb_type_data, only : scc_results
    implicit none
    private
 
@@ -41,7 +45,9 @@ subroutine collect_optimizer(testsuite)
    testsuite = [ &
       new_unittest("single-atom-ancopt", test_single_atom_ancopt), &
       new_unittest("single-atom-fire", test_single_atom_fire), &
-      new_unittest("single-atom-l-ancopt", test_single_atom_l_ancopt) &
+      new_unittest("single-atom-l-ancopt", test_single_atom_l_ancopt), &
+      new_unittest("fixed-atoms-ancopt", test_fixed_atoms_ancopt), &
+      new_unittest("fixed-atoms-l-ancopt", test_fixed_atoms_l_ancopt) &
       ]
 
 end subroutine collect_optimizer
@@ -133,5 +139,94 @@ subroutine check_single_atom_result(error, fail, iter_needed)
    if (allocated(error)) return
    call check(error, iter_needed, 0)
 end subroutine check_single_atom_result
+
+!> Water dimer with all atoms but one hydrogen fixed. The free atom has all
+!> three Cartesian degrees of freedom, projecting rotations of the whole
+!> molecule would restrict it to a line and stop with a large gradient.
+subroutine test_fixed_atoms_ancopt(error)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, egap, gradient(3, 6), sigma(3, 3)
+   logical :: fail
+   integer :: iter_needed, ilog
+
+   call setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, gradient, &
+      & sigma)
+   open(newunit=ilog, status='scratch')
+   call ancopt(env, ilog, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+      & energy, gradient, sigma, p_olev_normal, .false., fail, iter_needed)
+   close(ilog)
+   call fixset%deallocate
+
+   call check_fixed_atoms_result(error, fail, gradient)
+end subroutine test_fixed_atoms_ancopt
+
+subroutine test_fixed_atoms_l_ancopt(error)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, egap, gradient(3, 6), sigma(3, 3)
+   logical :: fail
+   integer :: iter_needed, ilog
+
+   call setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, gradient, &
+      & sigma)
+   open(newunit=ilog, status='scratch')
+   call l_ancopt(env, ilog, mol, chk, calc, p_olev_normal, 200, energy, egap, &
+      & gradient, sigma, 0, fail, iter_needed)
+   close(ilog)
+   call fixset%deallocate
+
+   call check_fixed_atoms_result(error, fail, gradient)
+end subroutine test_fixed_atoms_l_ancopt
+
+subroutine setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, &
+      & gradient, sigma)
+   type(TEnvironment), intent(out) :: env
+   type(TMolecule), intent(out) :: mol
+   type(TRestart), intent(out) :: chk
+   type(TxTBCalculator), intent(out) :: calc
+   real(wp), intent(out) :: energy, egap, gradient(3, 6), sigma(3, 3)
+   integer, parameter :: nat = 6
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H", "O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      &  0.000_wp,  0.000_wp,  0.000_wp, &
+      &  0.957_wp,  0.000_wp,  0.000_wp, &
+      & -0.240_wp,  0.927_wp,  0.000_wp, &
+      &  2.900_wp,  0.000_wp,  0.000_wp, &
+      &  3.300_wp,  0.800_wp,  0.300_wp, &
+      &  3.300_wp, -0.400_wp, -0.750_wp], shape(xyz))
+   type(scc_results) :: res
+
+   call init(env)
+   call init(mol, sym, xyz*aatoau)
+   call newXTBCalculator(env, mol, calc, method=2)
+   call newWavefunction(env, mol, calc, chk)
+
+   call fixset%allocate(5)
+   fixset%n = 5
+   fixset%atoms(:) = [1, 2, 3, 4, 6]
+
+   call calc%singlepoint(env, mol, chk, 0, .false., energy, gradient, sigma, &
+      & egap, res)
+end subroutine setup_fixed_water_dimer
+
+subroutine check_fixed_atoms_result(error, fail, gradient)
+   type(error_type), allocatable, intent(out) :: error
+   logical, intent(in) :: fail
+   real(wp), intent(in) :: gradient(:, :)
+
+   call check(error, .not.fail)
+   if (allocated(error)) return
+   ! gradient threshold of the normal optimization level
+   if (norm2(gradient(:, 5)) > 1.0e-3_wp) then
+      call test_failed(error, "Gradient of the free atom is not converged")
+   end if
+end subroutine check_fixed_atoms_result
 
 end module test_optimizer

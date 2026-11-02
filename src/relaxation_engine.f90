@@ -146,6 +146,7 @@ subroutine fire &
    use xtb_optimizer
    use xtb_axis
    use xtb_hessian
+   use xtb_freq_project, only : projectFixedAtoms, fixedAtomModes
    use xtb_lsrmsd
    use xtb_pbc_tools
 
@@ -243,7 +244,7 @@ subroutine fire &
    nat3 = 3*mol%n
    nvar = nat3
    if(fixset%n.gt.0) then ! exact fixing
-      nvar=nat3-3*fixset%n-3
+      nvar=nat3-fixedAtomModes(mol,fixset%atoms(:fixset%n))
       if(nvar.le.0) nvar=1
    endif
 
@@ -321,7 +322,7 @@ subroutine fire &
       call modhes(env,calc,set%mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
       if(fixset%n.gt.0)then
          ! exact fixing
-         call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,-1,pmode,1)
+         call projectFixedAtoms(hessp,molopt,fixset%atoms(:fixset%n))
       else
          if (.not.mol%linear) &
          ! normal
@@ -419,6 +420,7 @@ subroutine l_ancopt &
    use xtb_optimizer
    use xtb_axis
    use xtb_hessian
+   use xtb_freq_project, only : projectFixedAtoms, fixedAtomModes
    use xtb_lsrmsd
    use xtb_detrotra, only : detrotra
 
@@ -576,7 +578,7 @@ subroutine l_ancopt &
    ! determine degrees of freedom
    nat3 = 3 * mol%n
    if (fixset%n > 0) then ! exact fixing
-      nvar = nat3 - 3*fixset%n - 3
+      nvar = nat3 - fixedAtomModes(mol, fixset%atoms(:fixset%n))
       if (nvar <= 0) nvar = 1
    else if (fragmented_hessian) then
       nvar = nat3
@@ -625,7 +627,7 @@ subroutine l_ancopt &
 
    ! Project translation, rotation and fixed atoms
     if(fixset%n.gt.0)then
-        call trproj(molopt%n,nat3,molopt%xyz,hessp,.false., -1  ,pmode,1)     ! exact fixing
+        call projectFixedAtoms(hessp,molopt,fixset%atoms(:fixset%n))        ! exact fixing
     else
         if (.not.linear) &
         call trproj(molopt%n,nat3,molopt%xyz,hessp,.false.,0,pmode,1)     ! normal
