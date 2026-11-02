@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.18)
 
 # Setup the xtb Project
 project(
@@ -32,7 +32,7 @@ option(WITH_TESTS "Enable compilation of unit tests" ON)
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 set(CMAKE_INSTALL_Fortran_MODULES
-    "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}"
+    "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
     CACHE STRING "Installation directory for xTB Fortran module files")
 
 # Set a default for single-configuration generators
@@ -135,7 +135,7 @@ add_library("${PROJECT_NAME}::${PROJECT_NAME}" ALIAS "${PROJECT_NAME}-lib")
 
 target_link_libraries(
   "${PROJECT_NAME}-lib"
-  PUBLIC ${LAPACK_LIBRARIES} "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
+  PUBLIC "LAPACK::LAPACK" "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
          "mctc-lib::mctc-lib" "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
          "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>")
 
@@ -143,8 +143,8 @@ target_compile_options(
   "${PROJECT_NAME}-lib"
   PRIVATE "$<$<COMPILE_LANGUAGE:Fortran>:${xtb-fortran-options}>")
 target_compile_definitions(
-  "${PROJECT_NAME}-lib" PUBLIC "$<$<BOOL:${WITH_TBLITE}>:WITH_TBLITE>"
-                               "$<$<BOOL:${WITH_CPCMX}>:WITH_CPCMX>")
+  "${PROJECT_NAME}-lib" PRIVATE "$<$<BOOL:${WITH_TBLITE}>:WITH_TBLITE>"
+                                "$<$<BOOL:${WITH_CPCMX}>:WITH_CPCMX>")
 
 set_target_properties(
   "${PROJECT_NAME}-lib"

@@ -23,6 +23,10 @@ target_link_libraries(
   PUBLIC
   "${PROJECT_NAME}::${PROJECT_NAME}"
 )
+target_compile_definitions(
+  "${PROJECT_NAME}_tests_capi"
+  PRIVATE "$<$<BOOL:${WITH_CPCMX}>:WITH_CPCMX>"
+)
 
 add_test(
   "${PROJECT_NAME}/CAPI"

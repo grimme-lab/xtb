@@ -168,7 +168,8 @@ usr
 ├── include
 │   ├── xtb.h
 │   └── xtb
-│       └── *.mod
+│       └── <compiler-id>-<compiler-version>
+│           └── *.mod
 ├── lib
 │   ├── cmake
 │   │   └── xtb

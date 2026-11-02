@@ -82,6 +82,11 @@ target_link_libraries(
   "test-drive::test-drive"     # testing framework
 )
 
+target_compile_definitions(
+  "${PROJECT_NAME}-tester"
+  PRIVATE "$<$<BOOL:${WITH_TBLITE}>:WITH_TBLITE>"
+)
+
 target_compile_options("${PROJECT_NAME}-tester" PRIVATE
   "$<$<COMPILE_LANGUAGE:Fortran>:${xtb-fortran-options}>")
 

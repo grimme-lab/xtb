@@ -22,7 +22,7 @@ if(NOT TARGET "@PROJECT_NAME@::@PROJECT_NAME@")
     find_dependency("cpcmx" REQUIRED)
   endif()
 
-  if(NOT LAPACK_FOUND)
+  if(NOT TARGET "LAPACK::LAPACK")
     find_dependency("LAPACK" REQUIRED)
   endif()
 
