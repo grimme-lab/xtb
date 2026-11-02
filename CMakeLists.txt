@@ -43,6 +43,11 @@ if(NOT TARGET "mctc-lib::mctc-lib")
   find_package("mctc-lib" REQUIRED)
 endif()
 
+# ddX is pulled in by tblite; pin it here (tblite v0.8.0 ships ddX v1.0.0)
+if(WITH_TBLITE AND (WITH_DDX OR TBLITE_WITH_DDX) AND NOT TARGET "ddx::ddx")
+   find_package("ddx" REQUIRED)
+endif()
+
 if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
    find_package("tblite" REQUIRED)
    add_compile_definitions(WITH_TBLITE)
