@@ -111,7 +111,7 @@ subroutine xtbTopology(env, argParser)
       if (.not.exist) param = '.param_gfnff.xtb'
    end if
 
-   call newGFFCalculator(env, mol, calc, param, .false.)
+   call newGFFCalculator(env, mol, calc, param, .false., write_topology=.true.)
 
    call env%checkpoint("Could not setup force field topology")
 

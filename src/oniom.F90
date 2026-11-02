@@ -215,6 +215,7 @@ subroutine newOniomCalculator(self, env, mol, input, tblite)
    ! gfnff !
    case (3)
       allocate (gff)
+      ! only the whole system topology is written, inner regions never write it !
       call newGFFCalculator(env, mol, gff, ".param_gfnff.xtb", .false.)
       call move_alloc(gff, self%real_low)
 
@@ -382,7 +383,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       ! gfnff !
       case (3)
          allocate (gff)
-         call newGFFCalculator(env, inner_mol, gff, ".param_gfnff.xtb", .false.)
+         call newGFFCalculator(env, inner_mol, gff, ".param_gfnff.xtb", .false., &
+            & write_topology=.false.)
          call move_alloc(gff, self%model_low)
       
       end select
@@ -413,7 +415,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       ! gfnff !
       case (3)
          allocate (gff)
-         call newGFFCalculator(env, inner_mol, gff, ".param_gfnff.xtb", .false.)
+         call newGFFCalculator(env, inner_mol, gff, ".param_gfnff.xtb", .false., &
+            & write_topology=.false.)
          call move_alloc(gff, self%model_high)
 
       ! orca !

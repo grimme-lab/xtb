@@ -102,6 +102,9 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version, printlevel,
 
    integer, intent(in), optional :: version
    integer, intent(in), optional :: printlevel
+
+   !> Write the topology file for a newly generated topology, default is true.
+   !> The topology is always written when restart is requested.
    logical, intent(in), optional :: write_topology
 
    integer :: ich
