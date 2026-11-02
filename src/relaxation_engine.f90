@@ -247,8 +247,10 @@ subroutine fire &
       nvar=nat3-fixedAtomModes(mol,fixset%atoms(:fixset%n))
    endif
 
-   ! all coordinates are fixed, nothing to optimize
-   if (nvar == 0) then
+   optcell = mol%npbc > 0
+
+   ! all coordinates are fixed and no cell to relax, nothing to optimize
+   if (nvar == 0 .and. .not.optcell) then
       if (printlevel > 0) write(env%unit,'(/,3x,a)') &
          & "all atoms are fixed, skipping optimization"
       return
@@ -258,7 +260,6 @@ subroutine fire &
       &      xyzopt(3,mol%n), source = 0.0_wp )
    ! set defaults
    converged = .false.
-   optcell = mol%npbc > 0
    minpr = opt%printlevel > 0
    pr    = opt%printlevel > 1
    debug = opt%printlevel > 2
@@ -683,7 +684,8 @@ subroutine l_ancopt &
       deallocate(aux)
    end select
 
-   if (.not. fragmented_hessian) then
+   ! with fixed atoms the null space is already projected exactly
+   if (.not. fragmented_hessian .and. fixset%n == 0) then
       call detrotra(linear, mol%n, mol%xyz, hess, eig)
    end if
 

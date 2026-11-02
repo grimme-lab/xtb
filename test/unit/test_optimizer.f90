@@ -50,7 +50,11 @@ subroutine collect_optimizer(testsuite)
       new_unittest("fixed-atoms-l-ancopt", test_fixed_atoms_l_ancopt), &
       new_unittest("all-fixed-ancopt", test_all_fixed_ancopt), &
       new_unittest("all-fixed-l-ancopt", test_all_fixed_l_ancopt), &
-      new_unittest("all-fixed-fire", test_all_fixed_fire) &
+      new_unittest("all-fixed-fire", test_all_fixed_fire), &
+      new_unittest("fixed-atom-periodic-ancopt", test_fixed_atom_periodic_ancopt), &
+      new_unittest("fixed-atom-periodic-l-ancopt", &
+      & test_fixed_atom_periodic_l_ancopt), &
+      new_unittest("all-fixed-periodic-fire", test_all_fixed_periodic_fire) &
       ]
 
 end subroutine collect_optimizer
@@ -321,5 +325,187 @@ subroutine check_all_fixed_result(error, env, fail, iter_needed, xyz, xyz0)
    if (allocated(error)) return
    call check(error, maxval(abs(xyz - xyz0)), 0.0_wp)
 end subroutine check_all_fixed_result
+
+!> Water in a periodic box with the oxygen fixed. Rotations are no symmetry
+!> under periodic boundary conditions, therefore only the three coordinates of
+!> the fixed atom are removed and the ANC generation must not drop the three
+!> rotational modes on top.
+subroutine test_fixed_atom_periodic_ancopt(error)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, egap, gradient(3, 3), sigma(3, 3)
+   logical :: fail
+   integer :: iter_needed, ilog
+
+   call setup_periodic_water(env, mol, chk, calc, energy, egap, gradient, &
+      & sigma, [1])
+   open(newunit=ilog, status='scratch')
+   call ancopt(env, ilog, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+      & energy, gradient, sigma, p_olev_normal, .false., fail, iter_needed)
+   close(ilog)
+   call fixset%deallocate
+
+   call check_fixed_atom_periodic_result(error, env, fail, gradient)
+end subroutine test_fixed_atom_periodic_ancopt
+
+subroutine test_fixed_atom_periodic_l_ancopt(error)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, egap, gradient(3, 3), sigma(3, 3)
+   logical :: fail
+   integer :: iter_needed, ilog
+
+   call setup_periodic_water(env, mol, chk, calc, energy, egap, gradient, &
+      & sigma, [1])
+   open(newunit=ilog, status='scratch')
+   call l_ancopt(env, ilog, mol, chk, calc, p_olev_normal, 200, energy, egap, &
+      & gradient, sigma, 0, fail, iter_needed)
+   close(ilog)
+   call fixset%deallocate
+
+   call check_fixed_atom_periodic_result(error, env, fail, gradient)
+end subroutine test_fixed_atom_periodic_l_ancopt
+
+!> Strained CaF2 with all atoms fixed. FIRE still has to relax the lattice,
+!> while the Cartesian positions of the atoms stay untouched.
+subroutine test_all_fixed_periodic_fire(error)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, energy0, egap, gradient(3, 3), sigma(3, 3)
+   real(wp), allocatable :: xyz0(:, :), lattice0(:, :)
+   logical :: fail, exitRun
+   integer :: iter_needed, ilog
+
+   call setup_strained_caf2(env, mol, chk, calc, energy, egap, gradient, sigma)
+   xyz0 = mol%xyz
+   lattice0 = mol%lattice
+   energy0 = energy
+   open(newunit=ilog, status='scratch')
+   call fire(env, ilog, mol, chk, calc, p_olev_normal, 200, energy, egap, &
+      & gradient, sigma, 0, fail, iter_needed)
+   close(ilog)
+   call fixset%deallocate
+
+   call env%check(exitRun)
+   call check(error, .not.exitRun)
+   if (allocated(error)) return
+   call check(error, .not.fail)
+   if (allocated(error)) return
+   if (iter_needed < 1) then
+      call test_failed(error, "Lattice was not optimized")
+      return
+   end if
+   if (maxval(abs(mol%lattice - lattice0)) < 1.0e-4_wp) then
+      call test_failed(error, "Lattice did not change")
+      return
+   end if
+   if (energy >= energy0) then
+      call test_failed(error, "Energy was not lowered by the lattice relaxation")
+      return
+   end if
+   if (maxval(abs(mol%xyz - xyz0)) > 1.0e-10_wp) then
+      call test_failed(error, "Fixed atoms were moved")
+   end if
+end subroutine test_all_fixed_periodic_fire
+
+subroutine setup_periodic_water(env, mol, chk, calc, energy, egap, &
+      & gradient, sigma, fixed)
+   type(TEnvironment), intent(out) :: env
+   type(TMolecule), intent(out) :: mol
+   type(TRestart), intent(out) :: chk
+   type(TxTBCalculator), intent(out) :: calc
+   real(wp), intent(out) :: energy, egap, gradient(3, 3), sigma(3, 3)
+   integer, intent(in) :: fixed(:)
+   integer, parameter :: nat = 3
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      &  4.000_wp,  4.000_wp,  4.000_wp, &
+      &  5.050_wp,  4.000_wp,  4.100_wp, &
+      &  3.700_wp,  5.000_wp,  3.900_wp], shape(xyz))
+   real(wp), parameter :: lattice(3, 3) = reshape([ &
+      &  8.0_wp, 0.0_wp, 0.0_wp, &
+      &  0.0_wp, 8.0_wp, 0.0_wp, &
+      &  0.0_wp, 0.0_wp, 8.0_wp], shape(lattice))
+
+   call setup_periodic(env, mol, chk, calc, energy, egap, gradient, sigma, &
+      & sym, xyz*aatoau, lattice*aatoau, fixed)
+end subroutine setup_periodic_water
+
+subroutine setup_strained_caf2(env, mol, chk, calc, energy, egap, &
+      & gradient, sigma)
+   type(TEnvironment), intent(out) :: env
+   type(TMolecule), intent(out) :: mol
+   type(TRestart), intent(out) :: chk
+   type(TxTBCalculator), intent(out) :: calc
+   real(wp), intent(out) :: energy, egap, gradient(3, 3), sigma(3, 3)
+   integer, parameter :: nat = 3
+   character(len=*), parameter :: sym(nat) = ["F ", "F ", "Ca"]
+   ! fractional coordinates shifted away from the cell boundary
+   real(wp), parameter :: abc(3, nat) = reshape([ &
+      & 0.35_wp, 0.35_wp, 0.35_wp, &
+      & 0.85_wp, 0.85_wp, 0.85_wp, &
+      & 0.10_wp, 0.10_wp, 0.10_wp], shape(abc))
+   ! equilibrium lattice expanded by 3 %
+   real(wp), parameter :: lattice(3, 3) = 1.03_wp * reshape([ &
+      & 5.9598811567890_wp, 2.1071361905157_wp, 3.6496669404404_wp, &
+      & 0.0000000000000_wp, 6.3214085715472_wp, 3.6496669404404_wp, &
+      & 0.0000000000000_wp, 0.0000000000000_wp, 7.2993338808807_wp], &
+      & shape(lattice))
+
+   call setup_periodic(env, mol, chk, calc, energy, egap, gradient, sigma, &
+      & sym, matmul(lattice, abc), lattice, [1, 2, 3])
+end subroutine setup_strained_caf2
+
+subroutine setup_periodic(env, mol, chk, calc, energy, egap, gradient, &
+      & sigma, sym, xyz, lattice, fixed)
+   type(TEnvironment), intent(out) :: env
+   type(TMolecule), intent(out) :: mol
+   type(TRestart), intent(out) :: chk
+   type(TxTBCalculator), intent(out) :: calc
+   real(wp), intent(out) :: energy, egap, gradient(:, :), sigma(3, 3)
+   character(len=*), intent(in) :: sym(:)
+   real(wp), intent(in) :: xyz(:, :), lattice(3, 3)
+   integer, intent(in) :: fixed(:)
+   type(scc_results) :: res
+
+   call init(env)
+   call init(mol, sym, xyz, lattice=lattice)
+   call newXTBCalculator(env, mol, calc, method=0)
+   call newWavefunction(env, mol, calc, chk)
+
+   call fixset%allocate(size(fixed))
+   fixset%n = size(fixed)
+   fixset%atoms(:) = fixed
+
+   call calc%singlepoint(env, mol, chk, 0, .false., energy, gradient, sigma, &
+      & egap, res)
+end subroutine setup_periodic
+
+subroutine check_fixed_atom_periodic_result(error, env, fail, gradient)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment), intent(inout) :: env
+   logical, intent(in) :: fail
+   real(wp), intent(in) :: gradient(:, :)
+   logical :: exitRun
+
+   call env%check(exitRun)
+   call check(error, .not.exitRun)
+   if (allocated(error)) return
+   call check(error, .not.fail)
+   if (allocated(error)) return
+   ! gradient threshold of the normal optimization level
+   if (norm2(gradient(:, 2:)) > 1.0e-3_wp) then
+      call test_failed(error, "Gradient of the free atoms is not converged")
+   end if
+end subroutine check_fixed_atom_periodic_result
 
 end module test_optimizer

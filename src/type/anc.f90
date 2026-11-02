@@ -180,7 +180,7 @@ subroutine write_anc_2(self,iunit,nvar)
 end subroutine write_anc_2
 
 !> initialize
-subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
+subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear,rigid)
 
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la
@@ -205,6 +205,11 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
    !> if linear structure 
    logical,      intent(in)    :: linear ! linear
 
+   !> Remove translational and rotational modes from the Hessian, default true.
+   !> Disable if the null space was already projected exactly, e.g. for fixed
+   !> atoms, where the number of null modes can differ from six.
+   logical, intent(in), optional :: rigid
+
    real(wp),parameter   :: thr1 = 1.0e-10_wp
    real(wp),parameter   :: thr2 = 1.0e-11_wp
    integer, parameter   :: maxtry = 4
@@ -227,6 +232,7 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
    real(wp),allocatable :: aux(:) ! = work
 
    logical  :: fail
+   logical  :: remove_rigid
    
    ! Intialize !
    self%xyz = xyz
@@ -241,7 +247,9 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
       &        aux,lwork,iwork,liwork,info)
 
    ! determine, sort, and nullify rot/trans modes !  
-   call detrotra(linear,self%n,self%xyz,hess,self%eigv)
+   remove_rigid = .true.
+   if (present(rigid)) remove_rigid = rigid
+   if (remove_rigid) call detrotra(linear,self%n,self%xyz,hess,self%eigv)
 
    ! find lowest eigenvalue (ignore nullified ones) !
    elow = minval(self%eigv,mask=(abs(self%eigv) > thr1)) 

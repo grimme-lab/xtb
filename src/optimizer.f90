@@ -538,7 +538,8 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    if (profile) call timer%measure(3,'ANC generation') ! start timer for ANC generation   
 
    ! diagonalize Hessian and sort eigenvalues !
-   call anc%new(env%unit,molopt%xyz,h,pr,linear)  
+   ! with fixed atoms the null space is already projected exactly !
+   call anc%new(env%unit,molopt%xyz,h,pr,linear,rigid=fixset%n == 0)
    if (profile) call timer%measure(3) ! stop timer for ANC generation
    esave = etot ! save energy 
 
