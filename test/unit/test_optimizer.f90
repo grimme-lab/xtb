@@ -47,7 +47,10 @@ subroutine collect_optimizer(testsuite)
       new_unittest("single-atom-fire", test_single_atom_fire), &
       new_unittest("single-atom-l-ancopt", test_single_atom_l_ancopt), &
       new_unittest("fixed-atoms-ancopt", test_fixed_atoms_ancopt), &
-      new_unittest("fixed-atoms-l-ancopt", test_fixed_atoms_l_ancopt) &
+      new_unittest("fixed-atoms-l-ancopt", test_fixed_atoms_l_ancopt), &
+      new_unittest("all-fixed-ancopt", test_all_fixed_ancopt), &
+      new_unittest("all-fixed-l-ancopt", test_all_fixed_l_ancopt), &
+      new_unittest("all-fixed-fire", test_all_fixed_fire) &
       ]
 
 end subroutine collect_optimizer
@@ -154,7 +157,7 @@ subroutine test_fixed_atoms_ancopt(error)
    integer :: iter_needed, ilog
 
    call setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, gradient, &
-      & sigma)
+      & sigma, [1, 2, 3, 4, 6])
    open(newunit=ilog, status='scratch')
    call ancopt(env, ilog, mol, chk, calc, egap, 300.0_wp, 250, 200, &
       & energy, gradient, sigma, p_olev_normal, .false., fail, iter_needed)
@@ -175,7 +178,7 @@ subroutine test_fixed_atoms_l_ancopt(error)
    integer :: iter_needed, ilog
 
    call setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, gradient, &
-      & sigma)
+      & sigma, [1, 2, 3, 4, 6])
    open(newunit=ilog, status='scratch')
    call l_ancopt(env, ilog, mol, chk, calc, p_olev_normal, 200, energy, egap, &
       & gradient, sigma, 0, fail, iter_needed)
@@ -185,13 +188,85 @@ subroutine test_fixed_atoms_l_ancopt(error)
    call check_fixed_atoms_result(error, fail, gradient)
 end subroutine test_fixed_atoms_l_ancopt
 
+!> With all atoms fixed there are no degrees of freedom left, the optimizers
+!> must return immediately without moving any atom.
+subroutine test_all_fixed_ancopt(error)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, egap, gradient(3, 6), sigma(3, 3)
+   real(wp), allocatable :: xyz0(:, :)
+   logical :: fail
+   integer :: iter_needed, ilog
+
+   call setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, gradient, &
+      & sigma, [1, 2, 3, 4, 5, 6])
+   xyz0 = mol%xyz
+   open(newunit=ilog, status='scratch')
+   call ancopt(env, ilog, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+      & energy, gradient, sigma, p_olev_normal, .false., fail, iter_needed)
+   close(ilog)
+   call fixset%deallocate
+
+   call check_all_fixed_result(error, env, fail, iter_needed, mol%xyz, xyz0)
+end subroutine test_all_fixed_ancopt
+
+subroutine test_all_fixed_l_ancopt(error)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, egap, gradient(3, 6), sigma(3, 3)
+   real(wp), allocatable :: xyz0(:, :)
+   logical :: fail
+   integer :: iter_needed, ilog
+
+   call setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, gradient, &
+      & sigma, [1, 2, 3, 4, 5, 6])
+   xyz0 = mol%xyz
+   open(newunit=ilog, status='scratch')
+   call l_ancopt(env, ilog, mol, chk, calc, p_olev_normal, 200, energy, egap, &
+      & gradient, sigma, 0, fail, iter_needed)
+   close(ilog)
+   call fixset%deallocate
+
+   call check_all_fixed_result(error, env, fail, iter_needed, mol%xyz, xyz0)
+end subroutine test_all_fixed_l_ancopt
+
+subroutine test_all_fixed_fire(error)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, egap, gradient(3, 6), sigma(3, 3)
+   real(wp), allocatable :: xyz0(:, :)
+   logical :: fail
+   integer :: iter_needed, ilog
+
+   call setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, gradient, &
+      & sigma, [1, 2, 3, 4, 5, 6])
+   xyz0 = mol%xyz
+   open(newunit=ilog, status='scratch')
+   call fire(env, ilog, mol, chk, calc, p_olev_normal, 200, energy, egap, &
+      & gradient, sigma, 0, fail, iter_needed)
+   close(ilog)
+   call fixset%deallocate
+
+   call check_all_fixed_result(error, env, fail, iter_needed, mol%xyz, xyz0)
+end subroutine test_all_fixed_fire
+
 subroutine setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, &
-      & gradient, sigma)
+      & gradient, sigma, fixed)
    type(TEnvironment), intent(out) :: env
    type(TMolecule), intent(out) :: mol
    type(TRestart), intent(out) :: chk
    type(TxTBCalculator), intent(out) :: calc
    real(wp), intent(out) :: energy, egap, gradient(3, 6), sigma(3, 3)
+   integer, intent(in) :: fixed(:)
    integer, parameter :: nat = 6
    character(len=*), parameter :: sym(nat) = ["O", "H", "H", "O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([ &
@@ -208,9 +283,9 @@ subroutine setup_fixed_water_dimer(env, mol, chk, calc, energy, egap, &
    call newXTBCalculator(env, mol, calc, method=2)
    call newWavefunction(env, mol, calc, chk)
 
-   call fixset%allocate(5)
-   fixset%n = 5
-   fixset%atoms(:) = [1, 2, 3, 4, 6]
+   call fixset%allocate(size(fixed))
+   fixset%n = size(fixed)
+   fixset%atoms(:) = fixed
 
    call calc%singlepoint(env, mol, chk, 0, .false., energy, gradient, sigma, &
       & egap, res)
@@ -228,5 +303,23 @@ subroutine check_fixed_atoms_result(error, fail, gradient)
       call test_failed(error, "Gradient of the free atom is not converged")
    end if
 end subroutine check_fixed_atoms_result
+
+subroutine check_all_fixed_result(error, env, fail, iter_needed, xyz, xyz0)
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment), intent(inout) :: env
+   logical, intent(in) :: fail
+   integer, intent(in) :: iter_needed
+   real(wp), intent(in) :: xyz(:, :), xyz0(:, :)
+   logical :: exitRun
+
+   call env%check(exitRun)
+   call check(error, .not.exitRun)
+   if (allocated(error)) return
+   call check(error, .not.fail)
+   if (allocated(error)) return
+   call check(error, iter_needed, 0)
+   if (allocated(error)) return
+   call check(error, maxval(abs(xyz - xyz0)), 0.0_wp)
+end subroutine check_all_fixed_result
 
 end module test_optimizer

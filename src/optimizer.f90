@@ -368,7 +368,12 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    ! exact fixing case ! 
    if(fixset%n.gt.0) then 
       nvar = nat3 - fixedAtomModes(mol, fixset%atoms(:fixset%n))
-      if(nvar.le.0) nvar=1
+   endif
+
+   ! all coordinates are fixed, nothing to optimize !
+   if(nvar.eq.0) then
+      if(pr) write(env%unit,'(/,3x,a)') "all atoms are fixed, skipping optimization"
+      return
    endif
 
    ! adjust if restrated !

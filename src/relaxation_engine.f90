@@ -245,8 +245,14 @@ subroutine fire &
    nvar = nat3
    if(fixset%n.gt.0) then ! exact fixing
       nvar=nat3-fixedAtomModes(mol,fixset%atoms(:fixset%n))
-      if(nvar.le.0) nvar=1
    endif
+
+   ! all coordinates are fixed, nothing to optimize
+   if (nvar == 0) then
+      if (printlevel > 0) write(env%unit,'(/,3x,a)') &
+         & "all atoms are fixed, skipping optimization"
+      return
+   end if
 
    allocate( velocities(3,mol%n), pmode(nvar,1), hessp(nat3*(nat3+1)/2), &
       &      xyzopt(3,mol%n), source = 0.0_wp )
@@ -579,12 +585,18 @@ subroutine l_ancopt &
    nat3 = 3 * mol%n
    if (fixset%n > 0) then ! exact fixing
       nvar = nat3 - fixedAtomModes(mol, fixset%atoms(:fixset%n))
-      if (nvar <= 0) nvar = 1
    else if (fragmented_hessian) then
       nvar = nat3
    else
       nvar = nat3 - 6
       if (linear) nvar = nat3 - 5
+   end if
+
+   ! all coordinates are fixed, nothing to optimize
+   if (nvar == 0) then
+      if (minpr) write(env%unit,'(/,3x,a)') &
+         & "all atoms are fixed, skipping optimization"
+      return
    end if
 
    allocate( hdiag(nvar), source = 0.0_wp )

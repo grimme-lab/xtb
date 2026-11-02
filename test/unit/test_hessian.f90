@@ -77,7 +77,9 @@ subroutine collect_hessian(testsuite)
       new_unittest("linear_projection", test_linear_projection), &
       new_unittest("fixed_projection", test_fixed_projection), &
       new_unittest("fixed_linear_projection", test_fixed_linear_projection), &
-      new_unittest("fixed_packed_projection", test_fixed_packed_projection) &
+      new_unittest("fixed_packed_projection", test_fixed_packed_projection), &
+      new_unittest("fixed_collinear_projection", test_fixed_collinear_projection), &
+      new_unittest("fixed_periodic_projection", test_fixed_periodic_projection) &
       ]
 
 end subroutine collect_hessian
@@ -1256,8 +1258,85 @@ subroutine test_fixed_packed_projection(error)
 
    ! three non-collinear fixed atoms: no rotation remains
    call check_packed_projection(error, mol, unitMol, hessian, [1, 3, 4], 9)
+   if (allocated(error)) return
+
+   ! all atoms fixed: no degree of freedom remains
+   call check_packed_projection(error, mol, unitMol, hessian, [1, 2, 3, 4], 12)
 
 end subroutine test_fixed_packed_projection
+
+
+!> More than two collinear fixed atoms in a non-linear molecule still leave the
+!> rotation about their common axis, which moves only the off-axis atom.
+subroutine test_fixed_collinear_projection(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 4
+   character(len=*), parameter :: sym(nat) = ["C", "C", "C", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.00_wp, 0.00_wp, -2.50_wp, &
+      & 0.00_wp, 0.00_wp, 0.00_wp, &
+      & 0.00_wp, 0.00_wp, 2.50_wp, &
+      & 1.90_wp, 0.40_wp, 0.30_wp], shape(xyz))
+
+   type(TMolecule) :: mol, unitMol
+   real(wp), allocatable :: hessian(:, :)
+
+   call init(mol, sym, xyz)
+   call check(error, .not.mol%linear)
+   if (allocated(error)) return
+
+   ! three collinear fixed atoms: only the rotation about their axis remains
+   call check_fixed_projection(error, mol, spring_model_hessian(mol), &
+      & [1, 2, 3], 10)
+   if (allocated(error)) return
+
+   call init(unitMol, sym, xyz)
+   unitMol%atmass(:) = 1.0_wp
+   hessian = spring_model_hessian(unitMol)
+   call check_packed_projection(error, mol, unitMol, hessian, [1, 2, 3], 10)
+
+end subroutine test_fixed_collinear_projection
+
+
+!> Periodic structures are not invariant under rotations, fixing atoms then
+!> removes only their Cartesian coordinates.
+subroutine test_fixed_periodic_projection(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 4
+   character(len=*), parameter :: sym(nat) = ["O", "O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 0.00_wp, 1.38_wp, -0.12_wp, &
+      & 0.00_wp, -1.38_wp, -0.12_wp, &
+      & 1.62_wp, 1.78_wp, 0.95_wp, &
+      & -1.62_wp, -1.78_wp, 0.95_wp], shape(xyz))
+   real(wp), parameter :: lattice(3, 3) = reshape([ &
+      & 9.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 9.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, 9.0_wp], shape(lattice))
+
+   type(TMolecule) :: mol, unitMol
+   real(wp), allocatable :: hessian(:, :)
+
+   call init(mol, sym, xyz, lattice=lattice)
+   call init(unitMol, sym, xyz, lattice=lattice)
+   unitMol%atmass(:) = 1.0_wp
+   hessian = spring_model_hessian(unitMol)
+
+   call check(error, mol%npbc, 3)
+   if (allocated(error)) return
+
+   ! one fixed atom: no rotation about the fixed atom is projected
+   call check_packed_projection(error, mol, unitMol, hessian, [1], 3)
+   if (allocated(error)) return
+
+   ! two fixed atoms: no rotation about their connecting axis is projected
+   call check_packed_projection(error, mol, unitMol, hessian, [1, 2], 6)
+
+end subroutine test_fixed_periodic_projection
 
 
 !> Project a packed Cartesian Hessian with fixed atoms and compare against the
