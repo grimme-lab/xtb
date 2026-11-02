@@ -26,7 +26,7 @@ module xtb_freq_project
    implicit none
    private
 
-   public :: projectHessian, trproj
+   public :: projectHessian, projectFixedAtoms, fixedAtomModes, trproj
 
 
 contains
@@ -57,42 +57,17 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, fixedAtoms, &
    integer, intent(out), optional :: nModes
 
    real(wp), allocatable :: nullvec(:, :), projector(:, :), scratch(:, :)
-   real(wp), parameter :: unity(3, 3) = reshape(&
-      & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
-      & [3, 3])
-   real(wp) :: center(3), vec(3), r2, inertia(3,3), moments(3), molMass, axes(3,3)
-   integer :: ndim, nproj, nrot, nfixed, offset, rotOffset, linearAxis
-   integer :: ii, jj, iat, ic, ifixed
-   logical :: isLinear, freeAxis(3)
+   logical, allocatable :: fixed(:)
+   integer :: ndim, ii, jj, iat, ic
 
-   if (present(nModes)) nModes = 0
+   call getNullSpace(nullvec, fixed, mol, removeTrans, removeRot, .true., &
+      & fixedAtoms, nModes)
 
-   ndim = 3*mol%n
-
-   isLinear = mol%linear
-
-   nfixed = 0
-   if (present(fixedAtoms)) nfixed = size(fixedAtoms)
-
-   nproj = 0
-   if (removeTrans) then
-      nproj = nproj + 3
-   end if
-   nproj = nproj + 3*nfixed
-   nrot = 0
-   if (removeRot .and. mol%npbc == 0) then
-      nrot = merge(2, 3, isLinear)
-      nproj = nproj + nrot
-   end if
-
-   if (nproj == 0) then
+   if (size(nullvec, 2) == 0 .and. .not.any(fixed)) then
       return
    end if
 
-   allocate(nullvec(ndim, nproj))
-   allocate(projector(ndim, ndim))
-   projector(:, :) = 0.0_wp
-   nullvec(:, :) = 0.0_wp
+   ndim = 3*mol%n
 
    ! symmetrize
    do ii = 1, ndim
@@ -102,9 +77,175 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, fixedAtoms, &
       end do
    end do
 
+   ! fixed coordinates are removed by deleting their rows and columns
+   do iat = 1, mol%n
+      if (.not.fixed(iat)) cycle
+      ic = 3*(iat - 1)
+      hessian(ic+1:ic+3, :) = 0.0_wp
+      hessian(:, ic+1:ic+3) = 0.0_wp
+   end do
+
+   if (size(nullvec, 2) == 0) then
+      return
+   end if
+
+   allocate(projector(ndim, ndim))
+   projector(:, :) = 0.0_wp
+
    do jj = 1, ndim
       projector(jj, jj) = 1.0_wp
    end do
+
+   call mctc_syrk(nullvec, projector, alpha=-1.0_wp, beta=1.0_wp)
+
+   deallocate(nullvec)
+   allocate(scratch(ndim, ndim))
+
+   call mctc_symm(projector, hessian, scratch, side='r')
+   call mctc_symm(projector, scratch, hessian, side='l')
+
+end subroutine projectHessian
+
+
+!> Project the fixed atoms and the rotations still allowed by them from a
+!> packed Cartesian Hessian, as used by the geometry optimizers
+subroutine projectFixedAtoms(hessp, mol, fixedAtoms)
+
+   !> Packed Cartesian Hessian matrix (no mass weighting)
+   real(wp), intent(inout) :: hessp(:)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Atoms whose three Cartesian coordinates are fixed
+   integer, intent(in) :: fixedAtoms(:)
+
+   real(wp), allocatable :: nullvec(:, :)
+   logical, allocatable :: fixed(:)
+   integer :: ndim, ii, jj, ij
+
+   call getNullSpace(nullvec, fixed, mol, .false., .true., .false., fixedAtoms)
+
+   ndim = 3*mol%n
+
+   ! fixed coordinates are removed by deleting their rows and columns
+   ij = 0
+   do ii = 1, ndim
+      do jj = 1, ii
+         ij = ij + 1
+         if (fixed((ii - 1)/3 + 1) .or. fixed((jj - 1)/3 + 1)) then
+            hessp(ij) = 0.0_wp
+         end if
+      end do
+   end do
+
+   if (size(nullvec, 2) > 0) then
+      call syprj(ndim, size(nullvec, 2), nullvec, ndim, hessp)
+   end if
+
+end subroutine projectFixedAtoms
+
+
+!> Number of Cartesian degrees of freedom removed by fixing atoms, i.e. the
+!> fixed coordinates and the rotations still allowed by the fixed atoms
+function fixedAtomModes(mol, fixedAtoms) result(nModes)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Atoms whose three Cartesian coordinates are fixed
+   integer, intent(in) :: fixedAtoms(:)
+
+   !> Number of removed degrees of freedom
+   integer :: nModes
+
+   real(wp), allocatable :: nullvec(:, :)
+   logical, allocatable :: fixed(:)
+
+   call getNullSpace(nullvec, fixed, mol, .false., .true., .false., &
+      & fixedAtoms, nModes)
+
+end function fixedAtomModes
+
+
+!> Orthonormal basis of the translations and rotations to be projected from a
+!> Hessian, linearly dependent vectors are set to zero. Fixed coordinates are
+!> only marked, since they are removed by deleting their rows and columns,
+!> the basis vectors are orthogonal to them. At most six vectors are built,
+!> independent of the number of fixed atoms.
+subroutine getNullSpace(nullvec, fixed, mol, removeTrans, removeRot, &
+      & massWeight, fixedAtoms, nModes)
+
+   !> Basis vectors of the projected rigid-body motions
+   real(wp), allocatable, intent(out) :: nullvec(:, :)
+
+   !> Atoms whose Cartesian coordinates are fixed
+   logical, allocatable, intent(out) :: fixed(:)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Translation should be projected
+   logical, intent(in) :: removeTrans
+
+   !> Rotations should be projected, will be automatically disabled for PBC input
+   logical, intent(in) :: removeRot
+
+   !> Displacement vectors are mass weighted, otherwise unit masses are used.
+   !> Rotations without fixed atoms are always about the center of mass, which
+   !> spans the same space as about the centroid if translations are projected.
+   logical, intent(in) :: massWeight
+
+   !> Atoms whose three Cartesian coordinates are fixed. The structure can then
+   !> only rotate about axes running through all fixed atoms, and it cannot
+   !> translate, so removeTrans should be false.
+   integer, intent(in), optional :: fixedAtoms(:)
+
+   !> Number of removed degrees of freedom, fixed coordinates and linearly
+   !> independent basis vectors
+   integer, intent(out), optional :: nModes
+
+   real(wp), parameter :: unity(3, 3) = reshape(&
+      & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
+      & [3, 3])
+   real(wp) :: center(3), vec(3), r2, inertia(3,3), moments(3), molMass, axes(3,3)
+   integer :: ndim, nproj, nrot, nfixed, rotOffset, linearAxis
+   integer :: ii, iat, ic
+   logical :: isLinear, freeAxis(3)
+
+   if (present(nModes)) nModes = 0
+
+   ndim = 3*mol%n
+
+   isLinear = mol%linear
+
+   ! duplicated entries are only counted once, assign element-wise since a
+   ! vector subscript with repeated indices must not be defined
+   allocate(fixed(mol%n), source=.false.)
+   if (present(fixedAtoms)) then
+      do ii = 1, size(fixedAtoms)
+         fixed(fixedAtoms(ii)) = .true.
+      end do
+   end if
+   nfixed = count(fixed)
+
+   nproj = 0
+   if (removeTrans) then
+      nproj = nproj + 3
+   end if
+   nrot = 0
+   if (removeRot .and. mol%npbc == 0) then
+      nrot = merge(2, 3, isLinear)
+      nproj = nproj + nrot
+   end if
+
+   allocate(nullvec(ndim, nproj))
+   nullvec(:, :) = 0.0_wp
+
+   if (nproj == 0) then
+      if (present(nModes)) nModes = 3*nfixed
+      return
+   end if
 
    if (removeTrans) then
       do iat = 1, mol%n
@@ -113,18 +254,6 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, fixedAtoms, &
             nullvec(ic+ii, ii) = 1.0_wp
          end do
       end do
-   end if
-
-   offset = merge(3, 0, removeTrans)
-   if (nfixed > 0) then
-      do ifixed = 1, nfixed
-         iat = fixedAtoms(ifixed)
-         ic = (iat - 1) * 3
-         do ii = 1, 3
-            nullvec(ic+ii, offset+3*(ifixed-1)+ii) = 1.0_wp
-         end do
-      end do
-      offset = offset + 3*nfixed
    end if
 
    if (removeRot .and. mol%npbc == 0) then
@@ -162,8 +291,8 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, fixedAtoms, &
          ! i.e. axes through their centroid with vanishing moment of inertia
          ! of the fixed atoms (unit masses).
          center(:) = 0.0_wp
-         do ifixed = 1, nfixed
-            center(:) = center + mol%xyz(:, fixedAtoms(ifixed))
+         do iat = 1, mol%n
+            if (fixed(iat)) center(:) = center + mol%xyz(:, iat)
          end do
          center(:) = center / real(nfixed, wp)
 
@@ -171,8 +300,9 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, fixedAtoms, &
          ! axes of the molecule to treat linear molecules as above.
          if (nfixed > 1) then
             inertia(:, :) = 0.0_wp
-            do ifixed = 1, nfixed
-               vec(:) = mol%xyz(:, fixedAtoms(ifixed)) - center
+            do iat = 1, mol%n
+               if (.not.fixed(iat)) cycle
+               vec(:) = mol%xyz(:, iat) - center
                r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
                inertia(:, :) = inertia + unity * r2
                inertia(:, 1) = inertia(:, 1) - vec(1) * vec
@@ -192,7 +322,7 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, fixedAtoms, &
          end if
       end if
 
-      rotOffset = offset
+      rotOffset = merge(3, 0, removeTrans)
       do ii = 1, 3
          if (.not.freeAxis(ii)) cycle
          rotOffset = rotOffset + 1
@@ -206,26 +336,29 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot, fixedAtoms, &
    end if
 
    ! mass weight the displacement vectors
+   if (massWeight) then
+      do iat = 1, mol%n
+         ic = (iat - 1) * 3
+         nullvec(ic+1:ic+3, :) = nullvec(ic+1:ic+3, :) * sqrt(mol%atmass(iat))
+      end do
+   end if
+
+   ! orthogonalize against the fixed coordinates
    do iat = 1, mol%n
+      if (.not.fixed(iat)) cycle
       ic = (iat - 1) * 3
-      nullvec(ic+1:ic+3, :) = nullvec(ic+1:ic+3, :) * sqrt(mol%atmass(iat))
+      nullvec(ic+1:ic+3, :) = 0.0_wp
    end do
 
    ! Build an orthonormal basis for the span of all displacement vectors,
    ! linearly dependent vectors are set to zero.
    call blckmgs(ndim, nproj, ndim, nullvec)
 
-   if (present(nModes)) nModes = count(sum(nullvec**2, dim=1) > 0.5_wp)
+   if (present(nModes)) then
+      nModes = 3*nfixed + count(sum(nullvec**2, dim=1) > 0.5_wp)
+   end if
 
-   call mctc_syrk(nullvec, projector, alpha=-1.0_wp, beta=1.0_wp)
-
-   deallocate(nullvec)
-   allocate(scratch(ndim, ndim))
-
-   call mctc_symm(projector, hessian, scratch, side='r')
-   call mctc_symm(projector, scratch, hessian, side='l')
-
-end subroutine projectHessian
+end subroutine getNullSpace
 
 subroutine trproj(natoms,nat3,xyz,hess,ldebug,nmode,mode,ndim)
 
@@ -310,7 +443,6 @@ subroutine gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
    !       pmat        = projection matrix P = (1-FFt)
    !   hess    = projected hessian
    !----------------------------------------------------------------------
-   use xtb_fixparam
    implicit none
 
    ! Input
@@ -322,59 +454,35 @@ subroutine gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
    real(wp), dimension(nat3*(nat3+1)/2) :: hess
 
    ! Local
-   integer :: i,ii,iii
+   integer :: i,ii
    real(wp), allocatable :: fmat(:,:)
    integer :: nprj
 
    nprj=6
    if(nmode.gt.0) nprj=nprj+nmode
-   if(nmode.lt.0) nprj=nprj+fixset%n*3
    allocate(fmat(nat3,nprj))
    fmat(:,:) = 0.0_wp
 
-   if(nmode.ge.0) then
-      do i=1,natoms
-         do ii=1,3
-            !        translation vectors
-            fmat(3*(i-1)+ii,ii) = 1.0_wp
-         end do
-         !        rotational vectors
-         fmat(3*(i-1)+1,4) =  0.0_wp
-         fmat(3*(i-1)+2,4) = -xyzucm(3,i)
-         fmat(3*(i-1)+3,4) =  xyzucm(2,i)
-         fmat(3*(i-1)+1,5) =  xyzucm(3,i)
-         fmat(3*(i-1)+2,5) =  0.0_wp
-         fmat(3*(i-1)+3,5) = -xyzucm(1,i)
-         fmat(3*(i-1)+1,6) = -xyzucm(2,i)
-         fmat(3*(i-1)+2,6) =  xyzucm(1,i)
-         fmat(3*(i-1)+3,6) =  0.0_wp
+   do i=1,natoms
+      do ii=1,3
+         !        translation vectors
+         fmat(3*(i-1)+ii,ii) = 1.0_wp
       end do
-   endif
+      !        rotational vectors
+      fmat(3*(i-1)+1,4) =  0.0_wp
+      fmat(3*(i-1)+2,4) = -xyzucm(3,i)
+      fmat(3*(i-1)+3,4) =  xyzucm(2,i)
+      fmat(3*(i-1)+1,5) =  xyzucm(3,i)
+      fmat(3*(i-1)+2,5) =  0.0_wp
+      fmat(3*(i-1)+3,5) = -xyzucm(1,i)
+      fmat(3*(i-1)+1,6) = -xyzucm(2,i)
+      fmat(3*(i-1)+2,6) =  xyzucm(1,i)
+      fmat(3*(i-1)+3,6) =  0.0_wp
+   end do
 
    if(nmode.gt.0) then  ! NMF
       do i=1,nmode
          fmat(1:nat3,6+i)=mode(1:nat3,i)
-      enddo
-   endif
-
-   if(nmode.lt.0) then ! exact fixing
-      do i=1,natoms
-         !        rotational vectors
-         fmat(3*(i-1)+1,1) =  0.0_wp
-         fmat(3*(i-1)+2,1) = -xyzucm(3,i)
-         fmat(3*(i-1)+3,1) =  xyzucm(2,i)
-         fmat(3*(i-1)+1,2) =  xyzucm(3,i)
-         fmat(3*(i-1)+2,2) =  0.0_wp
-         fmat(3*(i-1)+3,2) = -xyzucm(1,i)
-         fmat(3*(i-1)+1,3) = -xyzucm(2,i)
-         fmat(3*(i-1)+2,3) =  xyzucm(1,i)
-         fmat(3*(i-1)+3,3) =  0.0_wp
-      enddo
-      do i=1,fixset%n
-         iii=fixset%atoms(i)
-         do ii=1,3
-            fmat(3*(iii-1)+ii,3+(i-1)*3+ii) = 1.0_wp
-         end do
       enddo
    endif
 

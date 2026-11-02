@@ -138,6 +138,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    use xtb_setmod, only : int2optlevel
 
    use xtb_hessian, only : trproj,rdhess
+   use xtb_freq_project, only : projectFixedAtoms, fixedAtomModes
    use xtb_readin
    use xtb_lsrmsd
 
@@ -366,8 +367,13 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
 
    ! exact fixing case ! 
    if(fixset%n.gt.0) then 
-      nvar = nat3 - 3*fixset%n - 3
-      if(nvar.le.0) nvar=1
+      nvar = nat3 - fixedAtomModes(mol, fixset%atoms(:fixset%n))
+   endif
+
+   ! all coordinates are fixed, nothing to optimize !
+   if(nvar.eq.0) then
+      if(pr) write(env%unit,'(/,3x,a)') "all atoms are fixed, skipping optimization"
+      return
    endif
 
    ! adjust if restrated !
@@ -498,7 +504,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    ! project out translational and rotational modes !
    if(modef.eq.0)then
       if(fixset%n.gt.0)then
-         call trproj(molopt%n,nat3,molopt%xyz,fc,.false., -1  ,pmode,1)     ! exact fixing
+         call projectFixedAtoms(fc,molopt,fixset%atoms(:fixset%n))        ! exact fixing
       else
          if (.not.linear) &
          call trproj(molopt%n,nat3,molopt%xyz,fc,.false.,modef,pmode,1)     ! normal
@@ -532,7 +538,8 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    if (profile) call timer%measure(3,'ANC generation') ! start timer for ANC generation   
 
    ! diagonalize Hessian and sort eigenvalues !
-   call anc%new(env%unit,molopt%xyz,h,pr,linear)  
+   ! with fixed atoms the null space is already projected exactly !
+   call anc%new(env%unit,molopt%xyz,h,pr,linear,rigid=fixset%n == 0)
    if (profile) call timer%measure(3) ! stop timer for ANC generation
    esave = etot ! save energy 
 
