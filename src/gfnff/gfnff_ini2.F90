@@ -2043,14 +2043,14 @@ end subroutine goedeckera_PBC
             ! k are all the neighbors of i in cell iTr
             k=nb(j,i,iTr)
             hasnb=.false.
-            do iTr2=1,neigh%numctr
-              do l=1, nb(neigh%numnb,k,iTr2)
-                ! check if neighbor k of atom i has i as a neighbor aswell
-                if(nb(l,k,iTr2).eq.i) then
-                  hasnb=.true.
-                endif
-              enddo
-            enddo 
+            iTr2=iTrNeg(iTr)
+            do l=1, nb(neigh%numnb,k,iTr2)
+              ! check if neighbor k of atom i has i as a neighbor aswell
+              if(nb(l,k,iTr2).eq.i) then
+                hasnb=.true.
+                exit
+              endif
+            enddo
             ! if hasnb is still false then the bond is not paired and should be deleted
             if (.not.hasnb) then
               ! now delete neighbor and move other neighbors
