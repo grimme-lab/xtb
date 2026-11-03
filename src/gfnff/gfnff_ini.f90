@@ -1323,7 +1323,7 @@ endif
             if( bbtyp.eq.3.and. (topo%hyb(ii).eq.3.or.topo%hyb(jj).eq.3) ) bbtyp=1 ! sp-sp3
             if( bbtyp.eq.3.and. (topo%hyb(ii).eq.2.or.topo%hyb(jj).eq.2) ) bbtyp=2 ! sp-sp2
 !           Pi stuff
-            if(pibo(i).gt.0) then
+            if(pibo(i).gt.1.0e3_wp*epsilon(1.0_wp)) then
                           shift=gen%hueckelp*(gen%bzref - pibo(i)) ! ref value = no correction is benzene, P=2/3
                           if(bbtyp.ne.3.and.pibo(i).gt.0.1) then
                                                             btyp(i)=2
@@ -1982,7 +1982,7 @@ endif
                endif
                endif
 ! pi system
-               if(pibo(m).gt.0) then
+               if(pibo(m).gt.1.0e3_wp*epsilon(1.0_wp)) then
                                 f2=pibo(m)*exp(-2.5d0*(1.24d0-pibo(m))**14)  ! decrease to very small values for P < 0.3
                                                                              ! values of 2.5 instead of 2.4 give larger tangles
                                                                              ! the parameter 1.24 is very sensitive ie 1.25 yield 5 deg more in 1,3cB
