@@ -2037,26 +2037,29 @@ end subroutine goedeckera_PBC
       nt=0     ! tmpp_usage
       do i=1, n
         do iTr=1,neigh%numctr
+          inb = 0
           do j=1, nb(neigh%numnb,i,iTr)
+            inb = inb + 1
             ! k are all the neighbors of i in cell iTr
             k=nb(j,i,iTr)
             hasnb=.false.
-            do iTr2=1,neigh%numctr
-              do l=1, nb(neigh%numnb,k,iTr2)
-                ! check if neighbor k of atom i has i as a neighbor aswell
-                if(nb(l,k,iTr2).eq.i) then
-                  hasnb=.true.
-                endif
-              enddo
-            enddo 
+            iTr2=iTrNeg(iTr)
+            do l=1, nb(neigh%numnb,k,iTr2)
+              ! check if neighbor k of atom i has i as a neighbor aswell
+              if(nb(l,k,iTr2).eq.i) then
+                hasnb=.true.
+                exit
+              endif
+            enddo
             ! if hasnb is still false then the bond is not paired and should be deleted
             if (.not.hasnb) then
               ! now delete neighbor and move other neighbors
-              do l=j, neigh%numnb-2 ! fails if an atom has numnb-1 neighbors !
-                nbr(l,i,iTr)=nb(l+1,i,iTr)
+              do l=inb, neigh%numnb-2 ! fails if an atom has numnb-1 neighbors !
+                nbr(l,i,iTr)=nbr(l+1,i,iTr)
               enddo
               ! reduce neighbors by one
               nbr(numnb,i,iTr) = nbr(numnb,i,iTr) - 1
+              inb = inb - 1
               ! save the neighbor  
               nt = nt + 1       ! tmpp_usage
               tmpp(1,nt) = k    ! tmpp_usage
