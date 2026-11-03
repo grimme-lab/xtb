@@ -14,8 +14,6 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-iF (WITH_OBJECT)
-   add_subdirectory("api")
-endif()
+add_subdirectory("api")
 
 add_subdirectory("unit")

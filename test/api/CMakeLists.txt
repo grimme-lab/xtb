@@ -21,7 +21,11 @@ add_executable(
 target_link_libraries(
   "${PROJECT_NAME}_tests_capi"
   PUBLIC
-  "lib-${PROJECT_NAME}-shared"
+  "${PROJECT_NAME}::${PROJECT_NAME}"
+)
+target_compile_definitions(
+  "${PROJECT_NAME}_tests_capi"
+  PRIVATE "$<$<BOOL:${WITH_CPCMX}>:WITH_CPCMX>"
 )
 
 add_test(
