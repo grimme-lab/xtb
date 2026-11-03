@@ -732,6 +732,7 @@ subroutine setGFN1NumberOfPrimitives(self, nShell)
 
    integer :: nPrim, iZp, iSh
 
+   self%numberOfPrimitives(:, :) = 0
    do iZp = 1, maxElem
       do iSh = 1, nShell(iZp)
          nPrim = 0
