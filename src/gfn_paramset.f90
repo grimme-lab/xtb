@@ -85,20 +85,20 @@ subroutine setpair(gfn_method, pairParam)
    real(wp), intent(inout) :: pairParam(:, :)
    integer gfn_method
    integer i,j,ii,jj
-   real(wp) :: kp(3)
-   real(wp) :: kparam
+   real*8  kp(3)
+   real*8  kparam
    integer tmgroup(3)
    logical notset
 
    if(gfn_method.eq.1)then
-      kp(1)=1.1_wp    ! 3d
-      kp(2)=1.2_wp    ! 4d
-      kp(3)=1.2_wp    ! 5d or 4f
+      kp(1)=1.1    ! 3d
+      kp(2)=1.2    ! 4d
+      kp(3)=1.2    ! 5d or 4f
    elseif(gfn_method.eq.0)then
-      kp(1)=1.1_wp
-      kp(2)=1.1_wp
-      kp(3)=1.1_wp
-      kparam=0.9_wp
+      kp(1)=1.10
+      kp(2)=1.10
+      kp(3)=1.10
+      kparam=0.9
       tmgroup=(/29,47,79/)
       do i=1,3
          do j=1,3
@@ -109,9 +109,9 @@ subroutine setpair(gfn_method, pairParam)
          enddo
       enddo
    elseif(gfn_method.gt.1)then
-      kp(1)=1.0_wp   ! 3d
-      kp(2)=1.0_wp   ! 4d
-      kp(3)=1.0_wp   ! 5d or 4f
+      kp(1)=1.   ! 3d
+      kp(2)=1.   ! 4d
+      kp(3)=1.   ! 5d or 4f
       !     write(*,'(''KAB for pair M(3d)-M(3d) :'',f8.4)')kp(1)
       !     write(*,'(''KAB for pair M(4d)-M(4d) :'',f8.4)')kp(2)
       !     write(*,'(''KAB for pair M(5d)-M(5d) :'',f8.4)')kp(3)
@@ -125,8 +125,8 @@ subroutine setpair(gfn_method, pairParam)
          notset=abs(pairParam(i,j)-1.0d0).lt.1.d-6 .and. &
             &             abs(pairParam(j,i)-1.0d0).lt.1.d-6
          if(ii.gt.0.and.jj.gt.0.and.notset) then
-            pairParam(i,j)=0.5_wp*(kp(ii)+kp(jj))
-            pairParam(j,i)=0.5_wp*(kp(ii)+kp(jj))
+            pairParam(i,j)=0.5*(kp(ii)+kp(jj))
+            pairParam(j,i)=0.5*(kp(ii)+kp(jj))
          endif
       enddo
    enddo
