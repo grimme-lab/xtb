@@ -231,27 +231,23 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
     performs a single point calculation
 
 *--vip*::
-    performs calculation of ionisation potential.
-    This needs the .param_ipea.xtb parameters
-    and a GFN1 Hamiltonian.
+    performs calculation of ionisation potential with GFN1-xTB.
+    IPEA-xTB is used with *--vparam* param_ipea-xtb.txt.
 
 *--vea*::
-    performs calculation of electron affinity.
-    This needs the .param_ipea.xtb parameters
-    and a GFN1 Hamiltonian.
+    performs calculation of electron affinity with GFN1-xTB.
+    IPEA-xTB is used with *--vparam* param_ipea-xtb.txt.
 
 *--vipea*::
-    performs calculation of electron affinity and ionisation potential.
-    This needs the .param_ipea.xtb parameters
-    and a GFN1 Hamiltonian.
+    performs calculation of electron affinity and ionisation potential with GFN1-xTB.
+    IPEA-xTB is used with *--vparam* param_ipea-xtb.txt.
 
 *--vfukui*::
     performs calculation of Fukui indices.
 
 *--vomega*::
-    performs calculation of electrophilicity index.
-    This needs the .param_ipea.xtb parameters
-    and a GFN1 Hamiltonian.
+    performs calculation of electrophilicity index with GFN1-xTB.
+    IPEA-xTB is used with *--vparam* param_ipea-xtb.txt.
 
 *--grad*::
     performs a gradient calculation

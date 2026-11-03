@@ -66,7 +66,6 @@ subroutine use_parameterset(name,globpar,xtbData,exist)
    exist = .false.
    select case(name)
    case('param_gfn0-xtb.txt')
-      return
       globpar = gfn0Globals
       call initGFN0(xtbData)
    case('param_gfn1-xtb.txt')

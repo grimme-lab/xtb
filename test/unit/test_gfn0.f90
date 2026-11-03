@@ -29,6 +29,7 @@ subroutine collect_gfn0(testsuite)
    type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
    testsuite = [ &
+      new_unittest("builtin-param", test_gfn0_builtin_param), &
       new_unittest("sp", test_gfn0_sp), &
       new_unittest("api", test_gfn0_api), &
       new_unittest("api-srb", test_gfn0_api_srb), &
@@ -488,5 +489,140 @@ subroutine test_gfn0_mindless_solvation(error)
    end do
 
 end subroutine test_gfn0_mindless_solvation
+
+!> The built-in GFN0-xTB parameters must give the same result as the
+!> parameter file for a molecule with transition metal pairs and hydrogen
+subroutine test_gfn0_builtin_param(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_systools, only : rdpath
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, init
+   use xtb_type_param, only : TxTBParameter
+   use xtb_xtb_data, only : TxTBData
+   use xtb_readparam, only : readParam
+   use xtb_paramset, only : use_parameterset
+   use xtb_setparam, only : set
+
+   !> Error handling
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: thr = 1.0e-10_wp
+   character(len=*), parameter :: pfile = 'param_gfn0-xtb.txt'
+   integer, parameter :: nat = 7
+   character(len=*), parameter :: sym(nat) = [character(len=2) :: &
+      & "Fe", "C", "O", "Cu", "Ag", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      &  0.0_wp, 0.0_wp, 0.0_wp, &
+      & -3.4_wp, 0.0_wp, 0.0_wp, &
+      & -5.6_wp, 0.0_wp, 0.0_wp, &
+      &  4.6_wp, 0.0_wp, 0.0_wp, &
+      &  2.4_wp, 4.4_wp, 0.0_wp, &
+      &  0.0_wp, 0.0_wp, 2.9_wp, &
+      &  3.7_wp, 2.3_wp, 1.6_wp], shape(xyz))
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TxTBParameter) :: globpar
+   type(TxTBData) :: builtin, reference
+   character(len=:), allocatable :: fname
+   real(wp) :: energy, eref, gap, gapref
+   real(wp), allocatable :: gradient(:, :), gref(:, :)
+   logical :: exist, exitRun
+   integer :: ipar
+
+   call init(env)
+   call init(mol, sym, xyz)
+   set%gfn_method = 0
+
+   call use_parameterset(pfile, globpar, builtin, exist)
+   call check_(error, exist, "Built-in GFN0-xTB parameters are not available")
+   if (allocated(error)) return
+
+   call rdpath(env%xtbpath, pfile, fname, exist)
+   if (.not.exist) then
+      call test_failed(error, "Parameter file "//pfile//" not found in XTBPATH")
+      return
+   end if
+   call open_file(ipar, fname, 'r')
+   call readParam(env, ipar, globpar, reference, .true.)
+   call close_file(ipar)
+   call env%check(exitRun)
+   call check_(error, .not.exitRun, "Reading the parameter file failed")
+   if (allocated(error)) return
+
+   call gfn0_singlepoint(error, env, mol, builtin, energy, gradient, gap)
+   if (allocated(error)) return
+   call gfn0_singlepoint(error, env, mol, reference, eref, gref, gapref)
+   if (allocated(error)) return
+
+   call check_(error, energy, eref, thr=thr, more="total energy")
+   if (allocated(error)) return
+   call check_(error, gap, gapref, thr=thr, more="HOMO-LUMO gap")
+   if (allocated(error)) return
+   call check_(error, norm2(gradient - gref), 0.0_wp, thr=thr, more="gradient")
+
+end subroutine test_gfn0_builtin_param
+
+
+!> GFN0-xTB singlepoint calculation for a given parametrisation
+subroutine gfn0_singlepoint(error, env, mol, xtbData, energy, gradient, gap)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_environment, only : TEnvironment
+   use xtb_type_molecule, only : TMolecule
+   use xtb_type_wavefunction, only : TWavefunction
+   use xtb_type_basisset, only : TBasisset
+   use xtb_type_data, only : scc_results
+   use xtb_xtb_data, only : TxTBData
+   use xtb_solv_gbsa, only : TBorn
+   use xtb_basis, only : newBasisset
+   use xtb_peeq, only : peeq
+
+   !> Error handling
+   type(error_type), allocatable, intent(out) :: error
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> Molecular structure data
+   type(TMolecule), intent(inout) :: mol
+
+   !> Parametrisation to use
+   type(TxTBData), intent(in) :: xtbData
+
+   !> Total energy
+   real(wp), intent(out) :: energy
+
+   !> Molecular gradient
+   real(wp), allocatable, intent(out) :: gradient(:, :)
+
+   !> HOMO-LUMO gap in eV
+   real(wp), intent(out) :: gap
+
+   real(wp), parameter :: et = 300.0_wp
+   real(wp), parameter :: acc = 1.0_wp
+   type(TWavefunction) :: wfn
+   type(TBasisset) :: basis
+   type(scc_results) :: res
+   type(TBorn), allocatable :: gbsa
+   real(wp) :: egap, sigma(3, 3)
+   logical :: okbas
+
+   call newBasisset(xtbData, mol%n, mol%at, basis, okbas)
+   call check_(error, okbas, "Basis set setup failed")
+   if (allocated(error)) return
+
+   call wfn%allocate(mol%n, basis%nshell, basis%nao)
+   wfn%nel = idint(sum(mol%z))
+   wfn%nopen = 0
+   wfn%q = mol%chrg/real(mol%n, wp)
+
+   allocate(gradient(3, mol%n), source=0.0_wp)
+   ! the HOMO-LUMO gap is only evaluated with a print level above one
+   call peeq(env, mol, wfn, basis, xtbData, gbsa, egap, et, 2, .true., &
+      & .false., acc, energy, gradient, sigma, res)
+   gap = res%hl_gap
+
+end subroutine gfn0_singlepoint
+
 
 end module test_gfn0
