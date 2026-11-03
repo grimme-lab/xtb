@@ -210,15 +210,15 @@ subroutine help(iunit)
    "      --lmo                requests localization of orbitals",&
    "      --fod                requests FOD calculation",&
    "      --scc, --sp          performs a single point calculation",&
-   "      --vip                performs calculation of ionisation potential. This needs the",&
-   "                           param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
-   "      --vea                performs calculation of electron affinity. This needs the",&
-   "                           param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
-   "      --vipea              performs calculation of electron affinity and ionisation potential. This",&
-   "                           needs the param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
+   "      --vip                performs calculation of ionisation potential with GFN1-xTB.",&
+   "                           IPEA-xTB is used with --vparam param_ipea-xtb.txt.",&
+   "      --vea                performs calculation of electron affinity with GFN1-xTB.",&
+   "                           IPEA-xTB is used with --vparam param_ipea-xtb.txt.",&
+   "      --vipea              performs calculation of electron affinity and ionisation potential",&
+   "                           with GFN1-xTB. IPEA-xTB is used with --vparam param_ipea-xtb.txt.",&
    "      --vfukui             performs calculation of Fukui indices.",&
-   "      --vomega             performs calculation of electrophilicity index. This needs the",&
-   "                           param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
+   "      --vomega             performs calculation of electrophilicity index with GFN1-xTB.",&
+   "                           IPEA-xTB is used with --vparam param_ipea-xtb.txt.",&
    "      --grad               performs a gradient calculation",&
    "  -o, --opt [LEVEL]        call ancopt(3) to perform a geometry optimization, levels from crude,",&
    "                           sloppy, loose, normal (default), tight [0.5], verytight [0.2] to extreme",&

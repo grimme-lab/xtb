@@ -15,13 +15,15 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO: GFN0-xTB parametrisation data
+!> GFN0-xTB parametrisation data
 module xtb_xtb_gfn0
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
-   use xtb_type_param, only : TxTBParameter
+   use xtb_type_param, only : TxTBParameter, dftd_parameter
    use xtb_xtb_data
+   use xtb_xtb_gfn1, only : setGFN1ShellHardness
    use xtb_xtb_gfn2, only : setGFN2ReferenceOcc
+   use xtb_disp_dftd4, only : newD4Model, p_refq_goedecker
    implicit none
    private
 
@@ -32,36 +34,30 @@ module xtb_xtb_gfn0
    interface initGFN0
       module procedure :: initData
       module procedure :: initRepulsion
+      module procedure :: initDispersion
       module procedure :: initCoulomb
+      module procedure :: initShortRange
       module procedure :: initHamiltonian
    end interface initGFN0
 
-   real(wp), parameter :: enshell(4) = [0.6_wp, -0.1_wp, -0.2_wp, -0.2_wp]
-   real(wp), parameter :: kshell(4) = [2.0000000_wp, 2.4868000_wp, 2.2700000_wp, 0.6000000_wp]
+   !> GFN0-xTB has no f-shells, their scaling factors are unused
+   real(wp), parameter :: enshell(4) = [0.6_wp, -0.1_wp, -0.2_wp, 0.0_wp]
+   real(wp), parameter :: kshell(4) = [2.0_wp, 2.4868_wp, 2.27_wp, 0.0_wp]
 
    type(TxTBParameter), parameter :: gfn0Globals = TxTBParameter( &
-      kshell   = kshell, &
-      kdiffa   = 0.0000000_wp, &
-      kdiffb   =-0.1000000_wp, &
-      enshell  = enshell, &
-      enscale4 = 4.0000000_wp, &
-      ipeashift= 1.7806900_wp, &
-      zcnf     = 0.0537000_wp, &
-      tscal    =-0.0129000_wp, &
-      kcn      = 3.4847000_wp, &
-      fpol     = 0.5097000_wp, &
-      ken      = 0.0000000_wp, &
-      lshift   = 0.0000000_wp, &
-      lshifta  = 0.0000000_wp, &
-      split    = 0.0000000_wp, &
-      zqf      = 0.0000000_wp, &
-      alphaj   = 1.1241000_wp, &
-      kexpo    =-0.2000000_wp, &
-      dispa    = 0.8000000_wp, &
-      dispb    = 4.6000000_wp, &
-      dispc    = 2.8500000_wp, &
-      dispatm  = 0.0000000_wp, &
-      renscale =-0.0900000_wp)
+      kshell = kshell, &
+      kdiff = 1.1241_wp, &
+      enshell = enshell, &
+      enscale4 = 4.0_wp, &
+      ipeashift = 1.78069_wp, &
+      srbshift = 0.0537_wp, &
+      srbpre = -0.0129_wp, &
+      srbexp = 3.4847_wp, &
+      srbken = 0.5097_wp, &
+      renscale = -0.09_wp)
+
+   type(dftd_parameter) :: gfn0Disp = dftd_parameter(&
+      s6=1.0_wp, s8=2.85_wp, a1=0.8_wp, a2=4.6_wp, s9=0.0_wp)
 
    !> Maximum number of elements supported by GFN0-xTB
    integer, parameter :: maxElem = 86
@@ -624,7 +620,7 @@ module xtb_xtb_gfn0
       & 3.5667425_wp, 2.6010762_wp, 1.9384224_wp],&
       & shape(slaterExponent))
 
-   real(wp), parameter :: kQShell(0:2, 1:maxElem) = reshape([&
+   real(wp), parameter :: kQShell(0:3, 1:maxElem) = reshape([&
       & 0.2591008_wp, 0.0000000_wp, 0.0000000_wp, 0.0000000_wp, &
       & 0.0526662_wp,-1.7836600_wp, 0.0000000_wp, 0.0000000_wp, &
       & 0.9636068_wp, 0.1933068_wp, 0.0000000_wp, 0.0000000_wp, &
@@ -743,11 +739,17 @@ subroutine initData(self)
    type(TxTBData), intent(out) :: self
 
    self%name = 'GFN0-xTB'
+   self%doi = '10.26434/chemrxiv.8326202.v1'
    self%level = 0
    self%nShell = nShell(:maxElem)
+   ! compare src/read_gfn_param.f90 line 158
+   self%ipeashift = gfn0Globals%ipeashift * 0.1_wp
 
    call initGFN0(self%repulsion)
+   call initGFN0(self%dispersion)
    call initGFN0(self%coulomb, self%nShell)
+   allocate(self%srb)
+   call initGFN0(self%srb)
    call initGFN0(self%hamiltonian, self%nShell)
 
 end subroutine initData
@@ -758,10 +760,26 @@ subroutine initRepulsion(self)
    !> Data instance
    type(TRepulsionData), intent(out) :: self
 
-   call init(self, kExp, kExpLight, rExp, 0.0_wp, repAlpha, repZeff, &
-      & electronegativity)
+   call init(self, kExp, kExpLight, rExp, gfn0Globals%renscale, repAlpha, &
+      & repZeff, electronegativity)
 
 end subroutine initRepulsion
+
+
+subroutine initDispersion(self)
+
+   !> Data instance
+   type(TDispersionData), intent(out) :: self
+
+   ! from src/read_gfn_param.f90 line 177-179
+   self%dpar = gfn0Disp
+   self%g_a = 3.0_wp
+   self%g_c = 2.0_wp
+   self%wf  = 6.0_wp
+
+   call newD4Model(self%dispm, self%g_a, self%g_c, p_refq_goedecker)
+
+end subroutine initDispersion
 
 
 subroutine initCoulomb(self, nShell)
@@ -769,15 +787,36 @@ subroutine initCoulomb(self, nShell)
    !> Data instance
    type(TCoulombData), intent(out) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
+   !> GFN0-xTB uses no shell-resolved hardness scaling
+   real(wp), parameter :: angHardness(0:3, maxElem) = 0.0_wp
+
+   self%gExp = gfn0Globals%alphaj
    self%electronegativity = eeqChi(1:maxElem)
    self%chemicalHardness = eeqGam(1:maxElem)
    self%kCN = eeqkCN(1:maxElem)
    self%chargeWidth = eeqAlp(1:maxElem)
+   allocate(self%thirdOrderAtom(maxElem), source=0.0_wp)
+   allocate(self%shellHardness(maxval(nShell), maxElem))
+   call setGFN1ShellHardness(self%shellHardness, nShell, angShell, &
+      & self%chemicalHardness, angHardness)
 
 end subroutine initCoulomb
+
+
+subroutine initShortRange(self)
+
+   !> Data instance
+   type(TShortRangeData), intent(out) :: self
+
+   self%shift = gfn0Globals%srbshift
+   self%prefactor = gfn0Globals%srbpre
+   self%steepness = gfn0Globals%srbexp
+   self%enScale = gfn0Globals%srbken
+
+end subroutine initShortRange
 
 
 subroutine initHamiltonian(self, nShell)
@@ -800,6 +839,7 @@ subroutine initHamiltonian(self, nShell)
    self%enScale = 0.005_wp * (spread(gfn0Globals%enshell, 1, 4) &
       & + spread(gfn0Globals%enshell, 2, 4))
    self%enScale4 = gfn0Globals%enscale4
+   self%wExp = 1.0_wp
 
    self%electronegativity = electronegativity(:maxElem)
    self%atomicRad = atomicRad(:maxElem)
