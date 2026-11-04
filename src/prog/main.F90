@@ -109,6 +109,7 @@ module xtb_prog_main
 contains
 
    subroutine xtbMain(env, argParser)
+      use xtb_optimizer, only: get_opt_accuracy
 
       !> Source of errors in the main program unit
       character(len=*), parameter :: source = "prog_main"
@@ -326,11 +327,28 @@ contains
 
       call env%checkpoint("Reading '"//xcontrol//"' failed")
 
+      if (.not. acc_provided) then
+         select case (set%runtyp)
+         case (p_run_opt, p_run_ohess, p_run_bhess, p_run_metaopt)
+            set%acc = get_opt_accuracy(set%optset%optlev)
+            tblite%accuracy = set%acc
+         case (p_run_hess)
+            set%acc = get_opt_accuracy(p_olev_tight)
+            tblite%accuracy = set%acc
+         end select
+      end if
+
       ! If --acc was explicitly supplied and the input did not provide
       ! its own $hess sccacc, use --acc for numerical Hessian displacements.
       if (acc_provided .and. .not. allocated(set%accu_hess)) then
          write(acc_str, '(g0)') set%acc
          call set_hess(env, 'sccacc', trim(acc_str))
+      else if ((set%runtyp == p_run_ohess .or. set%runtyp == p_run_bhess) &
+            & .and. .not. allocated(set%accu_hess)) then
+         if (get_opt_accuracy(set%optset%optlev) < get_opt_accuracy(p_olev_tight)) then
+            write(acc_str, '(g0)') get_opt_accuracy(set%optset%optlev)
+            call set_hess(env, 'sccacc', trim(acc_str))
+         end if
       end if
 
       ! ------------------------------------------------------------------------
@@ -1339,6 +1357,7 @@ contains
          & oniom, dipro, tblite, acc_provided)
 
       use xtb_mctc_global, only: persistentEnv
+      use xtb_optimizer, only: get_opt_accuracy
 
       !> Name of error producer
       character(len=*), parameter :: source = "prog_main_parseArguments"
@@ -1525,6 +1544,7 @@ contains
                      set%acc = ddum
                   end if
                   acc_provided = .true.
+                  set%acc_set = .true.
                end if
                tblite%accuracy = set%acc
             else
@@ -2022,25 +2042,9 @@ contains
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
             end if
-            ! Tighten the SCF convergence with the optimization level
-            ! if there is no user defined accuracy
-            if (.not.acc_provided) then
-               if (set%optset%optlev == 1) then
-                  set%acc = 0.5_wp
-               else if (set%optset%optlev >= 2) then
-                  set%acc = 0.2_wp
-               end if
-               tblite%accuracy = set%acc
-            end if
 
          case ('--hess')
             call set_runtyp('hess')
-            ! Tighten SCF convergence by default for numerical Hessian
-            ! if there is no user defined accuracy
-            if (.not.acc_provided) then
-               set%acc = 0.2_wp
-               tblite%accuracy = set%acc
-            end if
 
          case ('--md')
             call set_runtyp('md')
@@ -2051,24 +2055,12 @@ contains
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
             end if
-            ! Tighten SCF convergence by default for numerical Hessian
-            ! if there is no user defined accuracy
-            if (.not.acc_provided) then
-               set%acc = 0.2_wp
-               tblite%accuracy = set%acc
-            end if
 
          case ('--bhess')
             call set_runtyp('bhess')
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
-            end if
-            ! Tighten SCF convergence by default for numerical Hessian
-            ! if there is no user defined accuracy
-            if (.not.acc_provided) then
-               set%acc = 0.2_wp
-               tblite%accuracy = set%acc
             end if
 
          case ('--o1nh')
@@ -2136,16 +2128,6 @@ contains
             if (allocated(sec)) then
                call set_opt(env, 'optlevel', sec)
             end if
-            ! Tighten the SCF convergence with the optimization level
-            ! if there is no user defined accuracy
-            if (.not.acc_provided) then
-               if (set%optset%optlev == 1) then
-                  set%acc = 0.5_wp
-               else if (set%optset%optlev >= 2) then
-                  set%acc = 0.2_wp
-               end if
-               tblite%accuracy = set%acc
-            end if
 
          case ('--nat')
             call args%nextArg(sec)
@@ -2176,6 +2158,17 @@ contains
          end select
          call args%nextFlag(flag)
       end do
+
+      if (.not. acc_provided) then
+         select case (set%runtyp)
+         case (p_run_opt, p_run_ohess, p_run_bhess, p_run_metaopt)
+            set%acc = get_opt_accuracy(set%optset%optlev)
+            tblite%accuracy = set%acc
+         case (p_run_hess)
+            set%acc = get_opt_accuracy(p_olev_tight)
+            tblite%accuracy = set%acc
+         end select
+      end if
 
    end subroutine parseArguments
 

@@ -49,7 +49,8 @@ module test_hessian
    use xtb_freq_project, only : projectHessian, projectFixedAtoms, fixedAtomModes
    use xtb_type_calculator, only : TCalculator
    use xtb_hessian, only : numhess
-   use xtb_setparam, only : set
+   use xtb_setparam, only : set, p_run_hess, p_run_ohess, p_run_bhess, &
+      & p_olev_normal, p_olev_tight, p_olev_vtight, p_olev_extreme, p_engine_rf
    use xtb_setmod, only : set_hess, write_set_hess
    use xtb_splitparam, only : atmass
    implicit none
@@ -1618,9 +1619,10 @@ end function build_neigh_list
 
 
 !> Verify the Hessian accuracy precedence hierarchy:
-!>   explicit $hess sccacc > explicit --acc > .xtbrc $hess sccacc > fallback to set%acc
-!> as well as restoration of calc%accuracy after numhess and conditional
-!> emission of sccacc in write_set_hess.
+!>   explicit $hess sccacc > explicit --acc > derived OHess/BHess level tightening > .xtbrc $hess sccacc (0.2) > fallback to set%acc
+!> as well as optimization + Hessian accuracy in --ohess and --bhess runs,
+!> restoration of calc%accuracy after numhess, and conditional emission of
+!> sccacc in write_set_hess.
 subroutine test_hessian_accuracy(error)
    type(error_type), allocatable, intent(out) :: error
 
@@ -1634,103 +1636,141 @@ subroutine test_hessian_accuracy(error)
    type(TAccuracyProbeCalculator) :: calc
    real(wp) :: egap, etot, gr(3, 1), sr(3, 3)
    real(wp) :: saved_acc
+   logical :: saved_acc_set
+   integer :: saved_runtyp, saved_optlev
+   integer, allocatable :: saved_engine
    real(wp), allocatable :: saved_accu_hess, saved_atmass(:)
    logical :: has_sccacc
 
    saved_acc = set%acc
+   saved_acc_set = set%acc_set
+   saved_runtyp = set%runtyp
+   saved_optlev = set%optset%optlev
+   if (allocated(set%opt_engine)) allocate(saved_engine, source=set%opt_engine)
    if (allocated(set%accu_hess)) allocate(saved_accu_hess, source=set%accu_hess)
    if (allocated(atmass)) allocate(saved_atmass, source=atmass)
+   set%opt_engine = p_engine_rf
 
    call init(env)
    call init(mol, sym, xyz)
    if (allocated(atmass)) deallocate(atmass)
    allocate(atmass, source=mol%atmass)
 
-   ! 1. Plain --hess: general accuracy = 0.2, .xtbrc sccacc = 0.3 ->
-   !    initial singlepoint uses 0.2, displaced Hessian uses 0.3, restored to 0.2
-   call configure_hessian_accuracy(env, global_acc=0.2_wp, acc_provided=.false., &
-      & user_sccacc="", rc_sccacc="0.3")
-   call check(error, allocated(set%accu_hess), &
-      & "set%accu_hess should be populated from .xtbrc")
-   if (allocated(error)) goto 999
-   call check(error, set%accu_hess, 0.3_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
-   call check(error, calc%n_calls, 7)
-   if (allocated(error)) goto 999
-   call check(error, calc%initial_accuracy, 0.2_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%min_displaced_accuracy, 0.3_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%max_displaced_accuracy, 0.3_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%accuracy, 0.2_wp, thr=1.0e-12_wp)
+   ! -------------------------------------------------------------------------
+   ! Plain Hessian (--hess)
+   ! -------------------------------------------------------------------------
+   ! 1. Plain --hess: general accuracy = 0.2, .xtbrc sccacc = 0.2 ->
+   !    initial singlepoint uses 0.2, displaced Hessian uses 0.2, restored to 0.2
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_hess, optlev=p_olev_normal, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.2_wp, expected_hess_acc=0.2_wp)
    if (allocated(error)) goto 999
    has_sccacc = check_write_set_hess_has_sccacc()
    call check(error, has_sccacc, &
       & "write_set_hess must emit sccacc when set%accu_hess is allocated")
    if (allocated(error)) goto 999
 
-   ! 2. --hess --acc 0.1: explicit --acc overrides .xtbrc sccacc = 0.3 ->
-   !    initial singlepoint uses 0.1, displaced Hessian uses 0.1, restored to 0.1
-   call configure_hessian_accuracy(env, global_acc=0.1_wp, acc_provided=.true., &
-      & user_sccacc="", rc_sccacc="0.3")
-   call check(error, allocated(set%accu_hess), &
-      & "set%accu_hess should be set from explicit --acc")
-   if (allocated(error)) goto 999
-   call check(error, set%accu_hess, 0.1_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
-   call check(error, calc%initial_accuracy, 0.1_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%min_displaced_accuracy, 0.1_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%max_displaced_accuracy, 0.1_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
+   ! 2. --hess --acc 0.1 -> general accuracy = 0.1, Hessian displacement accuracy = 0.1
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_hess, optlev=p_olev_normal, acc_val=0.1_wp, acc_provided=.true., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.1_wp, expected_hess_acc=0.1_wp)
    if (allocated(error)) goto 999
 
-   ! 3. $hess sccacc=0.15 + no --acc: explicit $hess sccacc overrides .xtbrc ->
-   !    initial singlepoint uses 0.2, displaced Hessian uses 0.15, restored to 0.2
-   call configure_hessian_accuracy(env, global_acc=0.2_wp, acc_provided=.false., &
-      & user_sccacc="0.15", rc_sccacc="0.3")
-   call check(error, allocated(set%accu_hess))
-   if (allocated(error)) goto 999
-   call check(error, set%accu_hess, 0.15_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
-   call check(error, calc%initial_accuracy, 0.2_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%min_displaced_accuracy, 0.15_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%max_displaced_accuracy, 0.15_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%accuracy, 0.2_wp, thr=1.0e-12_wp)
+   ! 3. --hess + $hess sccacc=0.15 -> general accuracy = 0.2, Hessian displacement accuracy = 0.15
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_hess, optlev=p_olev_normal, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="0.15", rc_sccacc="0.2", expected_opt_acc=0.2_wp, expected_hess_acc=0.15_wp)
    if (allocated(error)) goto 999
 
-   ! 4. $hess sccacc=0.15 + --acc 0.1: explicit $hess sccacc beats explicit --acc ->
-   !    initial singlepoint uses 0.1, displaced Hessian uses 0.15, restored to 0.1
-   call configure_hessian_accuracy(env, global_acc=0.1_wp, acc_provided=.true., &
-      & user_sccacc="0.15", rc_sccacc="0.3")
-   call check(error, allocated(set%accu_hess))
-   if (allocated(error)) goto 999
-   call check(error, set%accu_hess, 0.15_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
-   call check(error, calc%initial_accuracy, 0.1_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%min_displaced_accuracy, 0.15_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%max_displaced_accuracy, 0.15_wp, thr=1.0e-12_wp)
-   if (allocated(error)) goto 999
-   call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
+   ! 4. --hess --acc 0.1 + $hess sccacc=0.15 -> general accuracy = 0.1, Hessian displacement accuracy = 0.15
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_hess, optlev=p_olev_normal, acc_val=0.1_wp, acc_provided=.true., &
+      & user_sccacc="0.15", rc_sccacc="0.2", expected_opt_acc=0.1_wp, expected_hess_acc=0.15_wp)
    if (allocated(error)) goto 999
 
-   ! 5. Fallback when no .xtbrc sccacc and no explicit $hess sccacc exist:
-   !    set%accu_hess stays unallocated, write_set_hess omits sccacc, and
-   !    numhess falls back to set%acc
-   call configure_hessian_accuracy(env, global_acc=0.2_wp, acc_provided=.false., &
-      & user_sccacc="", rc_sccacc="")
+   ! -------------------------------------------------------------------------
+   ! OHess / BHess
+   ! -------------------------------------------------------------------------
+   ! 5. --ohess (default normal) -> optimization accuracy = 1.0, Hessian displacement accuracy = 0.2
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_normal, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=1.0_wp, expected_hess_acc=0.2_wp)
+   if (allocated(error)) goto 999
+
+   ! 6. --ohess tight -> optimization accuracy = 0.2, Hessian displacement accuracy = 0.2
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_tight, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.2_wp, expected_hess_acc=0.2_wp)
+   if (allocated(error)) goto 999
+
+   ! 7. --ohess verytight -> optimization accuracy = 0.05, Hessian displacement accuracy = 0.05
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_vtight, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.05_wp, expected_hess_acc=0.05_wp)
+   if (allocated(error)) goto 999
+
+   ! 8. --ohess extreme -> optimization accuracy = 0.01, Hessian displacement accuracy = 0.01
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_extreme, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.01_wp, expected_hess_acc=0.01_wp)
+   if (allocated(error)) goto 999
+
+   ! 9. --bhess (default normal) -> optimization accuracy = 1.0, Hessian displacement accuracy = 0.2
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_bhess, optlev=p_olev_normal, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=1.0_wp, expected_hess_acc=0.2_wp)
+   if (allocated(error)) goto 999
+
+   ! 10. --bhess verytight -> optimization accuracy = 0.05, Hessian displacement accuracy = 0.05
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_bhess, optlev=p_olev_vtight, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.05_wp, expected_hess_acc=0.05_wp)
+   if (allocated(error)) goto 999
+
+   ! -------------------------------------------------------------------------
+   ! OHess / BHess + overrides
+   ! -------------------------------------------------------------------------
+   ! 11. --ohess --acc 0.1 -> optimization accuracy = 0.1, Hessian displacement accuracy = 0.1
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_normal, acc_val=0.1_wp, acc_provided=.true., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.1_wp, expected_hess_acc=0.1_wp)
+   if (allocated(error)) goto 999
+
+   ! 12. --ohess verytight --acc 0.1 -> optimization accuracy = 0.1, Hessian displacement accuracy = 0.1
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_vtight, acc_val=0.1_wp, acc_provided=.true., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.1_wp, expected_hess_acc=0.1_wp)
+   if (allocated(error)) goto 999
+
+   ! 13. --ohess --acc 0.5 -> optimization accuracy = 0.5, Hessian displacement accuracy = 0.5
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_normal, acc_val=0.5_wp, acc_provided=.true., &
+      & user_sccacc="", rc_sccacc="0.2", expected_opt_acc=0.5_wp, expected_hess_acc=0.5_wp)
+   if (allocated(error)) goto 999
+
+   ! 14. --ohess + $hess sccacc=0.15 -> optimization accuracy = 1.0, Hessian displacement accuracy = 0.15
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_normal, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="0.15", rc_sccacc="0.2", expected_opt_acc=1.0_wp, expected_hess_acc=0.15_wp)
+   if (allocated(error)) goto 999
+
+   ! 15. --ohess verytight + $hess sccacc=0.15 -> optimization accuracy = 0.05, Hessian displacement accuracy = 0.15
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_vtight, acc_val=0.0_wp, acc_provided=.false., &
+      & user_sccacc="0.15", rc_sccacc="0.2", expected_opt_acc=0.05_wp, expected_hess_acc=0.15_wp)
+   if (allocated(error)) goto 999
+
+   ! 16. --ohess --acc 0.1 + $hess sccacc=0.15 -> optimization accuracy = 0.1, Hessian displacement accuracy = 0.15
+   call check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp=p_run_ohess, optlev=p_olev_normal, acc_val=0.1_wp, acc_provided=.true., &
+      & user_sccacc="0.15", rc_sccacc="0.2", expected_opt_acc=0.1_wp, expected_hess_acc=0.15_wp)
+   if (allocated(error)) goto 999
+
+   ! 17. Fallback when no .xtbrc sccacc and no explicit $hess sccacc exist:
+   !     set%accu_hess stays unallocated, write_set_hess omits sccacc, and
+   !     numhess falls back to set%acc (0.2 for --hess, min(0.2, set%acc) for --ohess)
+   call configure_hessian_accuracy(env, runtyp=p_run_hess, optlev=p_olev_normal, &
+      & acc_val=0.0_wp, acc_provided=.false., user_sccacc="", rc_sccacc="")
    call check(error, .not. allocated(set%accu_hess), &
       & "set%accu_hess should remain unallocated when no sccacc is configured")
    if (allocated(error)) goto 999
@@ -1753,7 +1793,14 @@ subroutine test_hessian_accuracy(error)
 
 999 continue
    call delete_file('hessian')
+   call delete_file('hessian_sph')
+   call delete_file('xtbopt.log')
    set%acc = saved_acc
+   set%acc_set = saved_acc_set
+   set%runtyp = saved_runtyp
+   set%optset%optlev = saved_optlev
+   if (allocated(set%opt_engine)) deallocate(set%opt_engine)
+   if (allocated(saved_engine)) allocate(set%opt_engine, source=saved_engine)
    if (allocated(set%accu_hess)) deallocate(set%accu_hess)
    if (allocated(saved_accu_hess)) allocate(set%accu_hess, source=saved_accu_hess)
    if (allocated(atmass)) deallocate(atmass)
@@ -1762,20 +1809,96 @@ subroutine test_hessian_accuracy(error)
 end subroutine test_hessian_accuracy
 
 
-!> Apply the same source-precedence order used by xtbMain:
-!>   1. command-line global accuracy (set%acc and acc_provided)
-!>   2. user xcontrol ($hess sccacc)
-!>   3. explicit --acc fallback if user xcontrol did not set $hess sccacc
-!>   4. .xtbrc ($hess sccacc)
-subroutine configure_hessian_accuracy(env, global_acc, acc_provided, user_sccacc, rc_sccacc)
+!> Verify both the optimization calculator accuracy (for ohess/bhess) and the
+!> Hessian initial/displaced/restored calculator accuracy for a given configuration.
+subroutine check_hess_case(error, env, mol, chk, calc, egap, etot, gr, sr, fres, &
+      & runtyp, optlev, acc_val, acc_provided, user_sccacc, rc_sccacc, &
+      & expected_opt_acc, expected_hess_acc)
+   use xtb_geoopt, only : geometry_optimization
+   type(error_type), allocatable, intent(out) :: error
    type(TEnvironment), intent(inout) :: env
-   real(wp), intent(in) :: global_acc
+   type(TMolecule), intent(inout) :: mol
+   type(TRestart), intent(inout) :: chk
+   type(TAccuracyProbeCalculator), intent(out) :: calc
+   real(wp), intent(out) :: egap, etot, gr(3, mol%n), sr(3, 3)
+   type(freq_results), intent(out) :: fres
+   integer, intent(in) :: runtyp, optlev
+   real(wp), intent(in) :: acc_val, expected_opt_acc, expected_hess_acc
+   logical, intent(in) :: acc_provided
+   character(len=*), intent(in) :: user_sccacc, rc_sccacc
+   logical :: fail
+   integer :: iter_needed
+
+   call configure_hessian_accuracy(env, runtyp, optlev, acc_val, acc_provided, &
+      & user_sccacc, rc_sccacc)
+   call check(error, set%acc, expected_opt_acc, thr=1.0e-12_wp)
+   if (allocated(error)) return
+
+   if (runtyp == p_run_ohess .or. runtyp == p_run_bhess) then
+      calc%threadsafe = .false.
+      calc%accuracy = 99.0_wp
+      calc%n_calls = 0
+      calc%initial_accuracy = -1.0_wp
+      calc%min_displaced_accuracy = huge(1.0_wp)
+      calc%max_displaced_accuracy = -1.0_wp
+      egap = 0.0_wp
+      etot = 0.0_wp
+      gr = 0.0_wp
+      sr = 0.0_wp
+      call geometry_optimization(env, mol, chk, calc, egap, set%etemp, &
+         & set%maxscciter, 1, etot, gr, sr, set%optset%optlev, .false., .true., &
+         & fail, iter_needed)
+      call check(error, calc%initial_accuracy, expected_opt_acc, thr=1.0e-12_wp)
+      if (allocated(error)) return
+      call check(error, calc%accuracy, expected_opt_acc, thr=1.0e-12_wp)
+      if (allocated(error)) return
+   end if
+
+   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
+   call check(error, calc%n_calls, 7)
+   if (allocated(error)) return
+   call check(error, calc%initial_accuracy, expected_opt_acc, thr=1.0e-12_wp)
+   if (allocated(error)) return
+   call check(error, calc%min_displaced_accuracy, expected_hess_acc, thr=1.0e-12_wp)
+   if (allocated(error)) return
+   call check(error, calc%max_displaced_accuracy, expected_hess_acc, thr=1.0e-12_wp)
+   if (allocated(error)) return
+   call check(error, calc%accuracy, expected_opt_acc, thr=1.0e-12_wp)
+end subroutine check_hess_case
+
+
+!> Apply the same source-precedence order used by xtbMain:
+!>   1. command-line runtyp, optlevel, and --acc
+!>   2. user xcontrol ($hess sccacc)
+!>   3. explicit --acc or OHess/BHess tighter-than-tight level override
+!>   4. .xtbrc ($hess sccacc)
+subroutine configure_hessian_accuracy(env, runtyp, optlev, acc_val, acc_provided, &
+      & user_sccacc, rc_sccacc)
+   use xtb_optimizer, only : get_opt_accuracy
+   type(TEnvironment), intent(inout) :: env
+   integer, intent(in) :: runtyp, optlev
+   real(wp), intent(in) :: acc_val
    logical, intent(in) :: acc_provided
    character(len=*), intent(in) :: user_sccacc
    character(len=*), intent(in) :: rc_sccacc
    character(len=32) :: acc_str
 
-   set%acc = global_acc
+   set%runtyp = runtyp
+   set%optset%optlev = optlev
+   set%acc_set = acc_provided
+   if (acc_provided) then
+      set%acc = acc_val
+   else
+      select case (set%runtyp)
+      case (p_run_ohess, p_run_bhess)
+         set%acc = get_opt_accuracy(set%optset%optlev)
+      case (p_run_hess)
+         set%acc = get_opt_accuracy(p_olev_tight)
+      case default
+         set%acc = 1.0_wp
+      end select
+   end if
+
    if (allocated(set%accu_hess)) deallocate(set%accu_hess)
 
    if (len_trim(user_sccacc) > 0) then
@@ -1785,6 +1908,12 @@ subroutine configure_hessian_accuracy(env, global_acc, acc_provided, user_sccacc
    if (acc_provided .and. .not. allocated(set%accu_hess)) then
       write(acc_str, '(g0)') set%acc
       call set_hess(env, 'sccacc', trim(acc_str))
+   else if ((set%runtyp == p_run_ohess .or. set%runtyp == p_run_bhess) &
+         & .and. .not. allocated(set%accu_hess)) then
+      if (get_opt_accuracy(set%optset%optlev) < get_opt_accuracy(p_olev_tight)) then
+         write(acc_str, '(g0)') get_opt_accuracy(set%optset%optlev)
+         call set_hess(env, 'sccacc', trim(acc_str))
+      end if
    end if
 
    if (len_trim(rc_sccacc) > 0) then

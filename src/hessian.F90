@@ -144,6 +144,9 @@ subroutine numhess( &
    ! SCC accuraccy
    if (allocated(set%accu_hess)) then
       acc = set%accu_hess
+   else if ((set%runtyp == p_run_ohess .or. set%runtyp == p_run_bhess) &
+         & .and. .not. set%acc_set) then
+      acc = min(0.2_wp, set%acc)
    else
       acc = set%acc
    end if

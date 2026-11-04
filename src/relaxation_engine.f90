@@ -236,6 +236,8 @@ subroutine fire &
 
    ! obtain the thresholds from the optlevel, possible optlevels are currently
    call get_optthr(mol%n,optlevel,opt%e_thr,opt%g_thr,maxcycle,opt%acc)
+   if (set%acc_set) opt%acc = set%acc
+   calc%accuracy = opt%acc
    ! check for user input regarding the maximum number of cycles
    if (maxstep > 0) maxcycle = maxstep
    ! deactivate microcyles (seems to be expensive with only small gains)
@@ -530,6 +532,8 @@ subroutine l_ancopt &
 
    ! obtain the thresholds from the optlevel, possible optlevels are currently
    call get_optthr(mol%n,optlevel,opt%e_thr,opt%g_thr,maxcycle,opt%acc)
+   if (set%acc_set) opt%acc = set%acc
+   calc%accuracy = opt%acc
    ! check for user input regarding the maximum number of cycles
    if (maxcycle_in > 0) maxcycle = maxcycle_in
 
@@ -1087,6 +1091,7 @@ subroutine lbfgs_relax &
 
       ! get singlepoint energy
       if (profile) call timer%measure(6,"singlepoint calculation")
+      calc%accuracy = opt%acc
       call calc%singlepoint(env,mol,chk,opt%printlevel-1,.true.,energy,g_xyz,sigma,egap,res)
       !call gfnff_eg(.false.,mol%n,charge,attyp,xyz,q,.true.,g_xyz,energy)
       if (profile) call timer%measure(6)
@@ -1416,6 +1421,7 @@ subroutine inertial_relax &
       if (profile) call timer%measure(3)
       if (profile) call timer%measure(4,"singlepoint calculation")
       ! get singlepoint energy
+      calc%accuracy = opt%acc
       call calc%singlepoint(env,mol,chk,opt%printlevel-1,.true.,energy,gradient,sigma,egap,res)
       if (profile) call timer%measure(4)
       call env%check(fail)

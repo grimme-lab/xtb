@@ -25,15 +25,26 @@ module test_optimizer
    use xtb_type_restart, only : TRestart
    use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, &
       & newWavefunction
-   use xtb_setparam, only : p_olev_normal
-   use xtb_optimizer, only : ancopt
-   use xtb_relaxation_engine, only : fire, l_ancopt
+   use xtb_type_calculator, only : TCalculator
+   use xtb_setparam, only : set, p_olev_crude, p_olev_sloppy, p_olev_loose, &
+      & p_olev_lax, p_olev_normal, p_olev_tight, p_olev_vtight, p_olev_extreme, &
+      & p_engine_rf, p_engine_lbfgs, p_engine_inertial, p_run_opt
    use xtb_fixparam, only : fixset
    use xtb_type_data, only : scc_results
    implicit none
    private
 
    public :: collect_optimizer
+
+   type, extends(TCalculator) :: TOptAccuracyProbeCalculator
+      integer :: n_calls = 0
+      real(wp) :: first_accuracy = -1.0_wp
+      real(wp) :: recorded_accuracy(16) = -1.0_wp
+      real(wp) :: grad_schedule(16) = 0.0_wp
+   contains
+      procedure :: singlepoint => opt_probe_singlepoint
+      procedure :: writeInfo => opt_probe_writeInfo
+   end type TOptAccuracyProbeCalculator
 
 contains
 
@@ -54,12 +65,15 @@ subroutine collect_optimizer(testsuite)
       new_unittest("fixed-atom-periodic-ancopt", test_fixed_atom_periodic_ancopt), &
       new_unittest("fixed-atom-periodic-l-ancopt", &
       & test_fixed_atom_periodic_l_ancopt), &
-      new_unittest("all-fixed-periodic-fire", test_all_fixed_periodic_fire) &
+      new_unittest("all-fixed-periodic-fire", test_all_fixed_periodic_fire), &
+      new_unittest("opt-level-accuracies", test_opt_level_accuracies), &
+      new_unittest("opt-explicit-acc-override", test_opt_explicit_acc_override) &
       ]
 
 end subroutine collect_optimizer
 
 subroutine test_single_atom_ancopt(error)
+   use xtb_optimizer, only : ancopt
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -78,6 +92,7 @@ subroutine test_single_atom_ancopt(error)
 end subroutine test_single_atom_ancopt
 
 subroutine test_single_atom_fire(error)
+   use xtb_relaxation_engine, only : fire
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -96,6 +111,7 @@ subroutine test_single_atom_fire(error)
 end subroutine test_single_atom_fire
 
 subroutine test_single_atom_l_ancopt(error)
+   use xtb_relaxation_engine, only : l_ancopt
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -151,6 +167,7 @@ end subroutine check_single_atom_result
 !> three Cartesian degrees of freedom, projecting rotations of the whole
 !> molecule would restrict it to a line and stop with a large gradient.
 subroutine test_fixed_atoms_ancopt(error)
+   use xtb_optimizer, only : ancopt
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -172,6 +189,7 @@ subroutine test_fixed_atoms_ancopt(error)
 end subroutine test_fixed_atoms_ancopt
 
 subroutine test_fixed_atoms_l_ancopt(error)
+   use xtb_relaxation_engine, only : l_ancopt
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -195,6 +213,7 @@ end subroutine test_fixed_atoms_l_ancopt
 !> With all atoms fixed there are no degrees of freedom left, the optimizers
 !> must return immediately without moving any atom.
 subroutine test_all_fixed_ancopt(error)
+   use xtb_optimizer, only : ancopt
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -218,6 +237,7 @@ subroutine test_all_fixed_ancopt(error)
 end subroutine test_all_fixed_ancopt
 
 subroutine test_all_fixed_l_ancopt(error)
+   use xtb_relaxation_engine, only : l_ancopt
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -241,6 +261,7 @@ subroutine test_all_fixed_l_ancopt(error)
 end subroutine test_all_fixed_l_ancopt
 
 subroutine test_all_fixed_fire(error)
+   use xtb_relaxation_engine, only : fire
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -331,6 +352,7 @@ end subroutine check_all_fixed_result
 !> the fixed atom are removed and the ANC generation must not drop the three
 !> rotational modes on top.
 subroutine test_fixed_atom_periodic_ancopt(error)
+   use xtb_optimizer, only : ancopt
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -352,6 +374,7 @@ subroutine test_fixed_atom_periodic_ancopt(error)
 end subroutine test_fixed_atom_periodic_ancopt
 
 subroutine test_fixed_atom_periodic_l_ancopt(error)
+   use xtb_relaxation_engine, only : l_ancopt
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -375,6 +398,7 @@ end subroutine test_fixed_atom_periodic_l_ancopt
 !> Strained CaF2 with all atoms fixed. FIRE still has to relax the lattice,
 !> while the Cartesian positions of the atoms stay untouched.
 subroutine test_all_fixed_periodic_fire(error)
+   use xtb_relaxation_engine, only : fire
    type(error_type), allocatable, intent(out) :: error
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -507,5 +531,309 @@ subroutine check_fixed_atom_periodic_result(error, env, fail, gradient)
       call test_failed(error, "Gradient of the free atoms is not converged")
    end if
 end subroutine check_fixed_atom_periodic_result
+
+!> Verify the restored optimization-level accuracy table and that the effective
+!> calculator accuracy (calc%accuracy) used during optimization follows the table
+!> across ancopt, l_ancopt, fire, and geometry_optimization.
+subroutine test_opt_level_accuracies(error)
+   use xtb_optimizer, only : ancopt, get_opt_accuracy, get_optthr
+   use xtb_relaxation_engine, only : fire, l_ancopt
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: n_levels = 8
+   integer, parameter :: levels(n_levels) = [ &
+      & p_olev_crude, p_olev_sloppy, p_olev_loose, p_olev_lax, &
+      & p_olev_normal, p_olev_tight, p_olev_vtight, p_olev_extreme]
+   real(wp), parameter :: expected_acc(n_levels) = [ &
+      & 3.00_wp, 3.00_wp, 2.00_wp, 2.00_wp, &
+      & 1.00_wp, 0.20_wp, 0.05_wp, 0.01_wp]
+   character(len=*), parameter :: sym(2) = ["H", "H"]
+   real(wp), parameter :: xyz0(3, 2) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, 1.4_wp], shape(xyz0))
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TOptAccuracyProbeCalculator) :: calc
+   real(wp) :: ethr, gthr, acc_thr, energy, egap, gradient(3, 2), sigma(3, 3)
+   real(wp) :: saved_acc
+   logical :: saved_acc_set, fail
+   integer, allocatable :: saved_engine
+   integer :: saved_optlev, maxcycle, iter_needed, ilog, i
+
+   saved_acc = set%acc
+   saved_acc_set = set%acc_set
+   if (allocated(set%opt_engine)) allocate(saved_engine, source=set%opt_engine)
+   saved_optlev = set%optset%optlev
+
+   call init(env)
+
+   do i = 1, n_levels
+      ! 1. Verify get_opt_accuracy and get_optthr return the canonical table value
+      call check(error, get_opt_accuracy(levels(i)), expected_acc(i), thr=1.0e-12_wp)
+      if (allocated(error)) goto 999
+      call get_optthr(2, levels(i), ethr, gthr, maxcycle, acc_thr)
+      call check(error, acc_thr, expected_acc(i), thr=1.0e-12_wp)
+      if (allocated(error)) goto 999
+
+      ! 2. Verify ancopt sets and uses calc%accuracy from the level
+      set%acc_set = .false.
+      set%optset%optlev = levels(i)
+      set%acc = get_opt_accuracy(levels(i))
+      call init(mol, sym, xyz0)
+      call reset_opt_probe(calc, 99.0_wp)
+      energy = -1.0_wp
+      egap = 1.0_wp
+      gradient = 0.0_wp
+      sigma = 0.0_wp
+      open(newunit=ilog, status='scratch')
+      call ancopt(env, ilog, mol, chk, calc, egap, 300.0_wp, 50, 1, &
+         & energy, gradient, sigma, levels(i), .false., fail, iter_needed)
+      close(ilog)
+      call check(error, calc%n_calls >= 1, "ancopt should invoke calc%singlepoint")
+      if (allocated(error)) goto 999
+      call check(error, calc%first_accuracy, expected_acc(i), thr=1.0e-12_wp)
+      if (allocated(error)) goto 999
+      call check(error, calc%accuracy, expected_acc(i), thr=1.0e-12_wp)
+      if (allocated(error)) goto 999
+
+      ! 3. Verify l_ancopt sets and uses calc%accuracy from the level
+      call init(mol, sym, xyz0)
+      call reset_opt_probe(calc, 99.0_wp)
+      open(newunit=ilog, status='scratch')
+      call l_ancopt(env, ilog, mol, chk, calc, levels(i), 1, energy, egap, &
+         & gradient, sigma, 0, fail, iter_needed)
+      close(ilog)
+      call check(error, calc%n_calls >= 1, "l_ancopt should invoke calc%singlepoint")
+      if (allocated(error)) goto 999
+      call check(error, calc%first_accuracy, expected_acc(i), thr=1.0e-12_wp)
+      if (allocated(error)) goto 999
+      call check(error, calc%accuracy, expected_acc(i), thr=1.0e-12_wp)
+      if (allocated(error)) goto 999
+
+      ! 4. Verify fire sets and uses calc%accuracy from the level
+      call init(mol, sym, xyz0)
+      call reset_opt_probe(calc, 99.0_wp)
+      open(newunit=ilog, status='scratch')
+      call fire(env, ilog, mol, chk, calc, levels(i), 1, energy, egap, &
+         & gradient, sigma, 0, fail, iter_needed)
+      close(ilog)
+      call check(error, calc%n_calls >= 1, "fire should invoke calc%singlepoint")
+      if (allocated(error)) goto 999
+      call check(error, calc%first_accuracy, expected_acc(i), thr=1.0e-12_wp)
+      if (allocated(error)) goto 999
+      call check(error, calc%accuracy, expected_acc(i), thr=1.0e-12_wp)
+      if (allocated(error)) goto 999
+   end do
+
+999 continue
+   set%acc = saved_acc
+   set%acc_set = saved_acc_set
+   if (allocated(set%opt_engine)) deallocate(set%opt_engine)
+   if (allocated(saved_engine)) allocate(set%opt_engine, source=saved_engine)
+   set%optset%optlev = saved_optlev
+end subroutine test_opt_level_accuracies
+
+!> Verify that explicit --acc overrides optimization-level accuracy independent
+!> of option order, and that dynamic accuracy adjustments in ancopt/relax reach
+!> calc%accuracy during singlepoint calls while restoring the base accuracy on exit.
+subroutine test_opt_explicit_acc_override(error)
+   use xtb_optimizer, only : ancopt
+   use xtb_geoopt, only : geometry_optimization
+   type(error_type), allocatable, intent(out) :: error
+   character(len=*), parameter :: sym(2) = ["H", "H"]
+   real(wp), parameter :: xyz0(3, 2) = reshape([ &
+      & 0.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, 1.4_wp], shape(xyz0))
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TOptAccuracyProbeCalculator) :: calc
+   real(wp) :: energy, egap, gradient(3, 2), sigma(3, 3)
+   real(wp) :: saved_acc
+   logical :: saved_acc_set, fail
+   integer, allocatable :: saved_engine
+   integer :: saved_optlev, saved_runtyp, iter_needed, ilog
+
+   saved_acc = set%acc
+   saved_acc_set = set%acc_set
+   if (allocated(set%opt_engine)) allocate(saved_engine, source=set%opt_engine)
+   saved_optlev = set%optset%optlev
+   saved_runtyp = set%runtyp
+
+   call init(env)
+
+   ! 1. --opt tight --acc 0.1 -> optimization accuracy = 0.1
+   call configure_opt_cli(optlev=p_olev_tight, acc_val=0.1_wp, acc_provided=.true., &
+      & acc_first=.false.)
+   call check(error, set%acc, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call init(mol, sym, xyz0)
+   call reset_opt_probe(calc, 99.0_wp)
+   set%opt_engine = p_engine_rf
+   call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 50, 1, &
+      & energy, gradient, sigma, set%optset%optlev, .false., .true., fail, iter_needed)
+   call delete_file('xtbopt.log')
+   call check(error, calc%first_accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+
+   ! 2. --acc 0.1 --opt tight (reversed flag order) -> optimization accuracy = 0.1
+   call configure_opt_cli(optlev=p_olev_tight, acc_val=0.1_wp, acc_provided=.true., &
+      & acc_first=.true.)
+   call check(error, set%acc, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call init(mol, sym, xyz0)
+   call reset_opt_probe(calc, 99.0_wp)
+   set%opt_engine = p_engine_lbfgs
+   call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 50, 1, &
+      & energy, gradient, sigma, set%optset%optlev, .false., .true., fail, iter_needed)
+   call delete_file('xtbopt.log')
+   call check(error, calc%first_accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+
+   ! 3. --opt verytight --acc 0.3 -> optimization accuracy = 0.3 (even when looser than level)
+   call configure_opt_cli(optlev=p_olev_vtight, acc_val=0.3_wp, acc_provided=.true., &
+      & acc_first=.false.)
+   call check(error, set%acc, 0.3_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call init(mol, sym, xyz0)
+   call reset_opt_probe(calc, 99.0_wp)
+   set%opt_engine = p_engine_inertial
+   call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 50, 1, &
+      & energy, gradient, sigma, set%optset%optlev, .false., .true., fail, iter_needed)
+   call delete_file('xtbopt.log')
+   call check(error, calc%first_accuracy, 0.3_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.3_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+
+   ! 4. Verify dynamic accuracy adjustment in ancopt/relax (acc_in -> 6*acc_in -> 3*acc_in -> acc_in)
+   !    and restoration of calc%accuracy = acc_in on exit.
+   call configure_opt_cli(optlev=p_olev_tight, acc_val=0.0_wp, acc_provided=.false., &
+      & acc_first=.false.)
+   call init(mol, sym, xyz0)
+   call reset_opt_probe(calc, 99.0_wp)
+   calc%grad_schedule(1) = 0.05_wp  ! gnorm > 0.02 -> next step uses 6.0 * acc_in = 1.2
+   calc%grad_schedule(2) = 0.01_wp  ! 0.004 <= gnorm < 0.02 -> next step uses 3.0 * acc_in = 0.6
+   calc%grad_schedule(3) = 0.001_wp ! gnorm < 0.004 -> next step uses 1.0 * acc_in = 0.2
+   open(newunit=ilog, status='scratch')
+   call ancopt(env, ilog, mol, chk, calc, egap, 300.0_wp, 50, 4, &
+      & energy, gradient, sigma, p_olev_tight, .false., fail, iter_needed)
+   close(ilog)
+   call check(error, calc%n_calls, 4)
+   if (allocated(error)) goto 999
+   call check(error, calc%recorded_accuracy(1), 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%recorded_accuracy(2), 1.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%recorded_accuracy(3), 0.6_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%recorded_accuracy(4), 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+
+999 continue
+   set%acc = saved_acc
+   set%acc_set = saved_acc_set
+   if (allocated(set%opt_engine)) deallocate(set%opt_engine)
+   if (allocated(saved_engine)) allocate(set%opt_engine, source=saved_engine)
+   set%optset%optlev = saved_optlev
+   set%runtyp = saved_runtyp
+end subroutine test_opt_explicit_acc_override
+
+subroutine configure_opt_cli(optlev, acc_val, acc_provided, acc_first)
+   use xtb_optimizer, only : get_opt_accuracy
+   integer, intent(in) :: optlev
+   real(wp), intent(in) :: acc_val
+   logical, intent(in) :: acc_provided
+   logical, intent(in) :: acc_first
+
+   set%acc = 1.0_wp
+   set%acc_set = .false.
+   set%optset%optlev = p_olev_normal
+
+   if (acc_first) then
+      if (acc_provided) then
+         set%acc = acc_val
+         set%acc_set = .true.
+      end if
+      set%runtyp = p_run_opt
+      set%optset%optlev = optlev
+   else
+      set%runtyp = p_run_opt
+      set%optset%optlev = optlev
+      if (acc_provided) then
+         set%acc = acc_val
+         set%acc_set = .true.
+      end if
+   end if
+
+   if (.not. set%acc_set) then
+      set%acc = get_opt_accuracy(set%optset%optlev)
+   end if
+end subroutine configure_opt_cli
+
+subroutine reset_opt_probe(calc, init_acc)
+   type(TOptAccuracyProbeCalculator), intent(out) :: calc
+   real(wp), intent(in) :: init_acc
+
+   calc%accuracy = init_acc
+   calc%n_calls = 0
+   calc%first_accuracy = -1.0_wp
+   calc%recorded_accuracy = -1.0_wp
+   calc%grad_schedule = 0.0_wp
+end subroutine reset_opt_probe
+
+subroutine opt_probe_singlepoint(self, env, mol, chk, printlevel, restart, &
+      & energy, gradient, sigma, hlgap, results)
+   class(TOptAccuracyProbeCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(inout) :: mol
+   type(TRestart), intent(inout) :: chk
+   integer, intent(in) :: printlevel
+   logical, intent(in) :: restart
+   real(wp), intent(out) :: energy
+   real(wp), intent(out) :: gradient(:, :)
+   real(wp), intent(out) :: sigma(:, :)
+   real(wp), intent(out) :: hlgap
+   type(scc_results), intent(out) :: results
+   real(wp) :: gval
+
+   self%n_calls = self%n_calls + 1
+   if (self%n_calls == 1) then
+      self%first_accuracy = self%accuracy
+   end if
+   if (self%n_calls <= size(self%recorded_accuracy)) then
+      self%recorded_accuracy(self%n_calls) = self%accuracy
+   end if
+
+   gval = 0.0_wp
+   if (self%n_calls <= size(self%grad_schedule)) then
+      gval = self%grad_schedule(self%n_calls) / sqrt(2.0_wp)
+   end if
+
+   energy = -1.0_wp - 1.0e-4_wp * real(self%n_calls, wp)
+   gradient = 0.0_wp
+   if (size(gradient, 2) >= 2) then
+      gradient(3, 1) = -gval
+      gradient(3, 2) =  gval
+   end if
+   sigma = 0.0_wp
+   hlgap = 1.0_wp
+   results%e_total = energy
+   results%gnorm = norm2(gradient)
+end subroutine opt_probe_singlepoint
+
+subroutine opt_probe_writeInfo(self, unit, mol)
+   class(TOptAccuracyProbeCalculator), intent(in) :: self
+   integer, intent(in) :: unit
+   type(TMolecule), intent(in) :: mol
+end subroutine opt_probe_writeInfo
 
 end module test_optimizer

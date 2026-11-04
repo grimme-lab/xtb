@@ -223,6 +223,7 @@ module xtb_setparam
    integer  :: gfn_method = -1
    integer  :: maxscciter = 250
    real(wp) :: acc = 1.0_wp
+   logical  :: acc_set = .false.
    logical  :: newdisp = .true.
    logical  :: solve_scc = .true.
    logical  :: periodic = .false.

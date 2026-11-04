@@ -265,7 +265,9 @@ $gfn
 $hess
 ~~~~~
 *sccacc*='real'::
-    SCC accuracy level in Hessian runs
+    SCC accuracy level for displaced numerical Hessian evaluations (default: 0.2,
+    or the optimization level accuracy in ohess/bhess runs if tighter; overrides
+    --acc for the displaced Hessian evaluations)
 *step*='real'::
     Cartesian displacement increment for numerical Hessian
 *scale*='real'::
