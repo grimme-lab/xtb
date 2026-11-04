@@ -40,7 +40,6 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
       & printlevel, fail, iter_needed)
   use xtb_pbc, only: cross_product
   use xtb_optimizer, only : get_optthr
-  use xtb_setparam, only : set
   !> Instance of the optimization driver
   class(optimizer_type), intent(inout) :: self
   !> Calculation environment
@@ -109,8 +108,6 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
   displ(:) = 0.0_wp
 
   call get_optthr(mol%n, optlevel, ethr, gthr, maxcycle, accuracy)
-  if (set%acc_set) accuracy = set%acc
-  calc%accuracy = accuracy
   dthr = 5.0e-2_wp
   this_step = max(20*nvar, maxcycle)
   if (maxcycle_in > 0) this_step = maxcycle_in
@@ -183,7 +180,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
     econv = ediff <= epsilon(0.0_wp) .and. abs(ediff) < ethr
     gnorm = norm2(gcurr)
     gamax = maxval(abs(gcurr))
-    gconv = gnorm < gthr
+    gconv = gnorm/nvar < gthr
     converged = econv .and. gconv .and. dconv
     cvol=dot_product(mol%lattice(:,1), cross_product( &
                    & mol%lattice(:,2), mol%lattice(:,3)))/6.748334606_wp !in a0 now

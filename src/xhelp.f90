@@ -233,7 +233,7 @@ subroutine help(iunit)
    "                           IPEA-xTB is used with --vparam param_ipea-xtb.txt.",&
    "      --grad               performs a gradient calculation",&
    "  -o, --opt [LEVEL]        perform a geometry optimization (nonperiodic: `ancopt(3)`,",&
-   "                           periodic with lattic-vector relaxation: `pbc_lbfgs`),",&
+   "                           periodic with lattice-vector relaxation: `pbc_lbfgs`),",&
    "                           sloppy, loose, normal (default), tight, verytight to extreme can be",&
    "                           chosen, level sets also the default accuracy setting (overwritten by",&
    "                           --acc flag)",&
