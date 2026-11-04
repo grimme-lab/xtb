@@ -149,8 +149,8 @@ subroutine help(iunit)
    "      --etemp REAL         electronic temperature (default = 300K)",&
    "      --esp                calculate electrostatic potential on VdW-grid",&
    "      --stm                calculate STM image",&
-   "  -a, --acc REAL           accuracy for SCC calculation, lower is better (default = 1.0), overwrites",&
-   "                           also tighter defaults for optimization and hessians",&
+   "  -a, --acc REAL           accuracy for SCC calculation, lower is better (default = 1.0),",&
+   "                           overrides automatic optimization and Hessian accuracy settings",&
    "      --iterations, --maxiterations INT",&
    "                           maximum number of SCC iterations per single point calculation",&
    "                           (default = 250)",&

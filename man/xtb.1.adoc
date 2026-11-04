@@ -123,7 +123,7 @@ OPTIONS
 
 *-a, --acc* 'REAL'::
     accuracy for SCC calculation, lower is better (default = 1.0),
-    overwrites also tighter defaults for optimization and hessians
+    overrides automatic optimization and Hessian accuracy settings
 
 *--iterations, --maxiterations* 'INT'::
     maximum number of SCC iterations per single point calculation (default = 250)
