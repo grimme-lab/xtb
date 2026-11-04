@@ -249,9 +249,7 @@ subroutine help(iunit)
    "                           Molecular Hessian runs with more than one atom, no frozen atoms, and no",&
    "                           periodicity automatically print compliance constants, relaxed force",&
    "                           constants, and bond local-mode frequencies, and write compliance.dat.",&
-   "      --o1nh               perform the numerical hessian calculation using the ODLR approximation",&
-   "                           (O1NumHess), requiring only O(1) gradient calculations; not compatible",&
-   "                           with frozen atoms, PTB, or single atoms",&
+   "      --o1nh               perform the numerical hessian calculation using the ODLR approximation (O1NumHess)",&
    "      --imagmin REAL       magnitudes below this value (cm⁻¹) are ignored in the O1NumHess imaginary",&
    "                           frequency repair (default 5)",&
    "      --imagmax REAL       deepest imaginary frequency (cm⁻¹) considered in the O1NumHess imaginary",&
