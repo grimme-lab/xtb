@@ -473,14 +473,20 @@ jobs:
               -DBLAS_LIBRARIES="$mkl" -DLAPACK_LIBRARIES="$mkl" \
               -DBUILD_SHARED_LIBS=OFF -DWITH_TBLITE=ON -DWITH_DDX=ON -DTBLITE_WITH_DDX=ON -DWITH_CPCMX=ON \
               -DCMAKE_EXE_LINKER_FLAGS='-static -static-intel -fiopenmp -qopenmp-link=static' \
-              -DCMAKE_INSTALL_PREFIX="$PWD/_install" -DCMAKE_INSTALL_LIBDIR=lib
+              -DCMAKE_INSTALL_PREFIX=/ \
+              -DCMAKE_INSTALL_BINDIR=/bin \
+              -DCMAKE_INSTALL_LIBDIR=/lib \
+              -DCMAKE_INSTALL_INCLUDEDIR=/include \
+              -DCMAKE_INSTALL_DATADIR=/share \
+              -DCMAKE_INSTALL_MANDIR=/share/man
          - name: Build and install
            run: |
             set -euo pipefail
             cmake --build _release --verbose
-            cmake --install _release
+            DESTDIR="$PWD/_install" cmake --install _release
             rm -rf stage
-            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+            mkdir -p stage/bin stage/include stage/lib/pkgconfig stage/share/xtb \
+              stage/share/modules/modulefiles \
               stage/share/man/man1 stage/share/man/man7 \
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/mkl \
               stage/share/licenses/intel-runtime stage/share/licenses/gcc-runtime
@@ -489,6 +495,8 @@ jobs:
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
             cp _install/lib/libcpcmx.a stage/lib/libcpx.a
+            cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
+            cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
               cp "_install/share/xtb/$param" "stage/share/xtb/$param"
             done
@@ -606,16 +614,17 @@ jobs:
               test -f "$runtime"
               ls -l "$runtime"
             done
-            meson setup _release --prefix="$PWD/_install" --libdir=lib \
+            meson setup _release --prefix=/ --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled
          - name: Build and install
            run: |
             set -euo pipefail
             meson compile -C _release -v
-            meson install -C _release
+            DESTDIR="$PWD/_install" meson install -C _release
             rm -rf stage
-            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+            mkdir -p stage/bin stage/include stage/lib/pkgconfig stage/share/xtb \
+              stage/share/modules/modulefiles \
               stage/share/man/man1 stage/share/man/man7 \
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
               stage/share/licenses/gcc-runtime
@@ -624,6 +633,8 @@ jobs:
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
             cp _install/lib/libcpx.a stage/lib/libcpx.a
+            cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
+            cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
               cp "_install/share/xtb/$param" "stage/share/xtb/$param"
             done
@@ -730,15 +741,16 @@ jobs:
             # CLI link_args replace LDFLAGS, so include the common flags for each language.
             export LDFLAGS="-L$PWD/static-runtime -Wl,-search_paths_first"
             if [[ -f static-runtime/libquadmath.a ]]; then LDFLAGS="$LDFLAGS $PWD/static-runtime/libquadmath.a"; fi
-            meson setup _release --prefix="$PWD/_install" --libdir=lib \
+            meson setup _release --prefix=/ --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled \
               -Dc_link_args="$LDFLAGS -static-libgcc" \
               -Dfortran_link_args="$LDFLAGS -static-libgfortran -static-libgcc"
             meson compile -C _release -v
-            meson install -C _release
+            DESTDIR="$PWD/_install" meson install -C _release
             rm -rf stage
-            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+            mkdir -p stage/bin stage/include stage/lib/pkgconfig stage/share/xtb \
+              stage/share/modules/modulefiles \
               stage/share/man/man1 stage/share/man/man7 \
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
               stage/share/licenses/gcc-runtime
@@ -747,6 +759,8 @@ jobs:
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
             cp _install/lib/libcpx.a stage/lib/libcpx.a
+            cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
+            cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
               cp "_install/share/xtb/$param" "stage/share/xtb/$param"
             done
@@ -844,7 +858,7 @@ jobs:
             # quadmath dependency. Put quadmath in GCC's trailing runtime libs.
             gcc -dumpspecs | sed '/^\*lib:$/ {n;s/$/ -lquadmath/;}' > static-runtime.specs
             export CC="gcc -specs=$(cygpath -m "$PWD/static-runtime.specs")"
-            meson setup _release --prefix="$(cygpath -m "$PWD/_install")" --libdir=lib \
+            MSYS2_ARG_CONV_EXCL="--prefix=" meson setup _release --prefix=/ --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas \
               -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled
@@ -852,9 +866,10 @@ jobs:
            run: |
             set -euo pipefail
             meson compile -C _release -v
-            meson install -C _release
+            meson install -C _release --destdir "$(cygpath -m "$PWD/_install")"
             rm -rf stage
-            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+            mkdir -p stage/bin stage/include stage/lib/pkgconfig stage/share/xtb \
+              stage/share/modules/modulefiles \
               stage/share/man/man1 stage/share/man/man7 \
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
               stage/share/licenses/gcc-runtime
@@ -863,6 +878,8 @@ jobs:
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
             cp _install/lib/libcpx.a stage/lib/libcpx.a
+            cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
+            cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
               cp "_install/share/xtb/$param" "stage/share/xtb/$param"
             done
