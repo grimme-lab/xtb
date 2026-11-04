@@ -36,7 +36,8 @@ module xtb_pbc_optimizer_driver
 
 !> Driver for performing geometry optimization
 !subroutine    relax(self, ctx, mol, calc, filter, accuracy, verbosity)
-subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, iter_needed)
+subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, iter_needed, &
+      & maxcycle_in, etot_out, grad_out, sigma_out, egap_out)
   use xtb_pbc, only: cross_product
   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
   !> Instance of the optimization driver
@@ -73,6 +74,11 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
 
   !> number of cycles needed for optimization
   integer, intent(out), optional :: iter_needed
+  integer, intent(in), optional :: maxcycle_in
+  real(wp), intent(out), optional :: etot_out
+  real(wp), intent(out), optional :: grad_out(:, :)
+  real(wp), intent(out), optional :: sigma_out(3, 3)
+  real(wp), intent(out), optional :: egap_out
 
   !> Convergence accuracy
   real(wp) :: accuracy
@@ -103,6 +109,9 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
   accuracy = 1.0_wp
   call get_thr(accuracy, ethr, gthr, dthr)
   this_step = 20*nvar
+  if (present(maxcycle_in)) then
+    if (maxcycle_in > 0) this_step = maxcycle_in
+  end if
 
   inquire( file="xtboptlog.cif", exist=f_exists )
   if(f_exists)then
@@ -134,6 +143,8 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
 
     call env%check(fail)
     if (fail) then
+      optfail = .true.
+      close(133)
       call env%error('Single point calculation failed, aborting...', source)
       return
     endif
@@ -220,6 +231,13 @@ endif
     write(env%unit,'(a,i6,a)') "Geometry optimization converged after"&
             &,step," steps."
   end if
+
+  call mol%update
+
+  if (present(etot_out)) etot_out = energy
+  if (present(grad_out)) grad_out = gxyz
+  if (present(sigma_out)) sigma_out = sigma
+  if (present(egap_out)) egap_out = hlgap
 
   if (present(iter_needed)) then
     iter_needed = step

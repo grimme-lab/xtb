@@ -87,8 +87,8 @@ tester = executable(
   link_language: 'fortran',
 )
 
-# run test suites writing/deleting the same LMO, Molden, and charge files serially
-serial_tests = ['gfn2', 'gfnff', 'iff', 'tblite']
+# run test suites writing/deleting the same LMO, Molden, charge files or optlog serially
+serial_tests = ['gfn2', 'gfnff', 'iff', 'tblite', 'optimizer']
 foreach t : tests
   test(t, tester, args: t, suite: 'unit', env: xtbenv, is_parallel: t not in serial_tests)
 endforeach
@@ -104,6 +104,14 @@ test('GFN2-FF xcontrol', xtb_exe, env: xtbenv, args: [
   '--coffee', '--strict', '--norestart', '--namespace', 'test7',
   '--input', files('../inputs/gfnff.inp'),
 ])
+test('Reject native periodic GFN1', xtb_exe, should_fail: true, env: xtbenv, args: [
+  files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '1',
+  '--norestart', '--namespace', 'pbc_native_gfn1',
+])
+test('Reject native periodic GFN2', xtb_exe, should_fail: true, env: xtbenv, args: [
+  files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2',
+  '--norestart', '--namespace', 'pbc_native_gfn2',
+])
 if tblite_dep.found()
   # ONIOM with tblite
   oniom_tests = {
@@ -117,6 +125,22 @@ if tblite_dep.found()
       '--coffee', '--strict', '--norestart', '--namespace', name.underscorify(),
     ] + args)
   endforeach
+  test('Periodic tblite GFN1', xtb_exe, env: xtbenv, args: [
+    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '1', '--tblite',
+    '--norestart', '--namespace', 'pbc_tblite_gfn1',
+  ])
+  test('Periodic tblite GFN2', xtb_exe, env: xtbenv, args: [
+    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite',
+    '--norestart', '--namespace', 'pbc_tblite_gfn2',
+  ])
+  test('Periodic tblite GFN2 opt', xtb_exe, env: xtbenv, is_parallel: false, args: [
+    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite', '--opt',
+    '--norestart', '--namespace', 'pbc_tblite_opt',
+  ])
+  test('Periodic tblite GFN2 nocellopt', xtb_exe, env: xtbenv, is_parallel: false, args: [
+    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite', '--opt', '--nocellopt',
+    '--norestart', '--namespace', 'pbc_tblite_nocellopt',
+  ])
 endif
 if host_machine.system() != 'windows'
   test('Info', xtb_exe, env: xtbenv, args: [

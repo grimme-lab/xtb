@@ -386,8 +386,9 @@ $oniom
 $opt
 ~~~~
 *engine*='method'::
-    method can be 'rf' for ANCopt (default), 'lbfgs' for L-ANCopt or
-    'inertial' for FIRE.
+    method can be 'rf' for ANCopt (default for nonperiodic systems),
+    'lbfgs' for L-ANCopt, 'pbc_lbfgs' for periodic L-BFGS (default for
+    periodic systems), or 'inertial' for FIRE.
 
 *output*='file'::
     redirect output of optimization to 'file'

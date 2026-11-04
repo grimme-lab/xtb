@@ -54,7 +54,11 @@ subroutine collect_optimizer(testsuite)
       new_unittest("fixed-atom-periodic-ancopt", test_fixed_atom_periodic_ancopt), &
       new_unittest("fixed-atom-periodic-l-ancopt", &
       & test_fixed_atom_periodic_l_ancopt), &
-      new_unittest("all-fixed-periodic-fire", test_all_fixed_periodic_fire) &
+      new_unittest("all-fixed-periodic-fire", test_all_fixed_periodic_fire), &
+      new_unittest("default-periodic-optimizer", test_default_periodic_optimizer), &
+      new_unittest("fixed-cell-periodic-optimizer", test_fixed_cell_periodic_optimizer), &
+      new_unittest("nonperiodic-default-optimizer", test_nonperiodic_default_optimizer), &
+      new_unittest("explicit-periodic-optimizer", test_explicit_periodic_optimizer) &
       ]
 
 end subroutine collect_optimizer
@@ -507,5 +511,461 @@ subroutine check_fixed_atom_periodic_result(error, env, fail, gradient)
       call test_failed(error, "Gradient of the free atoms is not converged")
    end if
 end subroutine check_fixed_atom_periodic_result
+
+
+subroutine setup_periodic_nh3_tblite(env, mol, chk, calc, energy, egap, gradient, sigma)
+   use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, &
+      & newTBLiteCalculator, newTBLiteWavefunction
+   type(TEnvironment), intent(out) :: env
+   type(TMolecule), intent(out) :: mol
+   type(TRestart), intent(out) :: chk
+   type(TTBLiteCalculator), intent(out) :: calc
+   real(wp), intent(out) :: energy, egap, gradient(3, 16), sigma(3, 3)
+   integer, parameter :: nat = 16
+   character(len=*), parameter :: sym(nat) = [ &
+      & "H", "H", "H", "H", "H", "H", "H", "H", "H", "H", "H", "H", &
+      & "N", "N", "N", "N"]
+   real(wp), parameter :: xyz_aa(3, nat) = reshape([ &
+      & 2.2300000000_wp, 1.7800007600_wp, 0.9468238481_wp, &
+      & 1.7800007600_wp, 0.9468238481_wp, 2.2596045809_wp, &
+      & 0.9468238481_wp, 2.2596045809_wp, 1.7800007600_wp, &
+      & 4.7671705534_wp, 1.6326980357_wp, 4.9661124380_wp, &
+      & 4.2819692113_wp, 2.4606754877_wp, 3.6526280234_wp, &
+      & 3.4527982039_wp, 1.1481588918_wp, 4.1381359401_wp, &
+      & 4.1381359401_wp, 3.4527982039_wp, 1.1481588918_wp, &
+      & 4.9661124380_wp, 4.7671705534_wp, 1.6326980357_wp, &
+      & 3.6526280234_wp, 4.2819692113_wp, 2.4606754877_wp, &
+      & 2.4606754877_wp, 3.6526280234_wp, 4.2819692113_wp, &
+      & 1.1481588918_wp, 4.1381359401_wp, 3.4527982039_wp, &
+      & 1.6326980357_wp, 4.9661124380_wp, 4.7671705534_wp, &
+      & 1.4358572817_wp, 1.4358572817_wp, 1.4358572817_wp, &
+      & 3.9411899768_wp, 1.9736199441_wp, 4.4787989040_wp, &
+      & 4.4787989040_wp, 3.9411899768_wp, 1.9736199441_wp, &
+      & 1.9736199441_wp, 4.4787989040_wp, 3.9411899768_wp], [3, nat])
+   real(wp), parameter :: lattice_aa(3, 3) = reshape([ &
+      & 5.01336_wp, 0.00000_wp, 0.00000_wp, &
+      & 0.00000_wp, 5.01336_wp, 0.00000_wp, &
+      & 0.00000_wp, 0.00000_wp, 5.01336_wp], [3, 3])
+   type(scc_results) :: res
+
+   call init(env)
+   call init(mol, sym, xyz_aa * aatoau, lattice=lattice_aa * aatoau)
+   call newTBLiteCalculator(env, mol, calc, TTBLiteInput(method="gfn2"))
+   call newTBLiteWavefunction(env, mol, calc, chk)
+   call calc%singlepoint(env, mol, chk, 0, .false., energy, gradient, sigma, &
+      & egap, res)
+end subroutine setup_periodic_nh3_tblite
+
+
+subroutine cleanup_opt_files()
+   integer :: iunit, stat
+   character(len=*), parameter :: files(5) = [character(len=20) :: &
+      & "xtbopt.log", "xtboptlog.cif", "xtbopt_emin.coord", ".xtboptok", "NOT_CONVERGED"]
+   integer :: i
+   logical :: exist
+
+   do i = 1, size(files)
+      inquire(file=trim(files(i)), exist=exist)
+      if (exist) then
+         open(newunit=iunit, file=trim(files(i)), status='old', iostat=stat)
+         if (stat == 0) close(iunit, status='delete')
+      end if
+   end do
+end subroutine cleanup_opt_files
+
+
+subroutine test_default_periodic_optimizer(error)
+   use xtb_features, only : get_xtb_feature
+   use testdrive, only : skip_test
+   use xtb_tblite_calculator, only : TTBLiteCalculator
+   use xtb_main_defaults, only : initDefaults
+   use xtb_geoopt, only : geometry_optimization
+   use xtb_setparam, only : set, p_engine_pbc_lbfgs
+   use xtb_pbc_tools, only : dlat_to_cell, dlat_to_rlat, dlat_to_dvol, xyz_to_abc
+   use xtb_io_writer, only : writeMolecule
+   use xtb_io_reader, only : readMolecule
+   use xtb_mctc_filetypes, only : fileType
+   use xtb_mctc_convert, only : autoaa
+   use xtb_mctc_constants, only : pi
+
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol, mol_written
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   real(wp) :: energy, energy0, egap, gradient(3, 16), sigma(3, 3)
+   real(wp) :: xyz0(3, 16), lattice0(3, 3), cellpar0(6), vol0
+   real(wp) :: cellpar_ref(6), rec_lat_ref(3, 3), abc_ref(3, 16), vol_ref
+   real(wp) :: cellpar_w(6), vol_w
+   logical :: fail, exitRun, optcell_save
+   integer :: iter_needed, iunit, isum, stat
+   integer, allocatable :: engine_save
+   character(len=256) :: line, vol_str, cell_str
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   if (allocated(set%opt_engine)) engine_save = set%opt_engine
+   if (allocated(set%opt_engine)) deallocate(set%opt_engine)
+   optcell_save = set%optcell
+   set%optcell = .true.
+
+   call setup_periodic_nh3_tblite(env, mol, chk, calc, energy, egap, gradient, sigma)
+   xyz0 = mol%xyz
+   lattice0 = mol%lattice
+   cellpar0 = mol%cellpar
+   vol0 = mol%volume
+   energy0 = energy
+
+   ! Check that initDefaults automatically selects pbc_lbfgs for periodic systems
+   call initDefaults(env, calc, mol, 0)
+   call check(error, allocated(set%opt_engine))
+   if (.not.allocated(error)) then
+      call check(error, set%opt_engine, p_engine_pbc_lbfgs)
+   end if
+   if (allocated(error)) then
+      call cleanup_opt_files()
+      if (allocated(engine_save)) then
+         set%opt_engine = engine_save
+      else if (allocated(set%opt_engine)) then
+         deallocate(set%opt_engine)
+      end if
+      set%optcell = optcell_save
+      return
+   end if
+
+   ! Also verify geometry_optimization selects pbc_lbfgs even when set%opt_engine is unallocated
+   deallocate(set%opt_engine)
+   call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 0, &
+      & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+   call cleanup_opt_files()
+
+   call env%check(exitRun)
+   call check(error, .not.exitRun)
+   if (.not.allocated(error)) call check(error, .not.fail)
+   if (.not.allocated(error)) then
+      if (maxval(abs(mol%xyz - xyz0)) < 1.0e-3_wp) then
+         call test_failed(error, "Atomic positions were not optimized")
+      end if
+   end if
+   if (.not.allocated(error)) then
+      if (maxval(abs(mol%lattice - lattice0)) < 1.0e-3_wp) then
+         call test_failed(error, "Lattice vectors were not optimized")
+      end if
+   end if
+   if (.not.allocated(error)) then
+      if (energy >= energy0) then
+         call test_failed(error, "Energy was not lowered by variable-cell optimization")
+      end if
+   end if
+
+   ! Test H: Verify mol derived periodic properties match optimized lattice and written structure
+   if (.not.allocated(error)) then
+      call dlat_to_cell(mol%lattice, cellpar_ref)
+      call dlat_to_rlat(mol%lattice, rec_lat_ref)
+      vol_ref = dlat_to_dvol(mol%lattice)
+      call xyz_to_abc(mol%n, mol%lattice, mol%xyz, abc_ref, mol%pbc)
+
+      call check(error, maxval(abs(mol%cellpar - cellpar_ref)), 0.0_wp, thr=1.0e-12_wp)
+   end if
+   if (.not.allocated(error)) then
+      call check(error, maxval(abs(mol%rec_lat - rec_lat_ref)), 0.0_wp, thr=1.0e-12_wp)
+   end if
+   if (.not.allocated(error)) then
+      call check(error, mol%volume, vol_ref, thr=1.0e-12_wp)
+   end if
+   if (.not.allocated(error)) then
+      call check(error, maxval(abs(mol%abc - abc_ref)), 0.0_wp, thr=1.0e-12_wp)
+   end if
+   if (.not.allocated(error)) then
+      if (abs(mol%volume - vol0) < 1.0e-4_wp) then
+         call test_failed(error, "Cell volume remained at initial value after cell relaxation")
+      end if
+   end if
+
+   ! Write optimized VASP structure, read it back, and compare against mol and summary printout
+   if (.not.allocated(error)) then
+      open(newunit=iunit, status='scratch')
+      call writeMolecule(mol, iunit, format=fileType%vasp, energy=energy, gnorm=norm2(gradient))
+      rewind(iunit)
+      call readMolecule(env, mol_written, unit=iunit, ftype=fileType%vasp)
+      close(iunit)
+
+      call dlat_to_cell(mol_written%lattice, cellpar_w)
+      vol_w = dlat_to_dvol(mol_written%lattice)
+      call check(error, maxval(abs(cellpar_w - mol%cellpar)), 0.0_wp, thr=1.0e-9_wp)
+      if (.not.allocated(error)) then
+         call check(error, vol_w, mol%volume, thr=1.0e-9_wp)
+      end if
+   end if
+
+   ! Verify printed geometry summary (main_geometry / print_pbcsum) contains updated cell parameters and volume
+   if (.not.allocated(error)) then
+      open(newunit=isum, status='scratch')
+      call main_geometry(isum, mol)
+      rewind(isum)
+      write(vol_str, '(f14.7)') mol%volume * autoaa**3
+      write(cell_str, '(3f14.7,1x,3f9.3)') &
+         & mol%cellpar(1:3) * autoaa, mol%cellpar(4:6) * 180.0_wp / pi
+      vol_str = adjustl(vol_str)
+      cell_str = adjustl(cell_str)
+      exitRun = .false.
+      fail = .false.
+      do
+         read(isum, '(a)', iostat=stat) line
+         if (stat /= 0) exit
+         if (index(line, trim(vol_str)) > 0) exitRun = .true.
+         if (index(line, trim(cell_str)) > 0) fail = .true.
+      end do
+      close(isum)
+      if (.not.exitRun) then
+         call test_failed(error, "Printed geometry summary does not contain optimized cell volume")
+      else if (.not.fail) then
+         call test_failed(error, "Printed geometry summary does not contain optimized cell parameters")
+      end if
+   end if
+
+   if (allocated(engine_save)) then
+      set%opt_engine = engine_save
+   else if (allocated(set%opt_engine)) then
+      deallocate(set%opt_engine)
+   end if
+   set%optcell = optcell_save
+end subroutine test_default_periodic_optimizer
+
+
+subroutine test_fixed_cell_periodic_optimizer(error)
+   use xtb_features, only : get_xtb_feature
+   use testdrive, only : skip_test
+   use xtb_tblite_calculator, only : TTBLiteCalculator
+   use xtb_geoopt, only : geometry_optimization
+   use xtb_setparam, only : set
+
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TTBLiteCalculator) :: calc
+   real(wp) :: energy, energy0, egap, gradient(3, 16), sigma(3, 3)
+   real(wp) :: xyz0(3, 16), lattice0(3, 3), cellpar0(6), vol0
+   logical :: fail, exitRun, optcell_save
+   integer :: iter_needed
+   integer, allocatable :: engine_save
+
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, "xtb not compiled with tblite support")
+      return
+   end if
+
+   if (allocated(set%opt_engine)) engine_save = set%opt_engine
+   if (allocated(set%opt_engine)) deallocate(set%opt_engine)
+   optcell_save = set%optcell
+   set%optcell = .false.
+
+   call setup_periodic_nh3_tblite(env, mol, chk, calc, energy, egap, gradient, sigma)
+   xyz0 = mol%xyz
+   lattice0 = mol%lattice
+   cellpar0 = mol%cellpar
+   vol0 = mol%volume
+   energy0 = energy
+
+   call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 0, &
+      & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+   call cleanup_opt_files()
+
+   call env%check(exitRun)
+   call check(error, .not.exitRun)
+   if (.not.allocated(error)) call check(error, .not.fail)
+   if (.not.allocated(error)) then
+      if (maxval(abs(mol%xyz - xyz0)) < 1.0e-3_wp) then
+         call test_failed(error, "Atomic positions were not optimized in fixed-cell mode")
+      end if
+   end if
+   if (.not.allocated(error)) then
+      call check(error, maxval(abs(mol%lattice - lattice0)), 0.0_wp, thr=1.0e-12_wp)
+   end if
+   if (.not.allocated(error)) then
+      call check(error, maxval(abs(mol%cellpar - cellpar0)), 0.0_wp, thr=1.0e-12_wp)
+   end if
+   if (.not.allocated(error)) then
+      call check(error, mol%volume, vol0, thr=1.0e-12_wp)
+   end if
+   if (.not.allocated(error)) then
+      if (energy >= energy0) then
+         call test_failed(error, "Energy was not lowered in fixed-cell optimization")
+      end if
+   end if
+   if (.not.allocated(error)) then
+      if (norm2(gradient) > 1.0e-3_wp) then
+         call test_failed(error, "Nuclear gradient did not converge in fixed-cell optimization")
+      end if
+   end if
+
+   if (allocated(engine_save)) then
+      set%opt_engine = engine_save
+   else if (allocated(set%opt_engine)) then
+      deallocate(set%opt_engine)
+   end if
+   set%optcell = optcell_save
+end subroutine test_fixed_cell_periodic_optimizer
+
+
+subroutine test_nonperiodic_default_optimizer(error)
+   use xtb_main_defaults, only : initDefaults
+   use xtb_geoopt, only : geometry_optimization
+   use xtb_setparam, only : set, p_engine_rf
+
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   type(scc_results) :: res
+   integer, parameter :: nat = 3
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   real(wp), parameter :: xyz_aa(3, nat) = reshape([ &
+      &  0.00_wp, 0.00_wp, 0.00_wp, &
+      &  1.02_wp, 0.00_wp, 0.00_wp, &
+      & -0.28_wp, 0.98_wp, 0.00_wp], [3, nat])
+   real(wp) :: energy, energy0, egap, gradient(3, nat), sigma(3, 3)
+   logical :: fail, exitRun
+   integer :: iter_needed
+   integer, allocatable :: engine_save
+
+   if (allocated(set%opt_engine)) engine_save = set%opt_engine
+   if (allocated(set%opt_engine)) deallocate(set%opt_engine)
+
+   call init(env)
+   call init(mol, sym, xyz_aa * aatoau)
+   call newXTBCalculator(env, mol, calc, method=2)
+   call newWavefunction(env, mol, calc, chk)
+   call calc%singlepoint(env, mol, chk, 0, .false., energy0, gradient, sigma, &
+      & egap, res)
+   energy = energy0
+
+   call initDefaults(env, calc, mol, 0)
+   call check(error, allocated(set%opt_engine))
+   if (.not.allocated(error)) then
+      call check(error, set%opt_engine, p_engine_rf)
+   end if
+   if (.not.allocated(error)) then
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+         & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, .not.exitRun)
+   end if
+   if (.not.allocated(error)) call check(error, .not.fail)
+   if (.not.allocated(error)) then
+      if (energy >= energy0) then
+         call test_failed(error, "Nonperiodic optimization did not lower energy")
+      end if
+   end if
+
+   if (allocated(engine_save)) then
+      set%opt_engine = engine_save
+   else if (allocated(set%opt_engine)) then
+      deallocate(set%opt_engine)
+   end if
+end subroutine test_nonperiodic_default_optimizer
+
+
+subroutine test_explicit_periodic_optimizer(error)
+   use xtb_main_defaults, only : initDefaults
+   use xtb_geoopt, only : geometry_optimization
+   use xtb_setparam, only : set, p_engine_rf, p_engine_lbfgs, p_engine_inertial
+
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   real(wp) :: energy, energy0, egap, gradient(3, 3), sigma(3, 3)
+   real(wp) :: xyz0(3, 3), lattice0(3, 3)
+   logical :: fail, exitRun, optcell_save
+   integer :: iter_needed
+   integer, allocatable :: engine_save
+   character(len=:), allocatable :: err_msg
+
+   if (allocated(set%opt_engine)) engine_save = set%opt_engine
+   optcell_save = set%optcell
+   set%optcell = .true.
+
+   ! 1. Incompatible explicit optimizer (rf / ancopt) must be rejected for variable-cell PBC
+   call setup_strained_caf2(env, mol, chk, calc, energy, egap, gradient, sigma)
+   call fixset%deallocate
+   xyz0 = mol%xyz
+   lattice0 = mol%lattice
+
+   set%opt_engine = p_engine_rf
+   call initDefaults(env, calc, mol, 0)
+   call check(error, set%opt_engine, p_engine_rf)
+   if (.not.allocated(error)) then
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+         & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, fail, .true.)
+   end if
+   if (.not.allocated(error)) call check(error, exitRun, .true.)
+   if (.not.allocated(error)) then
+      call env%getLog(err_msg)
+      if (index(err_msg, "does not support periodic variable-cell optimization") == 0) then
+         call test_failed(error, "Missing error message for incompatible periodic optimizer")
+      end if
+   end if
+   if (.not.allocated(error)) then
+      call check(error, maxval(abs(mol%xyz - xyz0)), 0.0_wp, thr=1.0e-12_wp)
+   end if
+   if (.not.allocated(error)) then
+      call check(error, maxval(abs(mol%lattice - lattice0)), 0.0_wp, thr=1.0e-12_wp)
+   end if
+
+   ! 2. Incompatible explicit optimizer (lbfgs / l_ancopt) must also be rejected
+   if (.not.allocated(error)) then
+      call init(env)
+      set%opt_engine = p_engine_lbfgs
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+         & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, fail, .true.)
+      if (.not.allocated(error)) call check(error, exitRun, .true.)
+      call env%getLog(err_msg)
+   end if
+
+   ! 3. Supported explicit periodic optimizer (inertial / FIRE) must be preserved and succeed
+   if (.not.allocated(error)) then
+      call setup_strained_caf2(env, mol, chk, calc, energy, egap, gradient, sigma)
+      call fixset%deallocate
+      lattice0 = mol%lattice
+      energy0 = energy
+      set%opt_engine = p_engine_inertial
+      call initDefaults(env, calc, mol, 0)
+      call check(error, set%opt_engine, p_engine_inertial)
+   end if
+   if (.not.allocated(error)) then
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+         & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, .not.exitRun)
+      if (.not.allocated(error)) call check(error, .not.fail)
+      if (.not.allocated(error)) then
+         if (maxval(abs(mol%lattice - lattice0)) < 1.0e-4_wp) then
+            call test_failed(error, "Explicitly selected inertial optimizer did not relax lattice")
+         end if
+      end if
+   end if
+
+   if (allocated(engine_save)) then
+      set%opt_engine = engine_save
+   else if (allocated(set%opt_engine)) then
+      deallocate(set%opt_engine)
+   end if
+   set%optcell = optcell_save
+end subroutine test_explicit_periodic_optimizer
 
 end module test_optimizer

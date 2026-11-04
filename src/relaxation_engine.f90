@@ -249,7 +249,7 @@ subroutine fire &
       nvar=nat3-fixedAtomModes(mol,fixset%atoms(:fixset%n))
    endif
 
-   optcell = mol%npbc > 0
+   optcell = mol%npbc > 0 .and. set%optcell
 
    ! all coordinates are fixed and no cell to relax, nothing to optimize
    if (nvar == 0 .and. .not.optcell) then
@@ -387,6 +387,7 @@ subroutine fire &
 
    ! save optimized geometry
    call mol%copy(molopt)
+   call mol%update
 
    if (present(iter_needed)) then
       iter_needed = iter

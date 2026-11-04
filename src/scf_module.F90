@@ -233,6 +233,15 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    logical  :: broy
 
 ! ------------------------------------------------------------------------
+   if (mol%npbc > 0) then
+      call env%error( &
+         & new_line('a') // "[ERROR] Native periodic GFN1-xTB and GFN2-xTB calculations are deprecated and unsupported." // &
+         & new_line('a') // new_line('a') // &
+         & "Periodic GFN1/GFN2 calculations require the tblite backend." // &
+         & new_line('a') // new_line('a') // &
+         & "Please rerun your calculation with --tblite.", source)
+      return
+   end if
 !  initialization
 ! ------------------------------------------------------------------------
    if (profile) call timer%new(7,.false.)

@@ -917,12 +917,6 @@ contains
 !---------------------------------------------!
       if (anyopt) then
 
-         if (mol%npbc > 0 .and. (set%mode_extrun == p_ext_gfnff &
-                 & .or. set%mode_extrun == p_ext_mcgfnff)) then  ! if(npbc)
-            deallocate (set%opt_engine)
-            call set_opt(env, 'engine', 'pbc_lbfgs')  ! use lbfgs
-         end if
-
          ! start optimization timer !
          call start_timing(3)
 
