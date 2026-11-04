@@ -473,22 +473,30 @@ jobs:
               -DBLAS_LIBRARIES="$mkl" -DLAPACK_LIBRARIES="$mkl" \
               -DBUILD_SHARED_LIBS=OFF -DWITH_TBLITE=ON -DWITH_DDX=ON -DTBLITE_WITH_DDX=ON -DWITH_CPCMX=ON \
               -DCMAKE_EXE_LINKER_FLAGS='-static -static-intel -fiopenmp -qopenmp-link=static' \
-              -DCMAKE_INSTALL_PREFIX="$PWD/_install" -DCMAKE_INSTALL_LIBDIR=lib
+              -DCMAKE_INSTALL_PREFIX=/ -DCMAKE_INSTALL_LIBDIR=lib
          - name: Build and install
            run: |
             set -euo pipefail
             cmake --build _release --verbose
-            cmake --install _release
+            DESTDIR="$PWD/_install" cmake --install _release
             rm -rf stage
-            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+            mkdir -p stage/bin stage/include stage/lib/pkgconfig stage/share/xtb \
+              stage/share/modules/modulefiles \
               stage/share/man/man1 stage/share/man/man7 \
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/mkl \
               stage/share/licenses/intel-runtime stage/share/licenses/gcc-runtime
             cp _install/bin/xtb stage/bin/xtb
-            cp _install/bin/cpx stage/bin/cpx
+            if [ -f _install/bin/cpx ]; then
+              cp _install/bin/cpx stage/bin/cpx
+              cp _install/lib/libcpcmx.a stage/lib/libcpx.a
+            else
+              cp _install/usr/bin/cpx stage/bin/cpx
+              cp _install/usr/lib/libcpcmx.a stage/lib/libcpx.a
+            fi
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
-            cp _install/lib/libcpcmx.a stage/lib/libcpx.a
+            cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
+            cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
               cp "_install/share/xtb/$param" "stage/share/xtb/$param"
             done
@@ -561,6 +569,24 @@ jobs:
             dynamic=$(readelf -dW "$exe")
             ! grep -q '(NEEDED)' <<< "$dynamic" || { echo 'DT_NEEDED found: binary has dynamic dependencies' >&2; exit 1; }
             echo 'PASS: no PT_INTERP; zero DT_NEEDED'
+            expected_version=$(sed -n "s/.*version: '\([^']*\)'.*/\1/p" meson.build | head -n 1)
+            test -f stage/lib/pkgconfig/xtb.pc
+            pkg-config --validate stage/lib/pkgconfig/xtb.pc
+            test "$(pkg-config --modversion stage/lib/pkgconfig/xtb.pc)" = "$expected_version"
+            shopt -s nullglob dotglob
+            modfiles=(stage/share/modules/modulefiles/xtb/*)
+            test "${#modfiles[@]}" -eq 1
+            test -f "${modfiles[0]}"
+            test "$(basename "${modfiles[0]}")" = "$expected_version"
+            ! grep -Ei '/home/runner|/users/runner|d:/a/|c:/|_install' stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            ! grep -Fq "$GITHUB_WORKSPACE" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            test -z "$(find stage \( -name '*.mod' -o -name '*.smod' -o -name '*.cmake' \) -print -quit)"
+            test "$(find stage -name '*.pc' | wc -l)" -eq 1
+            test "$(find stage/include -type f | wc -l)" -eq 1
+            test -f stage/include/xtb.h
+            test "$(find stage/lib -maxdepth 1 -type f | wc -l)" -eq 2
+            test -f stage/lib/libxtb.a
+            test -f stage/lib/libcpx.a
             tar -cJf xtb-bleed-linux-x86_64-ifx-mkl.tar.xz stage
          - uses: actions/upload-artifact@v4
            with:
@@ -606,16 +632,17 @@ jobs:
               test -f "$runtime"
               ls -l "$runtime"
             done
-            meson setup _release --prefix="$PWD/_install" --libdir=lib \
+            meson setup _release --prefix=/ --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled
          - name: Build and install
            run: |
             set -euo pipefail
             meson compile -C _release -v
-            meson install -C _release
+            DESTDIR="$PWD/_install" meson install -C _release
             rm -rf stage
-            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+            mkdir -p stage/bin stage/include stage/lib/pkgconfig stage/share/xtb \
+              stage/share/modules/modulefiles \
               stage/share/man/man1 stage/share/man/man7 \
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
               stage/share/licenses/gcc-runtime
@@ -624,6 +651,8 @@ jobs:
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
             cp _install/lib/libcpx.a stage/lib/libcpx.a
+            cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
+            cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
               cp "_install/share/xtb/$param" "stage/share/xtb/$param"
             done
@@ -655,6 +684,24 @@ jobs:
             dynamic=$(readelf -dW "$exe")
             ! grep -q '(NEEDED)' <<< "$dynamic" || { echo 'DT_NEEDED found: binary has dynamic dependencies' >&2; exit 1; }
             echo 'PASS: no PT_INTERP; zero DT_NEEDED'
+            expected_version=$(sed -n "s/.*version: '\([^']*\)'.*/\1/p" meson.build | head -n 1)
+            test -f stage/lib/pkgconfig/xtb.pc
+            pkg-config --validate stage/lib/pkgconfig/xtb.pc
+            test "$(pkg-config --modversion stage/lib/pkgconfig/xtb.pc)" = "$expected_version"
+            shopt -s nullglob dotglob
+            modfiles=(stage/share/modules/modulefiles/xtb/*)
+            test "${#modfiles[@]}" -eq 1
+            test -f "${modfiles[0]}"
+            test "$(basename "${modfiles[0]}")" = "$expected_version"
+            ! grep -Ei '/home/runner|/users/runner|d:/a/|c:/|_install' stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            ! grep -Fq "$GITHUB_WORKSPACE" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            test -z "$(find stage \( -name '*.mod' -o -name '*.smod' -o -name '*.cmake' \) -print -quit)"
+            test "$(find stage -name '*.pc' | wc -l)" -eq 1
+            test "$(find stage/include -type f | wc -l)" -eq 1
+            test -f stage/include/xtb.h
+            test "$(find stage/lib -maxdepth 1 -type f | wc -l)" -eq 2
+            test -f stage/lib/libxtb.a
+            test -f stage/lib/libcpx.a
             tar -cJf xtb-bleed-linux-aarch64-openblas.tar.xz stage
          - uses: actions/upload-artifact@v4
            with:
@@ -730,15 +777,16 @@ jobs:
             # CLI link_args replace LDFLAGS, so include the common flags for each language.
             export LDFLAGS="-L$PWD/static-runtime -Wl,-search_paths_first"
             if [[ -f static-runtime/libquadmath.a ]]; then LDFLAGS="$LDFLAGS $PWD/static-runtime/libquadmath.a"; fi
-            meson setup _release --prefix="$PWD/_install" --libdir=lib \
+            meson setup _release --prefix=/ --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled \
               -Dc_link_args="$LDFLAGS -static-libgcc" \
               -Dfortran_link_args="$LDFLAGS -static-libgfortran -static-libgcc"
             meson compile -C _release -v
-            meson install -C _release
+            DESTDIR="$PWD/_install" meson install -C _release
             rm -rf stage
-            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+            mkdir -p stage/bin stage/include stage/lib/pkgconfig stage/share/xtb \
+              stage/share/modules/modulefiles \
               stage/share/man/man1 stage/share/man/man7 \
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
               stage/share/licenses/gcc-runtime
@@ -747,6 +795,8 @@ jobs:
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
             cp _install/lib/libcpx.a stage/lib/libcpx.a
+            cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
+            cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
               cp "_install/share/xtb/$param" "stage/share/xtb/$param"
             done
@@ -789,6 +839,24 @@ jobs:
               esac
             done <<< "$paths"
             echo 'PASS: expected architecture; Apple system dependencies only'
+            expected_version=$(sed -n "s/.*version: '\([^']*\)'.*/\1/p" meson.build | head -n 1)
+            test -f stage/lib/pkgconfig/xtb.pc
+            pkg-config --validate stage/lib/pkgconfig/xtb.pc
+            test "$(pkg-config --modversion stage/lib/pkgconfig/xtb.pc)" = "$expected_version"
+            shopt -s nullglob dotglob
+            modfiles=(stage/share/modules/modulefiles/xtb/*)
+            test "${#modfiles[@]}" -eq 1
+            test -f "${modfiles[0]}"
+            test "$(basename "${modfiles[0]}")" = "$expected_version"
+            ! grep -Ei '/home/runner|/users/runner|d:/a/|c:/|_install' stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            ! grep -Fq "$GITHUB_WORKSPACE" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            test -z "$(find stage \( -name '*.mod' -o -name '*.smod' -o -name '*.cmake' \) -print -quit)"
+            test "$(find stage -name '*.pc' | wc -l)" -eq 1
+            test "$(find stage/include -type f | wc -l)" -eq 1
+            test -f stage/include/xtb.h
+            test "$(find stage/lib -maxdepth 1 -type f | wc -l)" -eq 2
+            test -f stage/lib/libxtb.a
+            test -f stage/lib/libcpx.a
             tar -cJf "${{ matrix.archive }}" stage
          - uses: actions/upload-artifact@v4
            with:
@@ -844,7 +912,7 @@ jobs:
             # quadmath dependency. Put quadmath in GCC's trailing runtime libs.
             gcc -dumpspecs | sed '/^\*lib:$/ {n;s/$/ -lquadmath/;}' > static-runtime.specs
             export CC="gcc -specs=$(cygpath -m "$PWD/static-runtime.specs")"
-            meson setup _release --prefix="$(cygpath -m "$PWD/_install")" --libdir=lib \
+            MSYS2_ARG_CONV_EXCL="--prefix=" meson setup _release --prefix=/ --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas \
               -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled
@@ -852,9 +920,10 @@ jobs:
            run: |
             set -euo pipefail
             meson compile -C _release -v
-            meson install -C _release
+            meson install -C _release --destdir "$(cygpath -m "$PWD/_install")"
             rm -rf stage
-            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+            mkdir -p stage/bin stage/include stage/lib/pkgconfig stage/share/xtb \
+              stage/share/modules/modulefiles \
               stage/share/man/man1 stage/share/man/man7 \
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
               stage/share/licenses/gcc-runtime
@@ -863,6 +932,8 @@ jobs:
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
             cp _install/lib/libcpx.a stage/lib/libcpx.a
+            cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
+            cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
               cp "_install/share/xtb/$param" "stage/share/xtb/$param"
             done
@@ -899,6 +970,25 @@ jobs:
               exit 1
             fi
             echo 'PASS: no third-party runtime DLL imports'
+            expected_version=$(sed -n "s/.*version: '\([^']*\)'.*/\1/p" meson.build | head -n 1)
+            test -f stage/lib/pkgconfig/xtb.pc
+            pkg-config --validate stage/lib/pkgconfig/xtb.pc
+            test "$(pkg-config --modversion stage/lib/pkgconfig/xtb.pc)" = "$expected_version"
+            shopt -s nullglob dotglob
+            modfiles=(stage/share/modules/modulefiles/xtb/*)
+            test "${#modfiles[@]}" -eq 1
+            test -f "${modfiles[0]}"
+            test "$(basename "${modfiles[0]}")" = "$expected_version"
+            ! grep -Ei '/home/runner|/users/runner|d:/a/|c:/|_install' stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            ! grep -Fq "$GITHUB_WORKSPACE" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            ! grep -Fq "$(cygpath -m "$GITHUB_WORKSPACE")" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
+            test -z "$(find stage \( -name '*.mod' -o -name '*.smod' -o -name '*.cmake' \) -print -quit)"
+            test "$(find stage -name '*.pc' | wc -l)" -eq 1
+            test "$(find stage/include -type f | wc -l)" -eq 1
+            test -f stage/include/xtb.h
+            test "$(find stage/lib -maxdepth 1 -type f | wc -l)" -eq 2
+            test -f stage/lib/libxtb.a
+            test -f stage/lib/libcpx.a
             zip -r xtb-bleed-windows-x86_64-openblas.zip stage
          - uses: actions/upload-artifact@v4
            with:
@@ -907,7 +997,7 @@ jobs:
             if-no-files-found: error
 
    continuous-delivery:
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || (github.repository == 'thfroitzheim/xtb' && github.ref == 'refs/heads/pkgconfig-mod-files'))
       runs-on: ubuntu-24.04
       permissions:
          contents: write

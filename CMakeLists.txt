@@ -20,6 +20,7 @@ cmake_minimum_required(VERSION 3.18)
 project(
   "xtb"
   VERSION "6.7.1"
+  DESCRIPTION "Semiempirical Extended Tight-Binding Program Package"
   LANGUAGES "C" "Fortran")
 
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
@@ -32,6 +33,13 @@ option(WITH_TESTS "Enable compilation of unit tests" ON)
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
+if(CMAKE_INSTALL_PREFIX STREQUAL "/")
+  foreach(_dir BINDIR LIBDIR INCLUDEDIR DATADIR MANDIR)
+    string(REGEX REPLACE "^usr/" "" CMAKE_INSTALL_${_dir}
+                         "${CMAKE_INSTALL_${_dir}}")
+  endforeach()
+  unset(_dir)
+endif()
 set(CMAKE_INSTALL_Fortran_MODULES
     "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
     CACHE STRING "Installation directory for xTB Fortran module files")
@@ -63,8 +71,16 @@ elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
   set(xtb-fortran-options -fdefault-real-8 -fdefault-double-8)
 endif()
 
-# Populate xtb_version.fh with metadata
+# Populate xtb_version.fh, pkg-config, and environment module with metadata
+set(name "${PROJECT_NAME}")
+set(description "${PROJECT_DESCRIPTION}")
 set(version "${PROJECT_VERSION}")
+set(prefix "${CMAKE_INSTALL_PREFIX}")
+set(bindir "${CMAKE_INSTALL_BINDIR}")
+set(libdir "${CMAKE_INSTALL_LIBDIR}")
+set(includedir "${CMAKE_INSTALL_INCLUDEDIR}")
+set(datadir "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
+set(mandir "${CMAKE_INSTALL_MANDIR}")
 execute_process(
   COMMAND git rev-parse HEAD
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
@@ -79,6 +95,10 @@ set(author "$ENV{USERNAME}")
 set(origin "${CMAKE_HOST_SYSTEM_NAME}")
 configure_file("${PROJECT_SOURCE_DIR}/assets/templates/version.f90"
                "${PROJECT_BINARY_DIR}/include/xtb_version.fh" @ONLY)
+configure_file("${PROJECT_SOURCE_DIR}/assets/templates/xtb.pc"
+               "${PROJECT_BINARY_DIR}/${PROJECT_NAME}.pc" @ONLY)
+configure_file("${PROJECT_SOURCE_DIR}/assets/templates/env-module.tcl"
+               "${PROJECT_BINARY_DIR}/${PROJECT_NAME}.tcl" @ONLY)
 
 # Check a specific CMake targets for xtb build & execute corresponding Find
 # scripts
@@ -211,6 +231,13 @@ install(
         "${PROJECT_SOURCE_DIR}/param_ipea-xtb.txt"
         "${PROJECT_SOURCE_DIR}/.param_gfnff.xtb"
   DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
+
+# pkg-config and environment module files
+install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}.tcl"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/modules/modulefiles/${PROJECT_NAME}"
+        RENAME "${PROJECT_VERSION}")
 
 # Build output artifacts
 install(TARGETS "${PROJECT_NAME}-lib" "${PROJECT_NAME}-exe"
