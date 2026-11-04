@@ -37,9 +37,11 @@ module xtb_pbc_optimizer_driver
 !> Driver for performing geometry optimization
 !subroutine    relax(self, ctx, mol, calc, filter, accuracy, verbosity)
 subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, iter_needed, &
-      & maxcycle_in, etot_out, grad_out, sigma_out, egap_out)
+      & optlevel, maxcycle_in, etot_out, grad_out, sigma_out, egap_out)
   use xtb_pbc, only: cross_product
   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+  use xtb_optimizer, only : get_optthr
+  use xtb_setparam, only : p_olev_normal
   !> Instance of the optimization driver
   class(optimizer_type), intent(inout) :: self
   !> Calculation environment
@@ -74,15 +76,16 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
 
   !> number of cycles needed for optimization
   integer, intent(out), optional :: iter_needed
+  integer, intent(in), optional :: optlevel
   integer, intent(in), optional :: maxcycle_in
-  real(wp), intent(out), optional :: etot_out
-  real(wp), intent(out), optional :: grad_out(:, :)
-  real(wp), intent(out), optional :: sigma_out(3, 3)
-  real(wp), intent(out), optional :: egap_out
+  real(wp), intent(inout), optional :: etot_out
+  real(wp), intent(inout), optional :: grad_out(:, :)
+  real(wp), intent(inout), optional :: sigma_out(3, 3)
+  real(wp), intent(inout), optional :: egap_out
 
   !> Convergence accuracy
   real(wp) :: accuracy
-  integer :: nvar, step, this_step, i, stat
+  integer :: nvar, step, iter, this_step, maxcycle, olev, i, stat
   real(wp) :: elast, ediff, gnorm, dnorm, ethr, gthr, dthr, gamax, damax, cvol
   real(wp), allocatable :: val, gcurr(:), glast(:), displ(:)
   logical :: econv, gconv, dconv, converged, f_exists
@@ -93,22 +96,29 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
   logical, parameter :: debug = .false.
 
   real(wp) :: emin_global, xyz_emin(3,mol%n), latt_emin(3,3)
+  real(wp) :: xyz_prev(3,mol%n), latt_prev(3,3)
   character(6), parameter :: fname = "noName"
   
   optfail = .false.
+  converged = .false.
+  iter = 0
+  if (present(iter_needed)) iter_needed = 0
   nvar = filter%get_dimension()
   allocate(gcurr(nvar), glast(nvar), displ(nvar))
   allocate(gxyz(3, mol%n), sigma(3, 3), source=0.0_wp)
   val = huge(0.0_wp)
   emin_global = huge(0.0_wp)
   energy = 0.0_wp
+  hlgap = 0.0_wp
   gcurr(:) = 0.0_wp
   glast(:) = 0.0_wp
   displ(:) = 0.0_wp
 
-  accuracy = 1.0_wp
-  call get_thr(accuracy, ethr, gthr, dthr)
-  this_step = 20*nvar
+  olev = p_olev_normal
+  if (present(optlevel)) olev = optlevel
+  call get_optthr(mol%n, olev, ethr, gthr, maxcycle, accuracy)
+  dthr = 5.0e-2_wp
+  this_step = max(20*nvar, maxcycle)
   if (present(maxcycle_in)) then
     if (maxcycle_in > 0) this_step = maxcycle_in
   end if
@@ -127,7 +137,8 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
       write(env%unit,'(/,72("."),/,30(".")," CYCLE",i5,1x,30("."),/,72("."))')step
     end if
 
-    ! 
+    xyz_prev = mol%xyz
+    latt_prev = mol%lattice
     call filter%transform_structure(mol, displ) ! original
 
     dnorm = norm2(displ)
@@ -145,9 +156,25 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
     if (fail) then
       optfail = .true.
       close(133)
+      mol%xyz = xyz_prev
+      mol%lattice = latt_prev
+      call mol%update
+      if (step == 1) then
+        if (present(etot_out)) etot_out = 0.0_wp
+        if (present(grad_out)) grad_out = 0.0_wp
+        if (present(sigma_out)) sigma_out = 0.0_wp
+        if (present(egap_out)) egap_out = 0.0_wp
+      end if
       call env%error('Single point calculation failed, aborting...', source)
       return
     endif
+
+    iter = step
+    if (present(etot_out)) etot_out = energy
+    if (present(grad_out)) grad_out = gxyz
+    if (present(sigma_out)) sigma_out = sigma
+    if (present(egap_out)) egap_out = hlgap
+    if (present(iter_needed)) iter_needed = iter
 
     ! calculate numerical gradient and stress tensor if requested
     if (debug) then
@@ -166,7 +193,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
     econv = ediff <= epsilon(0.0_wp) .and. abs(ediff) < ethr
     gnorm = norm2(gcurr)
     gamax = maxval(abs(gcurr))
-    gconv = gnorm/nvar < gthr
+    gconv = gnorm < gthr
     converged = econv .and. gconv .and. dconv
     cvol=dot_product(mol%lattice(:,1), cross_product( &
                    & mol%lattice(:,2), mol%lattice(:,3)))/6.748334606_wp !in a0 now
@@ -221,27 +248,20 @@ endif
   ! Output message if not converged after maximum steps
   if (.not.converged) then
     optfail = .true.
-    write(*,*) ''
-    write(*,*) 'Could not converge in',step,' steps.'
+    if (printlevel > 0) then
+      write(env%unit,*) ''
+      write(env%unit,*) 'Could not converge in',iter,' steps.'
+    end if
     call env%error("Could not converge geometry.",source)
   end if
   ! Output message if converged in time
   if (printlevel > 0 .and. converged) then
-    write(*,*) ''
+    write(env%unit,*) ''
     write(env%unit,'(a,i6,a)') "Geometry optimization converged after"&
-            &,step," steps."
+            &,iter," steps."
   end if
 
   call mol%update
-
-  if (present(etot_out)) etot_out = energy
-  if (present(grad_out)) grad_out = gxyz
-  if (present(sigma_out)) sigma_out = sigma
-  if (present(egap_out)) egap_out = hlgap
-
-  if (present(iter_needed)) then
-    iter_needed = step
-  end if
 
 end subroutine relax_pbc
 

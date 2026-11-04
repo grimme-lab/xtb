@@ -56,7 +56,7 @@ module xtb_scf
    implicit none
    private
 
-   public :: scf
+   public :: scf, reject_native_periodic_gfn
 
    logical, parameter :: profile = .true.
 
@@ -234,12 +234,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
 ! ------------------------------------------------------------------------
    if (mol%npbc > 0) then
-      call env%error( &
-         & new_line('a') // "[ERROR] Native periodic GFN1-xTB and GFN2-xTB calculations are deprecated and unsupported." // &
-         & new_line('a') // new_line('a') // &
-         & "Periodic GFN1/GFN2 calculations require the tblite backend." // &
-         & new_line('a') // new_line('a') // &
-         & "Please rerun your calculation with --tblite.", source)
+      call reject_native_periodic_gfn(env, source)
       return
    end if
 !  initialization
@@ -960,6 +955,18 @@ pure elemental function xbond(ati,atj) result(bool)
    if(lx2.and.ly1) bool=.true.
 
 end function xbond
+
+
+subroutine reject_native_periodic_gfn(env, source)
+   type(TEnvironment), intent(inout) :: env
+   character(len=*), intent(in) :: source
+   character(len=*), parameter :: nl = new_line('a')
+
+   call env%error( &
+      & "Native periodic GFN1-xTB and GFN2-xTB calculations are deprecated and unsupported." // nl // nl // &
+      & "Periodic GFN1/GFN2 calculations require the tblite backend." // nl // nl // &
+      & "Please rerun your calculation with --tblite.", source)
+end subroutine reject_native_periodic_gfn
 
 
 end module xtb_scf

@@ -120,11 +120,11 @@ subroutine geometry_optimization &
       opt_engine = p_engine_rf
    end if
 
-   if (mol%npbc > 0 .and. set%optcell .and. &
+   if (mol%npbc > 0 .and. &
       & (opt_engine == p_engine_rf .or. opt_engine == p_engine_lbfgs)) then
       call env%error( &
-         & "Selected optimization engine does not support periodic variable-cell optimization. " // &
-         & "Use 'pbc_lbfgs' (default) or 'inertial', or pass --nocellopt for fixed-cell optimization.", &
+         & "Selected optimization engine does not support periodic geometry optimization. " // &
+         & "Use 'pbc_lbfgs' (default) or 'inertial'.", &
          & source)
       fail = .true.
       return
@@ -190,7 +190,8 @@ subroutine geometry_optimization &
      call new_lbfgs_optimizer(lbfgs_opt, env, opt_input, filter)
      ! run optimization
      call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, printlevel, fail, iter_needed, &
-        & maxcycle_in=maxcycle_in, etot_out=etot, grad_out=g, sigma_out=sigma, egap_out=egap)
+        & optlevel=tight, maxcycle_in=maxcycle_in, etot_out=etot, grad_out=g, &
+        & sigma_out=sigma, egap_out=egap)
    case(p_engine_inertial)
       call fire & ! FIRE !
          &(env,ilog,mol,wfn,calc, &
@@ -231,7 +232,7 @@ subroutine geometry_optimization &
    if (pr.and.set%pr_geosum) call geosum(mol%n,mol%at,mol%xyz)
    
    ! final SP (usually for all engines) !
-   if (final_sp) then
+   if (final_sp .and. .not.exitRun) then
       if (pr) call generic_header(env%unit,'Final Singlepoint',49,10)
       ! Optionally update the result container if it is present
       if (present(res)) then

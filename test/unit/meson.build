@@ -137,6 +137,10 @@ if tblite_dep.found()
     files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite', '--opt',
     '--norestart', '--namespace', 'pbc_tblite_opt',
   ])
+  test('Periodic tblite GFN2 opt tight', xtb_exe, env: xtbenv, is_parallel: false, args: [
+    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite', '--opt', 'tight',
+    '--norestart', '--namespace', 'pbc_tblite_opt_tight',
+  ])
   test('Periodic tblite GFN2 nocellopt', xtb_exe, env: xtbenv, is_parallel: false, args: [
     files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite', '--opt', '--nocellopt',
     '--norestart', '--namespace', 'pbc_tblite_nocellopt',

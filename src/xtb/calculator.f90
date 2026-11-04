@@ -35,7 +35,7 @@ module xtb_xtb_calculator
    use xtb_fixparam
    use xtb_scanparam
    use xtb_sphereparam
-   use xtb_scf, only : scf
+   use xtb_scf, only : scf, reject_native_periodic_gfn
    use xtb_peeq, only : peeq
    use xtb_embedding, only : read_pcem
    use xtb_metadynamic
@@ -535,20 +535,6 @@ subroutine newGuessCharges(env, mol, level, q)
    end if
 
 end subroutine newGuessCharges
-
-
-subroutine reject_native_periodic_gfn(env, source)
-
-   type(TEnvironment), intent(inout) :: env
-   character(len=*), intent(in) :: source
-   character(len=*), parameter :: nl = new_line('a')
-
-   call env%error( &
-      & nl // "[ERROR] Native periodic GFN1-xTB and GFN2-xTB calculations are deprecated and unsupported." // nl // nl // &
-      & "Periodic GFN1/GFN2 calculations require the tblite backend." // nl // nl // &
-      & "Please rerun your calculation with --tblite.", source)
-
-end subroutine reject_native_periodic_gfn
 
 
 end module xtb_xtb_calculator

@@ -58,7 +58,8 @@ subroutine collect_optimizer(testsuite)
       new_unittest("default-periodic-optimizer", test_default_periodic_optimizer), &
       new_unittest("fixed-cell-periodic-optimizer", test_fixed_cell_periodic_optimizer), &
       new_unittest("nonperiodic-default-optimizer", test_nonperiodic_default_optimizer), &
-      new_unittest("explicit-periodic-optimizer", test_explicit_periodic_optimizer) &
+      new_unittest("explicit-periodic-optimizer", test_explicit_periodic_optimizer), &
+      new_unittest("periodic-optlevel-and-failures", test_periodic_optlevel_and_failures) &
       ]
 
 end subroutine collect_optimizer
@@ -912,7 +913,7 @@ subroutine test_explicit_periodic_optimizer(error)
    if (.not.allocated(error)) call check(error, exitRun, .true.)
    if (.not.allocated(error)) then
       call env%getLog(err_msg)
-      if (index(err_msg, "does not support periodic variable-cell optimization") == 0) then
+      if (index(err_msg, "does not support periodic geometry optimization") == 0) then
          call test_failed(error, "Missing error message for incompatible periodic optimizer")
       end if
    end if
@@ -936,7 +937,38 @@ subroutine test_explicit_periodic_optimizer(error)
       call env%getLog(err_msg)
    end if
 
-   ! 3. Supported explicit periodic optimizer (inertial / FIRE) must be preserved and succeed
+   ! 3. Incompatible explicit optimizers (rf and lbfgs) must also be rejected for fixed-cell PBC (--nocellopt)
+   if (.not.allocated(error)) then
+      set%optcell = .false.
+      call init(env)
+      set%opt_engine = p_engine_rf
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+         & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, fail, .true.)
+      if (.not.allocated(error)) call check(error, exitRun, .true.)
+      call env%getLog(err_msg)
+      if (.not.allocated(error)) then
+         if (index(err_msg, "does not support periodic geometry optimization") == 0) then
+            call test_failed(error, "rf was not rejected for fixed-cell periodic optimization")
+         end if
+      end if
+   end if
+   if (.not.allocated(error)) then
+      call init(env)
+      set%opt_engine = p_engine_lbfgs
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+         & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, fail, .true.)
+      if (.not.allocated(error)) call check(error, exitRun, .true.)
+      call env%getLog(err_msg)
+      set%optcell = .true.
+   end if
+
+   ! 4. Supported explicit periodic optimizer (inertial / FIRE) must be preserved and succeed
    if (.not.allocated(error)) then
       call setup_strained_caf2(env, mol, chk, calc, energy, egap, gradient, sigma)
       call fixset%deallocate
@@ -967,5 +999,137 @@ subroutine test_explicit_periodic_optimizer(error)
    end if
    set%optcell = optcell_save
 end subroutine test_explicit_periodic_optimizer
+
+
+subroutine test_periodic_optlevel_and_failures(error)
+   use xtb_geoopt, only : geometry_optimization
+   use xtb_setparam, only : set, p_engine_pbc_lbfgs, p_olev_crude, p_olev_vtight
+   use xtb_pbc_tools, only : dlat_to_cell, dlat_to_dvol
+
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   type(scc_results) :: res
+   real(wp) :: energy_crude, energy_vtight, energy_maxc, energy_ref
+   real(wp) :: egap, egap_ref, gradient(3, 3), grad_ref(3, 3), sigma(3, 3), sigma_ref(3, 3)
+   real(wp) :: gnorm_crude, gnorm_vtight, xyz0(3, 3), lattice0(3, 3), cellpar_ref(6), vol_ref
+   logical :: fail, exitRun, optcell_save
+   integer :: iter_crude, iter_vtight, iter_maxc, iter_fail
+   integer :: no_fixed(0)
+   integer, allocatable :: engine_save
+   character(len=:), allocatable :: err_msg
+
+   if (allocated(set%opt_engine)) engine_save = set%opt_engine
+   optcell_save = set%optcell
+   set%opt_engine = p_engine_pbc_lbfgs
+   set%optcell = .false.
+
+   ! 1. Verify optlevel propagation: vtight must converge to a tighter gradient norm than crude
+   call setup_periodic_water(env, mol, chk, calc, energy_crude, egap, gradient, sigma, no_fixed)
+   call fixset%deallocate
+   call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+      & energy_crude, gradient, sigma, p_olev_crude, .false., .false., fail, iter_crude)
+   call cleanup_opt_files()
+   call env%check(exitRun)
+   call check(error, .not.exitRun)
+   if (.not.allocated(error)) call check(error, .not.fail)
+   gnorm_crude = norm2(gradient)
+
+   if (.not.allocated(error)) then
+      call setup_periodic_water(env, mol, chk, calc, energy_vtight, egap, gradient, sigma, no_fixed)
+      call fixset%deallocate
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 200, &
+         & energy_vtight, gradient, sigma, p_olev_vtight, .false., .false., fail, iter_vtight)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, .not.exitRun)
+      if (.not.allocated(error)) call check(error, .not.fail)
+      gnorm_vtight = norm2(gradient)
+   end if
+
+   if (.not.allocated(error)) then
+      if (iter_vtight <= iter_crude) then
+         call test_failed(error, "vtight optimization did not require more cycles than crude")
+      else if (gnorm_vtight > 2.0e-4_wp) then
+         call test_failed(error, "vtight nuclear gradient norm exceeds vtight threshold")
+      else if (gnorm_vtight >= gnorm_crude) then
+         call test_failed(error, "vtight optimization did not achieve smaller gradient norm than crude")
+      else if (energy_vtight >= energy_crude) then
+         call test_failed(error, "vtight optimization did not achieve lower energy than crude")
+      end if
+   end if
+
+   ! 2. Verify maximum-cycle termination (maxcycle_in = 2):
+   !    fail must be .true., exitRun must be .false. (rescued), iter_needed == 2,
+   !    and mol/energy/gradient/sigma must match the last evaluated structure.
+   if (.not.allocated(error)) then
+      set%optcell = .true.
+      call setup_strained_caf2(env, mol, chk, calc, energy_maxc, egap, gradient, sigma)
+      call fixset%deallocate
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 2, &
+         & energy_maxc, gradient, sigma, p_olev_vtight, .false., .false., fail, iter_maxc)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, .not.exitRun)
+      if (.not.allocated(error)) call check(error, fail, .true.)
+      if (.not.allocated(error)) call check(error, iter_maxc, 2)
+   end if
+   if (.not.allocated(error)) then
+      call dlat_to_cell(mol%lattice, cellpar_ref)
+      vol_ref = dlat_to_dvol(mol%lattice)
+      call check(error, maxval(abs(mol%cellpar - cellpar_ref)), 0.0_wp, thr=1.0e-12_wp)
+      if (.not.allocated(error)) then
+         call check(error, mol%volume, vol_ref, thr=1.0e-12_wp)
+      end if
+   end if
+   if (.not.allocated(error)) then
+      call calc%singlepoint(env, mol, chk, 0, .false., energy_ref, grad_ref, sigma_ref, egap_ref, res)
+      call check(error, energy_maxc, energy_ref, thr=1.0e-10_wp)
+      if (.not.allocated(error)) then
+         call check(error, maxval(abs(gradient - grad_ref)), 0.0_wp, thr=1.0e-10_wp)
+      end if
+      if (.not.allocated(error)) then
+         call check(error, maxval(abs(sigma - sigma_ref)), 0.0_wp, thr=1.0e-10_wp)
+      end if
+   end if
+
+   ! 3. Verify failed single-point evaluation during periodic optimization:
+   !    Force singlepoint failure by setting calc%xtbData%level = 2 on a periodic structure.
+   !    Outputs must be cleanly zeroed (not left as uninitialized garbage), mol restored,
+   !    fail == .true., exitRun == .true., and final_sp skipped.
+   if (.not.allocated(error)) then
+      call setup_strained_caf2(env, mol, chk, calc, energy_maxc, egap, gradient, sigma)
+      call fixset%deallocate
+      xyz0 = mol%xyz
+      lattice0 = mol%lattice
+      calc%xtbData%level = 2
+      energy_maxc = -999.0_wp
+      gradient = -999.0_wp
+      sigma = -999.0_wp
+      egap = -999.0_wp
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 10, &
+         & energy_maxc, gradient, sigma, p_olev_normal, .false., .true., fail, iter_fail)
+      call cleanup_opt_files()
+      call env%check(exitRun)
+      call check(error, fail, .true.)
+      if (.not.allocated(error)) call check(error, .not.exitRun)
+      if (.not.allocated(error)) call check(error, iter_fail, 0)
+      if (.not.allocated(error)) call check(error, energy_maxc, 0.0_wp, thr=1.0e-12_wp)
+      if (.not.allocated(error)) call check(error, maxval(abs(gradient)), 0.0_wp, thr=1.0e-12_wp)
+      if (.not.allocated(error)) call check(error, maxval(abs(sigma)), 0.0_wp, thr=1.0e-12_wp)
+      if (.not.allocated(error)) call check(error, maxval(abs(mol%xyz - xyz0)), 0.0_wp, thr=1.0e-12_wp)
+      if (.not.allocated(error)) call check(error, maxval(abs(mol%lattice - lattice0)), 0.0_wp, thr=1.0e-12_wp)
+      call env%getLog(err_msg)
+   end if
+
+   if (allocated(engine_save)) then
+      set%opt_engine = engine_save
+   else if (allocated(set%opt_engine)) then
+      deallocate(set%opt_engine)
+   end if
+   set%optcell = optcell_save
+end subroutine test_periodic_optlevel_and_failures
 
 end module test_optimizer
