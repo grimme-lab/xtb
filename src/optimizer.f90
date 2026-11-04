@@ -44,49 +44,6 @@ module xtb_optimizer
 
 contains
 
-!> obtain SCC/calculator accuracy from optimization level
-pure function get_opt_accuracy(olev) result(acc)
-   use xtb_setparam
-   implicit none
-   integer, intent(in) :: olev
-   real(wp) :: acc
-
-   select case(olev)
-   ! very approximate = crude !
-   case(p_olev_crude)
-      acc = 3.00_wp
-
-   ! approximate = sloppy !
-   case(p_olev_sloppy)
-      acc = 3.00_wp
-
-   ! loose !
-   case(p_olev_loose)
-      acc = 2.00_wp
-
-   ! for DCOSMO-RS opts with TM i.e. between loose and normal !
-   case(p_olev_lax)
-      acc = 2.00_wp
-
-   ! normal !
-   case default
-      acc = 1.00_wp
-
-   ! tight !
-   case(p_olev_tight)
-      acc = 0.20_wp
-
-   ! very tight !
-   case(p_olev_vtight)
-      acc = 0.05_wp
-
-   ! extreme !
-   case(p_olev_extreme)
-      acc = 0.01_wp
-   end select
-
-end function get_opt_accuracy
-
 !> construct optimizer settings from optimization level
 subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
    use xtb_setparam
@@ -104,51 +61,58 @@ subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
       ethr   = 5.d-4
       gthr   = 1.d-2
       maxcycle=n
+      acc=3.00d0
    
    ! approximate = sloopy !
    case(p_olev_sloppy)
       ethr   = 1.d-4
       gthr   = 6.d-3
       maxcycle=n
+      acc=3.00d0
    
    ! loose !
    case(p_olev_loose)
       ethr   = 5.d-5
       gthr   = 4.d-3
       maxcycle=n*2
+      acc=2.00d0
 
    ! for DCOSMO-RS opts with TM i.e. between loose and normal !
    case(p_olev_lax)
       ethr   = 2.d-5
       gthr   = 2.5d-3
       maxcycle=n*2
+      acc=2.00d0
    
    ! normal !
    case default
       ethr  = 5.d-6
       gthr  = 1.d-3
       maxcycle=n*3
+      acc=1.0d0
    
    ! tight !
    case(p_olev_tight)
       ethr   = 1.d-6
       gthr   = 8.d-4
       maxcycle=n*5
+      acc=0.20d0
 
    ! very tight !
    case(p_olev_vtight)
       ethr   = 1.d-7
       gthr   = 2.d-4
       maxcycle=n*20
+      acc=0.05d0
 
    ! extreme !
    case(p_olev_extreme)
       ethr   = 5.d-8
       gthr   = 5.d-5
       maxcycle=n*20
+      acc=0.01d0
    end select
    
-   acc = get_opt_accuracy(olev)
    maxcycle=min(maxcycle,10000)
    maxcycle=max(maxcycle,200)
 
@@ -677,6 +641,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_timer
+   use xtb_setparam, only : set
 
    implicit none
 
@@ -835,13 +800,11 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    call env%check(fail)
    if (fail) then
       call env%error('SCF not converged, aborting...', source)
-      calc%accuracy = acc_in
       return
    endif
    if (energy.gt.1.d42) then
       call env%error('energy is bogus! aborting...', source)
       fail=.true.
-      calc%accuracy = acc_in
       return
    endif
    
@@ -862,7 +825,6 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    if(gnorm.gt.500.) then   
       call env%error('|grad| > 500, something is totally wrong!', source)
       fail=.true.
-      calc%accuracy = acc_in
       return
    endif
 
@@ -880,12 +842,14 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    end if
 
    ! adjust SCC accuracy dynamically !
-   if(gnorm    .lt.0.004)then
-      acc=acc_in
-   elseif(gnorm.lt.0.02)then
-      acc=3.0d0*acc_in
-   elseif(gnorm.gt.0.02)then
-      acc=6.0d0*acc_in
+   if (.not. set%acc_set) then
+      if(gnorm    .lt.0.004)then
+         acc=acc_in
+      elseif(gnorm.lt.0.02)then
+         acc=3.0d0*acc_in
+      elseif(gnorm.gt.0.02)then
+         acc=6.0d0*acc_in
+      endif
    endif
 
    first =.false. ! distinguish between first and subsequent iterations
@@ -911,7 +875,6 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    ! check 0 energy case !
    if ( energy .eq. 0 ) then
       call env%error('external program error', source)
-      calc%accuracy = acc_in
       return
    end if
 
@@ -974,7 +937,6 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    ! error handling after RF calculation !
    if (fail .or. abs(Uaug(nvar1,1)).lt.1.e-10) then
       call env%error("internal rational function error", source)
-      calc%accuracy = acc_in
       return
    end if
 
@@ -1025,7 +987,6 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       restart=.false.
       converged = .true.
       etot=energy
-      calc%accuracy = acc_in
       return
    endif
 !! ========================================================================
@@ -1041,7 +1002,6 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    restart=.true.
    etot=energy
    call anc%get_cartesian(mol%xyz)
-   calc%accuracy = acc_in
 
 end subroutine relax
 

@@ -109,7 +109,7 @@ module xtb_prog_main
 contains
 
    subroutine xtbMain(env, argParser)
-      use xtb_optimizer, only: get_opt_accuracy
+      use xtb_optimizer, only: get_optthr
 
       !> Source of errors in the main program unit
       character(len=*), parameter :: source = "prog_main"
@@ -209,7 +209,6 @@ contains
       logical :: exist
       logical :: lgrad, restart
       logical :: copycontrol
-      logical :: acc_provided
       character(len=32) :: acc_str
       logical :: newreader
       logical :: strict
@@ -228,8 +227,7 @@ contains
       ! ------------------------------------------------------------------------
       ! read the command line arguments
       call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
-         & restart, gsolvstate, strict, copycontrol, coffee, printTopo, &
-         & oniom, dipro, tblite, acc_provided)
+         & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
       ! ONIOM evaluates its GFN-xTB methods with tblite, independent of the flag order
       if (allocated(oniom%second_arg) .and. set%tblite) then
@@ -327,28 +325,24 @@ contains
 
       call env%checkpoint("Reading '"//xcontrol//"' failed")
 
-      if (.not. acc_provided) then
+      if (.not. set%acc_set) then
          select case (set%runtyp)
          case (p_run_opt, p_run_ohess, p_run_bhess, p_run_metaopt)
-            set%acc = get_opt_accuracy(set%optset%optlev)
+            call get_optthr(1, set%optset%optlev, er, el, idum, set%acc)
             tblite%accuracy = set%acc
          case (p_run_hess)
-            set%acc = get_opt_accuracy(p_olev_tight)
+            call get_optthr(1, p_olev_tight, er, el, idum, set%acc)
             tblite%accuracy = set%acc
          end select
       end if
 
-      ! If --acc was explicitly supplied and the input did not provide
-      ! its own $hess sccacc, use --acc for numerical Hessian displacements.
-      if (acc_provided .and. .not. allocated(set%accu_hess)) then
+      ! If --acc was explicitly supplied, or --ohess/--bhess selected a level
+      ! tighter than tight, and the input did not provide its own $hess sccacc,
+      ! use set%acc for numerical Hessian displacements.
+      if ((set%acc_set .or. ((set%runtyp == p_run_ohess .or. set%runtyp == p_run_bhess) &
+            & .and. set%acc < 0.2_wp)) .and. .not. allocated(set%accu_hess)) then
          write(acc_str, '(g0)') set%acc
          call set_hess(env, 'sccacc', trim(acc_str))
-      else if ((set%runtyp == p_run_ohess .or. set%runtyp == p_run_bhess) &
-            & .and. .not. allocated(set%accu_hess)) then
-         if (get_opt_accuracy(set%optset%optlev) < get_opt_accuracy(p_olev_tight)) then
-            write(acc_str, '(g0)') get_opt_accuracy(set%optset%optlev)
-            call set_hess(env, 'sccacc', trim(acc_str))
-         end if
       end if
 
       ! ------------------------------------------------------------------------
@@ -1353,11 +1347,9 @@ contains
 
 !> Parse command line arguments and forward them to settings
    subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
-         & restart, gsolvstate, strict, copycontrol, coffee, printTopo, &
-         & oniom, dipro, tblite, acc_provided)
+         & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
       use xtb_mctc_global, only: persistentEnv
-      use xtb_optimizer, only: get_opt_accuracy
 
       !> Name of error producer
       character(len=*), parameter :: source = "prog_main_parseArguments"
@@ -1410,9 +1402,6 @@ contains
       !> Input for TBLite calculator
       type(TTBLiteInput), intent(out) :: tblite
 
-      !> Accuracy explicitly requested via --acc, independent of its value
-      logical, intent(out) :: acc_provided
-
 !$    integer :: omp_get_num_threads, nproc
       integer :: nFlags
       integer :: idum, ndum
@@ -1421,7 +1410,6 @@ contains
       character(len=:), allocatable :: flag, sec
       logical :: exist
 
-      acc_provided = .false.
       set%gfn_method = 2
       dipro%diprocalc = .false.
       coffee = .false.
@@ -1543,7 +1531,6 @@ contains
                   else
                      set%acc = ddum
                   end if
-                  acc_provided = .true.
                   set%acc_set = .true.
                end if
                tblite%accuracy = set%acc
@@ -2158,17 +2145,6 @@ contains
          end select
          call args%nextFlag(flag)
       end do
-
-      if (.not. acc_provided) then
-         select case (set%runtyp)
-         case (p_run_opt, p_run_ohess, p_run_bhess, p_run_metaopt)
-            set%acc = get_opt_accuracy(set%optset%optlev)
-            tblite%accuracy = set%acc
-         case (p_run_hess)
-            set%acc = get_opt_accuracy(p_olev_tight)
-            tblite%accuracy = set%acc
-         end select
-      end if
 
    end subroutine parseArguments
 

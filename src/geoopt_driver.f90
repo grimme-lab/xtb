@@ -144,12 +144,6 @@ subroutine geometry_optimization &
 ! Calculation !
 !-------------!
 
-   if (set%acc_set) then
-      calc%accuracy = set%acc
-   else
-      calc%accuracy = get_opt_accuracy(tight)
-   end if
-
    if (initial_sp)  call singlepoint &
          &(env,mol,wfn,calc, &
          & egap,et,maxiter,printlevel-1,.false.,.false.,1.0_wp,etot,g,sigma,res_)

@@ -1091,7 +1091,6 @@ subroutine lbfgs_relax &
 
       ! get singlepoint energy
       if (profile) call timer%measure(6,"singlepoint calculation")
-      calc%accuracy = opt%acc
       call calc%singlepoint(env,mol,chk,opt%printlevel-1,.true.,energy,g_xyz,sigma,egap,res)
       !call gfnff_eg(.false.,mol%n,charge,attyp,xyz,q,.true.,g_xyz,energy)
       if (profile) call timer%measure(6)
@@ -1421,7 +1420,6 @@ subroutine inertial_relax &
       if (profile) call timer%measure(3)
       if (profile) call timer%measure(4,"singlepoint calculation")
       ! get singlepoint energy
-      calc%accuracy = opt%acc
       call calc%singlepoint(env,mol,chk,opt%printlevel-1,.true.,energy,gradient,sigma,egap,res)
       if (profile) call timer%measure(4)
       call env%check(fail)

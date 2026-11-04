@@ -220,22 +220,19 @@ subroutine help(iunit)
    "      --vomega             performs calculation of electrophilicity index with GFN1-xTB.",&
    "                           IPEA-xTB is used with --vparam param_ipea-xtb.txt.",&
    "      --grad               performs a gradient calculation",&
-   "  -o, --opt [LEVEL]        call ancopt(3) to perform a geometry optimization, levels from crude",&
-   "                           [3.0], sloppy [3.0], loose [2.0], normal [1.0] (default), tight [0.2],",&
-   "                           verytight [0.05] to extreme [0.01] can be chosen, level sets also the",&
-   "                           default accuracy setting (overwritten by --acc flag)",&
+   "  -o, --opt [LEVEL]        call ancopt(3) to perform a geometry optimization, levels from crude,",&
+   "                           sloppy, loose, normal (default), tight, verytight to extreme can be",&
+   "                           chosen, level sets also the default accuracy setting (overwritten by",&
+   "                           --acc flag)",&
    "      --cycles [int]       maximum number of optimization cycles.",&
    "      --hess               perform a numerical hessian calculation on input geometry, tightens",&
-   "                           default accuracy setting to 0.2 (overwritten by --acc flag or $hess",&
-   "                           sccacc)",&
+   "                           default accuracy setting to 0.2 (overwritten by --acc flag)",&
    "      --ohess [LEVEL]      perform a numerical hessian calculation on an ancopt(3) optimized",&
-   "                           geometry, optimization uses the level accuracy while the hessian uses",&
-   "                           0.2 or the level accuracy if tighter (overwritten by --acc flag or",&
-   "                           $hess sccacc)",&
+   "                           geometry, hessian uses 0.2 accuracy by default and follows tighter",&
+   "                           optimization levels (overwritten by --acc flag)",&
    "      --bhess [LEVEL]      perform a biased numerical hessian calculation on an ancopt(3) optimized",&
-   "                           geometry, optimization uses the level accuracy while the hessian uses",&
-   "                           0.2 or the level accuracy if tighter (overwritten by --acc flag or",&
-   "                           $hess sccacc).",&
+   "                           geometry, hessian uses 0.2 accuracy by default and follows tighter",&
+   "                           optimization levels (overwritten by --acc flag).",&
    "",&
    "                           Molecular Hessian runs with more than one atom, no frozen atoms, and no",&
    "                           periodicity automatically print compliance constants, relaxed force",&
