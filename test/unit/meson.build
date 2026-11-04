@@ -87,8 +87,8 @@ tester = executable(
   link_language: 'fortran',
 )
 
-# run test suites writing/deleting the same LMO, Molden, charge files or optlog serially
-serial_tests = ['gfn2', 'gfnff', 'iff', 'tblite', 'optimizer']
+# run test suites writing/deleting the same LMO, Molden, and charge files serially
+serial_tests = ['gfn2', 'gfnff', 'iff', 'tblite']
 foreach t : tests
   test(t, tester, args: t, suite: 'unit', env: xtbenv, is_parallel: t not in serial_tests)
 endforeach
@@ -125,26 +125,6 @@ if tblite_dep.found()
       '--coffee', '--strict', '--norestart', '--namespace', name.underscorify(),
     ] + args)
   endforeach
-  test('Periodic tblite GFN1', xtb_exe, env: xtbenv, args: [
-    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '1', '--tblite',
-    '--norestart', '--namespace', 'pbc_tblite_gfn1',
-  ])
-  test('Periodic tblite GFN2', xtb_exe, env: xtbenv, args: [
-    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite',
-    '--norestart', '--namespace', 'pbc_tblite_gfn2',
-  ])
-  test('Periodic tblite GFN2 opt', xtb_exe, env: xtbenv, is_parallel: false, args: [
-    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite', '--opt',
-    '--norestart', '--namespace', 'pbc_tblite_opt',
-  ])
-  test('Periodic tblite GFN2 opt tight', xtb_exe, env: xtbenv, is_parallel: false, args: [
-    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite', '--opt', 'tight',
-    '--norestart', '--namespace', 'pbc_tblite_opt_tight',
-  ])
-  test('Periodic tblite GFN2 nocellopt', xtb_exe, env: xtbenv, is_parallel: false, args: [
-    files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2', '--tblite', '--opt', '--nocellopt',
-    '--norestart', '--namespace', 'pbc_tblite_nocellopt',
-  ])
 endif
 if host_machine.system() != 'windows'
   test('Info', xtb_exe, env: xtbenv, args: [

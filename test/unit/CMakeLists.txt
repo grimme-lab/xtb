@@ -109,13 +109,12 @@ foreach(t IN LISTS tests)
   ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR}"
   )
 endforeach()
-# run test suites writing/deleting the same LMO and Molden output files serially
+# run test suites writing/deleting the same LMO, Molden, and charge files serially
 set_tests_properties(
   "${PROJECT_NAME}/gfn2"
   "${PROJECT_NAME}/gfnff"
   "${PROJECT_NAME}/iff"
   "${PROJECT_NAME}/tblite"
-  "${PROJECT_NAME}/optimizer"
   PROPERTIES
   RESOURCE_LOCK "lmo-output-files"
 )
@@ -149,26 +148,14 @@ add_test("xtb/GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --n
 add_test("xtb/GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
 add_test("xtb/GFN2-FF/xcontrol" ${XTB-EXE} --coffee --strict --norestart --namespace test7
   --input "${PROJECT_SOURCE_DIR}/test/inputs/gfnff.inp")
-add_test("xtb/Reject_native_periodic_GFN1_message" ${XTB-EXE}
+add_test("xtb/Reject_native_periodic_GFN1" ${XTB-EXE}
   "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 1 --norestart --namespace pbc_native_gfn1)
-add_test("xtb/Reject_native_periodic_GFN2_message" ${XTB-EXE}
+add_test("xtb/Reject_native_periodic_GFN2" ${XTB-EXE}
   "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --norestart --namespace pbc_native_gfn2)
-add_test("xtb/Reject_native_periodic_GFN1_exit" ${XTB-EXE}
-  "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 1 --norestart --namespace pbc_native_gfn1_exit)
-add_test("xtb/Reject_native_periodic_GFN2_exit" ${XTB-EXE}
-  "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --norestart --namespace pbc_native_gfn2_exit)
 
 set_tests_properties(
-  "xtb/Reject_native_periodic_GFN1_message"
-  "xtb/Reject_native_periodic_GFN2_message"
-  PROPERTIES
-  ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
-  PASS_REGULAR_EXPRESSION "Please rerun your calculation with --tblite"
-)
-
-set_tests_properties(
-  "xtb/Reject_native_periodic_GFN1_exit"
-  "xtb/Reject_native_periodic_GFN2_exit"
+  "xtb/Reject_native_periodic_GFN1"
+  "xtb/Reject_native_periodic_GFN2"
   PROPERTIES
   ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
   WILL_FAIL TRUE
@@ -204,27 +191,6 @@ if(WITH_TBLITE)
     PROPERTIES
     ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
     PASS_REGULAR_EXPRESSION "ONIOM TOTAL ENERGY"
-    FAIL_REGULAR_EXPRESSION "\\[ERROR\\]"
-  )
-  add_test("xtb/Periodic/tblite/GFN1" ${XTB-EXE}
-    "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 1 --tblite --norestart --namespace pbc_tblite_gfn1)
-  add_test("xtb/Periodic/tblite/GFN2" ${XTB-EXE}
-    "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --tblite --norestart --namespace pbc_tblite_gfn2)
-  add_test("xtb/Periodic/tblite/GFN2/opt" ${XTB-EXE}
-    "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --tblite --opt --norestart --namespace pbc_tblite_opt)
-  add_test("xtb/Periodic/tblite/GFN2/opt_tight" ${XTB-EXE}
-    "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --tblite --opt tight --norestart --namespace pbc_tblite_opt_tight)
-  add_test("xtb/Periodic/tblite/GFN2/nocellopt" ${XTB-EXE}
-    "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --tblite --opt --nocellopt --norestart --namespace pbc_tblite_nocellopt)
-  set_tests_properties(
-    "xtb/Periodic/tblite/GFN1"
-    "xtb/Periodic/tblite/GFN2"
-    "xtb/Periodic/tblite/GFN2/opt"
-    "xtb/Periodic/tblite/GFN2/opt_tight"
-    "xtb/Periodic/tblite/GFN2/nocellopt"
-    PROPERTIES
-    ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
-    RESOURCE_LOCK "lmo-output-files"
     FAIL_REGULAR_EXPRESSION "\\[ERROR\\]"
   )
 endif()

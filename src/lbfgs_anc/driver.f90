@@ -39,7 +39,6 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
       & optlevel, maxcycle_in, energy, egap, gradient, sigma, &
       & printlevel, fail, iter_needed)
   use xtb_pbc, only: cross_product
-  use xtb_pbc_tools, only : dlat_to_cell, dlat_to_rlat, dlat_to_dvol, xyz_to_abc
   use xtb_optimizer, only : get_optthr
   use xtb_setparam, only : set
   !> Instance of the optimization driver
@@ -155,15 +154,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
       close(133)
       mol%xyz = xyz_prev
       mol%lattice = latt_prev
-      if (mol%npbc > 0) then
-        call dlat_to_cell(mol%lattice, mol%cellpar)
-        call dlat_to_rlat(mol%lattice, mol%rec_lat)
-        mol%volume = dlat_to_dvol(mol%lattice)
-        call xyz_to_abc(mol%n, mol%lattice, mol%xyz, mol%abc, mol%pbc)
-        call mol%calculate_distances
-      else
-        call mol%update
-      end if
+      call mol%update
       energy = energy_prev
       egap = egap_prev
       gradient = gradient_prev
@@ -260,15 +251,7 @@ endif
             &,iter," steps."
   end if
 
-  if (mol%npbc > 0) then
-    call dlat_to_cell(mol%lattice, mol%cellpar)
-    call dlat_to_rlat(mol%lattice, mol%rec_lat)
-    mol%volume = dlat_to_dvol(mol%lattice)
-    call xyz_to_abc(mol%n, mol%lattice, mol%xyz, mol%abc, mol%pbc)
-    call mol%calculate_distances
-  else
-    call mol%update
-  end if
+  call mol%update
 
 end subroutine relax_pbc
 
