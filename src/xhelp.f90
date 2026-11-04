@@ -113,53 +113,62 @@ subroutine help(iunit)
    "Options:",&
    "",&
    "  -c, --chrg INT           specify molecular charge as INT, overrides .CHRG file and xcontrol option",&
-   "      --ceh <grad> [REAL]  calculate CEH (Charge-Extended Hückel model) charges and write them to",&
-   "                           the ceh.charges file",&
-   "                           optionally, calculate numerical gradients and write them to the",&
-   "                           ceh.charges.numgrad file with an adjustable step size for the numerical",&
+   "      --ceh [grad [REAL]]  calculate CEH (Charge-Extended Hückel model) charges and write them to",&
+   "                           the ceh.charges file (requires tblite support); optionally, calculate",&
+   "                           numerical gradients and write them to the ceh.charges.numgrad file with",&
+   "                           an adjustable step size REAL (default = 1e-5 Bohr) for the numerical",&
    "                           gradients.",&
    "  -u, --uhf INT            specify number of unpaired electrons as INT, overrides .UHF file and",&
    "                           xcontrol option (default: 0 (singlet) for even electron number, 1",&
    "                           (doublet) for odd electron number)",&
    "      --gfn INT            specify parametrisation of GFN-xTB (default = 2)",&
-   "      --gfnff, --gff       specify parametrisation of GFN-FF",&
-   "      --tblite             use tblite library as implementation for xTB",&
+   "      --gfnff, --gff       use the GFN-FF force field",&
+   "      --tblite             use tblite library as implementation for xTB (available for GFN1-xTB",&
+   "                           and GFN2-xTB)",&
    "      --ptb                performs single-point calculation with the density tight-binding method",&
-   "                           PTB. Provides electronic structure and properties, such as, e.g., atomic",&
-   "                           charges, bond orders, and dipole moments, but does not provide any",&
-   "                           energy-related properties, such as, e.g., total energy, nuclear",&
-   "                           gradients, or vibrational frequencies.",&
+   "                           PTB (requires tblite support). Provides electronic structure and",&
+   "                           properties, such as, e.g., atomic charges, bond orders, and dipole",&
+   "                           moments. PTB itself does not provide total energies, nuclear gradients,",&
+   "                           or an energetic Hessian; Hessian workflows combine GFN2-xTB with PTB",&
+   "                           response properties.",&
    "      --spinpol            enables spin-polarization for xTB methods (tblite required)",&
-   "      --oniom METHOD LIST  use subtractive embedding via ONIOM method. 'METHOD' is given as",&
-   "                           'inner:outer' where 'inner' can be 'orca', 'turbomole', 'gfn2', 'gfn1',",&
-   "                           or 'gfnff' and 'outer' can be 'gfn2', 'gfn1', or 'gfnff'. The inner",&
-   "                           region is given as a comma separated indices directly in the commandline",&
-   "                           or in a file with each index on a separate line. Combine with --tblite to",&
-   "                           evaluate 'gfn2' and 'gfn1' with the tblite library.",&
+   "      --oniom [METHOD] LIST",&
+   "                           use subtractive embedding via ONIOM method. 'METHOD' is given as",&
+   "                           'inner:outer' (default: 'gfn2:gfnff') where 'inner' can be 'orca',",&
+   "                           'turbomole', 'gfn2', 'gfn1', or 'gfnff' and 'outer' can be 'gfn2',",&
+   "                           'gfn1', or 'gfnff'. The inner region is given as comma-separated indices",&
+   "                           directly in the commandline or in a file with each index on a separate",&
+   "                           line. Combine with --tblite to evaluate 'gfn2' and 'gfn1' with the",&
+   "                           tblite library.",&
+   "      --cut                create inner region for --oniom calculation without performing any",&
+   "                           calculation",&
    "      --efield REAL,REAL,REAL",&
-   "                           static electric field in Cartesian coordinates, overrides '.EFIELD' file,",&
-   "                           works only via tblite for the xTB Hamiltonians, or with GFN-FF and PTB.",&
+   "                           static electric field in Cartesian coordinates (in atomic units),",&
+   "                           overrides '.EFIELD' file, works only via tblite for the xTB",&
+   "                           Hamiltonians, or with GFN-FF and PTB.",&
    "      --etemp REAL         electronic temperature (default = 300K)",&
    "      --esp                calculate electrostatic potential on VdW-grid",&
    "      --stm                calculate STM image",&
-   "  -a, --acc REAL           accuracy for SCC calculation, lower is better (default = 1.0), overwrites",&
-   "                           also tighter defaults for optimization and hessians",&
-   "      --vparam FILE        Parameter file for vTB calculation",&
-   "      --xparam FILE        Parameter file for xTB calculation (not used)",&
+   "  -a, --acc REAL           accuracy for SCC calculation, lower is better (default = 1.0),",&
+   "                           overrides automatic optimization and Hessian accuracy settings",&
+   "      --iterations, --maxiterations INT",&
+   "                           maximum number of SCC iterations per single point calculation",&
+   "                           (default = 250)",&
+   "      --vparam FILE        Parameter file for xTB calculation",&
    "      --alpb SOLVENT [STATE]",&
    "                           analytical linearized Poisson-Boltzmann (ALPB) model, available solvents",&
    "                           are acetone, acetonitrile, aniline, benzaldehyde, benzene, ch2cl2, chcl3,",&
-   "                           cs2, dioxane, dmf, dmso, ether, ethylacetate, furane, hexandecane,",&
-   "                           hexane, methanol, nitromethane, octanol, woctanol, phenol, toluene, thf,",&
-   "                           water. The solvent input is not case-sensitive. The Gsolv reference state",&
-   "                           can be chosen as reference, bar1M, or gsolv (default).",&
+   "                           cs2, dioxane, dmf, dmso, ethanol, ether, ethylacetate, furane,",&
+   "                           hexadecane, hexane, methanol, nitromethane, octanol, woctanol, phenol,",&
+   "                           toluene, thf, water. The solvent input is not case-sensitive. The Gsolv",&
+   "                           reference state can be chosen as reference, bar1M, or gsolv (default).",&
    "  -g, --gbsa SOLVENT [STATE]",&
-   "                           generalized born (GB) model with solvent accessable surface (SASA) model,",&
-   "                           available solvents are acetone, acetonitrile, benzene (only GFN1-xTB),",&
-   "                           CH2Cl2, CHCl3, CS2, DMF (only GFN2-xTB), DMSO, ether, H2O, methanol,",&
-   "                           n-hexane (only GFN2-xTB), THF and toluene. The solvent input is not",&
-   "                           case-sensitive. The Gsolv reference state can be chosen as reference,",&
-   "                           bar1M, or gsolv (default).",&
+   "                           generalized born (GB) model with solvent accessible surface (SASA) model,",&
+   "                           available solvents are acetone, acetonitrile, benzene, CH2Cl2, CHCl3,",&
+   "                           CS2, DMF (only GFN2-xTB), DMSO, ether, H2O, methanol, n-hexane (only",&
+   "                           GFN2-xTB), THF and toluene. The solvent input is not case-sensitive. The",&
+   "                           Gsolv reference state can be chosen as reference, bar1M, or gsolv",&
+   "                           (default).",&
    "      --gbe SOLVENT/EPSILON",&
    "                           generalized Born for finite epsilon (GBe) solvation model (tblite",&
    "                           required), includes only the electrostatic solvation contribution (no",&
@@ -174,39 +183,42 @@ subroutine help(iunit)
    "                           domain decomposition conductor-like screening model (ddCOSMO), available",&
    "                           solvents are all solvents that are available for alpb. Additionally, the",&
    "                           dielectric constant can be set manually or an ideal conductor can be",&
-   "                           chosen by setting epsilon to infinity. Available via tblite or in the",&
-   "                           legacy version in xtb lacking density response to the continuum",&
-   "                           polarization (non-variational).",&
+   "                           chosen by setting epsilon to infinity. Available via tblite (requires ddX",&
+   "                           support) or in the native legacy version in xtb lacking density response",&
+   "                           to the continuum polarization (non-variational).",&
    "      --cpcm SOLVENT/EPSILON",&
    "                           domain decomposition conductor-like polarizable continuum solvation model",&
    "                           (ddCPCM), available solvents are all solvents that are available for",&
    "                           alpb. Additionally, the dielectric constant can be set manually or an",&
-   "                           ideal conductor can be chosen by setting epsilon to infinity. Only",&
-   "                           available via tblite.",&
+   "                           ideal conductor can be chosen by setting epsilon to infinity. Requires",&
+   "                           tblite with ddX support.",&
    "      --pcm SOLVENT/EPSILON",&
    "                           domain decomposition polarizable continuum model (ddPCM), available",&
    "                           solvents are all solvents that are available for alpb. Additionally, the",&
    "                           dielectric constant can be set manually or an ideal conductor can be",&
-   "                           chosen by setting epsilon to infinity. Only available via tblite.",&
+   "                           chosen by setting epsilon to infinity. Requires tblite with ddX support.",&
    "      --tmcosmo SOLVENT/EPSILON",&
-   "                           same as --cosmo, but uses TM convention for writing the .cosmo files.",&
-   "      --cpcmx SOLVENT      extended conduction-like polarizable continuum solvation model (CPCM-X),",&
-   "                           available solvents are all solvents included in the Minnesota Solvation",&
-   "                           Database.",&
+   "                           same as --cosmo, but uses TM convention for writing the .cosmo files",&
+   "                           (native xTB only).",&
+   "      --cpcmx SOLVENT      extended conductor-like polarizable continuum solvation model (CPCM-X,",&
+   "                           requires CPCM-X support; parameterized for GFN2-xTB; single-point only,",&
+   "                           not available for geometry optimization or with GFN-FF), available",&
+   "                           solvents are all solvents included in the Minnesota Solvation Database.",&
    "      --cma                shifts molecule to center of mass and transforms cartesian coordinates",&
-   "                           into the coordinate system of the principle axis (not affected by",&
+   "                           into the coordinate system of the principal axis (not affected by",&
    "                           ‘isotopes’-file).",&
-   "      --pop                requests printout of Mulliken population analysis",&
+   "      --pop                requests printout of Mulliken population analysis (enabled by default)",&
    "      --molden             requests printout of molden file (name: molden.input), format differs",&
    "                           with --tblite",&
-   "      --dipole             requests dipole printout",&
-   "      --quadrupole         requests quadrupole printout",&
-   "      --raman              requests Raman spectrum calculation via combination of GFN2-xTB and PTB",&
-   "                           using the temperature 'REAL' (default 298.15 K) and the wavelength of the",&
-   "                           incident laser which must be given in nm 'REAL' (default 514 nm).",&
+   "      --dipole             requests dipole printout (enabled by default)",&
+   "      --quadrupole         requests quadrupole printout for tblite calculations",&
+   "      --raman [TEMP [WAVELENGTH]]",&
+   "                           requests Raman spectrum calculation via combination of GFN2-xTB and PTB",&
+   "                           (requires --ptb) using the temperature TEMP in K (default 298.15 K) and",&
+   "                           the wavelength of the incident laser WAVELENGTH in nm (default 514 nm).",&
    "      --alpha              requests the extension of electrical properties to static molecular",&
-   "                           dipole polarizabilities.",&
-   "      --wbo                requests Wiberg bond order printout",&
+   "                           dipole polarizabilities (requires --ptb).",&
+   "      --wbo                requests Wiberg bond order printout (enabled by default)",&
    "      --lmo                requests localization of orbitals",&
    "      --fod                requests FOD calculation",&
    "      --scc, --sp          performs a single point calculation",&
@@ -224,9 +236,9 @@ subroutine help(iunit)
    "                           sloppy, loose, normal (default), tight, verytight to extreme can be",&
    "                           chosen, level sets also the default accuracy setting (overwritten by",&
    "                           --acc flag)",&
-   "      --cycles [int]       maximum number of optimization cycles.",&
+   "      --cycles INT         maximum number of optimization cycles",&
    "      --hess               perform a numerical hessian calculation on input geometry, tightens",&
-   "                           default accuracy setting to 0.2 (overwritten by --acc flag)",&
+   "                           the default SCC accuracy setting to 0.2 (overwritten by --acc flag)",&
    "      --ohess [LEVEL]      perform a numerical hessian calculation on an ancopt(3) optimized",&
    "                           geometry, hessian uses 0.2 accuracy by default and follows tighter",&
    "                           optimization levels (overwritten by --acc flag)",&
@@ -237,14 +249,11 @@ subroutine help(iunit)
    "                           Molecular Hessian runs with more than one atom, no frozen atoms, and no",&
    "                           periodicity automatically print compliance constants, relaxed force",&
    "                           constants, and bond local-mode frequencies, and write compliance.dat.",&
-   "      --o1nh               perform the numerical hessian calculation using the ODLR approximation",&
-   "                           (O1NumHess)",&
+   "      --o1nh               perform the numerical hessian calculation using the ODLR approximation (O1NumHess)",&
    "      --imagmin REAL       magnitudes below this value (cm⁻¹) are ignored in the O1NumHess imaginary",&
    "                           frequency repair (default 5)",&
    "      --imagmax REAL       deepest imaginary frequency (cm⁻¹) considered in the O1NumHess imaginary",&
    "                           frequency repair (default 200)",&
-   "      --ithr REAL          imaginary frequencies between this cutoff (cm⁻¹) and zero are treated as",&
-   "                           vibrations in the RRHO calculation (default 20)",&
    "      --md                 molecular dynamics simulation on start geometry",&
    "      --metadyn [int]      meta dynamics simulation on start geometry, saving int snapshots of the",&
    "                           trajectory to bias the simulation",&
@@ -257,14 +266,17 @@ subroutine help(iunit)
    "                           given product structure",&
    "      --modef INT          modefollowing algorithm. INT specifies the mode that should be used for",&
    "                           the modefollowing.",&
+   "      --dipro [REAL]       calculate dimer projection (DIPRO) electronic coupling integrals between",&
+   "                           two fragments (requires tblite support). REAL sets the threshold for",&
+   "                           nearly degenerate orbitals to still be considered (default = 0.1 eV).",&
    "  -I, --input FILE         use FILE as input source for xcontrol(7) instructions",&
    "      --namespace STRING   give this xtb(1) run a namespace. All files, even temporary ones, will be",&
    "                           named according to STRING (might not work everywhere).",&
-   "      --[no]copy           copies the xcontrol file at startup (default = true)",&
+   "      --[no]copy           copies the xcontrol file at startup (default = false)",&
    "      --[no]restart        restarts calculation from xtbrestart (default = true)",&
    "  -P, --parallel INT       number of parallel processes",&
    "      --define             performs automatic check of input and terminate",&
-   "      --json               write xtbout.json file",&
+   "      --json               write xtbout.json file for native xTB and PTB calculations",&
    "      --citation           print citation and terminate",&
    "      --license            print license and terminate",&
    "  -v, --verbose            be more verbose (not supported in every unit)",&
