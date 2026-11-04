@@ -236,6 +236,8 @@ subroutine fire &
 
    ! obtain the thresholds from the optlevel, possible optlevels are currently
    call get_optthr(mol%n,optlevel,opt%e_thr,opt%g_thr,maxcycle,opt%acc)
+   if (set%acc_set) opt%acc = set%acc
+   calc%accuracy = opt%acc
    ! check for user input regarding the maximum number of cycles
    if (maxstep > 0) maxcycle = maxstep
    ! deactivate microcyles (seems to be expensive with only small gains)
@@ -530,6 +532,8 @@ subroutine l_ancopt &
 
    ! obtain the thresholds from the optlevel, possible optlevels are currently
    call get_optthr(mol%n,optlevel,opt%e_thr,opt%g_thr,maxcycle,opt%acc)
+   if (set%acc_set) opt%acc = set%acc
+   calc%accuracy = opt%acc
    ! check for user input regarding the maximum number of cycles
    if (maxcycle_in > 0) maxcycle = maxcycle_in
 

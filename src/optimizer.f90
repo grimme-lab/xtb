@@ -331,6 +331,8 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    maxmicro=set%optset%micro_opt       ! def: 20 
    estart = etot
    call get_optthr(mol%n,tight,ethr,gthr,maxopt,acc)
+   if (set%acc_set) acc = set%acc
+   calc%accuracy = acc
    
    ! if provided by user !
    if(maxcycle_in.gt.0)then
@@ -549,6 +551,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    call relax(env,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
       & iii,chk,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
       & converged,timer,set%optset%exact_rf,avconv)
+   calc%accuracy = acc
 
    ! check for errors !
    call env%check(fail)
@@ -638,6 +641,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_timer
+   use xtb_setparam, only : set
 
    implicit none
 
@@ -788,6 +792,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    ! single point + analytical gradients !
    if (profile) call timer%measure(5,'single point calculation')
    g = 0.0_wp
+   calc%accuracy = acc
    call calc%singlepoint(env,mol,chk,prlevel,iter.eq.1,energy,g,sigma,egap,res)
    if (profile) call timer%measure(5)
    
@@ -837,12 +842,14 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    end if
 
    ! adjust SCC accuracy dynamically !
-   if(gnorm    .lt.0.004)then
-      acc=acc_in
-   elseif(gnorm.lt.0.02)then
-      acc=3.0d0*acc_in
-   elseif(gnorm.gt.0.02)then
-      acc=6.0d0*acc_in
+   if (.not. set%acc_set) then
+      if(gnorm    .lt.0.004)then
+         acc=acc_in
+      elseif(gnorm.lt.0.02)then
+         acc=3.0d0*acc_in
+      elseif(gnorm.gt.0.02)then
+         acc=6.0d0*acc_in
+      endif
    endif
 
    first =.false. ! distinguish between first and subsequent iterations

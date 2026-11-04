@@ -221,18 +221,18 @@ subroutine help(iunit)
    "                           IPEA-xTB is used with --vparam param_ipea-xtb.txt.",&
    "      --grad               performs a gradient calculation",&
    "  -o, --opt [LEVEL]        call ancopt(3) to perform a geometry optimization, levels from crude,",&
-   "                           sloppy, loose, normal (default), tight [0.5], verytight [0.2] to extreme",&
-   "                           [0.2] can be chosen, level tightens also the default accuracy setting",&
-   "                           (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)",&
+   "                           sloppy, loose, normal (default), tight, verytight to extreme can be",&
+   "                           chosen, level sets also the default accuracy setting (overwritten by",&
+   "                           --acc flag)",&
    "      --cycles [int]       maximum number of optimization cycles.",&
    "      --hess               perform a numerical hessian calculation on input geometry, tightens",&
    "                           default accuracy setting to 0.2 (overwritten by --acc flag)",&
    "      --ohess [LEVEL]      perform a numerical hessian calculation on an ancopt(3) optimized",&
-   "                           geometry, tightens default accuracy setting to 0.2 (overwritten by --acc",&
-   "                           flag)",&
+   "                           geometry, hessian uses 0.2 accuracy by default and follows tighter",&
+   "                           optimization levels (overwritten by --acc flag)",&
    "      --bhess [LEVEL]      perform a biased numerical hessian calculation on an ancopt(3) optimized",&
-   "                           geometry, tightens default accuracy setting to 0.2 (overwritten by --acc",&
-   "                           flag).",&
+   "                           geometry, hessian uses 0.2 accuracy by default and follows tighter",&
+   "                           optimization levels (overwritten by --acc flag).",&
    "",&
    "                           Molecular Hessian runs with more than one atom, no frozen atoms, and no",&
    "                           periodicity automatically print compliance constants, relaxed force",&
@@ -251,8 +251,8 @@ subroutine help(iunit)
    "      --omd                molecular dynamics simulation on ancopt(3) optimized geometry, a loose",&
    "                           optimization level will be chosen",&
    "      --metaopt [LEVEL]    call ancopt(3) to perform a geometry optimization, then try to find other",&
-   "                           minimas by meta dynamics, level tightens also the default accuracy",&
-   "                           setting (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)",&
+   "                           minimas by meta dynamics, level sets also the default accuracy",&
+   "                           setting (overwritten by --acc flag)",&
    "      --path [FILE]        use meta dynamics to calculate a path from the input geometry to the",&
    "                           given product structure",&
    "      --modef INT          modefollowing algorithm. INT specifies the mode that should be used for",&

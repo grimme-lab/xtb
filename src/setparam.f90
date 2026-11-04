@@ -223,6 +223,7 @@ module xtb_setparam
    integer  :: gfn_method = -1
    integer  :: maxscciter = 250
    real(wp) :: acc = 1.0_wp
+   logical  :: acc_set = .false.
    logical  :: newdisp = .true.
    logical  :: solve_scc = .true.
    logical  :: periodic = .false.
@@ -343,7 +344,7 @@ module xtb_setparam
 
 !! ------------------------------------------------------------------------
 !  SCC accuracy level in Hessian runs
-   real(wp) :: accu_hess = 0.3_wp
+   real(wp), allocatable :: accu_hess
 !  Cartesian displacement increment for numerical Hessian
    real(wp) :: step_hess = 0.005_wp
    ! Scaling factor for the hessian elements

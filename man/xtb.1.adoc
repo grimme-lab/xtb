@@ -255,8 +255,8 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 *-o, --opt* ['LEVEL']::
     call `ancopt(3)` to perform a geometry optimization,
     levels from crude, sloppy, loose, normal (default), tight, verytight
-    to extreme can be chosen, level tightens also the default accuracy setting 
-    (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)
+    to extreme can be chosen, level sets also the default accuracy setting
+    (overwritten by --acc flag)
 
 *--hess*::
     perform a numerical hessian calculation on input geometry,
@@ -264,11 +264,13 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 
 *--ohess* ['LEVEL']::
     perform a numerical hessian calculation on an `ancopt(3)` optimized
-    geometry, tightens default accuracy setting to 0.2 (overwritten by --acc flag)
+    geometry, hessian uses 0.2 accuracy by default and follows tighter
+    optimization levels (overwritten by --acc flag)
 
 *--bhess* ['LEVEL']::
     perform a biased numerical hessian calculation on an `ancopt(3)` optimized
-    geometry, tightens default accuracy setting to 0.2 (overwritten by --acc flag)
+    geometry, hessian uses 0.2 accuracy by default and follows tighter
+    optimization levels (overwritten by --acc flag)
 
     Hessian runs automatically perform a compliance analysis for nonperiodic
     systems with more than one atom and no frozen atoms.
@@ -305,8 +307,7 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 *--metaopt* ['LEVEL']::
     call `ancopt(3)` to perform a geometry optimization,
     then try to find other minimas by meta dynamics, 
-    level tightens also the default accuracy setting
-    (0.5 tight, and 0.2 verytight/extreme, overwritten by --acc flag)
+    level sets also the default accuracy setting (overwritten by --acc flag)
 
 *--path* ['FILE']::
     use meta dynamics to calculate a path from the input geometry
