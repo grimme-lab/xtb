@@ -997,7 +997,7 @@ jobs:
             if-no-files-found: error
 
    continuous-delivery:
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || (github.repository == 'thfroitzheim/xtb' && github.ref == 'refs/heads/pkgconfig-mod-files'))
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       runs-on: ubuntu-24.04
       permissions:
          contents: write
