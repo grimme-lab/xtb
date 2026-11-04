@@ -148,6 +148,18 @@ add_test("xtb/GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --n
 add_test("xtb/GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
 add_test("xtb/GFN2-FF/xcontrol" ${XTB-EXE} --coffee --strict --norestart --namespace test7
   --input "${PROJECT_SOURCE_DIR}/test/inputs/gfnff.inp")
+add_test("xtb/Reject_native_periodic_GFN1" ${XTB-EXE}
+  "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 1 --norestart --namespace pbc_native_gfn1)
+add_test("xtb/Reject_native_periodic_GFN2" ${XTB-EXE}
+  "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --norestart --namespace pbc_native_gfn2)
+
+set_tests_properties(
+  "xtb/Reject_native_periodic_GFN1"
+  "xtb/Reject_native_periodic_GFN2"
+  PROPERTIES
+  ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
+  WILL_FAIL TRUE
+)
 
 set_tests_properties(
   "xtb/Singlepoint"

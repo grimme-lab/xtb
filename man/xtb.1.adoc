@@ -80,7 +80,7 @@ OPTIONS
     use the GFN-FF force field
 
 *--tblite* ::
-    use tblite library as implementation for xTB (available for GFN1-xTB and GFN2-xTB)
+    use tblite library as implementation for xTB (required for periodic GFN1-xTB and GFN2-xTB calculations)
     
 *--ceh* ['grad' ['REAL']]::
       calculate CEH (Charge-Extended Hückel model) charges and write them to the ceh.charges file
@@ -268,10 +268,15 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
     performs a gradient calculation
 
 *-o, --opt* ['LEVEL']::
-    call `ancopt(3)` to perform a geometry optimization,
+    perform a geometry optimization (nonperiodic: `ancopt(3)`, 
+    periodic with lattice-vector relaxation: `pbc_lbfgs`),
     levels from crude, sloppy, loose, normal (default), tight, verytight
     to extreme can be chosen, level sets also the default accuracy setting
     (overwritten by --acc flag)
+
+*--nocellopt*::
+    disable lattice-vector relaxation during periodic geometry optimization
+    (atomic coordinates are optimized with fixed unit cell)
 
 *--hess*::
     perform a numerical hessian calculation on input geometry,

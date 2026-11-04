@@ -123,8 +123,8 @@ subroutine help(iunit)
    "                           (doublet) for odd electron number)",&
    "      --gfn INT            specify parametrisation of GFN-xTB (default = 2)",&
    "      --gfnff, --gff       use the GFN-FF force field",&
-   "      --tblite             use tblite library as implementation for xTB (available for GFN1-xTB",&
-   "                           and GFN2-xTB)",&
+   "      --tblite             use tblite library as implementation for xTB (required for periodic",&
+   "                           GFN1-xTB and GFN2-xTB calculations)",&
    "      --ptb                performs single-point calculation with the density tight-binding method",&
    "                           PTB (requires tblite support). Provides electronic structure and",&
    "                           properties, such as, e.g., atomic charges, bond orders, and dipole",&
@@ -232,10 +232,12 @@ subroutine help(iunit)
    "      --vomega             performs calculation of electrophilicity index with GFN1-xTB.",&
    "                           IPEA-xTB is used with --vparam param_ipea-xtb.txt.",&
    "      --grad               performs a gradient calculation",&
-   "  -o, --opt [LEVEL]        call ancopt(3) to perform a geometry optimization, levels from crude,",&
+   "  -o, --opt [LEVEL]        perform a geometry optimization (nonperiodic: `ancopt(3)`,",&
+   "                           periodic with lattice-vector relaxation: `pbc_lbfgs`),",&
    "                           sloppy, loose, normal (default), tight, verytight to extreme can be",&
    "                           chosen, level sets also the default accuracy setting (overwritten by",&
    "                           --acc flag)",&
+   "      --nocellopt          keep lattice vectors fixed during periodic geometry optimization",&
    "      --cycles INT         maximum number of optimization cycles",&
    "      --hess               perform a numerical hessian calculation on input geometry, tightens",&
    "                           the default SCC accuracy setting to 0.2 (overwritten by --acc flag)",&

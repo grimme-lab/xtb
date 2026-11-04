@@ -104,6 +104,14 @@ test('GFN2-FF xcontrol', xtb_exe, env: xtbenv, args: [
   '--coffee', '--strict', '--norestart', '--namespace', 'test7',
   '--input', files('../inputs/gfnff.inp'),
 ])
+test('Reject native periodic GFN1', xtb_exe, should_fail: true, env: xtbenv, args: [
+  files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '1',
+  '--norestart', '--namespace', 'pbc_native_gfn1',
+])
+test('Reject native periodic GFN2', xtb_exe, should_fail: true, env: xtbenv, args: [
+  files('../../assets/inputs/vasp/ammonia.vasp'), '--gfn', '2',
+  '--norestart', '--namespace', 'pbc_native_gfn2',
+])
 if tblite_dep.found()
   # ONIOM with tblite
   oniom_tests = {

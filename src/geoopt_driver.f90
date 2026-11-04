@@ -99,6 +99,7 @@ subroutine geometry_optimization &
    logical :: final_sp, exitRun
    integer :: printlevel
    integer :: ilog
+   integer :: opt_engine
    ! for PBC optimization with lbfgs (including lattice optimization)
    logical :: optcell
    type(lbfgs_optimizer) :: lbfgs_opt
@@ -108,6 +109,26 @@ subroutine geometry_optimization &
 !----------------!
 ! Initialization !
 !----------------!
+
+   if (allocated(set%opt_engine)) then
+      opt_engine = set%opt_engine
+   else if (mol%npbc > 0) then
+      opt_engine = p_engine_pbc_lbfgs
+   else if (mol%n > 500) then
+      opt_engine = p_engine_lbfgs
+   else
+      opt_engine = p_engine_rf
+   end if
+
+   if (mol%npbc > 0 .and. &
+      & (opt_engine == p_engine_rf .or. opt_engine == p_engine_lbfgs)) then
+      call env%error( &
+         & "Selected optimization engine does not support periodic geometry optimization. " // &
+         & "Use 'pbc_lbfgs' (default) or 'inertial'.", &
+         & source)
+      fail = .true.
+      return
+   end if
 
    final_sp = pr
 
@@ -148,7 +169,7 @@ subroutine geometry_optimization &
          &(env,mol,wfn,calc, &
          & egap,et,maxiter,printlevel-1,.false.,.false.,1.0_wp,etot,g,sigma,res_)
 
-   select case(set%opt_engine)
+   select case(opt_engine)
    case(p_engine_rf) ! ANCopt !
       call ancopt &
          &(env,ilog,mol,wfn,calc, &
@@ -168,13 +189,17 @@ subroutine geometry_optimization &
      ! create new Limited-memory BFGS optimizer 
      call new_lbfgs_optimizer(lbfgs_opt, env, opt_input, filter)
      ! run optimization
-     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, printlevel, fail, iter_needed)
+     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, &
+        & tight, maxcycle_in, etot, egap, g, sigma, &
+        & printlevel, fail, iter_needed)
    case(p_engine_inertial)
       call fire & ! FIRE !
          &(env,ilog,mol,wfn,calc, &
          & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail, iter_needed)
    
    end select
+
+   call mol%update(wrap=.false.)
   
 !-----------------!
 ! Post-processing !
@@ -207,7 +232,7 @@ subroutine geometry_optimization &
    if (pr.and.set%pr_geosum) call geosum(mol%n,mol%at,mol%xyz)
    
    ! final SP (usually for all engines) !
-   if (final_sp) then
+   if (final_sp .and. .not.exitRun) then
       if (pr) call generic_header(env%unit,'Final Singlepoint',49,10)
       ! Optionally update the result container if it is present
       if (present(res)) then

@@ -35,7 +35,7 @@ module xtb_xtb_calculator
    use xtb_fixparam
    use xtb_scanparam
    use xtb_sphereparam
-   use xtb_scf, only : scf
+   use xtb_scf, only : scf, reject_native_periodic_gfn
    use xtb_peeq, only : peeq
    use xtb_embedding, only : read_pcem
    use xtb_metadynamic
@@ -113,6 +113,13 @@ subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
    logical :: exist, okbas
    logical :: exitRun
 
+   if (present(method)) then
+      if (mol%npbc > 0 .and. (method == 1 .or. method == 2)) then
+         call reject_native_periodic_gfn(env, source)
+         return
+      end if
+   end if
+
    if (present(fname)) then
       filename = fname
    else
@@ -164,6 +171,11 @@ subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
          call env%error("Requested method does not match loaded method", source)
          return
       end if
+   end if
+
+   if (mol%npbc > 0 .and. (calc%xtbData%level == 1 .or. calc%xtbData%level == 2)) then
+      call reject_native_periodic_gfn(env, source)
+      return
    end if
 
    call env%check(exitRun)
@@ -252,6 +264,10 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    !  actual calculation
    select case(self%xtbData%level)
    case(1, 2)
+      if (mol%npbc > 0) then
+         call reject_native_periodic_gfn(env, source)
+         return
+      end if
       if (allocated(self%solvation)) then
          call newSolvationModel(self%solvation, env, solvation, mol%at)
       end if
@@ -519,5 +535,6 @@ subroutine newGuessCharges(env, mol, level, q)
    end if
 
 end subroutine newGuessCharges
+
 
 end module xtb_xtb_calculator

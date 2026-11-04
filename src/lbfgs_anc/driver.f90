@@ -18,7 +18,6 @@ module xtb_pbc_optimizer_driver
    use xtb_mctc_accuracy, only : wp!, error_type, fatal_error
    use xtb_type_molecule, only : TMolecule
    use xtb_type_calculator
-   use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_pbc_optimizer_filter_cart, only : cartesian_filter
    use xtb_type_restart, only : TRestart
@@ -36,47 +35,52 @@ module xtb_pbc_optimizer_driver
 
 !> Driver for performing geometry optimization
 !subroutine    relax(self, ctx, mol, calc, filter, accuracy, verbosity)
-subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, iter_needed)
+subroutine relax_pbc(self, env, mol, chk, calc, filter, &
+      & optlevel, maxcycle_in, energy, egap, gradient, sigma, &
+      & printlevel, fail, iter_needed)
   use xtb_pbc, only: cross_product
-  use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
   !> Instance of the optimization driver
   class(optimizer_type), intent(inout) :: self
   !> Calculation environment
   type(TEnvironment), intent(inout) :: env
-  type(TEnvironment) :: env2
   !> Molecular structure data
   type(TMolecule), intent(inout) :: mol
   !> Wavefunction data
   type(TRestart), intent(inout) :: chk
   !> calculator type
-  type(TGFFCalculator), allocatable :: gfnff
   class(TCalculator), intent(inout) :: calc
   !> Transformation filter for coordinates
   class(cartesian_filter), intent(in) :: filter
+  !> Optimization level
+  integer, intent(in) :: optlevel
+  !> Maximum number of optimization cycles
+  integer, intent(in) :: maxcycle_in
+  !> singlepoint energy
+  real(wp), intent(inout) :: energy
+  !> HOMO-LUMO gap
+  real(wp), intent(inout) :: egap
+  !> Molecular gradient
+  real(wp), intent(inout) :: gradient(:, :)
+  !> Strain derivatives / stress tensor
+  real(wp), intent(inout) :: sigma(3, 3)
   !> Output verbosity
   integer, intent(in) :: printlevel
-  ! Variables for/from singlepoint 
-  !> Restart from previous results
-  logical :: restart ! = .true.
-  !> HOMO-LUMO gab
-  real(wp) :: hlgap
-  !> Detailed results
-  type(scc_results) :: results
-  !> optimization cycle failed
-  logical :: fail
   !> optimization failed
-  logical, intent(out) :: optfail
-  !> singlepoint energy
-  real(wp) :: energy
-  !> gradient and stress tensor
-  real(wp), allocatable :: gxyz(:, :), sigma(:, :)
-
+  logical, intent(out) :: fail
   !> number of cycles needed for optimization
   integer, intent(out), optional :: iter_needed
 
+  ! Variables for/from singlepoint 
+  !> Restart from previous results
+  logical :: restart ! = .true.
+  !> Detailed results
+  type(scc_results) :: results
+  !> optimization cycle failed
+  logical :: exitRun
+
   !> Convergence accuracy
   real(wp) :: accuracy
-  integer :: nvar, step, this_step, i, stat
+  integer :: nvar, step, iter, this_step, i, stat
   real(wp) :: elast, ediff, gnorm, dnorm, ethr, gthr, dthr, gamax, damax, cvol
   real(wp), allocatable :: val, gcurr(:), glast(:), displ(:)
   logical :: econv, gconv, dconv, converged, f_exists
@@ -87,15 +91,17 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
   logical, parameter :: debug = .false.
 
   real(wp) :: emin_global, xyz_emin(3,mol%n), latt_emin(3,3)
-  character(6), parameter :: fname = "noName"
+  real(wp) :: xyz_prev(3,mol%n), latt_prev(3,3)
+  real(wp) :: energy_prev, egap_prev, gradient_prev(3,mol%n), sigma_prev(3,3)
   
-  optfail = .false.
+  fail = .false.
+  converged = .false.
+  iter = 0
+  if (present(iter_needed)) iter_needed = 0
   nvar = filter%get_dimension()
   allocate(gcurr(nvar), glast(nvar), displ(nvar))
-  allocate(gxyz(3, mol%n), sigma(3, 3), source=0.0_wp)
   val = huge(0.0_wp)
   emin_global = huge(0.0_wp)
-  energy = 0.0_wp
   gcurr(:) = 0.0_wp
   glast(:) = 0.0_wp
   displ(:) = 0.0_wp
@@ -103,6 +109,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
   accuracy = 1.0_wp
   call get_thr(accuracy, ethr, gthr, dthr)
   this_step = 20*nvar
+  if (maxcycle_in > 0) this_step = maxcycle_in
 
   inquire( file="xtboptlog.cif", exist=f_exists )
   if(f_exists)then
@@ -118,7 +125,12 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
       write(env%unit,'(/,72("."),/,30(".")," CYCLE",i5,1x,30("."),/,72("."))')step
     end if
 
-    ! 
+    xyz_prev = mol%xyz
+    latt_prev = mol%lattice
+    energy_prev = energy
+    egap_prev = egap
+    gradient_prev = gradient
+    sigma_prev = sigma
     call filter%transform_structure(mol, displ) ! original
 
     dnorm = norm2(displ)
@@ -130,25 +142,37 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail, ite
     restart=.true.
 
     call calc%singlepoint(env, mol, chk, printlevel-1, restart, &
-         & energy, gxyz, sigma, hlgap, results)
+         & energy, gradient, sigma, egap, results)
 
-    call env%check(fail)
-    if (fail) then
+    call env%check(exitRun)
+    if (exitRun) then
+      fail = .true.
+      close(133)
+      mol%xyz = xyz_prev
+      mol%lattice = latt_prev
+      call mol%update(wrap=.false.)
+      energy = energy_prev
+      egap = egap_prev
+      gradient = gradient_prev
+      sigma = sigma_prev
       call env%error('Single point calculation failed, aborting...', source)
       return
     endif
+
+    iter = step
+    if (present(iter_needed)) iter_needed = iter
 
     ! calculate numerical gradient and stress tensor if requested
     if (debug) then
        numsig = 0.0_wp
        call num_sigma(env, mol, chk, calc, printlevel, sigma, numsig)
        numgrad = 0.0_wp
-       call num_grad(env, mol, chk, calc, printlevel, gxyz, numgrad)
+       call num_grad(env, mol, chk, calc, printlevel, gradient, numgrad)
     endif
 
 
-    ! calculate new gradients from gxyz and sigma from SP
-    call filter%transform_derivative(mol, energy, gxyz, sigma, val, gcurr)
+    ! calculate new gradients from gradient and sigma from SP
+    call filter%transform_derivative(mol, energy, gradient, sigma, val, gcurr)
 
     ! set up values for convergence test
     ediff = val - elast
@@ -209,21 +233,21 @@ endif
 
   ! Output message if not converged after maximum steps
   if (.not.converged) then
-    optfail = .true.
-    write(*,*) ''
-    write(*,*) 'Could not converge in',step,' steps.'
+    fail = .true.
+    if (printlevel > 0) then
+      write(env%unit,*) ''
+      write(env%unit,*) 'Could not converge in',iter,' steps.'
+    end if
     call env%error("Could not converge geometry.",source)
   end if
   ! Output message if converged in time
   if (printlevel > 0 .and. converged) then
-    write(*,*) ''
+    write(env%unit,*) ''
     write(env%unit,'(a,i6,a)') "Geometry optimization converged after"&
-            &,step," steps."
+            &,iter," steps."
   end if
 
-  if (present(iter_needed)) then
-    iter_needed = step
-  end if
+  call mol%update(wrap=.false.)
 
 end subroutine relax_pbc
 

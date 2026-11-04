@@ -21,7 +21,7 @@ module xtb_main_defaults
    use xtb_type_calculator, only : TCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
-   use xtb_setparam, only : set, p_engine_lbfgs, p_engine_rf
+   use xtb_setparam, only : set, p_engine_lbfgs, p_engine_rf, p_engine_pbc_lbfgs
    use xtb_main_setup, only : addSolvationModel
    implicit none
    private
@@ -40,7 +40,9 @@ subroutine initDefaults(env, calc, mol, gsolvstate)
    integer, intent(in) :: gsolvstate
 
    if (.not.allocated(set%opt_engine)) then
-      if (mol%n > 500) then
+      if (mol%npbc > 0) then
+         set%opt_engine = p_engine_pbc_lbfgs
+      else if (mol%n > 500) then
          set%opt_engine = p_engine_lbfgs
       else
          set%opt_engine = p_engine_rf

@@ -608,7 +608,7 @@ contains
          case (p_run_prescc,p_run_scc, p_run_grad, p_run_opt, p_run_hess, p_run_ohess, p_run_bhess, &
                p_run_md, p_run_omd, p_run_path, p_run_screen, &
                p_run_modef, p_run_mdopt, p_run_metaopt)
-            if (set%mode_extrun == p_ext_gfnff) then
+            if (set%mode_extrun == p_ext_gfnff .or. set%mode_extrun == p_ext_mcgfnff) then
                fnv = xfind(p_fname_param_gfnff)
             elseif (set%mode_extrun .eq. p_ext_ptb) then
                   fnv = xfind(p_fname_param_ptb)
@@ -916,12 +916,6 @@ contains
 ! Geometry optimization(ANCopt,L_ANCopt,FIRE) !
 !---------------------------------------------!
       if (anyopt) then
-
-         if (mol%npbc > 0 .and. (set%mode_extrun == p_ext_gfnff &
-                 & .or. set%mode_extrun == p_ext_mcgfnff)) then  ! if(npbc)
-            deallocate (set%opt_engine)
-            call set_opt(env, 'engine', 'pbc_lbfgs')  ! use lbfgs
-         end if
 
          ! start optimization timer !
          call start_timing(3)

@@ -513,7 +513,7 @@ subroutine deallocate_molecule(self)
    call self%frag%deallocate
 end subroutine deallocate_molecule
 
-subroutine update(self)
+subroutine update(self, wrap)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
    use xtb_axis, only : is_linear
@@ -521,6 +521,11 @@ subroutine update(self)
    implicit none
    class(TMolecule),intent(inout) :: self  
       !! molecular structure information
+   logical, intent(in), optional :: wrap
+   logical :: do_wrap
+
+   do_wrap = .true.
+   if (present(wrap)) do_wrap = wrap
    
    !> For periodic calculations
    if (self%npbc > 0) then
@@ -528,7 +533,11 @@ subroutine update(self)
       call dlat_to_rlat(self%lattice,self%rec_lat)
       self%volume = dlat_to_dvol(self%lattice)
 
-      call self%wrap_back
+      if (do_wrap) then
+         call self%wrap_back
+      else
+         call xyz_to_abc(self%n,self%lattice,self%xyz,self%abc,self%pbc)
+      endif
    endif
    
    call self%calculate_distances

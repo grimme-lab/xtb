@@ -42,7 +42,8 @@ subroutine collect_gfn2(testsuite)
       new_unittest("dmetal", test_gfn2_dmetal), &
       new_unittest("mindless-cosmo", test_gfn2_mindless_cosmo), &
       new_unittest("wbo", test_gfn2_wbo), &
-      new_unittest("lmo-molden", test_gfn2_lmo_molden) &
+      new_unittest("lmo-molden", test_gfn2_lmo_molden), &
+      new_unittest("pbc3d", test_gfn2_pbc3d) &
       ]
 
 end subroutine collect_gfn2
@@ -1392,5 +1393,56 @@ subroutine test_gfn2_lmo_molden(error)
    call delete_file('molden-lmo.input')
 
 end subroutine test_gfn2_lmo_molden
+
+
+subroutine test_gfn2_pbc3d(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_pbc_tools
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator
+
+   type(error_type), allocatable, intent(out) :: error
+
+   integer, parameter :: nat = 3
+   integer, parameter :: at(nat) = [9, 9, 20]
+   real(wp), parameter :: abc(3, nat) = reshape(&
+      &[0.25_wp, 0.25_wp, 0.25_wp, &
+      & 0.75_wp, 0.75_wp, 0.75_wp, &
+      & 0.00_wp, 0.00_wp, 0.00_wp], shape(abc))
+   real(wp), parameter :: lattice(3, 3) = reshape(&
+      &[5.9598811567890_wp, 2.1071361905157_wp, 3.6496669404404_wp, &
+      & 0.0000000000000_wp, 6.3214085715472_wp, 3.6496669404404_wp, &
+      & 0.0000000000000_wp, 0.0000000000000_wp, 7.2993338808807_wp], &
+      & shape(lattice))
+
+   type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   type(TxTBCalculator) :: calc
+   real(wp), allocatable :: xyz(:, :)
+   logical :: exitRun
+   character(len=:), allocatable :: err_msg
+
+   call init(env)
+   allocate(xyz(3, nat))
+   call coord_trafo(nat, lattice, abc, xyz)
+   call init(mol, at, xyz, lattice=lattice)
+
+   call newXTBCalculator(env, mol, calc, 'param_gfn2-xtb.txt', 2)
+   call env%check(exitRun)
+   call check_(error, exitRun, .true.)
+   if (allocated(error)) return
+
+   call env%getLog(err_msg)
+   if (index(err_msg, "Native periodic GFN1-xTB and GFN2-xTB calculations are deprecated and unsupported") == 0) then
+      call test_failed(error, "Missing deprecation message for native periodic GFN2-xTB")
+      return
+   end if
+   if (index(err_msg, "--tblite") == 0) then
+      call test_failed(error, "Error message does not recommend --tblite")
+      return
+   end if
+
+end subroutine test_gfn2_pbc3d
 
 end module test_gfn2
