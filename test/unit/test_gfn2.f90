@@ -1278,7 +1278,7 @@ subroutine test_gfn2_lmo_molden(error)
    character(len=1024) :: line1, line2
    logical :: exitRun
    logical :: exist_lmoinfo, exist_lmocent, exist_molden, exist_molden_lmo
-   logical :: pr_lmo_save, pr_molden_save
+   logical :: pr_lmo_save, pr_molden_save, pr_charges_save, pr_wiberg_save
    logical :: differ
    logical :: in_mo1, in_mo2
    
@@ -1298,8 +1298,12 @@ subroutine test_gfn2_lmo_molden(error)
    ! Mirror the command line with molden and lmo options
    pr_lmo_save = set%pr_lmo
    pr_molden_save = set%pr_molden_input
+   pr_charges_save = set%pr_charges
+   pr_wiberg_save = set%pr_wiberg
    set%pr_lmo = .true.
    set%pr_molden_input = .true.
+   set%pr_charges = .false.
+   set%pr_wiberg = .false.
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
@@ -1314,6 +1318,8 @@ subroutine test_gfn2_lmo_molden(error)
 
    set%pr_lmo = pr_lmo_save
    set%pr_molden_input = pr_molden_save
+   set%pr_charges = pr_charges_save
+   set%pr_wiberg = pr_wiberg_save
 
    ! Check LMO classification results
    call check_(error, allocated(res%iff_results))
@@ -1380,9 +1386,10 @@ subroutine test_gfn2_lmo_molden(error)
 
    call delete_file('xtblmoinfo')
    call delete_file('lmocent.coord')
+   call delete_file('coordprot.0')
+   call delete_file('xtbscreen.xyz')
    call delete_file('molden.input')
    call delete_file('molden-lmo.input')
-   call delete_file('charges')
 
 end subroutine test_gfn2_lmo_molden
 

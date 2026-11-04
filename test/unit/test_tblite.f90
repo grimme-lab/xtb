@@ -885,7 +885,7 @@ subroutine test_lmo_molden(error)
    real(wp) :: energy, sigma(3, 3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
-   logical :: pr_lmo_save, pr_molden_save
+   logical :: pr_lmo_save, pr_molden_save, pr_charges_save, pr_wiberg_save
    logical :: exist_molden, exist_molden_lmo, differ
    integer :: unit1, unit2, stat1, stat2
    character(len=1024) :: line1, line2
@@ -909,8 +909,12 @@ subroutine test_lmo_molden(error)
    ! Mirror '--lmo --molden' on the command line
    pr_lmo_save = set%pr_lmo
    pr_molden_save = set%pr_molden_input
+   pr_charges_save = set%pr_charges
+   pr_wiberg_save = set%pr_wiberg
    set%pr_lmo = .true.
    set%pr_molden_input = .true.
+   set%pr_charges = .false.
+   set%pr_wiberg = .false.
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
@@ -921,6 +925,8 @@ subroutine test_lmo_molden(error)
 
    set%pr_lmo = pr_lmo_save
    set%pr_molden_input = pr_molden_save
+   set%pr_charges = pr_charges_save
+   set%pr_wiberg = pr_wiberg_save
 
    ! The canonical and localized-MO Molden files both get written ...
    inquire(file='molden.input', exist=exist_molden)
@@ -973,9 +979,6 @@ subroutine test_lmo_molden(error)
 
    call delete_file('molden.input')
    call delete_file('molden-lmo.input')
-   call delete_file('charges')
-   call delete_file('wbo')
-   call delete_file('xtbtopo.mol')
    call delete_file('xtblmoinfo')
    call delete_file('lmocent.coord')
    call delete_file('coordprot.0')
@@ -1011,7 +1014,8 @@ subroutine test_lmo_spinpol(error)
 
    real(wp) :: energy, sigma(3, 3), hl_gap
    real(wp), allocatable :: gradient(:, :)
-   logical :: pr_lmo_save, pr_molden_save, exitRun, exist_lmoinfo
+   logical :: pr_lmo_save, pr_molden_save, pr_charges_save, pr_wiberg_save
+   logical :: exitRun, exist_lmoinfo
    logical :: exist_molden_lmo
    integer :: unit, stat, nalpha, nbeta
    character(len=1024) :: line
@@ -1038,8 +1042,12 @@ subroutine test_lmo_spinpol(error)
    ! Mirror '--lmo --molden' on the command line
    pr_lmo_save = set%pr_lmo
    pr_molden_save = set%pr_molden_input
+   pr_charges_save = set%pr_charges
+   pr_wiberg_save = set%pr_wiberg
    set%pr_lmo = .true.
    set%pr_molden_input = .true.
+   set%pr_charges = .false.
+   set%pr_wiberg = .false.
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
@@ -1047,6 +1055,8 @@ subroutine test_lmo_spinpol(error)
 
    set%pr_lmo = pr_lmo_save
    set%pr_molden_input = pr_molden_save
+   set%pr_charges = pr_charges_save
+   set%pr_wiberg = pr_wiberg_save
 
    ! Skipping the classification only issues a warning
    call env%check(exitRun)
@@ -1082,9 +1092,6 @@ subroutine test_lmo_spinpol(error)
 
    call delete_file('molden.input')
    call delete_file('molden-lmo.input')
-   call delete_file('charges')
-   call delete_file('wbo')
-   call delete_file('xtbtopo.mol')
 
 end subroutine test_lmo_spinpol
 
