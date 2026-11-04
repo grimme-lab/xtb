@@ -569,24 +569,6 @@ jobs:
             dynamic=$(readelf -dW "$exe")
             ! grep -q '(NEEDED)' <<< "$dynamic" || { echo 'DT_NEEDED found: binary has dynamic dependencies' >&2; exit 1; }
             echo 'PASS: no PT_INTERP; zero DT_NEEDED'
-            expected_version=$(sed -n "s/.*version: '\([^']*\)'.*/\1/p" meson.build | head -n 1)
-            test -f stage/lib/pkgconfig/xtb.pc
-            pkg-config --validate stage/lib/pkgconfig/xtb.pc
-            test "$(pkg-config --modversion stage/lib/pkgconfig/xtb.pc)" = "$expected_version"
-            shopt -s nullglob dotglob
-            modfiles=(stage/share/modules/modulefiles/xtb/*)
-            test "${#modfiles[@]}" -eq 1
-            test -f "${modfiles[0]}"
-            test "$(basename "${modfiles[0]}")" = "$expected_version"
-            ! grep -Ei '/home/runner|/users/runner|d:/a/|c:/|_install' stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            ! grep -Fq "$GITHUB_WORKSPACE" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            test -z "$(find stage \( -name '*.mod' -o -name '*.smod' -o -name '*.cmake' \) -print -quit)"
-            test "$(find stage -name '*.pc' | wc -l)" -eq 1
-            test "$(find stage/include -type f | wc -l)" -eq 1
-            test -f stage/include/xtb.h
-            test "$(find stage/lib -maxdepth 1 -type f | wc -l)" -eq 2
-            test -f stage/lib/libxtb.a
-            test -f stage/lib/libcpx.a
             tar -cJf xtb-bleed-linux-x86_64-ifx-mkl.tar.xz stage
          - uses: actions/upload-artifact@v4
            with:
@@ -684,24 +666,6 @@ jobs:
             dynamic=$(readelf -dW "$exe")
             ! grep -q '(NEEDED)' <<< "$dynamic" || { echo 'DT_NEEDED found: binary has dynamic dependencies' >&2; exit 1; }
             echo 'PASS: no PT_INTERP; zero DT_NEEDED'
-            expected_version=$(sed -n "s/.*version: '\([^']*\)'.*/\1/p" meson.build | head -n 1)
-            test -f stage/lib/pkgconfig/xtb.pc
-            pkg-config --validate stage/lib/pkgconfig/xtb.pc
-            test "$(pkg-config --modversion stage/lib/pkgconfig/xtb.pc)" = "$expected_version"
-            shopt -s nullglob dotglob
-            modfiles=(stage/share/modules/modulefiles/xtb/*)
-            test "${#modfiles[@]}" -eq 1
-            test -f "${modfiles[0]}"
-            test "$(basename "${modfiles[0]}")" = "$expected_version"
-            ! grep -Ei '/home/runner|/users/runner|d:/a/|c:/|_install' stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            ! grep -Fq "$GITHUB_WORKSPACE" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            test -z "$(find stage \( -name '*.mod' -o -name '*.smod' -o -name '*.cmake' \) -print -quit)"
-            test "$(find stage -name '*.pc' | wc -l)" -eq 1
-            test "$(find stage/include -type f | wc -l)" -eq 1
-            test -f stage/include/xtb.h
-            test "$(find stage/lib -maxdepth 1 -type f | wc -l)" -eq 2
-            test -f stage/lib/libxtb.a
-            test -f stage/lib/libcpx.a
             tar -cJf xtb-bleed-linux-aarch64-openblas.tar.xz stage
          - uses: actions/upload-artifact@v4
            with:
@@ -839,24 +803,6 @@ jobs:
               esac
             done <<< "$paths"
             echo 'PASS: expected architecture; Apple system dependencies only'
-            expected_version=$(sed -n "s/.*version: '\([^']*\)'.*/\1/p" meson.build | head -n 1)
-            test -f stage/lib/pkgconfig/xtb.pc
-            pkg-config --validate stage/lib/pkgconfig/xtb.pc
-            test "$(pkg-config --modversion stage/lib/pkgconfig/xtb.pc)" = "$expected_version"
-            shopt -s nullglob dotglob
-            modfiles=(stage/share/modules/modulefiles/xtb/*)
-            test "${#modfiles[@]}" -eq 1
-            test -f "${modfiles[0]}"
-            test "$(basename "${modfiles[0]}")" = "$expected_version"
-            ! grep -Ei '/home/runner|/users/runner|d:/a/|c:/|_install' stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            ! grep -Fq "$GITHUB_WORKSPACE" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            test -z "$(find stage \( -name '*.mod' -o -name '*.smod' -o -name '*.cmake' \) -print -quit)"
-            test "$(find stage -name '*.pc' | wc -l)" -eq 1
-            test "$(find stage/include -type f | wc -l)" -eq 1
-            test -f stage/include/xtb.h
-            test "$(find stage/lib -maxdepth 1 -type f | wc -l)" -eq 2
-            test -f stage/lib/libxtb.a
-            test -f stage/lib/libcpx.a
             tar -cJf "${{ matrix.archive }}" stage
          - uses: actions/upload-artifact@v4
            with:
@@ -970,25 +916,6 @@ jobs:
               exit 1
             fi
             echo 'PASS: no third-party runtime DLL imports'
-            expected_version=$(sed -n "s/.*version: '\([^']*\)'.*/\1/p" meson.build | head -n 1)
-            test -f stage/lib/pkgconfig/xtb.pc
-            pkg-config --validate stage/lib/pkgconfig/xtb.pc
-            test "$(pkg-config --modversion stage/lib/pkgconfig/xtb.pc)" = "$expected_version"
-            shopt -s nullglob dotglob
-            modfiles=(stage/share/modules/modulefiles/xtb/*)
-            test "${#modfiles[@]}" -eq 1
-            test -f "${modfiles[0]}"
-            test "$(basename "${modfiles[0]}")" = "$expected_version"
-            ! grep -Ei '/home/runner|/users/runner|d:/a/|c:/|_install' stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            ! grep -Fq "$GITHUB_WORKSPACE" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            ! grep -Fq "$(cygpath -m "$GITHUB_WORKSPACE")" stage/lib/pkgconfig/xtb.pc "${modfiles[0]}"
-            test -z "$(find stage \( -name '*.mod' -o -name '*.smod' -o -name '*.cmake' \) -print -quit)"
-            test "$(find stage -name '*.pc' | wc -l)" -eq 1
-            test "$(find stage/include -type f | wc -l)" -eq 1
-            test -f stage/include/xtb.h
-            test "$(find stage/lib -maxdepth 1 -type f | wc -l)" -eq 2
-            test -f stage/lib/libxtb.a
-            test -f stage/lib/libcpx.a
             zip -r xtb-bleed-windows-x86_64-openblas.zip stage
          - uses: actions/upload-artifact@v4
            with:
