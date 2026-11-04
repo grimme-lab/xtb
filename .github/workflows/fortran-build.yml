@@ -949,8 +949,21 @@ jobs:
          - name: Publish complete static release at tested commit
            working-directory: release-assets
            run: |
-            git tag --force bleed "$GITHUB_SHA"
-            git push origin refs/tags/bleed --force
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/bleed" >/dev/null 2>&1; then
+              gh api \
+                --method PATCH \
+                "repos/$GITHUB_REPOSITORY/git/refs/tags/bleed" \
+                -f sha="$GITHUB_SHA" \
+                -F force=true \
+                >/dev/null
+            else
+              gh api \
+                --method POST \
+                "repos/$GITHUB_REPOSITORY/git/refs" \
+                -f ref='refs/tags/bleed' \
+                -f sha="$GITHUB_SHA" \
+                >/dev/null
+            fi
             if ! gh release view bleed >/dev/null 2>&1; then
               gh release create bleed --prerelease --title 'Bleeding edge version' --notes "Static release from $GITHUB_SHA"
             fi
@@ -974,4 +987,4 @@ jobs:
               cmp "$checksum" "$(basename "$checksum")"
               sha256sum -c "$(basename "$checksum")"
             done
-            test "$(git ls-remote origin refs/tags/bleed | cut -f1)" = "$GITHUB_SHA"
+            test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/bleed" --jq '.object.sha')" = "$GITHUB_SHA"
