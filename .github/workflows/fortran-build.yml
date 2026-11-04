@@ -473,7 +473,12 @@ jobs:
               -DBLAS_LIBRARIES="$mkl" -DLAPACK_LIBRARIES="$mkl" \
               -DBUILD_SHARED_LIBS=OFF -DWITH_TBLITE=ON -DWITH_DDX=ON -DTBLITE_WITH_DDX=ON -DWITH_CPCMX=ON \
               -DCMAKE_EXE_LINKER_FLAGS='-static -static-intel -fiopenmp -qopenmp-link=static' \
-              -DCMAKE_INSTALL_PREFIX=/ -DCMAKE_INSTALL_LIBDIR=lib
+              -DCMAKE_INSTALL_PREFIX=/ \
+              -DCMAKE_INSTALL_BINDIR=/bin \
+              -DCMAKE_INSTALL_LIBDIR=/lib \
+              -DCMAKE_INSTALL_INCLUDEDIR=/include \
+              -DCMAKE_INSTALL_DATADIR=/share \
+              -DCMAKE_INSTALL_MANDIR=/share/man
          - name: Build and install
            run: |
             set -euo pipefail
@@ -486,15 +491,10 @@ jobs:
               stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/mkl \
               stage/share/licenses/intel-runtime stage/share/licenses/gcc-runtime
             cp _install/bin/xtb stage/bin/xtb
-            if [ -f _install/bin/cpx ]; then
-              cp _install/bin/cpx stage/bin/cpx
-              cp _install/lib/libcpcmx.a stage/lib/libcpx.a
-            else
-              cp _install/usr/bin/cpx stage/bin/cpx
-              cp _install/usr/lib/libcpcmx.a stage/lib/libcpx.a
-            fi
+            cp _install/bin/cpx stage/bin/cpx
             cp _install/include/xtb.h stage/include/xtb.h
             cp _install/lib/libxtb.a stage/lib/libxtb.a
+            cp _install/lib/libcpcmx.a stage/lib/libcpx.a
             cp _install/lib/pkgconfig/xtb.pc stage/lib/pkgconfig/xtb.pc
             cp -R _install/share/modules/modulefiles/xtb stage/share/modules/modulefiles/
             for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do

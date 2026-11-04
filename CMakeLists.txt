@@ -33,13 +33,6 @@ option(WITH_TESTS "Enable compilation of unit tests" ON)
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
-if(CMAKE_INSTALL_PREFIX STREQUAL "/")
-  foreach(_dir BINDIR LIBDIR INCLUDEDIR DATADIR MANDIR)
-    string(REGEX REPLACE "^usr/" "" CMAKE_INSTALL_${_dir}
-                         "${CMAKE_INSTALL_${_dir}}")
-  endforeach()
-  unset(_dir)
-endif()
 set(CMAKE_INSTALL_Fortran_MODULES
     "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
     CACHE STRING "Installation directory for xTB Fortran module files")
@@ -76,11 +69,11 @@ set(name "${PROJECT_NAME}")
 set(description "${PROJECT_DESCRIPTION}")
 set(version "${PROJECT_VERSION}")
 set(prefix "${CMAKE_INSTALL_PREFIX}")
-set(bindir "${CMAKE_INSTALL_BINDIR}")
-set(libdir "${CMAKE_INSTALL_LIBDIR}")
-set(includedir "${CMAKE_INSTALL_INCLUDEDIR}")
-set(datadir "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
-set(mandir "${CMAKE_INSTALL_MANDIR}")
+string(REGEX REPLACE "^/" "" bindir "${CMAKE_INSTALL_BINDIR}")
+string(REGEX REPLACE "^/" "" libdir "${CMAKE_INSTALL_LIBDIR}")
+string(REGEX REPLACE "^/" "" includedir "${CMAKE_INSTALL_INCLUDEDIR}")
+string(REGEX REPLACE "^/" "" datadir "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
+string(REGEX REPLACE "^/" "" mandir "${CMAKE_INSTALL_MANDIR}")
 execute_process(
   COMMAND git rev-parse HEAD
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
