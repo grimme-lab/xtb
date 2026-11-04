@@ -554,6 +554,8 @@ subroutine dock_wat_wat_gfnff(error, constrain)
    integer :: at(n)
    real(wp) :: xyz(3,n)
    real(wp) :: molA_e, molB_e
+   integer :: fix_atoms(3), pos_atoms(3)
+   real(wp) :: pos_val(3), pos_fc
 
    logical, parameter :: restart = .false.
 
@@ -663,6 +665,10 @@ subroutine dock_wat_wat_gfnff(error, constrain)
       potset%pos%n = 3
       potset%pos%atoms(1:3) = [4, 5, 6]
       call setup_constrain_pot(iff_data%n, iff_data%at, iff_data%xyz)
+      fix_atoms = fixset%atoms(1:3)
+      pos_atoms = potset%pos%atoms(1:3)
+      pos_val = potset%pos%val(1:3)
+      pos_fc = potset%pos%fc
    end if
 
    call docking_search(env, molA, molB, iff_data%n, iff_data%n1, iff_data%n2,&
@@ -683,9 +689,21 @@ subroutine dock_wat_wat_gfnff(error, constrain)
       & call check_(error, molB_e, -0.34297405499115_wp, thr=thr)
 
    if (constrain) then
-      ! the constraints of the complex are restored after the monomer energies
+      ! the constraints of the complex are restored unchanged after the
+      ! monomer energies
       if (.not.allocated(error)) call check_(error, fixset%n, 3)
       if (.not.allocated(error)) call check_(error, potset%pos%n, 3)
+      if (.not.allocated(error)) call check_(error, &
+         & all(fixset%atoms(1:3) == fix_atoms), "Fixed atoms changed")
+      if (.not.allocated(error)) call check_(error, &
+         & all(potset%pos%atoms(1:3) == pos_atoms), &
+         & "Position of constrained atoms changed")
+      do i = 1, 3
+         if (.not.allocated(error)) &
+            & call check_(error, potset%pos%val(i), pos_val(i), thr=thr)
+      end do
+      if (.not.allocated(error)) &
+         & call check_(error, potset%pos%fc, pos_fc, thr=thr)
       call clear_fix
       call clear_constr
       call potset%deallocate
