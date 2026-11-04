@@ -36,6 +36,7 @@ subroutine collect_docking(testsuite)
       new_unittest("dock_gfn2_wat_wat_wall", test_dock_wat_wat_gfn2_wall), &
       new_unittest("dock_gfn2_wat_wat_attpot", test_dock_wat_wat_gfn2_attpot), &
       new_unittest("dock_gfnff_wat_wat", test_dock_wat_wat_gfnff), &
+      new_unittest("dock_gfnff_wat_wat_constr", test_dock_wat_wat_gfnff_constr), &
       new_unittest("dock_gfn1_backends", test_docking_gfn1), &
       new_unittest("dock_gfn2_backends", test_docking_gfn2) &
       ]
@@ -497,6 +498,26 @@ end subroutine test_dock_wat_wat_gfn2_attpot
 
 
 subroutine test_dock_wat_wat_gfnff(error)
+   type(error_type), allocatable, intent(out) :: error
+
+   call dock_wat_wat_gfnff(error, .false.)
+
+end subroutine test_dock_wat_wat_gfnff
+
+
+!> Fixed atoms and constraints are numbered for the complex and must not be
+!> applied to the monomers, which have their own numbering
+subroutine test_dock_wat_wat_gfnff_constr(error)
+   type(error_type), allocatable, intent(out) :: error
+
+   call dock_wat_wat_gfnff(error, .true.)
+
+end subroutine test_dock_wat_wat_gfnff_constr
+
+
+!> Dock two water molecules with GFN-FF, optionally with molecule 2 fixed and
+!> its atom positions constrained
+subroutine dock_wat_wat_gfnff(error, constrain)
    use xtb_type_environment, only: TEnvironment, init
    use xtb_mctc_accuracy, only: wp
    use xtb_type_environment, only: TEnvironment
@@ -513,8 +534,12 @@ subroutine test_dock_wat_wat_gfnff(error)
    use xtb_mctc_systools
    use xtb_iff_data, only: TIFFData
    use xtb_mctc_global, only : persistentEnv
+   use xtb_fixparam, only: fixset, init_fix, clear_fix
+   use xtb_scanparam, only: potset, init_constr, clear_constr, setup_constrain_pot
 
    type(error_type), allocatable, intent(out) :: error
+   !> Fix and constrain the atoms of molecule 2 during the docking
+   logical, intent(in) :: constrain
    !> All important variables stored here
    type(TIFFData) :: iff_data
    real(wp),parameter :: thr = 1.0e-6_wp
@@ -529,6 +554,8 @@ subroutine test_dock_wat_wat_gfnff(error)
    integer :: at(n)
    real(wp) :: xyz(3,n)
    real(wp) :: molA_e, molB_e
+   integer :: fix_atoms(3), pos_atoms(3)
+   real(wp) :: pos_val(3), pos_fc
 
    logical, parameter :: restart = .false.
 
@@ -629,6 +656,21 @@ subroutine test_dock_wat_wat_gfnff(error)
    stepa = 60    
    n_opt = 2
 
+   if (constrain) then
+      ! atoms 4-6 of the complex are molecule 2
+      call init_fix(iff_data%n)
+      fixset%n = 3
+      fixset%atoms(1:3) = [4, 5, 6]
+      call init_constr(iff_data%n, iff_data%at)
+      potset%pos%n = 3
+      potset%pos%atoms(1:3) = [4, 5, 6]
+      call setup_constrain_pot(iff_data%n, iff_data%at, iff_data%xyz)
+      fix_atoms = fixset%atoms(1:3)
+      pos_atoms = potset%pos%atoms(1:3)
+      pos_val = potset%pos%val(1:3)
+      pos_fc = potset%pos%fc
+   end if
+
    call docking_search(env, molA, molB, iff_data%n, iff_data%n1, iff_data%n2,&
                  & iff_data%at1, iff_data%at2, iff_data%neigh, iff_data%xyz1,&
                  & iff_data%xyz2, iff_data%q1, iff_data%q2, iff_data%c6ab,&
@@ -641,10 +683,36 @@ subroutine test_dock_wat_wat_gfnff(error)
                  & iff_data%cprob, e, icoord, comb)
    call env%checkpoint("Docking algorithm failed")
 
+   ! the monomer energies are not affected by the constraints of the complex
+   call check_(error, molA_e, -0.34297405499115_wp, thr=thr)
+   if (.not.allocated(error)) &
+      & call check_(error, molB_e, -0.34297405499115_wp, thr=thr)
+
+   if (constrain) then
+      ! the constraints of the complex are restored unchanged after the
+      ! monomer energies
+      if (.not.allocated(error)) call check_(error, fixset%n, 3)
+      if (.not.allocated(error)) call check_(error, potset%pos%n, 3)
+      if (.not.allocated(error)) call check_(error, &
+         & all(fixset%atoms(1:3) == fix_atoms), "Fixed atoms changed")
+      if (.not.allocated(error)) call check_(error, &
+         & all(potset%pos%atoms(1:3) == pos_atoms), &
+         & "Position of constrained atoms changed")
+      do i = 1, 3
+         if (.not.allocated(error)) &
+            & call check_(error, potset%pos%val(i), pos_val(i), thr=thr)
+      end do
+      if (.not.allocated(error)) &
+         & call check_(error, potset%pos%fc, pos_fc, thr=thr)
+      call clear_fix
+      call clear_constr
+      call potset%deallocate
+   end if
+
    call molA%deallocate
    call molB%deallocate
 
-end subroutine test_dock_wat_wat_gfnff
+end subroutine dock_wat_wat_gfnff
 
 
 !> Check consistency of GFN1-xTB/GBSA docking between native and tblite backend
