@@ -47,10 +47,27 @@ module test_hessian
    use xtb_bmatrix, only : get_bmatrix
    use xtb_o1numhess, only : lr_loop
    use xtb_freq_project, only : projectHessian, projectFixedAtoms, fixedAtomModes
+   use xtb_type_calculator, only : TCalculator
+   use xtb_hessian, only : numhess
+   use xtb_setparam, only : set
+   use xtb_setmod, only : set_hess, write_set_hess
+   use xtb_splitparam, only : atmass
    implicit none
    private
 
    public :: collect_hessian
+
+   !> Dummy calculator that records the accuracy seen during initial and
+   !> displaced single-point evaluations in numhess.
+   type, extends(TCalculator) :: TAccuracyProbeCalculator
+      integer :: n_calls = 0
+      real(wp) :: initial_accuracy = -1.0_wp
+      real(wp) :: min_displaced_accuracy = huge(1.0_wp)
+      real(wp) :: max_displaced_accuracy = -1.0_wp
+   contains
+      procedure :: singlepoint => probe_singlepoint
+      procedure :: writeInfo => probe_writeInfo
+   end type TAccuracyProbeCalculator
 
 contains
 
@@ -79,7 +96,8 @@ subroutine collect_hessian(testsuite)
       new_unittest("fixed_linear_projection", test_fixed_linear_projection), &
       new_unittest("fixed_packed_projection", test_fixed_packed_projection), &
       new_unittest("fixed_collinear_projection", test_fixed_collinear_projection), &
-      new_unittest("fixed_periodic_projection", test_fixed_periodic_projection) &
+      new_unittest("fixed_periodic_projection", test_fixed_periodic_projection), &
+      new_unittest("hessian_accuracy_inheritance", test_hessian_accuracy) &
       ]
 
 end subroutine collect_hessian
@@ -1597,5 +1615,219 @@ function build_neigh_list(nat, pairs) result(neigh_list)
    end do
 
 end function build_neigh_list
+
+
+!> Verify that numerical Hessian accuracy inherits set%acc when set%accu_hess is
+!> unset, overrides calc%accuracy only during displaced gradient evaluations when
+!> explicitly configured, restores calc%accuracy afterwards, and preserves
+!> explicitness in write_set_hess even when set to the same value as set%acc.
+subroutine test_hessian_accuracy(error)
+   type(error_type), allocatable, intent(out) :: error
+
+   character(len=*), parameter :: sym(1) = ["He"]
+   real(wp), parameter :: xyz(3, 1) = reshape([0.0_wp, 0.0_wp, 0.0_wp], [3, 1])
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(freq_results) :: fres
+   type(TAccuracyProbeCalculator) :: calc
+   real(wp) :: egap, etot, gr(3, 1), sr(3, 3)
+   real(wp) :: saved_acc
+   real(wp), allocatable :: saved_accu_hess, saved_atmass(:)
+   logical :: has_sccacc
+
+   saved_acc = set%acc
+   if (allocated(set%accu_hess)) allocate(saved_accu_hess, source=set%accu_hess)
+   if (allocated(atmass)) allocate(saved_atmass, source=atmass)
+
+   call init(env)
+   call init(mol, sym, xyz)
+   if (allocated(atmass)) deallocate(atmass)
+   allocate(atmass, source=mol%atmass)
+
+   ! 0. Default state: set%accu_hess must be unset (unallocated)
+   call check(error, .not. allocated(set%accu_hess), &
+      & "set%accu_hess should be unallocated by default")
+   if (allocated(error)) goto 999
+
+   ! 1. Default global accuracy 0.2 + no Hessian override -> Hessian uses 0.2
+   set%acc = 0.2_wp
+   if (allocated(set%accu_hess)) deallocate(set%accu_hess)
+   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
+   call check(error, .not. allocated(set%accu_hess), &
+      & "set%accu_hess must remain unset after numhess")
+   if (allocated(error)) goto 999
+   call check(error, calc%n_calls, 7)
+   if (allocated(error)) goto 999
+   call check(error, calc%initial_accuracy, 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%min_displaced_accuracy, 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%max_displaced_accuracy, 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   has_sccacc = check_write_set_hess_has_sccacc()
+   call check(error, .not. has_sccacc, &
+      & "write_set_hess should not emit sccacc when inheriting global accuracy")
+   if (allocated(error)) goto 999
+
+   ! 2. Explicit global accuracy 0.1 + no Hessian override -> Hessian uses 0.1
+   set%acc = 0.1_wp
+   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
+   call check(error, .not. allocated(set%accu_hess), &
+      & "set%accu_hess must remain unset when global accuracy changes")
+   if (allocated(error)) goto 999
+   call check(error, calc%initial_accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%min_displaced_accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%max_displaced_accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+
+   ! 3. Global accuracy 0.1 + explicit Hessian accuracy 0.3 ->
+   !    initial singlepoint uses 0.1, displaced Hessian evaluations use 0.3,
+   !    and calculator accuracy is restored to 0.1 afterwards
+   set%acc = 0.1_wp
+   call set_hess(env, 'sccacc', '0.3')
+   call check(error, allocated(set%accu_hess), &
+      & "set_hess('sccacc') must allocate set%accu_hess")
+   if (allocated(error)) goto 999
+   call check(error, set%accu_hess, 0.3_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, set%acc, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+
+   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
+   call check(error, calc%initial_accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%min_displaced_accuracy, 0.3_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%max_displaced_accuracy, 0.3_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   has_sccacc = check_write_set_hess_has_sccacc()
+   call check(error, has_sccacc, &
+      & "write_set_hess must emit sccacc when explicitly set")
+   if (allocated(error)) goto 999
+
+   ! 4. Explicitly setting Hessian accuracy to the same numerical value as
+   !    global accuracy (0.2) is still treated as an explicit override
+   set%acc = 0.2_wp
+   set%accu_hess = 0.2_wp
+   call check(error, allocated(set%accu_hess), &
+      & "set%accu_hess explicitly set to 0.2 must remain allocated")
+   if (allocated(error)) goto 999
+   has_sccacc = check_write_set_hess_has_sccacc()
+   call check(error, has_sccacc, &
+      & "write_set_hess must emit sccacc when explicitly set to global value")
+   if (allocated(error)) goto 999
+
+   ! Changing set%acc after an explicit 0.2 override must keep Hessian at 0.2
+   set%acc = 0.1_wp
+   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
+   call check(error, calc%initial_accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%min_displaced_accuracy, 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%max_displaced_accuracy, 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+
+999 continue
+   call delete_file('hessian')
+   set%acc = saved_acc
+   if (allocated(set%accu_hess)) deallocate(set%accu_hess)
+   if (allocated(saved_accu_hess)) allocate(set%accu_hess, source=saved_accu_hess)
+   if (allocated(atmass)) deallocate(atmass)
+   if (allocated(saved_atmass)) allocate(atmass, source=saved_atmass)
+
+end subroutine test_hessian_accuracy
+
+
+subroutine run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(inout) :: mol
+   type(TRestart), intent(inout) :: chk
+   type(TAccuracyProbeCalculator), intent(out) :: calc
+   real(wp), intent(out) :: egap, etot, gr(3, mol%n), sr(3, 3)
+   type(freq_results), intent(out) :: fres
+
+   calc%threadsafe = .false.
+   calc%accuracy = set%acc
+   calc%n_calls = 0
+   calc%initial_accuracy = -1.0_wp
+   calc%min_displaced_accuracy = huge(1.0_wp)
+   calc%max_displaced_accuracy = -1.0_wp
+   egap = 0.0_wp
+   etot = 0.0_wp
+   gr = 0.0_wp
+   sr = 0.0_wp
+
+   call numhess(env, mol, chk, calc, egap, set%etemp, set%maxscciter, &
+      & etot, gr, sr, fres)
+end subroutine run_probe_numhess
+
+
+function check_write_set_hess_has_sccacc() result(found)
+   logical :: found
+   integer :: iunit, ios
+   character(len=256) :: line
+
+   found = .false.
+   open(newunit=iunit, status='scratch', action='readwrite')
+   call write_set_hess(iunit)
+   rewind(iunit)
+   do
+      read(iunit, '(a)', iostat=ios) line
+      if (ios /= 0) exit
+      if (index(line, 'sccacc=') > 0) then
+         found = .true.
+         exit
+      end if
+   end do
+   close(iunit)
+end function check_write_set_hess_has_sccacc
+
+
+subroutine probe_singlepoint(self, env, mol, chk, printlevel, restart, &
+      & energy, gradient, sigma, hlgap, results)
+   class(TAccuracyProbeCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(inout) :: mol
+   type(TRestart), intent(inout) :: chk
+   integer, intent(in) :: printlevel
+   logical, intent(in) :: restart
+   real(wp), intent(out) :: energy
+   real(wp), intent(out) :: gradient(:, :)
+   real(wp), intent(out) :: sigma(:, :)
+   real(wp), intent(out) :: hlgap
+   type(scc_results), intent(out) :: results
+
+   self%n_calls = self%n_calls + 1
+   if (self%n_calls == 1) then
+      self%initial_accuracy = self%accuracy
+   else
+      self%min_displaced_accuracy = min(self%min_displaced_accuracy, self%accuracy)
+      self%max_displaced_accuracy = max(self%max_displaced_accuracy, self%accuracy)
+   end if
+
+   energy = 0.0_wp
+   gradient = 0.0_wp
+   sigma = 0.0_wp
+   hlgap = 1.0_wp
+end subroutine probe_singlepoint
+
+
+subroutine probe_writeInfo(self, unit, mol)
+   class(TAccuracyProbeCalculator), intent(in) :: self
+   integer, intent(in) :: unit
+   type(TMolecule), intent(in) :: mol
+end subroutine probe_writeInfo
 
 end module test_hessian

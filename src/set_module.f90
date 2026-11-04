@@ -297,7 +297,8 @@ subroutine write_set_hess(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"hess")') flag
-   write(ictrl,'(3x,"sccacc=",g0)') set%accu_hess
+   if (allocated(set%accu_hess)) &
+      write(ictrl,'(3x,"sccacc=",g0)') set%accu_hess
    write(ictrl,'(3x,"step=",g0)') set%step_hess
    write(ictrl,'(3x,"scale=",g0)') set%scale_hess
    write(ictrl,'(3x,"imagmin=",g0)') set%imagmin_hess

@@ -142,7 +142,11 @@ subroutine numhess( &
    step=set%step_hess
    if(set%extcode.eq.5) step=step*2.0_wp ! MOPAC is not very accurate
    ! SCC accuraccy
-   acc=set%accu_hess
+   if (allocated(set%accu_hess)) then
+      acc = set%accu_hess
+   else
+      acc = set%acc
+   end if
    scalh=set%scale_hess
 
    call calc%singlepoint(env, mol, chk0, 0, .true., res%etot, res%grad, sr, egap, sccr)
@@ -170,7 +174,7 @@ subroutine numhess( &
 
    res%linear = mol%linear
    step2=0.5_wp/step
-   calc%accuracy=set%accu_hess ! set SCC accuracy for numerical Hessian !
+   calc%accuracy=acc ! set SCC accuracy for numerical Hessian !
 
    h = 0.0_wp
    htb = 0.0_wp
@@ -191,7 +195,10 @@ subroutine numhess( &
          call calc%hessian(env, mol, chk0, indx, step, h, dipd, odlr=.true., final_err=final_err)
       end if
       call env%check(exitRun)
-      if (exitRun) return
+      if (exitRun) then
+         calc%accuracy=set%acc ! reset SCC accuracy !
+         return
+      end if
       write(env%unit, '(A,1X,ES12.4)') "Error norm for predicted gradient (ODLR Hessian):", final_err
    else if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
@@ -237,6 +244,7 @@ subroutine numhess( &
          call newPTBCalculator(env, mol, ptb)
          call env%check(exitRun)
          if (exitRun) then
+            calc%accuracy=set%acc ! reset SCC accuracy !
             call env%error("Could not construct new calculator", source)
             return
          end if
