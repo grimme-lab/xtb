@@ -40,6 +40,8 @@ module xtb_oniom
    use xtb_extern_orca, only: TOrcaCalculator, newOrcaCalculator
    use xtb_extern_turbomole, only: TTMCalculator, newTMCalculator
    use xtb_setparam, only: set
+   use xtb_geometry_terms, only: geometry_state_type, suspend_geometry_terms, &
+      & restore_geometry_terms
 
    implicit none
    private
@@ -52,30 +54,6 @@ module xtb_oniom
       character(len=:), allocatable :: second_arg
    end type oniom_input
 
-   !> Saved counts of global geometry terms suspended for the inner region
-   type :: geometry_state_type
-      !> Number of fixed atoms
-      integer :: nfix = 0
-      !> Number of constraining potentials
-      integer :: npot = 0
-      !> Number of constrained atom positions
-      integer :: npos = 0
-      !> Number of distance constraints
-      integer :: ndist = 0
-      !> Number of angle constraints
-      integer :: nangle = 0
-      !> Number of dihedral constraints
-      integer :: ndihedral = 0
-      !> Number of legacy constraints
-      integer :: nconstr = 0
-      !> Number of wall potentials
-      integer :: nwalls = 0
-      !> Number of metadynamics bias structures
-      integer :: nmeta = 0
-      !> Number of RMSD bias structures
-      integer :: nrmsd = 0
-   end type geometry_state_type
-   
    !> ONIOM calculator 
    type, extends(TCalculator) :: TOniomCalculator 
 
@@ -700,62 +678,6 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, od
    end do
 
 end subroutine hessian
-
-
-!> Suspend global geometry terms during inner-region calculations
-subroutine suspend_geometry_terms(state)
-   use xtb_fixparam, only : fixset, metaset, rmsdset
-   use xtb_scanparam, only : potset, nconstr
-   use xtb_sphereparam, only : number_walls, wpot
-
-   !> Saved counts for fixed atoms, restraints, walls and bias structures
-   type(geometry_state_type), intent(out) :: state
-
-   state%nfix = fixset%n
-   state%npot = potset%n
-   state%npos = potset%pos%n
-   state%ndist = potset%dist%n
-   state%nangle = potset%angle%n
-   state%ndihedral = potset%dihedral%n
-   state%nconstr = nconstr
-   state%nwalls = 0
-   if (allocated(wpot)) state%nwalls = number_walls
-   state%nmeta = metaset%nstruc
-   state%nrmsd = rmsdset%nstruc
-
-   fixset%n = 0
-   potset%n = 0
-   potset%pos%n = 0
-   potset%dist%n = 0
-   potset%angle%n = 0
-   potset%dihedral%n = 0
-   nconstr = 0
-   number_walls = 0
-   metaset%nstruc = 0
-   rmsdset%nstruc = 0
-end subroutine suspend_geometry_terms
-
-
-!> Restore global geometry terms after inner-region calculations
-subroutine restore_geometry_terms(state)
-   use xtb_fixparam, only : fixset, metaset, rmsdset
-   use xtb_scanparam, only : potset, nconstr
-   use xtb_sphereparam, only : number_walls
-
-   !> Counts saved by suspend_geometry_terms
-   type(geometry_state_type), intent(in) :: state
-
-   fixset%n = state%nfix
-   potset%n = state%npot
-   potset%pos%n = state%npos
-   potset%dist%n = state%ndist
-   potset%angle%n = state%nangle
-   potset%dihedral%n = state%ndihedral
-   nconstr = state%nconstr
-   number_walls = state%nwalls
-   metaset%nstruc = state%nmeta
-   rmsdset%nstruc = state%nrmsd
-end subroutine restore_geometry_terms
 
 
 subroutine writeInfo(self, unit, mol)

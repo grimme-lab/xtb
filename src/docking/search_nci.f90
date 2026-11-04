@@ -59,6 +59,8 @@ module xtb_docking_search_nci
    use xtb_io_writer, only : writeMolecule
    use xtb_mctc_filetypes, only : generateFileName
    use xtb_iniq, only: iniqcn
+   use xtb_geometry_terms, only: geometry_state_type, suspend_geometry_terms, &
+      & restore_geometry_terms
    implicit none
 
    private
@@ -163,6 +165,8 @@ contains
       type(TRestart) :: chk
       !> SCC results
       type(scc_results) :: results
+      !> Fixed atoms and constraints of the complex, suspended for the monomers
+      type(geometry_state_type) :: geometry_state
       !> Opt variable
       real(wp) :: egap, et, etot, grad(3, n), sigma(3, 3)
 !      integer :: maxiter, maxcycle_in,olev
@@ -266,6 +270,10 @@ contains
       gff_print = .false.
       set%pr_finalstruct = .false.
 
+      ! fixed atoms and constraints are numbered for the complex and do not
+      ! apply to the monomer energies, consistent with the precomputed ones
+      call suspend_geometry_terms(geometry_state)
+
       !> SP molA
       set%ichrg = nint(molA%chrg)
       select type (calc)
@@ -300,6 +308,8 @@ contains
       type is (TTBLiteCalculator)
          molB_e = pre_e_B
       end select
+
+      call restore_geometry_terms(geometry_state)
 
       etot = 0.0_wp; grad = 0.0_wp; sigma = 0.0_wp; egap = 0.0_wp
 
@@ -1068,6 +1078,10 @@ contains
 
    end subroutine sortxyz_e
 
+   !> Set up GFN-FF for a single monomer
+   !>
+   !> Fixed atoms and constraints refer to the complex and are not read here,
+   !> they have to be suspended by the caller.
    subroutine restart_gff(env, mol, calc)
 
       !> Calculation environment
@@ -1076,14 +1090,6 @@ contains
       type(TGFFCalculator), intent(inout)::calc
 
       integer :: itopo = 32
-
-      if (constraint_xyz) then
-         nconstr = 0
-         call read_userdata(xcontrol, env, mol)
-         call constrain_xTB_gff(env, mol)
-      end if
-
-      !if(auto_walls) call number_walls=0; read_userdata(xcontrol,env,mol) !everytime new wall pot
 
       call open_file(itopo, 'gfnff_topo', 'r')
       call remove_file(itopo)
