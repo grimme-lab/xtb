@@ -199,7 +199,7 @@ subroutine geometry_optimization &
    
    end select
 
-   call mol%update
+   call mol%update(wrap=.false.)
   
 !-----------------!
 ! Post-processing !

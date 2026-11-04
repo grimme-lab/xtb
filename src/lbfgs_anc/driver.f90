@@ -39,7 +39,6 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
       & optlevel, maxcycle_in, energy, egap, gradient, sigma, &
       & printlevel, fail, iter_needed)
   use xtb_pbc, only: cross_product
-  use xtb_optimizer, only : get_optthr
   !> Instance of the optimization driver
   class(optimizer_type), intent(inout) :: self
   !> Calculation environment
@@ -81,7 +80,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
 
   !> Convergence accuracy
   real(wp) :: accuracy
-  integer :: nvar, step, iter, this_step, maxcycle, i, stat
+  integer :: nvar, step, iter, this_step, i, stat
   real(wp) :: elast, ediff, gnorm, dnorm, ethr, gthr, dthr, gamax, damax, cvol
   real(wp), allocatable :: val, gcurr(:), glast(:), displ(:)
   logical :: econv, gconv, dconv, converged, f_exists
@@ -107,9 +106,9 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
   glast(:) = 0.0_wp
   displ(:) = 0.0_wp
 
-  call get_optthr(mol%n, optlevel, ethr, gthr, maxcycle, accuracy)
-  dthr = 5.0e-2_wp
-  this_step = max(20*nvar, maxcycle)
+  accuracy = 1.0_wp
+  call get_thr(accuracy, ethr, gthr, dthr)
+  this_step = 20*nvar
   if (maxcycle_in > 0) this_step = maxcycle_in
 
   inquire( file="xtboptlog.cif", exist=f_exists )
@@ -151,7 +150,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, &
       close(133)
       mol%xyz = xyz_prev
       mol%lattice = latt_prev
-      call mol%update
+      call mol%update(wrap=.false.)
       energy = energy_prev
       egap = egap_prev
       gradient = gradient_prev
@@ -248,7 +247,7 @@ endif
             &,iter," steps."
   end if
 
-  call mol%update
+  call mol%update(wrap=.false.)
 
 end subroutine relax_pbc
 
@@ -283,6 +282,17 @@ subroutine step_summary(env, energy, ediff, gnorm, gamax, dnorm, damax, cvol, &
    end if
 end subroutine step_summary
 
+
+subroutine get_thr(accuracy, ethr, gthr, dthr)
+   real(wp), intent(in) :: accuracy
+   real(wp), intent(out) :: ethr
+   real(wp), intent(out) :: gthr
+   real(wp), intent(out) :: dthr
+
+   ethr = accuracy * 5.0e-7_wp
+   gthr = accuracy * 1.0e-3_wp
+   dthr = 5.0e-2_wp
+end subroutine get_thr
 
 !>
 subroutine write_optlog(step, n, xyz, lattice, symbol, energy)

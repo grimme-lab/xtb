@@ -32,7 +32,8 @@ subroutine collect_molecule(testsuite)
       new_unittest("mic-distances", test_class_molecule_mic_distances), &
       new_unittest("axis-trafo", test_class_molecule_axis_trafo), &
       new_unittest("xyz-writer-nonpbc", test_xyz_writer_nonpbc), &
-      new_unittest("xyz-writer-pbc", test_xyz_writer_pbc) &
+      new_unittest("xyz-writer-pbc", test_xyz_writer_pbc), &
+      new_unittest("update-nowrap-pbc", test_update_nowrap_pbc) &
       ]
 
 end subroutine collect_molecule
@@ -235,5 +236,44 @@ subroutine test_xyz_writer_pbc(error)
    call mol%deallocate
 
 end subroutine test_xyz_writer_pbc
+
+subroutine test_update_nowrap_pbc(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule, only : TMolecule, init
+   type(error_type), allocatable, intent(out) :: error
+   real(wp), parameter :: thr = 1.0e-12_wp
+   integer, parameter :: nat = 2
+   integer, parameter :: at(nat) = [1, 8]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      & 1.0_wp, 2.0_wp, 3.0_wp, &
+      & 4.0_wp, 5.0_wp, 6.0_wp], [3, nat])
+   real(wp), parameter :: lattice(3, 3) = reshape([ &
+      & 10.0_wp,  0.0_wp,  0.0_wp, &
+      &  0.0_wp, 10.0_wp,  0.0_wp, &
+      &  0.0_wp,  0.0_wp, 10.0_wp], [3, 3])
+   type(TMolecule) :: mol
+
+   call init(mol, at, xyz, lattice=lattice)
+   mol%xyz(1, 1) = -1.5_wp
+   mol%lattice = 12.0_wp * reshape([ &
+      & 1.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 1.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, 1.0_wp], [3, 3])
+
+   call mol%update(wrap=.false.)
+   call check(error, mol%xyz(1, 1), -1.5_wp, thr=thr)
+   if (allocated(error)) return
+   call check(error, mol%abc(1, 1), 0.875_wp, thr=thr)
+   if (allocated(error)) return
+   call check(error, mol%cellpar(1), 12.0_wp, thr=thr)
+   if (allocated(error)) return
+   call check(error, mol%volume, 1728.0_wp, thr=thr)
+   if (allocated(error)) return
+
+   call mol%update
+   call check(error, mol%xyz(1, 1), 10.5_wp, thr=thr)
+
+   call mol%deallocate
+end subroutine test_update_nowrap_pbc
 
 end module test_molecule
