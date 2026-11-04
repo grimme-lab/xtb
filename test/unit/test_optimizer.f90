@@ -35,7 +35,42 @@ module test_optimizer
 
    public :: collect_optimizer
 
+   type, extends(TxTBCalculator) :: TFailingCalculator
+      integer :: fail_at_step = 2
+      integer :: ncalls = 0
+   contains
+      procedure :: singlepoint => failing_singlepoint
+   end type TFailingCalculator
+
 contains
+
+subroutine failing_singlepoint(self, env, mol, chk, printlevel, restart, &
+      & energy, gradient, sigma, hlgap, results)
+   class(TFailingCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(inout) :: mol
+   type(TRestart), intent(inout) :: chk
+   integer, intent(in) :: printlevel
+   logical, intent(in) :: restart
+   real(wp), intent(out) :: energy
+   real(wp), intent(out) :: gradient(:, :)
+   real(wp), intent(out) :: sigma(:, :)
+   real(wp), intent(out) :: hlgap
+   type(scc_results), intent(out) :: results
+
+   self%ncalls = self%ncalls + 1
+   if (self%ncalls >= self%fail_at_step) then
+      energy = -999.0_wp
+      gradient = -999.0_wp
+      sigma = -999.0_wp
+      hlgap = -999.0_wp
+      call env%error("Simulated singlepoint failure", "failing_singlepoint")
+      return
+   end if
+
+   call self%TxTBCalculator%singlepoint(env, mol, chk, printlevel, restart, &
+      & energy, gradient, sigma, hlgap, results)
+end subroutine failing_singlepoint
 
 !> Collect all exported unit tests
 subroutine collect_optimizer(testsuite)
@@ -59,7 +94,9 @@ subroutine collect_optimizer(testsuite)
       new_unittest("fixed-cell-periodic-optimizer", test_fixed_cell_periodic_optimizer), &
       new_unittest("nonperiodic-default-optimizer", test_nonperiodic_default_optimizer), &
       new_unittest("explicit-periodic-optimizer", test_explicit_periodic_optimizer), &
-      new_unittest("periodic-optlevel-and-failures", test_periodic_optlevel_and_failures) &
+      new_unittest("periodic-optlevel-and-failures", test_periodic_optlevel_and_failures), &
+      new_unittest("periodic-gfnff-optimizer", test_periodic_gfnff_optimizer), &
+      new_unittest("native-periodic-guard-scope", test_native_periodic_guard_scope) &
       ]
 
 end subroutine collect_optimizer
@@ -1011,11 +1048,14 @@ subroutine test_periodic_optlevel_and_failures(error)
    type(TMolecule) :: mol
    type(TRestart) :: chk
    type(TxTBCalculator) :: calc
+   type(TFailingCalculator) :: fcalc
    type(scc_results) :: res
-   real(wp) :: energy_crude, energy_vtight, energy_maxc, energy_ref
-   real(wp) :: egap, egap_ref, gradient(3, 3), grad_ref(3, 3), sigma(3, 3), sigma_ref(3, 3)
+   real(wp) :: energy_crude, energy_vtight, energy_maxc, energy_ref, energy0
+   real(wp) :: egap, egap_ref, egap0, gradient(3, 3), grad_ref(3, 3), grad0(3, 3)
+   real(wp) :: sigma(3, 3), sigma_ref(3, 3), sigma0(3, 3)
    real(wp) :: gnorm_crude, gnorm_vtight, xyz0(3, 3), lattice0(3, 3), cellpar_ref(6), vol_ref
-   logical :: fail, exitRun, optcell_save
+   real(wp) :: acc_save
+   logical :: fail, exitRun, optcell_save, acc_set_save
    integer :: iter_crude, iter_vtight, iter_maxc, iter_fail
    integer :: no_fixed(0)
    integer, allocatable :: engine_save
@@ -1023,8 +1063,11 @@ subroutine test_periodic_optlevel_and_failures(error)
 
    if (allocated(set%opt_engine)) engine_save = set%opt_engine
    optcell_save = set%optcell
+   acc_set_save = set%acc_set
+   acc_save = set%acc
    set%opt_engine = p_engine_pbc_lbfgs
    set%optcell = .false.
+   set%acc_set = .false.
 
    ! 1. Verify optlevel propagation: vtight must converge to a tighter gradient norm than crude
    call setup_periodic_water(env, mol, chk, calc, energy_crude, egap, gradient, sigma, no_fixed)
@@ -1035,6 +1078,7 @@ subroutine test_periodic_optlevel_and_failures(error)
    call env%check(exitRun)
    call check(error, .not.exitRun)
    if (.not.allocated(error)) call check(error, .not.fail)
+   if (.not.allocated(error)) call check(error, calc%accuracy, 3.0_wp, thr=1.0e-12_wp)
    gnorm_crude = norm2(gradient)
 
    if (.not.allocated(error)) then
@@ -1046,6 +1090,7 @@ subroutine test_periodic_optlevel_and_failures(error)
       call env%check(exitRun)
       call check(error, .not.exitRun)
       if (.not.allocated(error)) call check(error, .not.fail)
+      if (.not.allocated(error)) call check(error, calc%accuracy, 0.05_wp, thr=1.0e-12_wp)
       gnorm_vtight = norm2(gradient)
    end if
 
@@ -1061,11 +1106,13 @@ subroutine test_periodic_optlevel_and_failures(error)
       end if
    end if
 
-   ! 2. Verify maximum-cycle termination (maxcycle_in = 2):
+   ! 2. Verify maximum-cycle termination (maxcycle_in = 2) and explicit set%acc override:
    !    fail must be .true., exitRun must be .false. (rescued), iter_needed == 2,
-   !    and mol/energy/gradient/sigma must match the last evaluated structure.
+   !    and mol/energy/gradient/sigma/egap must match the last evaluated structure.
    if (.not.allocated(error)) then
       set%optcell = .true.
+      set%acc_set = .true.
+      set%acc = 0.25_wp
       call setup_strained_caf2(env, mol, chk, calc, energy_maxc, egap, gradient, sigma)
       call fixset%deallocate
       call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 2, &
@@ -1075,6 +1122,8 @@ subroutine test_periodic_optlevel_and_failures(error)
       call check(error, .not.exitRun)
       if (.not.allocated(error)) call check(error, fail, .true.)
       if (.not.allocated(error)) call check(error, iter_maxc, 2)
+      if (.not.allocated(error)) call check(error, calc%accuracy, 0.25_wp, thr=1.0e-12_wp)
+      set%acc_set = .false.
    end if
    if (.not.allocated(error)) then
       call dlat_to_cell(mol%lattice, cellpar_ref)
@@ -1088,6 +1137,9 @@ subroutine test_periodic_optlevel_and_failures(error)
       call calc%singlepoint(env, mol, chk, 0, .false., energy_ref, grad_ref, sigma_ref, egap_ref, res)
       call check(error, energy_maxc, energy_ref, thr=1.0e-10_wp)
       if (.not.allocated(error)) then
+         call check(error, egap, egap_ref, thr=1.0e-10_wp)
+      end if
+      if (.not.allocated(error)) then
          call check(error, maxval(abs(gradient - grad_ref)), 0.0_wp, thr=1.0e-10_wp)
       end if
       if (.not.allocated(error)) then
@@ -1095,30 +1147,34 @@ subroutine test_periodic_optlevel_and_failures(error)
       end if
    end if
 
-   ! 3. Verify failed single-point evaluation during periodic optimization:
-   !    Force singlepoint failure by setting calc%xtbData%level = 2 on a periodic structure.
-   !    Outputs must be cleanly zeroed (not left as uninitialized garbage), mol restored,
-   !    fail == .true., exitRun == .true., and final_sp skipped.
+   ! 3. Verify failed single-point rollback during periodic optimization:
+   !    Step 1 succeeds and produces (xyz0, lattice0, energy0, egap0, grad0, sigma0).
+   !    Step 2 displaces mol and fails in singlepoint.
+   !    Both geometry and result variables must be rolled back to step 1's valid state.
    if (.not.allocated(error)) then
-      call setup_strained_caf2(env, mol, chk, calc, energy_maxc, egap, gradient, sigma)
+      call setup_strained_caf2(env, mol, chk, calc, energy0, egap0, grad0, sigma0)
       call fixset%deallocate
+      call calc%singlepoint(env, mol, chk, 0, .false., energy0, grad0, sigma0, egap0, res)
       xyz0 = mol%xyz
       lattice0 = mol%lattice
-      calc%xtbData%level = 2
-      energy_maxc = -999.0_wp
-      gradient = -999.0_wp
-      sigma = -999.0_wp
-      egap = -999.0_wp
-      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 10, &
-         & energy_maxc, gradient, sigma, p_olev_normal, .false., .true., fail, iter_fail)
+      fcalc%TxTBCalculator = calc
+      fcalc%fail_at_step = 2
+      fcalc%ncalls = 0
+      energy_maxc = -123.0_wp
+      egap = -123.0_wp
+      gradient = -123.0_wp
+      sigma = -123.0_wp
+      call geometry_optimization(env, mol, chk, fcalc, egap, 300.0_wp, 250, 10, &
+         & energy_maxc, gradient, sigma, p_olev_normal, .false., .false., fail, iter_fail)
       call cleanup_opt_files()
       call env%check(exitRun)
       call check(error, fail, .true.)
       if (.not.allocated(error)) call check(error, .not.exitRun)
-      if (.not.allocated(error)) call check(error, iter_fail, 0)
-      if (.not.allocated(error)) call check(error, energy_maxc, 0.0_wp, thr=1.0e-12_wp)
-      if (.not.allocated(error)) call check(error, maxval(abs(gradient)), 0.0_wp, thr=1.0e-12_wp)
-      if (.not.allocated(error)) call check(error, maxval(abs(sigma)), 0.0_wp, thr=1.0e-12_wp)
+      if (.not.allocated(error)) call check(error, iter_fail, 1)
+      if (.not.allocated(error)) call check(error, energy_maxc, energy0, thr=1.0e-10_wp)
+      if (.not.allocated(error)) call check(error, egap, egap0, thr=1.0e-10_wp)
+      if (.not.allocated(error)) call check(error, maxval(abs(gradient - grad0)), 0.0_wp, thr=1.0e-10_wp)
+      if (.not.allocated(error)) call check(error, maxval(abs(sigma - sigma0)), 0.0_wp, thr=1.0e-10_wp)
       if (.not.allocated(error)) call check(error, maxval(abs(mol%xyz - xyz0)), 0.0_wp, thr=1.0e-12_wp)
       if (.not.allocated(error)) call check(error, maxval(abs(mol%lattice - lattice0)), 0.0_wp, thr=1.0e-12_wp)
       call env%getLog(err_msg)
@@ -1130,6 +1186,207 @@ subroutine test_periodic_optlevel_and_failures(error)
       deallocate(set%opt_engine)
    end if
    set%optcell = optcell_save
+   set%acc_set = acc_set_save
+   set%acc = acc_save
 end subroutine test_periodic_optlevel_and_failures
+
+
+subroutine test_periodic_gfnff_optimizer(error)
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   use xtb_main_defaults, only : initDefaults
+   use xtb_geoopt, only : geometry_optimization
+   use xtb_setparam, only : set, p_engine_pbc_lbfgs
+   use xtb_pbc_tools, only : dlat_to_cell, dlat_to_rlat, dlat_to_dvol, xyz_to_abc
+
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TGFFCalculator) :: calc
+   type(scc_results) :: res
+   integer, parameter :: nat = 16
+   character(len=*), parameter :: sym(nat) = [ &
+      & "H", "H", "H", "H", "H", "H", "H", "H", "H", "H", "H", "H", &
+      & "N", "N", "N", "N"]
+   real(wp), parameter :: xyz_aa(3, nat) = reshape([ &
+      & 2.2300000000_wp, 1.7800007600_wp, 0.9468238481_wp, &
+      & 1.7800007600_wp, 0.9468238481_wp, 2.2596045809_wp, &
+      & 0.9468238481_wp, 2.2596045809_wp, 1.7800007600_wp, &
+      & 4.7671705534_wp, 1.6326980357_wp, 4.9661124380_wp, &
+      & 4.2819692113_wp, 2.4606754877_wp, 3.6526280234_wp, &
+      & 3.4527982039_wp, 1.1481588918_wp, 4.1381359401_wp, &
+      & 4.1381359401_wp, 3.4527982039_wp, 1.1481588918_wp, &
+      & 4.9661124380_wp, 4.7671705534_wp, 1.6326980357_wp, &
+      & 3.6526280234_wp, 4.2819692113_wp, 2.4606754877_wp, &
+      & 2.4606754877_wp, 3.6526280234_wp, 4.2819692113_wp, &
+      & 1.1481588918_wp, 4.1381359401_wp, 3.4527982039_wp, &
+      & 1.6326980357_wp, 4.9661124380_wp, 4.7671705534_wp, &
+      & 1.4358572817_wp, 1.4358572817_wp, 1.4358572817_wp, &
+      & 3.9411899768_wp, 1.9736199441_wp, 4.4787989040_wp, &
+      & 4.4787989040_wp, 3.9411899768_wp, 1.9736199441_wp, &
+      & 1.9736199441_wp, 4.4787989040_wp, 3.9411899768_wp], [3, nat])
+   real(wp), parameter :: lattice_aa(3, 3) = reshape([ &
+      & 5.01336_wp, 0.00000_wp, 0.00000_wp, &
+      & 0.00000_wp, 5.01336_wp, 0.00000_wp, &
+      & 0.00000_wp, 0.00000_wp, 5.01336_wp], [3, 3])
+   real(wp) :: energy, energy0, energy_ref, egap, egap_ref
+   real(wp) :: gradient(3, nat), grad_ref(3, nat), sigma(3, 3), sigma_ref(3, 3)
+   real(wp) :: lattice0(3, 3), cellpar_ref(6), rec_lat_ref(3, 3), abc_ref(3, nat), vol_ref
+   logical :: fail, exitRun, optcell_save
+   integer :: iter_needed, iv, versions(2)
+   integer, allocatable :: engine_save
+
+   if (allocated(set%opt_engine)) engine_save = set%opt_engine
+   optcell_save = set%optcell
+   set%optcell = .true.
+
+   ! Exercise both regular GFN-FF (version=3 / default) and mcGFN-FF (version=4)
+   versions = [3, 4]
+   do iv = 1, 2
+      if (allocated(set%opt_engine)) deallocate(set%opt_engine)
+      call init(env)
+      call init(mol, sym, xyz_aa * aatoau, lattice=lattice_aa * aatoau)
+      call delete_file('charges')
+      if (iv == 1) then
+         call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
+      else
+         call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false., versions(iv))
+      end if
+      call env%check(exitRun)
+      call check(error, .not.exitRun)
+      if (allocated(error)) exit
+
+      call initDefaults(env, calc, mol, 0)
+      call check(error, allocated(set%opt_engine))
+      if (.not.allocated(error)) call check(error, set%opt_engine, p_engine_pbc_lbfgs)
+      if (allocated(error)) exit
+
+      call calc%singlepoint(env, mol, chk, 0, .false., energy0, gradient, sigma, egap, res)
+      energy = energy0
+      lattice0 = mol%lattice
+
+      ! Run 5 variable-cell optimization steps to verify polymorphic interface and result consistency
+      call geometry_optimization(env, mol, chk, calc, egap, 300.0_wp, 250, 5, &
+         & energy, gradient, sigma, p_olev_normal, .false., .false., fail, iter_needed)
+      call cleanup_opt_files()
+      call delete_file('charges')
+
+      call env%check(exitRun)
+      call check(error, .not.exitRun)
+      if (.not.allocated(error)) then
+         if (iter_needed < 1) then
+            call test_failed(error, "Periodic GFN-FF optimizer did not perform any steps")
+         else if (energy >= energy0) then
+            call test_failed(error, "Periodic GFN-FF optimization did not lower energy")
+         else if (maxval(abs(mol%lattice - lattice0)) < 1.0e-5_wp) then
+            call test_failed(error, "Periodic GFN-FF optimization did not relax lattice vectors")
+         end if
+      end if
+      if (allocated(error)) exit
+
+      ! Verify derived periodic properties on mol match optimized lattice
+      call dlat_to_cell(mol%lattice, cellpar_ref)
+      call dlat_to_rlat(mol%lattice, rec_lat_ref)
+      vol_ref = dlat_to_dvol(mol%lattice)
+      call xyz_to_abc(mol%n, mol%lattice, mol%xyz, abc_ref, mol%pbc)
+      call check(error, maxval(abs(mol%cellpar - cellpar_ref)), 0.0_wp, thr=1.0e-12_wp)
+      if (.not.allocated(error)) then
+         call check(error, maxval(abs(mol%rec_lat - rec_lat_ref)), 0.0_wp, thr=1.0e-12_wp)
+      end if
+      if (.not.allocated(error)) then
+         call check(error, mol%volume, vol_ref, thr=1.0e-12_wp)
+      end if
+      if (.not.allocated(error)) then
+         call check(error, maxval(abs(mol%abc - abc_ref)), 0.0_wp, thr=1.0e-12_wp)
+      end if
+      if (allocated(error)) exit
+
+      ! Re-evaluate final structure with calc%singlepoint and compare against optimizer outputs
+      call calc%singlepoint(env, mol, chk, 0, .false., energy_ref, grad_ref, sigma_ref, egap_ref, res)
+      call delete_file('charges')
+      call check(error, energy, energy_ref, thr=1.0e-10_wp)
+      if (.not.allocated(error)) then
+         call check(error, egap, egap_ref, thr=1.0e-10_wp)
+      end if
+      if (.not.allocated(error)) then
+         call check(error, maxval(abs(gradient - grad_ref)), 0.0_wp, thr=1.0e-10_wp)
+      end if
+      if (.not.allocated(error)) then
+         call check(error, maxval(abs(sigma - sigma_ref)), 0.0_wp, thr=1.0e-10_wp)
+      end if
+      if (allocated(error)) exit
+   end do
+
+   if (allocated(engine_save)) then
+      set%opt_engine = engine_save
+   else if (allocated(set%opt_engine)) then
+      deallocate(set%opt_engine)
+   end if
+   set%optcell = optcell_save
+end subroutine test_periodic_gfnff_optimizer
+
+
+subroutine test_native_periodic_guard_scope(error)
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+
+   type(error_type), allocatable, intent(out) :: error
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TxTBCalculator) :: xtb_calc
+   type(TGFFCalculator) :: gff_calc
+   integer, parameter :: nat = 3
+   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([ &
+      &  4.000_wp,  4.000_wp,  4.000_wp, &
+      &  5.050_wp,  4.000_wp,  4.100_wp, &
+      &  3.700_wp,  5.000_wp,  3.900_wp], [3, nat])
+   real(wp), parameter :: lattice(3, 3) = reshape([ &
+      &  8.0_wp, 0.0_wp, 0.0_wp, &
+      &  0.0_wp, 8.0_wp, 0.0_wp, &
+      &  0.0_wp, 0.0_wp, 8.0_wp], [3, 3])
+   logical :: exitRun
+   character(len=:), allocatable :: err_msg
+
+   call init(mol, sym, xyz * aatoau, lattice=lattice * aatoau)
+
+   ! 1. Periodic native GFN1 must be rejected and recommend --tblite
+   call init(env)
+   call newXTBCalculator(env, mol, xtb_calc, method=1)
+   call env%check(exitRun)
+   call check(error, exitRun, .true.)
+   if (allocated(error)) return
+   call env%getLog(err_msg)
+   if (index(err_msg, "--tblite") == 0) then
+      call test_failed(error, "Periodic native GFN1 rejection did not recommend --tblite")
+      return
+   end if
+
+   ! 2. Periodic native GFN2 must be rejected and recommend --tblite
+   call init(env)
+   call newXTBCalculator(env, mol, xtb_calc, method=2)
+   call env%check(exitRun)
+   call check(error, exitRun, .true.)
+   if (allocated(error)) return
+   call env%getLog(err_msg)
+   if (index(err_msg, "--tblite") == 0) then
+      call test_failed(error, "Periodic native GFN2 rejection did not recommend --tblite")
+      return
+   end if
+
+   ! 3. Periodic GFN0 calculator construction must NOT trigger the GFN1/GFN2 deprecation error
+   call init(env)
+   call newXTBCalculator(env, mol, xtb_calc, method=0)
+   call env%check(exitRun)
+   call check(error, .not.exitRun)
+   if (allocated(error)) return
+
+   ! 4. Periodic GFN-FF calculator construction must NOT trigger the GFN1/GFN2 deprecation error
+   call init(env)
+   call delete_file('charges')
+   call newGFFCalculator(env, mol, gff_calc, '.param_gfnff.xtb', .false.)
+   call delete_file('charges')
+   call env%check(exitRun)
+   call check(error, .not.exitRun)
+end subroutine test_native_periodic_guard_scope
 
 end module test_optimizer

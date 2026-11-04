@@ -35,6 +35,7 @@ subroutine geometry_optimization &
    use xtb_single
    ! modules for PBC opt with LBFGS including lattice optimization
    use xtb_pbc_optimizer_driver, only : relax_pbc
+   use xtb_pbc_tools, only : dlat_to_cell, dlat_to_rlat, dlat_to_dvol, xyz_to_abc
    use xtb_pbc_optimizer_lbfgs, only : optimizer_type, lbfgs_optimizer, new_lbfgs_optimizer
    use xtb_pbc_optimizer_lbfgs, only : lbfgs_input
    use xtb_pbc_optimizer_filter_cart, only : cartesian_filter, new_cartesian_filter
@@ -159,7 +160,15 @@ subroutine geometry_optimization &
       call open_file(set%oniom_settings%ilog2,"high.inner_region.log",'w')
    endif
 
-   call mol%update ! update interatomic and minimum image (periodic) distances 
+   if (mol%npbc > 0) then
+      call dlat_to_cell(mol%lattice, mol%cellpar)
+      call dlat_to_rlat(mol%lattice, mol%rec_lat)
+      mol%volume = dlat_to_dvol(mol%lattice)
+      call xyz_to_abc(mol%n, mol%lattice, mol%xyz, mol%abc, mol%pbc)
+      call mol%calculate_distances
+   else
+      call mol%update
+   end if ! update interatomic and minimum image (periodic) distances 
 
 !-------------!
 ! Calculation !
@@ -189,9 +198,9 @@ subroutine geometry_optimization &
      ! create new Limited-memory BFGS optimizer 
      call new_lbfgs_optimizer(lbfgs_opt, env, opt_input, filter)
      ! run optimization
-     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, printlevel, fail, iter_needed, &
-        & optlevel=tight, maxcycle_in=maxcycle_in, etot_out=etot, grad_out=g, &
-        & sigma_out=sigma, egap_out=egap)
+     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, &
+        & tight, maxcycle_in, etot, egap, g, sigma, &
+        & printlevel, fail, iter_needed)
    case(p_engine_inertial)
       call fire & ! FIRE !
          &(env,ilog,mol,wfn,calc, &
@@ -199,7 +208,15 @@ subroutine geometry_optimization &
    
    end select
 
-   call mol%update
+   if (mol%npbc > 0) then
+      call dlat_to_cell(mol%lattice, mol%cellpar)
+      call dlat_to_rlat(mol%lattice, mol%rec_lat)
+      mol%volume = dlat_to_dvol(mol%lattice)
+      call xyz_to_abc(mol%n, mol%lattice, mol%xyz, mol%abc, mol%pbc)
+      call mol%calculate_distances
+   else
+      call mol%update
+   end if
   
 !-----------------!
 ! Post-processing !

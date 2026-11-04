@@ -149,9 +149,9 @@ add_test("xtb/GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --n
 add_test("xtb/GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
 add_test("xtb/GFN2-FF/xcontrol" ${XTB-EXE} --coffee --strict --norestart --namespace test7
   --input "${PROJECT_SOURCE_DIR}/test/inputs/gfnff.inp")
-add_test("xtb/Reject_native_periodic_GFN1" ${XTB-EXE}
+add_test("xtb/Reject_native_periodic_GFN1_message" ${XTB-EXE}
   "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 1 --norestart --namespace pbc_native_gfn1)
-add_test("xtb/Reject_native_periodic_GFN2" ${XTB-EXE}
+add_test("xtb/Reject_native_periodic_GFN2_message" ${XTB-EXE}
   "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --norestart --namespace pbc_native_gfn2)
 add_test("xtb/Reject_native_periodic_GFN1_exit" ${XTB-EXE}
   "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 1 --norestart --namespace pbc_native_gfn1_exit)
@@ -159,12 +159,11 @@ add_test("xtb/Reject_native_periodic_GFN2_exit" ${XTB-EXE}
   "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp" --gfn 2 --norestart --namespace pbc_native_gfn2_exit)
 
 set_tests_properties(
-  "xtb/Reject_native_periodic_GFN1"
-  "xtb/Reject_native_periodic_GFN2"
+  "xtb/Reject_native_periodic_GFN1_message"
+  "xtb/Reject_native_periodic_GFN2_message"
   PROPERTIES
   ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
-  PASS_REGULAR_EXPRESSION "Native periodic GFN1-xTB and GFN2-xTB calculations are deprecated and unsupported"
-  FAIL_REGULAR_EXPRESSION "normal termination of xtb"
+  PASS_REGULAR_EXPRESSION "Please rerun your calculation with --tblite"
 )
 
 set_tests_properties(

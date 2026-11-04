@@ -233,7 +233,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    logical  :: broy
 
 ! ------------------------------------------------------------------------
-   if (mol%npbc > 0) then
+   if (mol%npbc > 0 .and. &
+      & (xtbData%level == 1 .or. xtbData%level == 2)) then
       call reject_native_periodic_gfn(env, source)
       return
    end if
