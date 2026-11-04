@@ -152,7 +152,7 @@ module xtb_type_setvar
 !  Hessian
 !! ------------------------------------------------------------------------
    type :: hessian_setvar
-!     SCC accuracy level in Hessian runs (unset by default; inherits global accuracy)
+!     SCC accuracy level in Hessian runs
       real(wp), allocatable :: accu_hess
 !     Cartesian displacement increment for numerical Hessian
       real(wp) :: step_hess = 0.005_wp

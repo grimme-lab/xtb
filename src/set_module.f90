@@ -2202,8 +2202,9 @@ subroutine set_hess(env,key,val)
    case('element mass','modify mass','isotope','scale mass')
       call colon_only_error(env,'hess',key,val,source)
    case('sccacc')
-      if (getValue(env,val,ddum).and.set1) set%accu_hess = ddum
-      set1 = .false.
+      if (getValue(env,val,ddum)) then
+         if (.not.allocated(set%accu_hess)) set%accu_hess = ddum
+      end if
    case('step')
       if (getValue(env,val,ddum).and.set2) set%step_hess = ddum
       set2 = .false.

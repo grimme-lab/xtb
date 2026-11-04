@@ -97,7 +97,7 @@ subroutine collect_hessian(testsuite)
       new_unittest("fixed_packed_projection", test_fixed_packed_projection), &
       new_unittest("fixed_collinear_projection", test_fixed_collinear_projection), &
       new_unittest("fixed_periodic_projection", test_fixed_periodic_projection), &
-      new_unittest("hessian_accuracy_inheritance", test_hessian_accuracy) &
+      new_unittest("hessian_accuracy_precedence", test_hessian_accuracy) &
       ]
 
 end subroutine collect_hessian
@@ -1617,10 +1617,10 @@ function build_neigh_list(nat, pairs) result(neigh_list)
 end function build_neigh_list
 
 
-!> Verify that numerical Hessian accuracy inherits set%acc when set%accu_hess is
-!> unset, overrides calc%accuracy only during displaced gradient evaluations when
-!> explicitly configured, restores calc%accuracy afterwards, and preserves
-!> explicitness in write_set_hess even when set to the same value as set%acc.
+!> Verify the Hessian accuracy precedence hierarchy:
+!>   explicit $hess sccacc > explicit --acc > .xtbrc $hess sccacc > fallback to set%acc
+!> as well as restoration of calc%accuracy after numhess and conditional
+!> emission of sccacc in write_set_hess.
 subroutine test_hessian_accuracy(error)
    type(error_type), allocatable, intent(out) :: error
 
@@ -1646,39 +1646,41 @@ subroutine test_hessian_accuracy(error)
    if (allocated(atmass)) deallocate(atmass)
    allocate(atmass, source=mol%atmass)
 
-   ! 0. Default state: set%accu_hess must be unset (unallocated)
-   call check(error, .not. allocated(set%accu_hess), &
-      & "set%accu_hess should be unallocated by default")
+   ! 1. Plain --hess: general accuracy = 0.2, .xtbrc sccacc = 0.3 ->
+   !    initial singlepoint uses 0.2, displaced Hessian uses 0.3, restored to 0.2
+   call configure_hessian_accuracy(env, global_acc=0.2_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="0.3")
+   call check(error, allocated(set%accu_hess), &
+      & "set%accu_hess should be populated from .xtbrc")
    if (allocated(error)) goto 999
-
-   ! 1. Default global accuracy 0.2 + no Hessian override -> Hessian uses 0.2
-   set%acc = 0.2_wp
-   if (allocated(set%accu_hess)) deallocate(set%accu_hess)
+   call check(error, set%accu_hess, 0.3_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
    call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
-   call check(error, .not. allocated(set%accu_hess), &
-      & "set%accu_hess must remain unset after numhess")
-   if (allocated(error)) goto 999
    call check(error, calc%n_calls, 7)
    if (allocated(error)) goto 999
    call check(error, calc%initial_accuracy, 0.2_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
-   call check(error, calc%min_displaced_accuracy, 0.2_wp, thr=1.0e-12_wp)
+   call check(error, calc%min_displaced_accuracy, 0.3_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
-   call check(error, calc%max_displaced_accuracy, 0.2_wp, thr=1.0e-12_wp)
+   call check(error, calc%max_displaced_accuracy, 0.3_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
    call check(error, calc%accuracy, 0.2_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
    has_sccacc = check_write_set_hess_has_sccacc()
-   call check(error, .not. has_sccacc, &
-      & "write_set_hess should not emit sccacc when inheriting global accuracy")
+   call check(error, has_sccacc, &
+      & "write_set_hess must emit sccacc when set%accu_hess is allocated")
    if (allocated(error)) goto 999
 
-   ! 2. Explicit global accuracy 0.1 + no Hessian override -> Hessian uses 0.1
-   set%acc = 0.1_wp
-   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
-   call check(error, .not. allocated(set%accu_hess), &
-      & "set%accu_hess must remain unset when global accuracy changes")
+   ! 2. --hess --acc 0.1: explicit --acc overrides .xtbrc sccacc = 0.3 ->
+   !    initial singlepoint uses 0.1, displaced Hessian uses 0.1, restored to 0.1
+   call configure_hessian_accuracy(env, global_acc=0.1_wp, acc_provided=.true., &
+      & user_sccacc="", rc_sccacc="0.3")
+   call check(error, allocated(set%accu_hess), &
+      & "set%accu_hess should be set from explicit --acc")
    if (allocated(error)) goto 999
+   call check(error, set%accu_hess, 0.1_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
    call check(error, calc%initial_accuracy, 0.1_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
    call check(error, calc%min_displaced_accuracy, 0.1_wp, thr=1.0e-12_wp)
@@ -1688,55 +1690,65 @@ subroutine test_hessian_accuracy(error)
    call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
 
-   ! 3. Global accuracy 0.1 + explicit Hessian accuracy 0.3 ->
-   !    initial singlepoint uses 0.1, displaced Hessian evaluations use 0.3,
-   !    and calculator accuracy is restored to 0.1 afterwards
-   set%acc = 0.1_wp
-   call set_hess(env, 'sccacc', '0.3')
-   call check(error, allocated(set%accu_hess), &
-      & "set_hess('sccacc') must allocate set%accu_hess")
+   ! 3. $hess sccacc=0.15 + no --acc: explicit $hess sccacc overrides .xtbrc ->
+   !    initial singlepoint uses 0.2, displaced Hessian uses 0.15, restored to 0.2
+   call configure_hessian_accuracy(env, global_acc=0.2_wp, acc_provided=.false., &
+      & user_sccacc="0.15", rc_sccacc="0.3")
+   call check(error, allocated(set%accu_hess))
    if (allocated(error)) goto 999
-   call check(error, set%accu_hess, 0.3_wp, thr=1.0e-12_wp)
+   call check(error, set%accu_hess, 0.15_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
-   call check(error, set%acc, 0.1_wp, thr=1.0e-12_wp)
+   call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
+   call check(error, calc%initial_accuracy, 0.2_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%min_displaced_accuracy, 0.15_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%max_displaced_accuracy, 0.15_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
+   call check(error, calc%accuracy, 0.2_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
 
+   ! 4. $hess sccacc=0.15 + --acc 0.1: explicit $hess sccacc beats explicit --acc ->
+   !    initial singlepoint uses 0.1, displaced Hessian uses 0.15, restored to 0.1
+   call configure_hessian_accuracy(env, global_acc=0.1_wp, acc_provided=.true., &
+      & user_sccacc="0.15", rc_sccacc="0.3")
+   call check(error, allocated(set%accu_hess))
+   if (allocated(error)) goto 999
+   call check(error, set%accu_hess, 0.15_wp, thr=1.0e-12_wp)
+   if (allocated(error)) goto 999
    call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
    call check(error, calc%initial_accuracy, 0.1_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
-   call check(error, calc%min_displaced_accuracy, 0.3_wp, thr=1.0e-12_wp)
+   call check(error, calc%min_displaced_accuracy, 0.15_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
-   call check(error, calc%max_displaced_accuracy, 0.3_wp, thr=1.0e-12_wp)
+   call check(error, calc%max_displaced_accuracy, 0.15_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
    call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
-   has_sccacc = check_write_set_hess_has_sccacc()
-   call check(error, has_sccacc, &
-      & "write_set_hess must emit sccacc when explicitly set")
-   if (allocated(error)) goto 999
 
-   ! 4. Explicitly setting Hessian accuracy to the same numerical value as
-   !    global accuracy (0.2) is still treated as an explicit override
-   set%acc = 0.2_wp
-   set%accu_hess = 0.2_wp
-   call check(error, allocated(set%accu_hess), &
-      & "set%accu_hess explicitly set to 0.2 must remain allocated")
+   ! 5. Fallback when no .xtbrc sccacc and no explicit $hess sccacc exist:
+   !    set%accu_hess stays unallocated, write_set_hess omits sccacc, and
+   !    numhess falls back to set%acc
+   call configure_hessian_accuracy(env, global_acc=0.2_wp, acc_provided=.false., &
+      & user_sccacc="", rc_sccacc="")
+   call check(error, .not. allocated(set%accu_hess), &
+      & "set%accu_hess should remain unallocated when no sccacc is configured")
    if (allocated(error)) goto 999
    has_sccacc = check_write_set_hess_has_sccacc()
-   call check(error, has_sccacc, &
-      & "write_set_hess must emit sccacc when explicitly set to global value")
+   call check(error, .not. has_sccacc, &
+      & "write_set_hess should omit sccacc when set%accu_hess is unallocated")
    if (allocated(error)) goto 999
-
-   ! Changing set%acc after an explicit 0.2 override must keep Hessian at 0.2
-   set%acc = 0.1_wp
    call run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)
-   call check(error, calc%initial_accuracy, 0.1_wp, thr=1.0e-12_wp)
+   call check(error, .not. allocated(set%accu_hess), &
+      & "set%accu_hess must remain unallocated after numhess fallback")
+   if (allocated(error)) goto 999
+   call check(error, calc%initial_accuracy, 0.2_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
    call check(error, calc%min_displaced_accuracy, 0.2_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
    call check(error, calc%max_displaced_accuracy, 0.2_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
-   call check(error, calc%accuracy, 0.1_wp, thr=1.0e-12_wp)
+   call check(error, calc%accuracy, 0.2_wp, thr=1.0e-12_wp)
    if (allocated(error)) goto 999
 
 999 continue
@@ -1748,6 +1760,37 @@ subroutine test_hessian_accuracy(error)
    if (allocated(saved_atmass)) allocate(atmass, source=saved_atmass)
 
 end subroutine test_hessian_accuracy
+
+
+!> Apply the same source-precedence order used by xtbMain:
+!>   1. command-line global accuracy (set%acc and acc_provided)
+!>   2. user xcontrol ($hess sccacc)
+!>   3. explicit --acc fallback if user xcontrol did not set $hess sccacc
+!>   4. .xtbrc ($hess sccacc)
+subroutine configure_hessian_accuracy(env, global_acc, acc_provided, user_sccacc, rc_sccacc)
+   type(TEnvironment), intent(inout) :: env
+   real(wp), intent(in) :: global_acc
+   logical, intent(in) :: acc_provided
+   character(len=*), intent(in) :: user_sccacc
+   character(len=*), intent(in) :: rc_sccacc
+   character(len=32) :: acc_str
+
+   set%acc = global_acc
+   if (allocated(set%accu_hess)) deallocate(set%accu_hess)
+
+   if (len_trim(user_sccacc) > 0) then
+      call set_hess(env, 'sccacc', trim(user_sccacc))
+   end if
+
+   if (acc_provided .and. .not. allocated(set%accu_hess)) then
+      write(acc_str, '(g0)') set%acc
+      call set_hess(env, 'sccacc', trim(acc_str))
+   end if
+
+   if (len_trim(rc_sccacc) > 0) then
+      call set_hess(env, 'sccacc', trim(rc_sccacc))
+   end if
+end subroutine configure_hessian_accuracy
 
 
 subroutine run_probe_numhess(env, mol, chk, calc, egap, etot, gr, sr, fres)

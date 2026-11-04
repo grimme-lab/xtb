@@ -342,7 +342,7 @@ module xtb_setparam
    real(wp) :: accu_md = 2.0_wp
 
 !! ------------------------------------------------------------------------
-!  SCC accuracy level in Hessian runs (unset by default; inherits set%acc)
+!  SCC accuracy level in Hessian runs
    real(wp), allocatable :: accu_hess
 !  Cartesian displacement increment for numerical Hessian
    real(wp) :: step_hess = 0.005_wp

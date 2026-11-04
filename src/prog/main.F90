@@ -208,6 +208,8 @@ contains
       logical :: exist
       logical :: lgrad, restart
       logical :: copycontrol
+      logical :: acc_provided
+      character(len=32) :: acc_str
       logical :: newreader
       logical :: strict
       logical :: exitRun
@@ -225,7 +227,8 @@ contains
       ! ------------------------------------------------------------------------
       ! read the command line arguments
       call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
-         & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
+         & restart, gsolvstate, strict, copycontrol, coffee, printTopo, &
+         & oniom, dipro, tblite, acc_provided)
 
       ! ONIOM evaluates its GFN-xTB methods with tblite, independent of the flag order
       if (allocated(oniom%second_arg) .and. set%tblite) then
@@ -322,6 +325,13 @@ contains
       call rdcontrol(xcontrol, env, copy_file=copycontrol)
 
       call env%checkpoint("Reading '"//xcontrol//"' failed")
+
+      ! If --acc was explicitly supplied and the input did not provide
+      ! its own $hess sccacc, use --acc for numerical Hessian displacements.
+      if (acc_provided .and. .not. allocated(set%accu_hess)) then
+         write(acc_str, '(g0)') set%acc
+         call set_hess(env, 'sccacc', trim(acc_str))
+      end if
 
       ! ------------------------------------------------------------------------
       ! read dot-Files before reading the rc and after reading the xcontrol
@@ -1325,7 +1335,8 @@ contains
 
 !> Parse command line arguments and forward them to settings
    subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
-         & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
+         & restart, gsolvstate, strict, copycontrol, coffee, printTopo, &
+         & oniom, dipro, tblite, acc_provided)
 
       use xtb_mctc_global, only: persistentEnv
 
@@ -1380,6 +1391,9 @@ contains
       !> Input for TBLite calculator
       type(TTBLiteInput), intent(out) :: tblite
 
+      !> Accuracy explicitly requested via --acc, independent of its value
+      logical, intent(out) :: acc_provided
+
 !$    integer :: omp_get_num_threads, nproc
       integer :: nFlags
       integer :: idum, ndum
@@ -1387,8 +1401,6 @@ contains
       real(wp) :: ddum
       character(len=:), allocatable :: flag, sec
       logical :: exist
-      ! Accuracy explicitly requested via --acc, independent of its value
-      logical :: acc_provided
 
       acc_provided = .false.
       set%gfn_method = 2
