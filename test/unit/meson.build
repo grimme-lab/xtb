@@ -87,8 +87,8 @@ tester = executable(
   link_language: 'fortran',
 )
 
-# run test suites writing/deleting the same LMO and Molden output files serially
-serial_tests = ['gfn2', 'iff', 'tblite']
+# run test suites writing/deleting the same LMO, Molden, and charge files serially
+serial_tests = ['gfn2', 'gfnff', 'iff', 'tblite']
 foreach t : tests
   test(t, tester, args: t, suite: 'unit', env: xtbenv, is_parallel: t not in serial_tests)
 endforeach
