@@ -352,9 +352,12 @@ jobs:
             cmake -B ${{ env.BUILD_DIR }} -G Ninja
             -DCMAKE_BUILD_TYPE=${{ matrix.build }}
             -DCMAKE_C_COMPILER=icx
+            -DCMAKE_CXX_COMPILER=icpx
             -DCMAKE_Fortran_COMPILER=ifx
             -DBLA_VENDOR=Intel10_64lp
             -DWITH_TBLITE=ON
+            -DWITH_DDX=ON
+            -DTBLITE_WITH_DDX=ON
             -DWITH_CPCMX=ON
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
@@ -444,13 +447,14 @@ jobs:
          - name: Install pinned MKL and build tools
            run: |
             sudo apt-get update
-            sudo apt-get install -y intel-oneapi-mkl-devel-2025.2 ninja-build
+            sudo apt-get install -y intel-oneapi-mkl-devel-2025.2 ninja-build asciidoctor
             source /opt/intel/oneapi/setvars.sh --force
             printenv >> "$GITHUB_ENV"
          - name: Configure fully static Release
            run: |
             ifx --version
             icx --version
+            icpx --version
             uname -m
             for lib in mkl_intel_lp64 mkl_intel_thread mkl_core; do
               test -f "$MKLROOT/lib/intel64/lib$lib.a"
@@ -461,18 +465,90 @@ jobs:
             ls -l "$compiler_root/lib/libiomp5.a"
             mkl="-Wl,--start-group;$MKLROOT/lib/intel64/libmkl_intel_lp64.a;$MKLROOT/lib/intel64/libmkl_intel_thread.a;$MKLROOT/lib/intel64/libmkl_core.a;-Wl,--end-group"
             cmake -B _release -G Ninja \
-              -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifx \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DCMAKE_Fortran_COMPILER=ifx \
               -DBLA_VENDOR=Intel10_64lp -DBLA_STATIC=ON \
               -DOpenMP_iomp5_LIBRARY="$compiler_root/lib/libiomp5.a" \
-              -DOpenMP_Fortran_LIB_NAMES=iomp5 -DOpenMP_C_LIB_NAMES=iomp5 \
+              -DOpenMP_Fortran_LIB_NAMES=iomp5 -DOpenMP_C_LIB_NAMES=iomp5 -DOpenMP_CXX_LIB_NAMES=iomp5 \
               -DBLAS_LIBRARIES="$mkl" -DLAPACK_LIBRARIES="$mkl" \
-              -DBUILD_SHARED_LIBS=OFF -DWITH_TBLITE=ON -DWITH_CPCMX=ON \
+              -DBUILD_SHARED_LIBS=OFF -DWITH_TBLITE=ON -DWITH_DDX=ON -DTBLITE_WITH_DDX=ON -DWITH_CPCMX=ON \
               -DCMAKE_EXE_LINKER_FLAGS='-static -static-intel -fiopenmp -qopenmp-link=static' \
-              -DCMAKE_INSTALL_PREFIX="$PWD/stage"
+              -DCMAKE_INSTALL_PREFIX="$PWD/_install" -DCMAKE_INSTALL_LIBDIR=lib
          - name: Build and install
            run: |
+            set -euo pipefail
             cmake --build _release --verbose
             cmake --install _release
+            rm -rf stage
+            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+              stage/share/man/man1 stage/share/man/man7 \
+              stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/mkl \
+              stage/share/licenses/intel-runtime stage/share/licenses/gcc-runtime
+            cp _install/bin/xtb stage/bin/xtb
+            cp _install/bin/cpx stage/bin/cpx
+            cp _install/include/xtb.h stage/include/xtb.h
+            cp _install/lib/libxtb.a stage/lib/libxtb.a
+            cp _install/lib/libcpcmx.a stage/lib/libcpx.a
+            for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
+              cp "_install/share/xtb/$param" "stage/share/xtb/$param"
+            done
+            asciidoctor -b manpage man/xtb.1.adoc -o stage/share/man/man1/xtb.1
+            asciidoctor -b manpage man/xcontrol.7.adoc -o stage/share/man/man7/xcontrol.7
+            cp COPYING COPYING.LESSER stage/share/licenses/xtb/
+            cp src/solv/ddcosmo/LICENSE stage/share/licenses/ddcosmo/LICENSE
+            copy_dpkg_notices() {
+              local dest="$1"
+              shift
+              mkdir -p "$dest"
+              local pkg path
+              for pkg in "$@"; do
+                while IFS= read -r path; do
+                  [ -f "$path" ] || continue
+                  case "${path,,}" in
+                    *license*|*licensing*|*copyright*|*third-party*|*third_party*|*redist*)
+                      cp "$path" "$dest/${pkg}-$(basename "$path")"
+                      ;;
+                  esac
+                done < <(dpkg-query -L "$pkg")
+              done
+            }
+            copy_dpkg_notices stage/share/licenses/mkl \
+              intel-oneapi-common-licensing-2025.2 \
+              intel-oneapi-mkl-classic-include-2025.2 \
+              intel-oneapi-mkl-core-2025.2 \
+              intel-oneapi-mkl-core-devel-2025.2 \
+              intel-oneapi-mkl-devel-2025.2
+            copy_dpkg_notices stage/share/licenses/intel-runtime \
+              intel-oneapi-common-licensing-2025.2 \
+              intel-oneapi-compiler-fortran-common-2025.2 \
+              intel-oneapi-compiler-fortran-runtime-2025.2 \
+              intel-oneapi-compiler-shared-common-2025.2 \
+              intel-oneapi-compiler-shared-runtime-2025.2 \
+              intel-oneapi-compiler-dpcpp-cpp-common-2025.2 \
+              intel-oneapi-compiler-dpcpp-cpp-runtime-2025.2 \
+              intel-oneapi-openmp-common-2025.2 \
+              intel-oneapi-openmp-2025.2
+            for f in /usr/share/doc/gcc-14-base/copyright /usr/share/doc/libstdc++6/copyright; do
+              if [ -f "$f" ]; then
+                cp "$f" stage/share/licenses/gcc-runtime/DEBIAN-COPYRIGHT
+                break
+              fi
+            done
+            cp /usr/share/common-licenses/GPL-3 stage/share/licenses/gcc-runtime/GPL-3
+            cp /usr/share/common-licenses/LGPL-2.1 stage/share/licenses/gcc-runtime/LGPL-2.1
+            for pkg in cpcmx numsa tblite ddx dftd4 s-dftd3 multicharge mctc-lib toml-f; do
+              d="_release/_deps/${pkg}-src"
+              if [ ! -d "$d" ]; then
+                d="subprojects/$pkg"
+              fi
+              out_pkg="${pkg/cpcmx/cpx}"
+              mkdir -p "stage/share/licenses/$out_pkg"
+              for f in "$d"/COPYING* "$d"/LICENSE*; do
+                if [ -f "$f" ]; then
+                  cp "$f" "stage/share/licenses/$out_pkg/"
+                fi
+              done
+            done
          - name: Verify static linkage and package
            run: |
             set -euo pipefail
@@ -503,17 +579,19 @@ jobs:
          - name: Install toolchain and static OpenBLAS
            run: |
             sudo apt-get update
-            sudo apt-get install -y gcc-14 gfortran-14 libopenblas-pthread-dev ninja-build
+            sudo apt-get install -y gcc-14 g++-14 gfortran-14 libopenblas-pthread-dev ninja-build asciidoctor
             pip install meson==1.7.0
          - name: Configure fully static Release
            env:
             CC: gcc-14
+            CXX: g++-14
             FC: gfortran-14
             LDFLAGS: -static -static-libgcc -static-libgfortran
            run: |
             test "$(uname -m)" = aarch64
             uname -m
             "$CC" --version
+            "$CXX" --version
             "$FC" --version
             archive=$(dpkg -L libopenblas-pthread-dev | awk '/\/libopenblas.a$/ {print; exit}')
             test -f "$archive"
@@ -528,13 +606,43 @@ jobs:
               test -f "$runtime"
               ls -l "$runtime"
             done
-            meson setup _release --prefix="$PWD/stage" --libdir=lib \
+            meson setup _release --prefix="$PWD/_install" --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
-              -Dlapack=openblas -Dtblite=enabled -Dcpcmx=enabled
+              -Dlapack=openblas -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled
          - name: Build and install
            run: |
+            set -euo pipefail
             meson compile -C _release -v
             meson install -C _release
+            rm -rf stage
+            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+              stage/share/man/man1 stage/share/man/man7 \
+              stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
+              stage/share/licenses/gcc-runtime
+            cp _install/bin/xtb stage/bin/xtb
+            cp _install/bin/cpx stage/bin/cpx
+            cp _install/include/xtb.h stage/include/xtb.h
+            cp _install/lib/libxtb.a stage/lib/libxtb.a
+            cp _install/lib/libcpx.a stage/lib/libcpx.a
+            for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
+              cp "_install/share/xtb/$param" "stage/share/xtb/$param"
+            done
+            asciidoctor -b manpage man/xtb.1.adoc -o stage/share/man/man1/xtb.1
+            asciidoctor -b manpage man/xcontrol.7.adoc -o stage/share/man/man7/xcontrol.7
+            cp COPYING COPYING.LESSER stage/share/licenses/xtb/
+            cp src/solv/ddcosmo/LICENSE stage/share/licenses/ddcosmo/LICENSE
+            cp /usr/share/doc/libopenblas-pthread-dev/copyright stage/share/licenses/openblas/LICENSE
+            cp /usr/share/doc/gcc-14-base/copyright stage/share/licenses/gcc-runtime/DEBIAN-COPYRIGHT
+            cp /usr/share/common-licenses/GPL-3 stage/share/licenses/gcc-runtime/GPL-3
+            cp /usr/share/common-licenses/LGPL-2.1 stage/share/licenses/gcc-runtime/LGPL-2.1
+            for pkg in cpx numsa tblite ddx dftd4 s-dftd3 multicharge mctc-lib jonquil toml-f; do
+              mkdir -p "stage/share/licenses/$pkg"
+              for f in "subprojects/$pkg"/COPYING* "subprojects/$pkg"/LICENSE*; do
+                if [ -f "$f" ]; then
+                  cp "$f" "stage/share/licenses/$pkg/"
+                fi
+              done
+            done
          - name: Verify static linkage and package
            run: |
             set -euo pipefail
@@ -574,7 +682,7 @@ jobs:
            run: |
             set -euo pipefail
             test "$(uname -m)" = "${{ matrix.arch }}"
-            brew install gcc meson ninja pkgconf
+            brew install gcc meson ninja pkgconf asciidoctor
             GCC_PREFIX="$(brew --prefix gcc)"
             compilers=("$GCC_PREFIX"/bin/gfortran-[0-9]*)
             test "${#compilers[@]}" = 1
@@ -610,6 +718,10 @@ jobs:
               tar -xf /tmp/openblas.tar.gz -C /tmp
               make -C /tmp/OpenBLAS-0.3.30 -j2 NO_SHARED=1 USE_OPENMP=0 DYNAMIC_ARCH=1 CC="$CC" FC="$FC"
               make -C /tmp/OpenBLAS-0.3.30 NO_SHARED=1 USE_OPENMP=0 DYNAMIC_ARCH=1 CC="$CC" FC="$FC" PREFIX="$OPENBLAS_PREFIX" install
+              cp /tmp/OpenBLAS-0.3.30/LICENSE "$OPENBLAS_PREFIX/LICENSE"
+            fi
+            if [[ ! -f "$OPENBLAS_PREFIX/LICENSE" ]]; then
+              curl -fL https://raw.githubusercontent.com/OpenMathLib/OpenBLAS/v0.3.30/LICENSE -o "$OPENBLAS_PREFIX/LICENSE"
             fi
             ls -l "$OPENBLAS_PREFIX/lib/libopenblas.a"
             export PKG_CONFIG_PATH="$OPENBLAS_PREFIX/lib/pkgconfig"
@@ -618,13 +730,45 @@ jobs:
             # CLI link_args replace LDFLAGS, so include the common flags for each language.
             export LDFLAGS="-L$PWD/static-runtime -Wl,-search_paths_first"
             if [[ -f static-runtime/libquadmath.a ]]; then LDFLAGS="$LDFLAGS $PWD/static-runtime/libquadmath.a"; fi
-            meson setup _release --prefix="$PWD/stage" --libdir=lib \
+            meson setup _release --prefix="$PWD/_install" --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
-              -Dlapack=openblas -Dtblite=enabled -Dcpcmx=enabled \
+              -Dlapack=openblas -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled \
               -Dc_link_args="$LDFLAGS -static-libgcc" \
               -Dfortran_link_args="$LDFLAGS -static-libgfortran -static-libgcc"
             meson compile -C _release -v
             meson install -C _release
+            rm -rf stage
+            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+              stage/share/man/man1 stage/share/man/man7 \
+              stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
+              stage/share/licenses/gcc-runtime
+            cp _install/bin/xtb stage/bin/xtb
+            cp _install/bin/cpx stage/bin/cpx
+            cp _install/include/xtb.h stage/include/xtb.h
+            cp _install/lib/libxtb.a stage/lib/libxtb.a
+            cp _install/lib/libcpx.a stage/lib/libcpx.a
+            for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
+              cp "_install/share/xtb/$param" "stage/share/xtb/$param"
+            done
+            asciidoctor -b manpage man/xtb.1.adoc -o stage/share/man/man1/xtb.1
+            asciidoctor -b manpage man/xcontrol.7.adoc -o stage/share/man/man7/xcontrol.7
+            cp COPYING COPYING.LESSER stage/share/licenses/xtb/
+            cp src/solv/ddcosmo/LICENSE stage/share/licenses/ddcosmo/LICENSE
+            cp "$OPENBLAS_PREFIX/LICENSE" stage/share/licenses/openblas/LICENSE
+            GCC_PREFIX="$(brew --prefix gcc)"
+            for f in "$GCC_PREFIX"/COPYING* "$GCC_PREFIX"/LICENSE*; do
+              if [ -f "$f" ]; then
+                cp "$f" stage/share/licenses/gcc-runtime/
+              fi
+            done
+            for pkg in cpx numsa tblite ddx dftd4 s-dftd3 multicharge mctc-lib jonquil toml-f; do
+              mkdir -p "stage/share/licenses/$pkg"
+              for f in "subprojects/$pkg"/COPYING* "subprojects/$pkg"/LICENSE*; do
+                if [ -f "$f" ]; then
+                  cp "$f" "stage/share/licenses/$pkg/"
+                fi
+              done
+            done
          - uses: actions/cache/save@v4
            if: success() && steps.openblas-cache.outputs.cache-hit != 'true'
            with:
@@ -673,15 +817,18 @@ jobs:
               mingw-w64-ucrt-x86_64-ninja
               mingw-w64-ucrt-x86_64-binutils
               mingw-w64-ucrt-x86_64-pkgconf
+              mingw-w64-ucrt-x86_64-asciidoctor
          - name: Configure static UCRT64 Release with OpenBLAS
            env:
             CC: gcc
+            CXX: g++
             FC: gfortran
             LDFLAGS: -static -static-libgcc -static-libgfortran
            run: |
             test "$MSYSTEM" = UCRT64
             echo "$MSYSTEM"
             gcc --version
+            g++ --version
             gfortran --version
             test -f /ucrt64/lib/libopenblas.a
             ls -l /ucrt64/lib/libopenblas.a
@@ -697,14 +844,49 @@ jobs:
             # quadmath dependency. Put quadmath in GCC's trailing runtime libs.
             gcc -dumpspecs | sed '/^\*lib:$/ {n;s/$/ -lquadmath/;}' > static-runtime.specs
             export CC="gcc -specs=$(cygpath -m "$PWD/static-runtime.specs")"
-            meson setup _release --prefix="$(cygpath -m "$PWD/stage")" --libdir=lib \
+            meson setup _release --prefix="$(cygpath -m "$PWD/_install")" --libdir=lib \
               --buildtype=release --optimization=2 -Ddefault_library=static -Dprefer_static=true \
               -Dlapack=openblas \
-              -Dtblite=enabled -Dcpcmx=enabled
+              -Dtblite=enabled -Dtblite:ddx=true -Dcpcmx=enabled
          - name: Build and install
            run: |
+            set -euo pipefail
             meson compile -C _release -v
             meson install -C _release
+            rm -rf stage
+            mkdir -p stage/bin stage/include stage/lib stage/share/xtb \
+              stage/share/man/man1 stage/share/man/man7 \
+              stage/share/licenses/xtb stage/share/licenses/ddcosmo stage/share/licenses/openblas \
+              stage/share/licenses/gcc-runtime
+            cp _install/bin/xtb.exe stage/bin/xtb.exe
+            cp _install/bin/cpx.exe stage/bin/cpx.exe
+            cp _install/include/xtb.h stage/include/xtb.h
+            cp _install/lib/libxtb.a stage/lib/libxtb.a
+            cp _install/lib/libcpx.a stage/lib/libcpx.a
+            for param in param_gfn0-xtb.txt param_gfn1-xtb.txt param_gfn1-si-xtb.txt param_gfn2-xtb.txt param_ipea-xtb.txt .param_gfnff.xtb; do
+              cp "_install/share/xtb/$param" "stage/share/xtb/$param"
+            done
+            asciidoctor -b manpage man/xtb.1.adoc -o stage/share/man/man1/xtb.1
+            asciidoctor -b manpage man/xcontrol.7.adoc -o stage/share/man/man7/xcontrol.7
+            cp COPYING COPYING.LESSER stage/share/licenses/xtb/
+            cp src/solv/ddcosmo/LICENSE stage/share/licenses/ddcosmo/LICENSE
+            cp /ucrt64/share/licenses/openblas/LICENSE stage/share/licenses/openblas/LICENSE
+            for d in /ucrt64/share/licenses/gcc* /ucrt64/share/licenses/*winpthread* /ucrt64/share/licenses/crt*; do
+              [ -d "$d" ] || continue
+              for f in "$d"/*; do
+                if [ -f "$f" ]; then
+                  cp "$f" "stage/share/licenses/gcc-runtime/$(basename "$d")-$(basename "$f")"
+                fi
+              done
+            done
+            for pkg in cpx numsa tblite ddx dftd4 s-dftd3 multicharge mctc-lib jonquil toml-f; do
+              mkdir -p "stage/share/licenses/$pkg"
+              for f in "subprojects/$pkg"/COPYING* "subprojects/$pkg"/LICENSE*; do
+                if [ -f "$f" ]; then
+                  cp "$f" "stage/share/licenses/$pkg/"
+                fi
+              done
+            done
          - name: Verify static linkage and package
            run: |
             set -euo pipefail

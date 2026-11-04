@@ -26,6 +26,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(WITH_OpenMP
        "Enable support for shared memory parallelisation with OpenMP" ON)
 option(WITH_TBLITE "Use tblite library as backend for xTB" ON)
+option(WITH_DDX "Enable ddX support through tblite" OFF)
 option(WITH_CPCMX "Use CPCM-X solvation library for xTB" ON)
 option(WITH_TESTS "Enable compilation of unit tests" ON)
 
@@ -86,8 +87,11 @@ if(NOT TARGET "mctc-lib::mctc-lib")
 endif()
 
 # ddX is pulled in by tblite; pin it here (tblite v0.8.0 ships ddX v1.0.0)
+if(WITH_DDX)
+  set(TBLITE_WITH_DDX ON CACHE BOOL "Enable support for DDX" FORCE)
+endif()
 if(WITH_TBLITE AND (WITH_DDX OR TBLITE_WITH_DDX) AND NOT TARGET "ddx::ddx")
-   find_package("ddx" REQUIRED)
+  find_package("ddx" REQUIRED)
 endif()
 
 if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
