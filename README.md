@@ -12,18 +12,14 @@ This is the official repository of the `xtb` program package developed by the Gr
 </div>
 
 ## Table of Contents
-- [Semiempirical Extended Tight-Binding Program Package](#semiempirical-extended-tight-binding-program-package)
-  - [Table of Contents](#table-of-contents)
-  - [Installation](#installation)
-    - [Meson](#meson)
-      - [Compiling with meson on macOS](#compiling-with-meson-on-macos)
-    - [CMake](#cmake)
-    - [Conda](#conda)
-  - [Documentation](#documentation)
-  - [Contributing](#contributing)
-    - [Contributors](#contributors)
-  - [Citations](#citations)
-  - [License](#license)
+- [Installation](#installation)
+  - [Meson](#meson)
+  - [CMake](#cmake)
+  - [Conda](#conda)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Citations](#citations)
+- [License](#license)
 
 ## Installation
 
@@ -74,7 +70,7 @@ Example:
    ```bash
    brew install gcc gfortran openblas
    ```
-2. **meson setup call with appropriate environment variables**: Use the following adapted `meson setup` call to compile `xtb` on macOS. Obviously, the paths to the libraries might differ on your system.
+2. **meson setup call with appropriate environment variables**: Use the following adapted `meson setup` call to compile `xtb` on macOS (adjusting the OpenBLAS path and the installed Homebrew compiler version, e.g., `gfortran-14`/`gcc-14`, for your system).
    ```bash
    LDFLAGS="-L/opt/homebrew/opt/openblas/lib" CPPFLAGS="-I/opt/homebrew/opt/openblas/include" FC=gfortran-14 CC=gcc-14 meson setup _build --buildtype release -Dlapack=openblas
    ```

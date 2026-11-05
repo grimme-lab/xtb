@@ -1,8 +1,7 @@
 = Building xtb with meson
 
 To build `xtb` from the source in this repository the https://mesonbuild.com[meson build system] can be used.
-For a decent Fortran support version 0.62 of meson or newer (except 1.8.0 and 1.8.1) is required to build `xtb`,
-additionally the default backend https://ninja-build.org/[ninja] is required with version 1.7 or newer.
+Building `xtb` requires Meson version 0.62 or newer, excluding versions 1.8.0 and 1.8.1, and https://ninja-build.org/[Ninja] version 1.7 or newer.
 
 == Getting meson
 
@@ -27,8 +26,8 @@ conda install meson ninja
 == Configure Intel Fortran build with MKL
 
 The recommended build for `xtb` is with Intel oneAPI using the Intel Fortran compiler (`ifx` or `ifort`) and the Math Kernel Library (MKL) as linear algebra backend.
-Precompiled, statically linked `xtb` binaries for Linux, macOS, and Windows are provided at the https://github.com/grimme-lab/xtb/releases/latest[release page].
-The `-Dlapack` option defaults to `auto`, which automatically selects MKL when using Intel compilers (and Netlib otherwise); therefore, only the compilers have to be exported before configuring the build:
+Precompiled binaries for Linux and Windows are available from the https://github.com/grimme-lab/xtb/releases/latest[latest stable release]. Continuously updated binaries for Linux, macOS, and Windows are provided through the https://github.com/grimme-lab/xtb/releases/tag/bleed[bleeding-edge release].
+The `-Dlapack` option defaults to `auto`, which automatically selects MKL when using Intel compilers (and system BLAS/LAPACK otherwise); therefore, only the compilers have to be exported before configuring the build:
 
 [source,bash]
 ----
@@ -182,7 +181,7 @@ The following options are available:
 |linked against
 
 |auto
-|automatic selection (MKL for Intel compilers, Netlib otherwise; default)
+|automatic selection (MKL for Intel compilers, system BLAS/LAPACK otherwise; default)
 
 |mkl
 |Intel MKL

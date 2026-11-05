@@ -25,7 +25,7 @@ pip install cmake ninja
 == Configure Intel Fortran build with MKL
 
 The recommended build for `xtb` is with Intel oneAPI using the Intel Fortran compiler (`ifx` or `ifort`) and the Math Kernel Library (MKL) as default backend.
-Precompiled, statically linked `xtb` binaries for Linux, macOS, and Windows are provided at the https://github.com/grimme-lab/xtb/releases/latest[release page].
+Precompiled binaries for Linux and Windows are available from the https://github.com/grimme-lab/xtb/releases/latest[latest stable release]. Continuously updated binaries for Linux, macOS, and Windows are provided through the https://github.com/grimme-lab/xtb/releases/tag/bleed[bleeding-edge release].
 With CMake the configuration can be conveniently performed from the repository root by
 
 [source,bash]
@@ -94,10 +94,9 @@ Run the testsuite with
 
 [source,bash]
 ----
-ninja -C _build test
+ctest --test-dir _build --output-on-failure
 ----
 
-If you have chosen make as generator use the same command with make.
 All tests should pass, otherwise https://github.com/grimme-lab/xtb/issues/new/choose[open an issue].
 
 == Installing xtb with CMake
