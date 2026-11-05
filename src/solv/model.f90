@@ -149,9 +149,6 @@ module xtb_solv_model
    include 'param_cosmo.fh'
    include 'param_cosmo_inf.fh'
 
-   !> Solvent density (g/cm^3) and molar mass (g/mol)
-   real(wp), parameter :: molcm3toau = 8.92388e-2_wp
-
    !> Surface tension (mN/m=dyn/cm)
    real(wp), parameter :: surfaceTension = 1.0e-5_wp
    real(wp), parameter :: mNmtokcal = 4.0305201015221386e-4_wp
@@ -519,7 +516,7 @@ subroutine paramToModel(self, param)
 
    self%dielectricConst = param%epsv
    self%molarMass = param%smass
-   self%density = param%rhos/param%smass * molcm3toau
+   self%density = param%rhos
    self%freeEnergyShift = param%gshift * kcaltoau
    self%bornScale = param%c1
    self%bornOffset = param%soset * 0.1_wp*aatoau
@@ -645,7 +642,7 @@ subroutine info(self, unit)
    write(unit, '(8x, a, t40, es14.4, 1x, a)') &
       & "Temperature", self%temperature, "K"
    write(unit, '(8x, a, t40, es14.4, 1x, a)') &
-      & "Density", self%density / (molcm3toau/self%molarMass), "kg/L"
+      & "Density", self%density, "kg/L"
    write(unit, '(8x, a, t40, es14.4, 1x, a)') &
       & "Solvent mass", self%molarMass, "g/mol"
 

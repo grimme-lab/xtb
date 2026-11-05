@@ -36,6 +36,7 @@ subroutine collect_gfn2(testsuite)
       new_unittest("gbsa", test_gfn2gbsa_api), &
       new_unittest("salt", test_gfn2salt_api), &
       new_unittest("born-asymmetric-overlap", test_born_asymmetric_overlap), &
+      new_unittest("reference-state", test_gfn2_reference_state), &
       new_unittest("pcem", test_gfn2_pcem_api), &
       new_unittest("pcem_io", test_gfn2_pcem_io), &
       new_unittest("mindless-basic", test_gfn2_mindless_basic), &
@@ -633,6 +634,78 @@ subroutine test_born_asymmetric_overlap(error)
    end if
 
 end subroutine test_born_asymmetric_overlap
+
+subroutine test_gfn2_reference_state(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, init
+   use xtb_type_restart, only : TRestart
+   use xtb_type_data, only : scc_results
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
+   use xtb_solv_model, only : TSolvModel, init
+   use xtb_solv_state, only : solutionState
+
+   !> Error handling
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: thr = 1.0e-10_wp
+   integer, parameter :: nat = 3
+   integer, parameter :: at(nat) = [8, 1, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.00000000000000_wp,  0.00000000000000_wp, -0.73578586109551_wp, &
+      & 1.44183152868459_wp,  0.00000000000000_wp,  0.36789293054775_wp, &
+      &-1.44183152868459_wp,  0.00000000000000_wp,  0.36789293054775_wp], &
+      & shape(xyz))
+   integer, parameter :: states(3) = [&
+      & solutionState%gsolv, solutionState%mol1bar, solutionState%reference]
+   real(wp), parameter :: ref_shifts(3) = [&
+      & 0.00108075969814_wp, 0.00411200603421_wp, 0.00790515518707_wp]
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   type(TSolvModel) :: model
+   type(scc_results) :: res
+   real(wp) :: energy(3), gradient(3, nat), sigma(3, 3), hl_gap
+   integer :: i
+   logical :: exitRun
+
+   call init(env)
+   call init(mol, at, xyz)
+
+   do i = 1, 3
+      call init(model, env, TSolvInput(solvent="water", alpb=.true., &
+         & kernel=gbKernel%p16, state=states(i)), 2)
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (allocated(error)) return
+
+      call check_(error, model%freeEnergyShift, ref_shifts(i), thr=thr)
+      if (allocated(error)) return
+
+      call newXTBCalculator(env, mol, calc, method=2)
+      call newWavefunction(env, mol, calc, chk)
+      call addSolvationModel(env, calc, TSolvInput(solvent="water", alpb=.true., &
+         & kernel=gbKernel%p16, state=states(i)))
+
+      energy(i) = 0.0_wp
+      gradient = 0.0_wp
+      call calc%singlepoint(env, mol, chk, 0, .false., energy(i), gradient, &
+         & sigma, hl_gap, res)
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+      if (allocated(error)) return
+   end do
+
+   call check_(error, energy(2) - energy(1), ref_shifts(2) - ref_shifts(1), thr=thr)
+   if (allocated(error)) return
+   call check_(error, energy(3) - energy(2), ref_shifts(3) - ref_shifts(2), thr=thr)
+
+end subroutine test_gfn2_reference_state
 
 subroutine test_gfn2_pcem_api(error)
    use xtb_mctc_accuracy, only : wp
