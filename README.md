@@ -193,7 +193,7 @@ For the contributor data from the commit history since then look [here](https://
 ## Citations
 
 General Reference to `xtb` and the implemented GFN methods:
-- A. Katbashev, M. Stahn, T. Rose, V. Alizadeh, M. Friede, C. Plett, P. Steinbach, S. Ehlert, *J. Phys. Chem. A*, **2025**, 129, 2667–2682.  
+- A. Katbashev, M. Stahn, T. Rose, V. Alizadeh, M. Friede, C. Plett, P. Steinbach, S. Ehlert, *J. Phys. Chem. A*, **2025**, 129, 2667–2682.
   DOI: [10.1021/acs.jpca.4c08263](https://doi.org/10.1021/acs.jpca.4c08263) 
 - C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht, J. Seibert, S. Spicher, S. Grimme
   *WIREs Comput. Mol. Sci.*, **2020**, 11, e01493.
