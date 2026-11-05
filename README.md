@@ -1,6 +1,6 @@
 # Semiempirical Extended Tight-Binding Program Package
 
-[![License](https://img.shields.io/github/license/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/blob/master/COPYING)
+[![License](https://img.shields.io/github/license/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/blob/main/COPYING)
 [![Latest Version](https://img.shields.io/github/v/release/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/releases/latest)
 [![DOI](https://img.shields.io/badge/DOI-10.1002%2Fwcms.1493-blue)](https://doi.org/10.1002/wcms.1493)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/grimme-lab/xtb/total)](https://github.com/grimme-lab/xtb/releases)
@@ -13,6 +13,9 @@ This is the official repository of the `xtb` program package developed by the Gr
 
 ## Table of Contents
 - [Installation](#installation)
+  - [Meson](#meson)
+  - [CMake](#cmake)
+  - [Conda](#conda)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Citations](#citations)
@@ -22,19 +25,21 @@ This is the official repository of the `xtb` program package developed by the Gr
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/grimme-lab/xtb/fortran-build.yml?branch=main)](https://github.com/grimme-lab/xtb/actions)
 
-Statically linked binaries (Intel Compiler) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest), a version for Linux (Intel 18.0.2, GLIBC 2.19) and Windows (Intel 2022, GNU-15) is provided.
-The `xtb` program and library are packaged on conda-forge for Linux (x86\_64, aarch64, ppc64le) and MacOS (x86\_64, arm64).
-For homebrew users a custom tap is available at [grimme-lab/homebrew-qc](https://github.com/grimme-lab/homebrew-qc) providing prebuilt MacOS/x86\_64 binaries, for MacOS/arm64 binaries will be compiled on installation automatically.
+Statically linked binaries are provided on the [latest release page](https://github.com/grimme-lab/xtb/releases/latest), and bleeding-edge static binaries (as well as the source distribution archive) built from the latest `main` branch are available on the [continuous release tag (`bleed`)](https://github.com/grimme-lab/xtb/releases/tag/bleed) for five platforms:
+- Linux (`x86_64`, compiled with Intel oneAPI `ifx`/`icx` and MKL; `aarch64`, compiled with GCC and OpenBLAS)
+- macOS (`arm64` and `x86_64`, compiled with GCC and OpenBLAS)
+- Windows (`x86_64`, compiled with MinGW-w64 UCRT64 GCC and OpenBLAS)
 
-Bleeding edge releases (Linux and Windows) of the latest source from this repository are available on the [continuous release tag](https://github.com/grimme-lab/xtb/releases/tag/bleed).
+The `xtb` program and library are also packaged on conda-forge for Linux (`x86_64`, `aarch64`, `ppc64le`) and macOS (`x86_64`, `arm64`).
+For Homebrew users a custom tap is available at [grimme-lab/homebrew-qc](https://github.com/grimme-lab/homebrew-qc) providing prebuilt macOS/`x86_64` binaries; for macOS/`arm64`, binaries will be compiled on installation automatically.
 
-This projects supports two build systems, meson and CMake.
-A short guide on the usage of each is given here, follow the linked instructions for a more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
+This project supports two build systems, meson and CMake.
+A short guide on the usage of each is given here, follow the linked instructions for more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
 
 **Compilers**:
-  1. ifort(<=2021.10.0), icc(<=2021.10.0)
-  2. gfortran, gcc
-  3. ifx, icx (some versions may not work)
+  1. `ifx`, `icx`, `icpx`
+  2. `gfortran`, `gcc`, `g++`
+  3. `ifort` (<=2021.10.0), `icc` (<=2021.10.0)
 
 Known issues with combinations:
   1. GCC-13 + MacOS + AArch64
@@ -42,12 +47,12 @@ Known issues with combinations:
 
 ### Meson
 
-Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.62 or newer (except 1.8.0).
+Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.62 or newer (except 1.8.0 and 1.8.1).
 To use the default backend of meson you have to install [ninja](https://ninja-build.org/) version 1.7 or newer.
 
 ```bash
-export FC=ifort CC=icc
-meson setup build --buildtype release --optimization 2 -Dfortran_link_args="-qopenmp"
+export FC=ifx CC=icx
+meson setup build --buildtype release --optimization 2
 ninja -C build test
 ```
 
@@ -65,7 +70,7 @@ Example:
    ```bash
    brew install gcc gfortran openblas
    ```
-2. **meson setup call with appropriate environment variables**: Use the following adapted `meson setup` call to compile `xtb` on macOS. Obviously, the paths to the libraries might differ on your system.
+2. **meson setup call with appropriate environment variables**: Use the following adapted `meson setup` call to compile `xtb` on macOS (adjusting the OpenBLAS path and the installed Homebrew compiler version, e.g., `gfortran-14`/`gcc-14`, for your system).
    ```bash
    LDFLAGS="-L/opt/homebrew/opt/openblas/lib" CPPFLAGS="-I/opt/homebrew/opt/openblas/include" FC=gfortran-14 CC=gcc-14 meson setup _build --buildtype release -Dlapack=openblas
    ```
@@ -85,7 +90,7 @@ For more information on the build with meson see the instructions [here](./meson
 
 ### CMake
 
-The CMake build system requires both make and CMake to be installed, the latter has to be version 3.17 or newer.
+The CMake build system requires both make and CMake to be installed, the latter has to be version 3.18 or newer.
 
 Building `xtb` with CMake works with the following chain of commands:
 
@@ -163,8 +168,9 @@ features reality:
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - C. Hölzer ([@hoelzerC](https://github.com/hoelzerc))
 - A. Katbashev ([@Albkat](https://github.com/albkat))
+- J. Kohn ([@demonic-daisy](https://github.com/demonic-daisy))
 - J. Koopman ([@JayTheDog](https://github.com/jaythedog))
-- C. Lavinge ([@clavigne](https://github.com/clavigne))
+- C. Lavigne ([@clavigne](https://github.com/clavigne))
 - S. Lehtola ([@susilehtola](https://github.com/susilehtola))
 - F. März
 - M. Müller ([@marcelmbn](https://github.com/marcelmbn))
@@ -174,6 +180,7 @@ features reality:
 - C. Plett ([@cplett](https://github.com/cplett))
 - P. Pracht ([@pprcht](https://github.com/pprcht))
 - F. Pultar ([@pultar](https://github.com/pultar))
+- T. Rose ([@Thomas3R](https://github.com/thomas3r))
 - J. Seibert ([@liljay42](https://github.com/liljay42))
 - L. M. Seidler ([@lmseidler](https://github.com/lmseidler))
 - C. E. Selzer ([@chselz](https://github.com/chselz))
@@ -183,7 +190,6 @@ features reality:
 - M. Steiner ([@steinmig](https://github.com/steinmig))
 - T. Strunk ([@timostrunk](https://github.com/timostrunk))
 - J. Stückrath ([@jbstueckrath](https://github.com/jbstueckrath))
-- T. Rose ([@Thomas3R](https://github.com/thomas3r))
 - J. Unsleber ([@nabbelbabbel](https://github.com/nabbelbabbel))
 
 Contributors are listed in alphabetical order.
@@ -293,7 +299,7 @@ for DIPRO refer to:
   DOI: [10.1063/5.0167484](https://doi.org/10.1063/5.0167484)
 
 for O1NumHess refer to:
-- B. Wang, S. Luo, Z. Wang, W. Liu, *J. Chem. Theory Comput.* **2025**, 21, 10893-10909.
+- B. Wang, S. Luo, Z. Wang, W. Liu, *J. Chem. Theory Comput.*, **2025**, 21, 10893-10909.
   DOI: [10.1021/acs.jctc.5c01354](https://doi.org/10.1021/acs.jctc.5c01354)
 
 All references are available in [bibtex format](./assets/references.bib).

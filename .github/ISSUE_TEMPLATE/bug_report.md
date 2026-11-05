@@ -10,6 +10,12 @@ assignees: ''
 **Describe the bug**
 A clear and concise description of what the bug is.
 
+**Environment**
+- `xtb` version (output of `xtb --version`):
+- OS and architecture (e.g., Linux `x86_64`, macOS `arm64`, Windows `x86_64`):
+- Installation method (e.g., static release binary, `bleed` binary, `conda-forge`, Homebrew, built from source):
+- Backend used (native `xtb` or `--tblite`):
+
 **To Reproduce**
 Steps to reproduce the behaviour:
 

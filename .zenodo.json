@@ -1,6 +1,5 @@
 {
-    "license": "LGPL-3.0-or-later", 
-    "version": "v6.2.3", 
+    "license": "LGPL-3.0-or-later",
     "references": [
         "S. Grimme, C. Bannwarth, P. Shushkov, J. Chem. Theory Comput., 2017, 13, 1989-2009. DOI: 10.1021/acs.jctc.7b00118", 
         "C. Bannwarth, S. Ehlert and S. Grimme., J. Chem. Theory Comput., 2019, 15, 1652-1671. DOI: 10.1021/acs.jctc.8b01176", 
@@ -9,7 +8,7 @@
         "E. Caldeweyher, S. Ehlert, A. Hansen, H. Neugebauer, S. Spicher, C. Bannwarth and S. Grimme, J. Chem. Phys., 2019, 150, 154122. DOI: 10.1063/1.5090222", 
         "S. Grimme and C. Bannwarth, J. Chem. Phys., 2016, 145, 054103. DOI: 10.1063/1.4959605", 
         "V. Asgeirsson, C. Bauer and S. Grimme, Chem. Sci., 2017, 8, 4879. DOI: 10.1039/c7sc00601b", 
-        "S. Grimme, J. Chem. Theory Comput., 2019, 155, 2847-2862. DOI: 10.1021/acs.jctc.9b00143"
+        "S. Grimme, J. Chem. Theory Comput., 2019, 15, 2847-2862. DOI: 10.1021/acs.jctc.9b00143"
     ], 
     "upload_type": "software", 
     "keywords": [

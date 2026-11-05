@@ -20,7 +20,7 @@ project(
   'xtb',
   'fortran', 'c',
   version: '6.7.1',
-  license: 'LGPL3-3.0-or-later',
+  license: 'LGPL-3.0-or-later',
   meson_version: '>=0.62.0',
   default_options: [
     'buildtype=debugoptimized',

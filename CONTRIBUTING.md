@@ -1,9 +1,9 @@
 # Contributing to xTB
 
-> **Important**: please sign off *all* your commits. To avoid commiting unsigned changes you can use the Python script `scripts/install-hooks.py` to install a commit hook to check whether you signed off.
+> **Important**: please sign off *all* your commits. To avoid committing unsigned changes you can use the Python script `scripts/install-hooks.py` to install a commit hook to check whether you signed off.
 
 First off, thank you for considering contributing to `xtb`.
-Please take a moment to review this guidelines to make the contribution process
+Please take a moment to review these guidelines to make the contribution process
 simple and effective for all involved.
 
 Respecting these guidelines helps communicate that you respect the time of
@@ -13,14 +13,14 @@ evaluating changes, and helping you handle your pull requests.
 
 ## Reporting a Bug
 
-A bug is a *demonstratable problem* caused by the code in this repository.
+A bug is a *demonstrable problem* caused by the code in this repository.
 Good bug reports are extremely valuable for us - thank you!
 
 Before opening a bug report:
 
 1. Check if the issue has already been reported.
 2. Check if it still is an issue or has already been fixed?
-   Try to reproduce it with the latest version from the `master` branch.
+   Try to reproduce it with the latest version from the `main` branch.
 3. Isolate the problem and create a reduced test case.
 
 A good bug report should not leave others needing to chase you up for more
@@ -58,8 +58,7 @@ Contributions are welcome via Github pull requests.
   standalone.
 - Make sure the code compiles and the tests run successful on more than
   your local machine (*e.g.* on cluster of your university).
-
-Please sign-off your commits
+- Sign off all your commits (see [Sign Your Work](#sign-your-work)).
 
 ### For New Contributors
 

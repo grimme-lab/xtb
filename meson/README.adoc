@@ -1,8 +1,7 @@
 = Building xtb with meson
 
 To build `xtb` from the source in this repository the https://mesonbuild.com[meson build system] can be used.
-For a decent Fortran support verson 0.51 of meson or newer is required to build `xtb`,
-additionally the default backend https://ninja-build.org/[ninja] is required with version 1.7 or newer.
+Building `xtb` requires Meson version 0.62 or newer, excluding versions 1.8.0 and 1.8.1, and https://ninja-build.org/[Ninja] version 1.7 or newer.
 
 == Getting meson
 
@@ -12,10 +11,10 @@ Alternatively you can install the latest version of meson and ninja with `pip` (
 
 [source,bash]
 ----
-pip install meson ninja [--user]
+pip install meson ninja
 ----
 
-If you prefer `conda` as a package manage you can install meson and ninja from the conda-forge channel.
+If you prefer `conda` as a package manager you can install meson and ninja from the conda-forge channel.
 Make sure to select the conda-forge channel for searching packages.
 
 [source,bash]
@@ -26,13 +25,13 @@ conda install meson ninja
 
 == Configure Intel Fortran build with MKL
 
-The recommended build for `xtb` is with Intel Parallel Studio using the Intel Fortran compiler and the Math Kernel Library as default backend.
-Precompiled, statically linked `xtb` binaries for Linux are provided at https://github.com/grimme-lab/xtb/releases/latest[release page].
-The setup for the linear algebra backend defaults to MKL, therefore, only the compilers have to exported before configuring the build:
+The recommended build for `xtb` is with Intel oneAPI using the Intel Fortran compiler (`ifx` or `ifort`) and the Math Kernel Library (MKL) as linear algebra backend.
+Precompiled binaries for Linux and Windows are available from the https://github.com/grimme-lab/xtb/releases/latest[latest stable release]. Continuously updated binaries for Linux, macOS, and Windows are provided through the https://github.com/grimme-lab/xtb/releases/tag/bleed[bleeding-edge release].
+The `-Dlapack` option defaults to `auto`, which automatically selects MKL when using Intel compilers (and system BLAS/LAPACK otherwise); therefore, only the compilers have to be exported before configuring the build:
 
 [source,bash]
 ----
-export FC=ifort CC=icc
+export FC=ifx CC=icx
 meson setup build --buildtype release --optimization 2
 ----
 
@@ -48,8 +47,8 @@ If you share the build machine with others it might be helpful to reduce the num
 
 == Configure GCC build with OpenBLAS
 
-`xtb` can also be compiled with GCC version 8 or later.
-For this example we additonally choose to change the linear algebra backend to OpenBLAS, if you have Intel Parallel Studio installed, you can leave out the last argument to get the MKL backend.
+`xtb` can also be compiled with GCC.
+For this example we additionally choose to change the linear algebra backend to OpenBLAS, if you have Intel oneAPI MKL installed, you can pass `-Dlapack=mkl` to use the MKL backend.
 
 [source,bash]
 ----
@@ -57,7 +56,6 @@ export FC=gfortran CC=gcc
 meson setup build --buildtype release --optimization 2 -Dlapack=openblas
 ----
 
-To compile and run `xtb` with GCC 7 (especially 7.3.0) the source code has to be patched at several placed, for appropriate patches visit the https://github.com/grimme-lab/xtb-feedstock[conda-forge feedstock repository].
 The build system will check if the OpenBLAS library provides LAPACK features as well, if this is not the case it will additionally search for LAPACK.
 If you are compiling `xtb` on Darwin platforms, ensure that GCC is the actual GCC and not clang.
 The build can be performed just like before:
@@ -107,7 +105,7 @@ To modify the behaviour configure meson with
 
 [source,bash]
 ----
-meson build \
+meson setup build \
   --prefix=/usr \
   --bindir=bin \
   --libdir=lib \
@@ -128,8 +126,8 @@ usr
 ├── lib
 │   ├── libxtb.a
 │   ├── libxtb.so -> libxtb.so.6
-│   ├── libxtb.so.6 -> libxtb.so.6.3.2
-│   ├── libxtb.so.6.3.2
+│   ├── libxtb.so.6 -> libxtb.so.<version>
+│   ├── libxtb.so.<version>
 │   └── pkgconfig
 │       └── xtb.pc
 └── share
@@ -141,9 +139,13 @@ usr
     ├── modules
     │   └── modulefiles
     │       └── xtb
-    │           └── 6.3.2
+    │           └── <version>
     └── xtb
+        ├── .param_gfnff.xtb
+        ├── config_env.bash
+        ├── config_env.csh
         ├── param_gfn0-xtb.txt
+        ├── param_gfn1-si-xtb.txt
         ├── param_gfn1-xtb.txt
         ├── param_gfn2-xtb.txt
         └── param_ipea-xtb.txt
@@ -178,14 +180,14 @@ The following options are available:
 |backend
 |linked against
 
-|mkl-static
-|static MKL (default)
+|auto
+|automatic selection (MKL for Intel compilers, system BLAS/LAPACK otherwise; default)
 
 |mkl
-|shared MKL
+|Intel MKL
 
 |mkl-rt
-|MKL real time library
+|MKL single dynamic library (`libmkl_rt`)
 
 |openblas
 |OpenBLAS and if required LAPACK
@@ -204,5 +206,5 @@ If you are using the MKL provided by conda-forge you have to link against the ne
 
 To add new source code it should be sufficient to add the new files in the `meson.build` file in the respective source directory in the `src` tree.
 New directories in the `src` tree can be included by adding them as `subdir` to the parent `meson.build` file.
-To kinds of source files are distinguished, all sources for the `xtb` library are included in the `srcs` variable, while files used exclusively for the executable are stored in the `prog` list.
-Source files for the testing are defined in the `TESTSUITE/meson.build` file together with their tests.
+Two kinds of source files are distinguished, all sources for the `xtb` library are included in the `srcs` variable, while files used exclusively for the executable are stored in the `prog` list.
+Source files for the testing are defined in the `test/unit/meson.build` file together with their tests.
