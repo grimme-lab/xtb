@@ -171,7 +171,7 @@ $embedding
     Alternatively the 'gam' value can be given directly as fifth argument,
     to simulate point charges provide a huge value for 'gam'.
 
-*gradient*='file::
+*gradient*='file'::
     gradient of the point charges is written to 'file' (default: 'pcgrad')
 
 $external
@@ -240,8 +240,8 @@ NOTE: the fix group refers to exact fixing. For geometry optimizations
 $gbsa
 ~~~~~
 *solvent*='string'::
-    solvent for the generalized born (GB) model with solvent accessable
-    surface area (SASA), requires `.param_gbsa.solvent` in `XTBPATH`.
+    solvent for the generalized born (GB) model with solvent accessible
+    surface area (SASA).
     Does not activate GBSA (use commandline).
 
 *ion_st*='real'::
@@ -251,7 +251,7 @@ $gbsa
     ion radius for salt screening in GBSA
 
 *grid*='level'::
-    changes the grid used for the surface accessable surface area
+    changes the grid used for the solvent accessible surface area
     (normal, tight, vtight/verytight, extreme are available).
 
 $gfn
@@ -372,7 +372,7 @@ $oniom
    to print optimization log files for model region geometry (`high.inner_region.log` and `low.inner_region.log`)
 
 *derived k*='bool'::
-   to calculate prefactor *k* and create jacobian dynamically (see more )
+   to calculate prefactor *k* and create jacobian dynamically
 
 *ignore topo*='bool'::
    to bypass topology check when breaking bonds
@@ -393,7 +393,7 @@ $opt
 *output*='file'::
     redirect output of optimization to 'file'
 
-*logfile*='file::
+*logfile*='file'::
     write optimization log to 'file' (default: xtbopt.log)
 
 *optlevel*='level'::
@@ -596,7 +596,7 @@ $wall
 *sandwich*: auto|'real',all|'list',...::
    set up a sandwich wall potential for all or the atoms in 'list'
    with the radius 'real' or an automatical determined sandwich radius in Bohr
-   Only potential=logfermi ist available. diameter=2*radius+2*4A safety buffer
+   Only potential=logfermi is available. diameter=2*radius+2*4A safety buffer
 
 
 $write
@@ -735,11 +735,14 @@ NOTE: `xtb(1)` can read a set-block by itself and will print out a
 BUGS
 ----
 Please report all bugs with an example input, `--copy` dump of internal settings
-and the used geometry, as well as the `--verbose` output to xtb@thch.uni-bonn.de
+and the used geometry, as well as the `--verbose` output on the issue tracker at
+https://github.com/grimme-lab/xtb/issues
 
 RESOURCES
 ---------
-Main web site: http://grimme.uni-bonn.de/software/xtb
+Main repository: https://github.com/grimme-lab/xtb
+
+Documentation: https://xtb-docs.readthedocs.io/
 
 COPYING
 -------

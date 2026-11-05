@@ -22,9 +22,10 @@ tight binding (DFTB). This implementation of the xTB Hamiltonian is currently
 compatible with the zeroth, first and second level parametrisation for
 geometries, frequencies and non-covalent interactions (GFN)
 as well as with the ionisation potential and
-electron affinity (IPEA) parametrisation of the GFN1 Hamiltonian.
-The generalized born (GB) model with solvent accessable surface area (SASA)
-is also available in this version.
+electron affinity (IPEA) parametrisation of the GFN1 Hamiltonian,
+the GFN-FF force field, and the PTB electronic structure method.
+Multiple implicit solvation models (ALPB, GBSA, ddCOSMO, ddCPCM, ddPCM, and CPCM-X)
+are also available in this version.
 Ground state calculations for the simplified Tamm-Dancoff approximation (sTDA)
 with the vTB model are currently not implemented.
 
@@ -78,6 +79,9 @@ OPTIONS
 
 *--gfnff, --gff* ::
     use the GFN-FF force field
+
+*--mcgfnff* ::
+    use the mcGFN-FF force field for molecular crystals
 
 *--tblite* ::
     use tblite library as implementation for xTB (required for periodic GFN1-xTB and GFN2-xTB calculations)
@@ -340,7 +344,7 @@ GENERAL
      copies the `xcontrol` file at startup (default = false)
 
 *--[no]restart*::
-     restarts calculation from `xtbrestart` (default = true)
+     restarts calculation from `xtbrestart` (`--norestart` disables reading existing restart files; default = true)
 
 *-P, --parallel* 'INT'::
      number of parallel processes
@@ -356,6 +360,9 @@ GENERAL
 
 *--license*::
      print license and terminate
+
+*--version*::
+     print version and terminate
 
 *-v, --verbose*::
      be more verbose (not supported in every unit)
@@ -380,7 +387,7 @@ syntax as the system `PATH` variable. If this variable is not set, `xtb(1)`
 will try to generate the `XTBPATH` from the deprecated `XTBHOME` variable.
 In case the `XTBHOME` variable is not set it will be generated from the
 `HOME` variable. So in principle storing the parameter files in the users
-home directory is suffient but might lead to come cluttering.
+home directory is sufficient but might lead to some cluttering.
 
 Since the `XTBHOME` variable is deprecated with version 6.0 and newer
 `xtb(1)` will issue a warning if `XTBHOME` is not part of the `XTBPATH`
@@ -540,7 +547,7 @@ warnings carefully!
 After `xtb(1)` has evaluated the all input sources it immediately enters
 the production mode. Severe errors will lead to an abnormal termination
 which is signalled by the printout to STDERR and a non-zero return value
-(usually 128). All non-fatal errors are summerized in the end of the calculation
+(usually 128). All non-fatal errors are summarized in the end of the calculation
 in one block, right before the timing analysis.
 
 To aid the user to fix the problems generating these warnings a brief
@@ -549,7 +556,7 @@ output will be shown here:
 
 *ANCopt failed to converge the optimization*::
    geometry optimization has failed to converge in the given number
-   optimization cycles. This is not neccessary a problem if only a
+   optimization cycles. This is not necessarily a problem if only a
    small number of cycles was given for the optimization on purpose.
    All further calculations are done on the last geometry of the
    optimization.
@@ -557,7 +564,7 @@ output will be shown here:
 *Hessian on incompletely optimized geometry!*::
    This warning will be issued twice, once before the Hessian,
    calculations starts (it would otherwise take some time before
-   this this warning could be detected) and in the warning block
+   this warning could be detected) and in the warning block
    in the end. The warning will be generated if the gradient norm
    on the given geometry is higher than a certain threshold.
 
@@ -571,12 +578,15 @@ EXIT STATUS
 
 BUGS
 ----
-please report all bugs with an example input, `--copy` dump of internal settings
-and the used geometry, as well as the `--verbose` output to xtb@thch.uni-bonn.de
+Please report all bugs with an example input, `--copy` dump of internal settings
+and the used geometry, as well as the `--verbose` output on the issue tracker at
+https://github.com/grimme-lab/xtb/issues
 
 RESOURCES
 ---------
-Main web site: http://grimme.uni-bonn.de/software/xtb
+Main repository: https://github.com/grimme-lab/xtb
+
+Documentation: https://xtb-docs.readthedocs.io/
 
 COPYING
 -------

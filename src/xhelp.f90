@@ -129,9 +129,9 @@ write(iunit,'(3x,a)') &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, M. Friede, T. Froitzheim,", &
    "I. Gerasimov, C. Hölzer, A. Katbashev, J. Kohn, J. Koopman, C. Lavigne,", &
    "S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer, J. Pisarek,", &
-   "C. Plett, P. Pracht, F. Pultar, J. Seibert, L. M. Seidler, C. E. Selzer,", &
-   "P. Shushkov, S. Spicher, M. Stahn, M. Steiner, T. Strunk, J. Stückrath,", &
-   "T. Rose, and J. Unsleber", &
+   "C. Plett, P. Pracht, F. Pultar, T. Rose, J. Seibert, L. M. Seidler,", &
+   "C. E. Selzer, P. Shushkov, S. Spicher, M. Stahn, M. Steiner, T. Strunk,", &
+   "J. Stückrath, and J. Unsleber", &
    ""
 end subroutine citation
 
@@ -160,6 +160,7 @@ subroutine help(iunit)
    "                           (doublet) for odd electron number)",&
    "      --gfn INT            specify parametrisation of GFN-xTB (default = 2)",&
    "      --gfnff, --gff       use the GFN-FF force field",&
+   "      --mcgfnff            use the mcGFN-FF force field for molecular crystals",&
    "      --tblite             use tblite library as implementation for xTB (required for periodic",&
    "                           GFN1-xTB and GFN2-xTB calculations)",&
    "      --ptb                performs single-point calculation with the density tight-binding method",&
@@ -271,9 +272,9 @@ subroutine help(iunit)
    "      --grad               performs a gradient calculation",&
    "  -o, --opt [LEVEL]        perform a geometry optimization (nonperiodic: `ancopt(3)`,",&
    "                           periodic with lattice-vector relaxation: `pbc_lbfgs`),",&
-   "                           sloppy, loose, normal (default), tight, verytight to extreme can be",&
-   "                           chosen, level sets also the default accuracy setting (overwritten by",&
-   "                           --acc flag)",&
+   "                           levels from crude, sloppy, loose, normal (default), tight, verytight",&
+   "                           to extreme can be chosen, level sets also the default accuracy setting",&
+   "                           (overwritten by --acc flag)",&
    "      --nocellopt          keep lattice vectors fixed during periodic geometry optimization",&
    "      --cycles INT         maximum number of optimization cycles",&
    "      --hess               perform a numerical hessian calculation on input geometry, tightens",&
@@ -318,6 +319,7 @@ subroutine help(iunit)
    "      --json               write xtbout.json file for native xTB and PTB calculations",&
    "      --citation           print citation and terminate",&
    "      --license            print license and terminate",&
+   "      --version            print version and terminate",&
    "  -v, --verbose            be more verbose (not supported in every unit)",&
    "  -s, --silent             clutter the screen less (not supported in every unit)",&
    "      --ceasefiles         reduce the amount of output and files written",&
