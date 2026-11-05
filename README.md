@@ -165,6 +165,7 @@ features reality:
 - M. Friede ([@marvinfriede](https://github.com/marvinfriede))
 - T. Froitzheim ([@thfroitzheim](https://github.com/thfroitzheim))
 - I. Gerasimov ([@foxtran](https://github.com/foxtran))
+- J. Gorges ([@gorges97](https://github.com/gorges97))
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - C. Hölzer ([@hoelzerC](https://github.com/hoelzerc))
 - A. Katbashev ([@Albkat](https://github.com/albkat))

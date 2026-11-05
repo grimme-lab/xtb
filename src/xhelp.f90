@@ -127,9 +127,9 @@ write(iunit,'(3x,a)') &
    "with help from (in alphabetical order)",&
    "P. Atkinson, T. Balduf, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher,", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, M. Friede, T. Froitzheim,", &
-   "I. Gerasimov, C. Hölzer, A. Katbashev, J. Kohn, J. Koopman, C. Lavigne,", &
-   "S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer, J. Pisarek,", &
-   "C. Plett, P. Pracht, F. Pultar, T. Rose, J. Seibert, L. M. Seidler,", &
+   "I. Gerasimov, J. Gorges, C. Hölzer, A. Katbashev, J. Kohn, J. Koopman,", &
+   "C. Lavigne, S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer,", &
+   "J. Pisarek, C. Plett, P. Pracht, F. Pultar, T. Rose, J. Seibert, L. M. Seidler,", &
    "C. E. Selzer, P. Shushkov, S. Spicher, M. Stahn, M. Steiner, T. Strunk,", &
    "J. Stückrath, and J. Unsleber", &
    ""
