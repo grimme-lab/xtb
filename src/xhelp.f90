@@ -20,8 +20,8 @@ integer,intent(in) :: iunit
 write(iunit,'(3x,a)') &
    "Cite this work as:", &
    "* C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht,",&
-   "  J. Seibert, S. Spicher, S. Grimme, WIREs Comput. Mol. Sci., 2020, 11,",&
-   "  e01493. DOI: 10.1002/wcms.1493",&
+   "  J. Seibert, S. Spicher, S. Grimme, WIREs Comput. Mol. Sci., 2021, 11,",&
+   "  e1493. DOI: 10.1002/wcms.1493",&
    "",&
    "for the xtb software:",&
    "* A. Katbashev, M. Stahn, T. Rose, V. Alizadeh, M. Friede, C. Plett,",&
@@ -47,6 +47,7 @@ write(iunit,'(3x,a)') &
    "  DOI: 10.1002/anie.202004239", &
    "* T. Rose, M. Bursch, J.-M. Mewes, S. Grimme, Inorg. Chem., 2024, 63,",&
    "  19364-19374. DOI: 10.1021/acs.inorgchem.4c03215",&
+   "",&
    "for periodic GFN-FF (mcGFN-FF):",&
    "* S. Grimme and T. Rose, Z. Naturforsch. B, 2024, 79, 191-200.",&
    "  DOI: 10.1515/znb-2023-0088",&
@@ -96,7 +97,7 @@ write(iunit,'(3x,a)') &
    "  DOI: 10.1039/D5CP00316D",&
    "",&
    "for metadynamics refer to:",&
-   "* S. Grimme, J. Chem. Theory Comput., 2019, 155, 2847-2862", &
+   "* S. Grimme, J. Chem. Theory Comput., 2019, 15, 2847-2862", &
    "  DOI: 10.1021/acs.jctc.9b00143", &
    "",&
    "for SPH calculations refer to:",&
