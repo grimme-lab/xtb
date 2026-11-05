@@ -476,8 +476,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    end if
 
    if(ihomo+1.le.ndim.and.ihomo.ge.1)egap=emo(ihomo+1)-emo(ihomo)
-   ! automatic reset to small value
-   if(egap.lt.0.1_wp.and.iter.eq.0) broydamp=0.03_wp
 
    ! Fermi smearing
    if(et.gt.0.1_wp)then

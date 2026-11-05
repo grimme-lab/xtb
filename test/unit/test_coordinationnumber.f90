@@ -30,7 +30,8 @@ subroutine collect_coordinationnumber(testsuite)
 
    testsuite = [ &
       new_unittest("lp-pbc3d", test_ncoord_pbc3d_latticepoints), &
-      new_unittest("lp-pbc3d", test_ncoord_pbc3d_neighbourlist) &
+      new_unittest("lp-pbc3d", test_ncoord_pbc3d_neighbourlist), &
+      new_unittest("d4-consistency", test_ncoord_d4_consistency) &
       ]
 
 end subroutine collect_coordinationnumber
@@ -274,5 +275,56 @@ subroutine test_ncoord_pbc3d_neighbourlist(error)
    call check(error, norm2(dcndr), 2.9659911059113_wp, thr=thr)
 
 end subroutine test_ncoord_pbc3d_neighbourlist
+
+
+subroutine test_ncoord_d4_consistency(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
+   use xtb_disp_ncoord, only : ncoord_d4, ncoord_d3, ncoord_erf, ncoord_gfn
+   use xtb_test_molstock, only : getMolecule
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, len
+   type(error_type), allocatable, intent(out) :: error
+   real(wp), parameter :: thr = 1.0e-12_wp
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   real(wp), allocatable :: cn_ref(:), cn_ncoord(:), dcndr(:, :, :), dcndL(:, :, :)
+   integer :: i
+
+   call init(env)
+   call getMolecule(mol, "mindless01")
+
+   allocate(cn_ref(len(mol)), cn_ncoord(len(mol)), &
+      & dcndr(3, len(mol), len(mol)), dcndL(3, 3, len(mol)))
+
+   call getCoordinationNumber(env, mol, cnType%cov, cn_ref, dcndr, dcndL, cutoff=30.0_wp)
+   call ncoord_d4(mol%n, mol%at, mol%xyz, cn_ncoord, thr=900.0_wp)
+   do i = 1, len(mol)
+      call check(error, cn_ncoord(i), cn_ref(i), thr=thr)
+      if (allocated(error)) return
+   end do
+
+   call getCoordinationNumber(env, mol, cnType%exp, cn_ref, dcndr, dcndL, cutoff=40.0_wp)
+   call ncoord_d3(mol%n, mol%at, mol%xyz, cn_ncoord, thr=1600.0_wp)
+   do i = 1, len(mol)
+      call check(error, cn_ncoord(i), cn_ref(i), thr=thr)
+      if (allocated(error)) return
+   end do
+
+   call getCoordinationNumber(env, mol, cnType%erf, cn_ref, dcndr, dcndL, cutoff=40.0_wp)
+   call ncoord_erf(mol%n, mol%at, mol%xyz, cn_ncoord, thr=1600.0_wp)
+   do i = 1, len(mol)
+      call check(error, cn_ncoord(i), cn_ref(i), thr=thr)
+      if (allocated(error)) return
+   end do
+
+   call getCoordinationNumber(env, mol, cnType%gfn, cn_ref, dcndr, dcndL, cutoff=40.0_wp)
+   call ncoord_gfn(mol%n, mol%at, mol%xyz, cn_ncoord, thr=1600.0_wp)
+   do i = 1, len(mol)
+      call check(error, cn_ncoord(i), cn_ref(i), thr=thr)
+      if (allocated(error)) return
+   end do
+
+end subroutine test_ncoord_d4_consistency
 
 end module test_coordinationnumber
