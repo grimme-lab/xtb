@@ -155,6 +155,7 @@ pure subroutine compute_psi(nat, nnrad, nnlistr, ddpair, vdwr, rho, psi, dpsidr)
 
       r = ddpair(1, nn)
       dr(:) = ddpair(2:4, nn)
+      r1 = 1.0_wp/r
 
       rhoi = rho(ii)
       rhoj = rho(jj)
@@ -172,7 +173,6 @@ pure subroutine compute_psi(nat, nnrad, nnlistr, ddpair, vdwr, rho, psi, dpsidr)
          ! nonoverlaping spheres
          if(abs(rhoi-rhoj).lt.1.d-8) then
             ! equal reduced radii
-            r1 = 1.0_wp/r
             ap = r+rhoj
             am = r-rhoj
             ab = ap*am
@@ -192,7 +192,6 @@ pure subroutine compute_psi(nat, nnrad, nnlistr, ddpair, vdwr, rho, psi, dpsidr)
          else
             ! unequal reduced radii
             ! ij contribution
-            r1 = 1.0_wp/r
             ap = r+rhoj
             am = r-rhoj
             ab = ap*am
@@ -224,7 +223,6 @@ pure subroutine compute_psi(nat, nnrad, nnlistr, ddpair, vdwr, rho, psi, dpsidr)
       case(10) ! ij do not overlap; ji overlap
 
          ! ij contribution
-         r1 = 1.0_wp/r
          ap = r+rhoj
          am = r-rhoj
          ab = ap*am
@@ -241,7 +239,6 @@ pure subroutine compute_psi(nat, nnrad, nnlistr, ddpair, vdwr, rho, psi, dpsidr)
 
          if((r+rhoi).gt.rvdwj) then
             ! ji contribution
-            r1 = 1.0_wp/r
             r12 = 0.5_wp*r1
             r24 = r12*r12
 
@@ -270,7 +267,6 @@ pure subroutine compute_psi(nat, nnrad, nnlistr, ddpair, vdwr, rho, psi, dpsidr)
 
          if((r+rhoj).gt.rvdwi) then
             ! ij contribution
-            r1 = 1.0_wp/r
             r12 = 0.5_wp*r1
             r24 = r12*r12
 
@@ -314,7 +310,6 @@ pure subroutine compute_psi(nat, nnrad, nnlistr, ddpair, vdwr, rho, psi, dpsidr)
          ! overlaping spheres
          if((r+rhoj).gt.rvdwi) then
             ! ij contribution
-            r1 = 1.0_wp/r
             r12 = 0.5_wp*r1
             r24 = r12*r12
 
@@ -341,7 +336,6 @@ pure subroutine compute_psi(nat, nnrad, nnlistr, ddpair, vdwr, rho, psi, dpsidr)
 
          if((r+rhoi).gt.rvdwj) then
             ! ji contribution
-            r1 = 1.0_wp/r
             r12 = 0.5_wp*r1
             r24 = r12*r12
 
