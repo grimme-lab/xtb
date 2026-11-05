@@ -109,12 +109,14 @@ foreach(t IN LISTS tests)
   ENVIRONMENT "XTBPATH=${PROJECT_SOURCE_DIR}"
   )
 endforeach()
-# run test suites writing/deleting the same LMO, Molden, and charge files serially
+# run test suites writing/deleting the same LMO, Molden, COSMO, and charge files serially
 set_tests_properties(
+  "${PROJECT_NAME}/gfn1"
   "${PROJECT_NAME}/gfn2"
   "${PROJECT_NAME}/gfnff"
   "${PROJECT_NAME}/iff"
   "${PROJECT_NAME}/tblite"
+  "${PROJECT_NAME}/cpx"
   PROPERTIES
   RESOURCE_LOCK "lmo-output-files"
 )
