@@ -35,6 +35,7 @@ subroutine collect_gfn2(testsuite)
       new_unittest("translation", test_gfn2_translation), &
       new_unittest("gbsa", test_gfn2gbsa_api), &
       new_unittest("salt", test_gfn2salt_api), &
+      new_unittest("born-asymmetric-overlap", test_born_asymmetric_overlap), &
       new_unittest("pcem", test_gfn2_pcem_api), &
       new_unittest("pcem_io", test_gfn2_pcem_io), &
       new_unittest("mindless-basic", test_gfn2_mindless_basic), &
@@ -537,6 +538,101 @@ subroutine test_gfn2salt_api(error)
    call check_(error, gradient(3,7), 0.6883271590152e-02_wp, thr=thr)
 
 end subroutine test_gfn2salt_api
+
+subroutine test_born_asymmetric_overlap(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_convert, only : aatoau
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, init
+   use xtb_solv_gbsa, only : TBorn
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
+   use xtb_solv_model, only : TSolvModel, init, newBornModel
+
+   !> Error handling
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: step = 1.0e-5_wp
+   real(wp), parameter :: thr2 = sqrt(epsilon(1.0_wp))
+   integer, parameter :: nat = 3, num(nat) = [1, 8, 55], order(nat) = [3, 2, 1]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & 0.0_wp, 0.0_wp, -0.96_wp, &
+      & 0.0_wp, 0.0_wp,  0.00_wp, &
+      & 0.0_wp, 0.0_wp,  2.08_wp], [3, nat]) * aatoau
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol, reversed
+   type(TSolvInput) :: input
+   type(TSolvModel) :: model
+   type(TBorn) :: gbsa, reversed_gbsa
+   real(wp) :: rad(nat), reversed_rad(nat), sr(nat), sl(nat)
+   real(wp) :: draddr(3, nat, nat), reversed_draddr(3, nat, nat)
+   real(wp) :: numg(3, nat, nat), reversed_numg(3, nat, nat)
+   integer :: iat, ic
+   logical :: exitRun
+
+   call init(env)
+   call init(mol, num, xyz)
+   call init(reversed, num(order), xyz(:, order))
+
+   input = TSolvInput(solvent="water", alpb=.true., kernel=gbKernel%p16)
+   call init(model, env, input, 2)
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (allocated(error)) return
+
+   call newBornModel(model, env, gbsa, mol%at)
+   call newBornModel(model, env, reversed_gbsa, reversed%at)
+
+   call gbsa%update(env, mol%at, mol%xyz)
+   rad = gbsa%brad
+   draddr = gbsa%brdr
+
+   call reversed_gbsa%update(env, reversed%at, reversed%xyz)
+   reversed_rad = reversed_gbsa%brad
+   reversed_draddr = reversed_gbsa%brdr
+
+   if (any(abs(rad - reversed_rad(order)) > thr2)) then
+      call test_failed(error, "Born radii depend on atom order")
+      return
+   end if
+   if (any(abs(draddr - reversed_draddr(:, order, order)) > thr2)) then
+      call test_failed(error, "Born radii derivatives depend on atom order")
+      return
+   end if
+
+   do iat = 1, nat
+      do ic = 1, 3
+         mol%xyz(ic, iat) = mol%xyz(ic, iat) + step
+         call gbsa%update(env, mol%at, mol%xyz)
+         sr = gbsa%brad
+
+         mol%xyz(ic, iat) = mol%xyz(ic, iat) - 2*step
+         call gbsa%update(env, mol%at, mol%xyz)
+         sl = gbsa%brad
+
+         mol%xyz(ic, iat) = mol%xyz(ic, iat) + step
+         numg(ic, iat, :) = 0.5_wp * (sr - sl) / step
+
+         reversed%xyz(ic, iat) = reversed%xyz(ic, iat) + step
+         call reversed_gbsa%update(env, reversed%at, reversed%xyz)
+         sr = reversed_gbsa%brad
+
+         reversed%xyz(ic, iat) = reversed%xyz(ic, iat) - 2*step
+         call reversed_gbsa%update(env, reversed%at, reversed%xyz)
+         sl = reversed_gbsa%brad
+
+         reversed%xyz(ic, iat) = reversed%xyz(ic, iat) + step
+         reversed_numg(ic, iat, :) = 0.5_wp * (sr - sl) / step
+      end do
+   end do
+
+   if (any(abs(numg - draddr) > thr2) .or. &
+      & any(abs(reversed_numg - reversed_draddr) > thr2)) then
+      call test_failed(error, "Born radii derivative does not match finite difference solution")
+   end if
+
+end subroutine test_born_asymmetric_overlap
 
 subroutine test_gfn2_pcem_api(error)
    use xtb_mctc_accuracy, only : wp
