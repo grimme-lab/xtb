@@ -23,6 +23,11 @@ write(iunit,'(3x,a)') &
    "  J. Seibert, S. Spicher, S. Grimme, WIREs Comput. Mol. Sci., 2020, 11,",&
    "  e01493. DOI: 10.1002/wcms.1493",&
    "",&
+   "for the xtb software:",&
+   "* A. Katbashev, M. Stahn, T. Rose, V. Alizadeh, M. Friede, C. Plett,",&
+   "  P. Steinbach, S. Ehlert, J. Phys. Chem. A, 2025, 129, 2667-2682.",&
+   "  DOI: 10.1021/acs.jpca.4c08263",&
+   "",&
    "for GFN2-xTB:",&
    "* C. Bannwarth, S. Ehlert and S. Grimme., J. Chem. Theory Comput., 2019,",&
    "  15, 1652-1671. DOI: 10.1021/acs.jctc.8b01176",&
@@ -32,17 +37,29 @@ write(iunit,'(3x,a)') &
    "for GFN0-xTB:",&
    "* P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, ChemRxiv, 2019, preprint.",&
    "  DOI: 10.26434/chemrxiv.8326202.v1",&
+   "for spin polarization:",&
+   "* H. Neugebauer, B. Bädorf, S. Ehlert, A. Hansen, S. Grimme,",&
+   "  J. Comput. Chem., 2023, 44, 2120-2129. DOI: 10.1002/jcc.27185",&
    "for GFN-FF:",&
    "* S. Spicher and S. Grimme, Angew. Chem. Int. Ed., 2020, 59, 15665-15673.",&
    "  DOI: 10.1002/anie.202004239", &
+   "* T. Rose, M. Bursch, J.-M. Mewes, S. Grimme, Inorg. Chem., 2024, 63,",&
+   "  19364-19374. DOI: 10.1021/acs.inorgchem.4c03215",&
+   "for periodic GFN-FF:",&
+   "* S. Grimme and T. Rose, Z. Naturforsch. B, 2024, 79, 191-200.",&
+   "  DOI: 10.1515/znb-2023-0088",&
    "",&
    "for ALPB and GBSA implicit solvation:",&
    "* S. Ehlert, M. Stahn, S. Spicher, S. Grimme, J. Chem. Theory Comput.,", &
    "  2021, 17, 4250-4261. DOI: 10.1021/acs.jctc.1c00471", &
    "",&
-   "for ddCOSMO and CPCM-X implicit solvation:",&
+   "for CPCM-X implicit solvation:",&
    "* M. Stahn, S. Ehlert, S. Grimme, J. Phys. Chem. A,", &
-   "  2023, XX, XXXX-XXXX. DOI: 10.1021/acs.jpca.3c04382", &
+   "  2023, 127, 7036-7043. DOI: 10.1021/acs.jpca.3c04382", &
+   "",&
+   "for ddX implicit solvation:",&
+   "* M. Nottoli, M. F. Herbst, A. Mikhalev, A. Jha, F. Lipparini, B. Stamm,",&
+   "  WIREs Comput. Mol. Sci., 2024, 14, e1726. DOI: 10.1002/wcms.1726",&
    "",&
    "for DFT-D4:",&
    "* E. Caldeweyher, C. Bannwarth and S. Grimme, J. Chem. Phys., 2017,",&
@@ -52,16 +69,29 @@ write(iunit,'(3x,a)') &
    "  DOI: 10.1063/1.5090222", &
    "* E. Caldeweyher, J.-M. Mewes, S. Ehlert and S. Grimme, Phys. Chem. Chem. Phys.",&
    "  2020, 22, 8499-8512. DOI: 10.1039/D0CP00502A",&
+   "* L. Wittmann, I. Gordiy, M. Friede, B. Helmich-Paris, S. Grimme,",&
+   "  A. Hansen and M. Bursch, Phys. Chem. Chem. Phys., 2024, 26, 21379-21394.",&
+   "  DOI: 10.1039/D4CP01514B",&
    "",&
    "for sTDA-xTB:",&
    "* S. Grimme and C. Bannwarth, J. Chem. Phys., 2016, 145, 054103.",&
    "  DOI: 10.1063/1.4959605",&
+   "",&
+   "for FOD:",&
+   "* S. Grimme and A. Hansen, Angew. Chem. Int. Ed., 2015, 54, 12308-12313.",&
+   "  DOI: 10.1002/anie.201501887",&
+   "* C. A. Bauer, A. Hansen, S. Grimme, Chem. Eur. J., 2017, 23, 6150-6164.",&
+   "  DOI: 10.1002/chem.201604682",&
    "",&
    "in the mass-spec context:",&
    "* V. Asgeirsson, C. Bauer and S. Grimme, Chem. Sci., 2017, 8, 4879.",&
    "  DOI: 10.1039/c7sc00601b",&
    "* J. Koopman and S. Grimme, ACS Omega 2019, 4, 12, 15120-15133.",&
    "  DOI: 10.1021/acsomega.9b02011",&
+   "* J. Koopman and S. Grimme, J. Am. Soc. Mass Spectrom., 2021, 32, 7, 1735-1751.",&
+   "  DOI: 10.1021/jasms.1c00098",&
+   "* J. Gorges and S. Grimme, Phys. Chem. Chem. Phys., 2025, 27, 6899-6911.",&
+   "  DOI: 10.1039/D5CP00316D",&
    "",&
    "for metadynamics refer to:",&
    "* S. Grimme, J. Chem. Theory Comput., 2019, 155, 2847-2862", &
@@ -76,25 +106,29 @@ write(iunit,'(3x,a)') &
    "  Phys. Chem. Chem. Phys., 2023, 25, 17860-17868. DOI: 10.1039/D3CP02178E",&
    "",&
    "for DIPRO refer to:",&
-   "* J. Kohn, N. Gildemeister, S. Grimme, D. Fazzi, A. Hansen,",&
-   "  J. Chem. Phys. 159, 144106 (2023). DOI: 10.1063/5.0167484",&
+   "* J. T. Kohn, N. Gildemeister, S. Grimme, D. Fazzi, A. Hansen,",&
+   "  J. Chem. Phys., 2023, 159, 144106. DOI: 10.1063/5.0167484",&
    "",&
    "for PTB refer to:",&
    "* S. Grimme, M. Mueller, A. Hansen, J. Chem. Phys., 2023, 158, 124111.",&
    "  DOI: 10.1063/5.0137838",&
    "",&
+   "for CEH refer to:",&
+   "* M. Müller, T. Froitzheim, A. Hansen, S. Grimme, J. Phys. Chem. A, 2024,",&
+   "  128, 10723-10736. DOI: 10.1021/acs.jpca.4c06989",&
+   "",&
    "for O1NumHess refer to:",&
-   "* B. Wang, S. Luo, Z. Wang, W. Liu,",&
-   "  J. Chem. Theory Comput. 21, 10893-10909.",&
+   "* B. Wang, S. Luo, Z. Wang, W. Liu, J. Chem. Theory Comput., 2025, 21, 10893-10909.",&
    "  DOI: 10.1021/acs.jctc.5c01354",&
    "",&
    "with help from (in alphabetical order)",&
-   "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher,", &
+   "P. Atkinson, T. Balduf, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher,", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, M. Friede, T. Froitzheim,", &
    "I. Gerasimov, C. Hölzer, A. Katbashev, J. Kohn, J. Koopman, C. Lavigne,", &
    "S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer, J. Pisarek,", &
-   "C. Plett, P. Pracht, F. Pultar, J. Seibert, L. M. Seidler, C. E. Selzer, P. Shushkov,", &
-   "S. Spicher, M. Stahn, M. Steiner, T. Strunk, J. Stückrath, T. Rose, and J. Unsleber", &
+   "C. Plett, P. Pracht, F. Pultar, J. Seibert, L. M. Seidler, C. E. Selzer,", &
+   "P. Shushkov, S. Spicher, M. Stahn, M. Steiner, T. Strunk, J. Stückrath,", &
+   "T. Rose, and J. Unsleber", &
    ""
 end subroutine citation
 
