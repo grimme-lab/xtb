@@ -37,15 +37,17 @@ write(iunit,'(3x,a)') &
    "for GFN0-xTB:",&
    "* P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, ChemRxiv, 2019, preprint.",&
    "  DOI: 10.26434/chemrxiv.8326202.v1",&
-   "for spin polarization:",&
+   "",&
+   "for spGFNn-xTB (spin-polarization):",&
    "* H. Neugebauer, B. Bädorf, S. Ehlert, A. Hansen, S. Grimme,",&
    "  J. Comput. Chem., 2023, 44, 2120-2129. DOI: 10.1002/jcc.27185",&
+   "",&
    "for GFN-FF:",&
    "* S. Spicher and S. Grimme, Angew. Chem. Int. Ed., 2020, 59, 15665-15673.",&
    "  DOI: 10.1002/anie.202004239", &
    "* T. Rose, M. Bursch, J.-M. Mewes, S. Grimme, Inorg. Chem., 2024, 63,",&
    "  19364-19374. DOI: 10.1021/acs.inorgchem.4c03215",&
-   "for periodic GFN-FF:",&
+   "for periodic GFN-FF (mcGFN-FF):",&
    "* S. Grimme and T. Rose, Z. Naturforsch. B, 2024, 79, 191-200.",&
    "  DOI: 10.1515/znb-2023-0088",&
    "",&

@@ -195,7 +195,7 @@ For the contributor data from the commit history since then look [here](https://
 
 General Reference to `xtb` and the implemented GFN methods:
 - C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht, J. Seibert, S. Spicher, S. Grimme
-  *WIREs Comput. Mol. Sci.*, **2020**, 11, e01493.
+  *WIREs Comput. Mol. Sci.*, **2021**, 11, e01493.
   DOI: [10.1002/wcms.1493](https://doi.org/10.1002/wcms.1493)
 
 for the `xtb` software:
@@ -210,7 +210,7 @@ for GFN-xTB:
 - P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, *ChemRxiv*, **2019**, preprint.
   DOI: [10.26434/chemrxiv.8326202.v1](https://dx.doi.org/10.26434/chemrxiv.8326202.v1)
 
-for spin polarization:
+for spGFNn-xTB (spin-polarization):
 - H. Neugebauer, B. Bädorf, S. Ehlert, A. Hansen, S. Grimme, *J. Comput. Chem.*, **2023**, 44, 2120–2129.
   DOI: [10.1002/jcc.27185](https://doi.org/10.1002/jcc.27185)
 
@@ -220,7 +220,7 @@ for GFN-FF:
 - T. Rose, M. Bursch, J.-M. Mewes, S. Grimme, *Inorg. Chem.*, **2024**, 63, 19364–19374.
   DOI: [10.1021/acs.inorgchem.4c03215](https://doi.org/10.1021/acs.inorgchem.4c03215)
 
-for periodic GFN-FF:
+for periodic GFN-FF (mcGFN-FF):
 - S. Grimme and T. Rose, *Z. Naturforsch. B*, **2024**, 79, 191–200.
   DOI: [10.1515/znb-2023-0088](https://doi.org/10.1515/znb-2023-0088)
 
@@ -277,7 +277,7 @@ in the mass-spec context:
   DOI: [10.1039/D5CP00316D](https://doi.org/10.1039/D5CP00316D)
 
 for metadynamics refer to:
-- S. Grimme, *J. Chem. Theory Comput.*, **2019**, 155, 2847-2862.
+- S. Grimme, *J. Chem. Theory Comput.*, **2019**, 15, 2847-2862.
   DOI: [10.1021/acs.jctc.9b00143](https://dx.doi.org/10.1021/acs.jctc.9b00143)
   
 for SPH calculations refer to:
