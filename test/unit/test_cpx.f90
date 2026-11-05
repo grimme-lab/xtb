@@ -22,6 +22,7 @@ end subroutine collect_cpx
 
 subroutine test_cpx_solv(error)
    use xtb_solv_cpx, only : TCpcmx
+   use xtb_mctc_global, only : persistentEnv
    use mctc_env, only: err_type => error_type, wp
 
    use xtb_type_options
@@ -67,6 +68,7 @@ subroutine test_cpx_solv(error)
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true.,&
       &  solvent = "h2o")
    integer :: ich
+   logical :: exitRun
 
    character(len=*), parameter :: cpxsolvent="water"
 
@@ -75,6 +77,7 @@ subroutine test_cpx_solv(error)
       return
    end if
    call init(env)
+   persistentEnv%io%namespace = 'cpx'
 
    call init(mol, at, xyz)
 
@@ -89,10 +92,20 @@ subroutine test_cpx_solv(error)
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
    call cpcmx%setup(env,cpxsolvent)
-   deallocate(calc%solvation)
-   call calc%singlepoint(env, mol, chk, 0, .false., energy_gas, gradient, sigma, &
-      & hl_gap, res)
-   call cpcmx%calc_solv(env,cpxsolvent,energy_gas,0.4_wp,298.15_wp,500,0.0001_wp,total_energy)
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+   if (.not.exitRun) then
+      deallocate(calc%solvation)
+      call calc%singlepoint(env, mol, chk, 0, .false., energy_gas, gradient, sigma, &
+         & hl_gap, res)
+      call cpcmx%calc_solv(env,cpxsolvent,energy_gas,0.4_wp,298.15_wp,500,0.0001_wp,total_energy)
+      call env%check(exitRun)
+      call check_(error, .not.exitRun)
+   end if
+   call delete_file('xtb.cosmo')
+   deallocate(persistentEnv%io%namespace)
+   call delete_file('smd_h2o')
+   if (exitRun) return
    call cpcmx%print(.true.)
    call check_(error, total_energy-energy_gas, -0.1555665E-01_wp, thr=thr)
    call check_(error, total_energy, -22.00017093824971_wp, thr=thr)

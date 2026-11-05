@@ -939,6 +939,7 @@ end subroutine test_ipea_indole
 
 subroutine test_gfn1_mindless_cosmo(error)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_global, only : persistentEnv
    use xtb_test_molstock, only : getMolecule
 
    use xtb_type_molecule
@@ -990,6 +991,7 @@ subroutine test_gfn1_mindless_cosmo(error)
       & 1.391454451911_wp]
 
    call init(env)
+   persistentEnv%io%namespace = 'gfn1_cosmo'
    do iMol = 1,10
 
       call getMolecule(mol, mindless(iMol))
@@ -1018,6 +1020,8 @@ subroutine test_gfn1_mindless_cosmo(error)
       call check_(error, hl_gap, ref_hlgaps(iMol), thr=thr)
 
    end do
+   call delete_file('xtb.cosmo')
+   deallocate(persistentEnv%io%namespace)
 
 end subroutine test_gfn1_mindless_cosmo
 

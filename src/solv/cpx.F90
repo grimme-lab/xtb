@@ -63,12 +63,21 @@ module xtb_solv_cpx
 #if WITH_CPCMX
         !> Load xTB parameters from internal CPCM-X database
         call initialize_param('xtb',solvent,self,error)
-        if (allocated(error)) Call env%error(error%message, source)
+        if (allocated(error)) then
+           call env%error(error%message, source)
+           return
+        end if
         call load_solvent(solvent,self%solvent,error)
-        if (allocated(error)) Call env%error(error%message, source)
+        if (allocated(error)) then
+           call env%error(error%message, source)
+           return
+        end if
         !> TODO: SETUP solute directly from TCosmo instead of reading COSMO file
         Call read_cosmo(get_namespace('xtb.cosmo'),self%solute,'NONE',error)
-        if (allocated(error)) Call env%error(error%message, source)
+        if (allocated(error)) then
+           call env%error(error%message, source)
+           return
+        end if
 #else
         Call no_cpcmx_here(env)
 #endif
@@ -94,14 +103,25 @@ module xtb_solv_cpx
         !> Final Total Energy
         real(wp), intent(out) :: total_energy
 #if WITH_CPCMX
+        total_energy = 0.0_wp
+        if (.not.allocated(self%solute%element) .or. .not.allocated(self%solute%atom_xyz)) then
+           call env%error("CPCM-X solute data is not initialized", source)
+           return
+        end if
         self%solute%energy_gas=energy_gas
         !> Charge averaging
         call self%average_charge(error)
-        if (allocated(error)) Call env%error(error%message, source)
+        if (allocated(error)) then
+           call env%error(error%message, source)
+           return
+        end if
         call self%init_bonding()
         !> Calculate restoring free energy
         call self%solv('crs',error,T,max_cycle,conv_crit)
-        if (allocated(error)) Call env%error(error%message, source)
+        if (allocated(error)) then
+           call env%error(error%message, source)
+           return
+        end if
         !> Calculate SMD contribution and state correction
         call self%state_correction(density(solvent),atomicmass(self%solvent%element),T)
         call self%cds(probe,solvent)
