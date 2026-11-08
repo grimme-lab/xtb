@@ -39,12 +39,129 @@ subroutine collect_gfnff(testsuite)
       new_unittest("pdb", test_gfnff_pdb), &
       new_unittest("sdf", test_gfnff_sdf), &
       new_unittest("pbc", test_gfnff_pbc), &
+      new_unittest("canonical-fragment-selection", test_canonical_selection), &
+      new_unittest("default-fragment-charges", test_default_fragment_charges), &
       new_unittest("fragmentation", test_gfnff_fragmentation), &
       new_unittest("Ln_An", test_gfnff_LnAn_H) &
       ]
 
 end subroutine collect_gfnff
 
+
+  subroutine test_canonical_selection(error)
+    use xtb_gfnff_mrec,only:canonical_charge_fragment
+    type(error_type),allocatable,intent(out) :: error
+    integer :: selected
+
+    ! Largest fragment wins even if a smaller fragment contains heavier atoms.
+    selected=canonical_charge_fragment(5,[6,1,1,8,1],2,[1,1,1,2,2])
+    call check_(error,selected,1)
+    if(allocated(error)) return
+    ! Equal sizes: high-Z composition breaks the tie, independent of labels.
+    selected=canonical_charge_fragment(4,[6,1,8,1],2,[1,1,2,2])
+    call check_(error,selected,2)
+    if(allocated(error)) return
+    selected=canonical_charge_fragment(4,[1,8,1,6],2,[1,1,2,2])
+    call check_(error,selected,1)
+    if(allocated(error)) return
+    ! Equal compositions cannot be ranked by input order.
+    selected=canonical_charge_fragment(4,[8,1,1,8],2,[1,1,2,2])
+    call check_(error,selected,0)
+  end subroutine test_canonical_selection
+
+  subroutine test_default_fragment_charges(error)
+    use xtb_mctc_accuracy,only:wp
+    use xtb_type_environment,only:TEnvironment,init
+    use xtb_type_molecule,only:TMolecule,init
+    use xtb_gfnff_calculator,only:TGFFCalculator,newGFFCalculator
+    type(error_type),allocatable,intent(out) :: error
+    integer,parameter :: nat=8,at(nat)=[6,1,1,1,1,8,1,1]
+    real(wp),parameter :: xyz(3,nat)=reshape([ &
+      0.0_wp,0.0_wp,0.0_wp, &
+      1.186_wp,1.186_wp,1.186_wp, &
+      1.186_wp,-1.186_wp,-1.186_wp, &
+      -1.186_wp,1.186_wp,-1.186_wp, &
+      -1.186_wp,-1.186_wp,1.186_wp, &
+      12.0_wp,0.0_wp,0.0_wp, &
+      13.43_wp,1.11_wp,0.0_wp, &
+      13.43_wp,-1.11_wp,0.0_wp], [3,nat])
+    integer :: order(nat),i,k,carbon,oxygen,unit
+    real(wp) :: refq(nat)
+
+    do k=1,8
+      block
+        type(TEnvironment) :: env
+        type(TMolecule) :: mol
+        type(TGFFCalculator) :: calc
+        logical :: failed
+        order=[(i,i=1,nat)]
+        if(mod(k,2)==0) order=order(nat:1:-1)
+        carbon=findloc(order,1,dim=1)
+        oxygen=findloc(order,6,dim=1)
+        if(k>=3.and.k<=6) then
+          open(newunit=unit,file='.CHRG',status='replace')
+          write(unit,*) 1
+          if(k>=5) then
+            if(mod(k,2)==1) then
+              write(unit,*) 0,1
+            else
+              write(unit,*) 1,0
+            endif
+          endif
+          close(unit)
+        endif
+        if(k>=7) then
+          refq=0.0_wp
+          refq(6)=1.0_wp
+          open(newunit=unit,file='charges',status='replace')
+          do i=1,nat
+            write(unit,*) refq(order(i))
+          enddo
+          close(unit)
+        endif
+        call init(env)
+        call init(mol,at(order),xyz(:,order),chrg=1.0_wp)
+        call newGFFCalculator(env,mol,calc,'.param_gfnff.xtb',.false., &
+          printlevel=0,write_topology=.false.)
+        if(k>=3.and.k<=6) call delete_file('.CHRG')
+        if(k>=7) call delete_file('charges')
+        call env%check(failed)
+        call check_(error,.not.failed)
+        if(allocated(error)) return
+        call check_(error,calc%topo%nfrag,2)
+        if(allocated(error)) return
+        call check_(error,calc%topo%qfrag(calc%topo%fraglist(carbon)), &
+          real(merge(1,0,k<=4),wp),thr=1.e-12_wp)
+        if(allocated(error)) return
+        call check_(error,calc%topo%qfrag(calc%topo%fraglist(oxygen)), &
+          real(merge(0,1,k<=4),wp),thr=1.e-12_wp)
+        if(allocated(error)) return
+      end block
+    enddo
+    ! Identical fragments: neutral succeeds; nonzero charge requires input.
+    do k=0,1
+      block
+        type(TEnvironment) :: env
+        type(TMolecule) :: mol
+        type(TGFFCalculator) :: calc
+        integer,parameter :: wat(6)=[8,1,1,8,1,1]
+        real(wp) :: water(3,6)
+        logical :: failed
+        water(:,1:3)=xyz(:,6:8)
+        water(:,4:6)=xyz(:,6:8)
+        water(1,4:6)=water(1,4:6)+12.0_wp
+        call init(env)
+        call init(mol,wat,water,chrg=real(k,wp))
+        call newGFFCalculator(env,mol,calc,'.param_gfnff.xtb',.false., &
+          printlevel=0,write_topology=.false.)
+        call env%check(failed)
+        call check_(error,failed.eqv.(k==1))
+        if(allocated(error)) return
+        if(k==0) call check_(error,sum(abs(calc%topo%qfrag)),0.0_wp,thr=1.e-12_wp)
+        if(allocated(error)) return
+      end block
+    enddo
+  end subroutine test_default_fragment_charges
 
 subroutine test_gfnff_sp(error)
    use xtb_mctc_accuracy, only : wp

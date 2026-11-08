@@ -404,7 +404,15 @@ INPUT
 ~~~~~
 
 *.CHRG*::
-   molecular charge as 'int'
+   molecular charge as 'int'. For GFN-FF, an optional second line specifies
+   charges for each detected EEQ fragment, in fragment order. Explicit fragment
+   charges (or atomic reference charges in `charges`) override the default.
+   Without these inputs, the total charge is assigned to the largest fragment
+   by atom count. Equal sizes are ranked by elemental composition, comparing
+   counts from the highest atomic number downward. An unresolved tie requires
+   explicit fragment charges. Neutral systems retain zero charge on all fragments.
+   This deterministic fallback is independent of atom order, but does not predict
+   the chemically correct charge localization.
 
 *.UHF*::
    Number of unpaired electrons as 'int'
