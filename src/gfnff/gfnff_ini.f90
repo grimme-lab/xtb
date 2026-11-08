@@ -890,7 +890,7 @@ endif
          ! get first nb, iTr expected to be irrelevant since same in each cell
          call neigh%jth_nb(mol%n,mol%xyz,nn,1,i,iTr)          !  R - N/C/O - H  ! terminal  H
          if(nn.le.0) cycle  ! cycle if there is no nb
-         topo%hbaci(i)=param%xhaci(mol%at(i))   ! only first neighbor of interest
+         ! Keep the acidity initialized above, including earlier amide-H scaling.
          if (amideH(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr2,i,neigh)) &
                  &topo%hbaci(nn) = topo%hbaci(nn) * 0.80
       end do

@@ -32,6 +32,7 @@ subroutine collect_gfnff(testsuite)
       new_unittest("sp", test_gfnff_sp), &
       new_unittest("harmonic", test_gfnff_harmonic), &
       new_unittest("hb", test_gfnff_hb), &
+      new_unittest("amide-hb-atom-order", test_hb_acidity_atom_order), &
       new_unittest("gbsa", test_gfnff_gbsa), &
       new_unittest("mindless", test_gfnff_mindless_basic), &
       new_unittest("mindless-solvation", test_gfnff_mindless_solvation), &
@@ -181,6 +182,54 @@ subroutine test_gfnff_harmonic(error)
    call check_(error, norm2(gradient), 0.0478775550094384_wp, thr=thr)
 
 end subroutine test_gfnff_harmonic
+
+
+!> A qualifying amide donor must retain its acidity factor in any atom order.
+subroutine test_hb_acidity_atom_order(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, init
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat=12
+   integer, parameter :: at(nat)=[6,6,8,7,6,1,1,1,1,1,1,1]
+   real(wp), parameter :: xyz(3,nat)=reshape([ &
+     & 3.622312140781_wp, 0.584150709785_wp, 0.403823853883_wp, &
+     & 0.841690132958_wp, 0.709612631882_wp, 0.875537937257_wp, &
+     & 0.001690216911_wp, 2.103743880637_wp, 2.615851423658_wp, &
+     & -0.857946784445_wp, -0.712426316667_wp, -0.678850260895_wp, &
+     & -3.584295528389_wp, -0.636030709585_wp, -0.295866267463_wp, &
+     & 4.066614256909_wp, 1.536668293196_wp, -1.411023959546_wp, &
+     & 4.677338535329_wp, 1.531874376674_wp, 1.951448115885_wp, &
+     & 4.231725963854_wp, -1.420334469809_wp, 0.299405229455_wp, &
+     & -0.129625612682_wp, -1.837950193426_wp, -2.128976201128_wp, &
+     & -4.051091096309_wp, -1.315129049540_wp, 1.633832596409_wp, &
+     & -4.536218537284_wp, -1.872131986606_wp, -1.699163157357_wp, &
+     & -4.282193687633_wp, 1.327952833458_wp, -0.537763562819_wp], [3,nat])
+   integer :: pass,i,order(nat)
+   logical :: failed
+   do pass=1,2
+      order=[(i,i=1,nat)]
+      if(pass==2) order=order(nat:1:-1)
+      block
+         type(TEnvironment) :: env
+         type(TMolecule) :: mol
+         type(TGFFCalculator) :: calc
+         call init(env)
+         call init(mol,at(order),xyz(:,order))
+         call newGFFCalculator(env,mol,calc,'---',.false.)
+         call env%check(failed)
+         call check_(error,.not.failed)
+         if(allocated(error)) return
+         do i=1,nat
+            if(order(i)/=4) cycle
+            call check_(error,calc%topo%hbaci(i),1.28_wp,thr=1e-10_wp)
+            if(allocated(error)) return
+         enddo
+      end block
+   enddo
+end subroutine test_hb_acidity_atom_order
+
 
 subroutine test_gfnff_hb(error)
    use xtb_mctc_accuracy, only : wp
