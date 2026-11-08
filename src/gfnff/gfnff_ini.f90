@@ -28,7 +28,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       use xtb_gfnff_generator, only : TGFFGenerator
       use xtb_gfnff_ini2
       use xtb_gfnff_eg, only : gfnff_dlogcoord, getCoordinationNumber
-      use xtb_gfnff_mrec, only : mrecgff, mrecgffPBC
+      use xtb_gfnff_mrec, only : mrecgff, mrecgffPBC, canonical_charge_fragment
       use xtb_gfnff_fraghess
       use xtb_restart
       use xtb_mctc_constants
@@ -555,6 +555,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
                call env%warning("Rejecting external charges input due to missmatch", source)
             else
                topo%qfrag=dnint(qtmp)
+               topo%default_fragment_charges = .false.
                if (setup_print) write(env%unit,'(10x,"fragment charges from <charges> :",10F7.3)') topo%qfrag(1:topo%nfrag)
             end if
          else
@@ -565,6 +566,18 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
          if (exitRun) then
             return
          end if
+      endif
+      if (topo%default_fragment_charges) then
+         if (abs(mol%chrg) > sqrt(epsilon(1.0_wp)).and.topo%nfrag > 1) then
+            ifrag=canonical_charge_fragment(mol%n,mol%at,topo%nfrag,topo%fraglist)
+            if (ifrag == 0) then
+               call env%error('Ambiguous default fragment charge: provide explicit fragment charges in .CHRG', source)
+               return
+            endif
+            topo%qfrag(1:topo%nfrag)=0.0_wp
+            topo%qfrag(ifrag)=mol%chrg
+         endif
+         topo%default_fragment_charges=.false.
       endif
       if(mol%n.lt.100.and.topo%nfrag.gt.2.and.mol%chrg.ne.0.and.sum(topo%qfrag(2:topo%nfrag)).gt.999) then
          itmp=0
