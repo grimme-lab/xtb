@@ -30,6 +30,7 @@ subroutine collect_gfnff(testsuite)
 
    testsuite = [ &
       new_unittest("sp", test_gfnff_sp), &
+      new_unittest("eeq-atom-order", test_eeq_atom_order), &
       new_unittest("harmonic", test_gfnff_harmonic), &
       new_unittest("hb", test_gfnff_hb), &
       new_unittest("gbsa", test_gfnff_gbsa), &
@@ -44,6 +45,64 @@ subroutine collect_gfnff(testsuite)
       ]
 
 end subroutine collect_gfnff
+
+
+
+!> N-methylacetamide: parameter generation must follow atoms, not list positions.
+subroutine test_eeq_atom_order(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_molecule, only : TMolecule, init
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   type(error_type), allocatable, intent(out) :: error
+   integer, parameter :: nat = 12
+   integer, parameter :: at(nat) = [6,6,8,7,6,1,1,1,1,1,1,1]
+   ! Coordinates in bohr; the same molecule in each ordering.
+   real(wp), parameter :: xyz(3,nat) = reshape([ &
+     & 3.622312140781_wp, 0.584150709785_wp, 0.403823853883_wp, &
+     & 0.841690132958_wp, 0.709612631882_wp, 0.875537937257_wp, &
+     & 0.001690216911_wp, 2.103743880637_wp, 2.615851423658_wp, &
+     & -0.857946784445_wp, -0.712426316667_wp, -0.678850260895_wp, &
+     & -3.584295528389_wp, -0.636030709585_wp, -0.295866267463_wp, &
+     & 4.066614256909_wp, 1.536668293196_wp, -1.411023959546_wp, &
+     & 4.677338535329_wp, 1.531874376674_wp, 1.951448115885_wp, &
+     & 4.231725963854_wp, -1.420334469809_wp, 0.299405229455_wp, &
+     & -0.129625612682_wp, -1.837950193426_wp, -2.128976201128_wp, &
+     & -4.051091096309_wp, -1.315129049540_wp, 1.633832596409_wp, &
+     & -4.536218537284_wp, -1.872131986606_wp, -1.699163157357_wp, &
+     & -4.282193687633_wp, 1.327952833458_wp, -0.537763562819_wp], [3,nat])
+   integer, parameter :: orders(nat,3) = reshape([ &
+      & 1,2,3,4,5,6,7,8,9,10,11,12, &
+      & 12,11,10,9,8,7,6,5,4,3,2,1, &
+      & 4,1,2,3,5,6,7,8,9,10,11,12], [nat,3])
+   real(wp) :: reference(nat)
+   integer :: pass, i, order(nat)
+   logical :: failed
+
+   do pass = 1,size(orders,2)
+      order = orders(:,pass)
+      block
+         type(TEnvironment) :: env
+         type(TMolecule) :: mol
+         type(TGFFCalculator) :: calc
+         call init(env)
+         call init(mol,at(order),xyz(:,order))
+         call newGFFCalculator(env,mol,calc,'---',.false.)
+         call env%check(failed)
+         call check_(error,.not.failed)
+         if (allocated(error)) return
+         if (pass == 1) then
+            reference = calc%topo%gameeq
+         else
+            do i = 1,nat
+               call check_(error,calc%topo%gameeq(i),reference(order(i)),thr=1e-8_wp)
+               if (allocated(error)) return
+            end do
+         end if
+
+      end block
+   end do
+end subroutine test_eeq_atom_order
 
 
 subroutine test_gfnff_sp(error)
@@ -386,15 +445,15 @@ subroutine test_gfnff_mindless_basic(error)
       & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
       & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
    real(wp), parameter :: ref_energies(10) = &
-      &[-1.6235670473950_wp, -1.2974060907872_wp, -1.5825072926857_wp, &
-      & -1.6086171137100_wp, -1.5093596077875_wp, -1.6076220027918_wp, &
-      & -1.7328634195448_wp, -1.8875339867396_wp, -1.3924035489143_wp, &
-      & -1.9583702712389_wp]
+      &[-1.6235670473950_wp, -1.297406090454654_wp, -1.582507291161514_wp, &
+      & -1.6086171137100_wp, -1.509052868925628_wp, -1.607621995045164_wp, &
+      & -1.732814270402046_wp, -1.887533992836867_wp, -1.392403540539921_wp, &
+      & -1.958370274153000_wp]
    real(wp), parameter :: ref_gnorms(10) = &
-      &[0.11714711890640_wp, 0.08933168067298_wp, 0.15687133018871_wp, &
-      & 0.09820449598566_wp, 0.08460010429134_wp, 0.08787739425161_wp, &
-      & 0.12463658172704_wp, 0.10062733351355_wp, 0.06347505376937_wp, &
-      & 0.09445561400996_wp]
+      &[0.117147122151611_wp, 0.089331678173547_wp, 0.156871336157090_wp, &
+      & 0.09820449598566_wp, 0.084673071047178_wp, 0.087877392753885_wp, &
+      & 0.124633459584315_wp, 0.10062733351355_wp, 0.06347505376937_wp, &
+      & 0.094455606244636_wp]
 
    call init(env)
    do iMol = 1, 10
@@ -464,15 +523,15 @@ subroutine test_gfnff_mindless_solvation(error)
       & "h2o", "chcl3", "thf", "acetonitrile", "toluene", &
       & "ch2cl2", "ether", "methanol", "cs2", "dmso"]
    real(wp), parameter :: ref_energies(10) = &
-      &[-1.6540916244790_wp, -1.3143056510098_wp, -1.6141899469716_wp, &
-      & -1.6204572122425_wp, -1.5288738676799_wp, -1.6293089943213_wp, &
-      & -1.7562513711414_wp, -1.9034123090085_wp, -1.4068010735061_wp, &
-      & -1.9722601751413_wp]
+      &[-1.6540916244790_wp, -1.314305650588927_wp, -1.614189945831727_wp, &
+      & -1.6204572122425_wp, -1.528526520178969_wp, -1.629308985567609_wp, &
+      & -1.756188857803479_wp, -1.903412312838537_wp, -1.406801065436834_wp, &
+      & -1.972260175936260_wp]
    real(wp), parameter :: ref_gnorms(10) = &
-      &[0.11594122130461_wp, 0.08871796411903_wp, 0.15190830479600_wp, &
-      & 0.09873899177968_wp, 0.08427306878219_wp, 0.08670875610818_wp, &
-      & 0.11948602245812_wp, 0.10022282792406_wp, 0.06288311963180_wp, &
-      & 0.09564569352042_wp]
+      &[0.115941224167542_wp, 0.088717961962545_wp, 0.151908311668963_wp, &
+      & 0.09873899177968_wp, 0.084338387828248_wp, 0.086708754851036_wp, &
+      & 0.119474890540696_wp, 0.10022282792406_wp, 0.06288311963180_wp, &
+      & 0.095645684316527_wp]
 
    call init(env)
    do iMol = 1, 10
@@ -542,11 +601,11 @@ subroutine test_gfnff_scaleup(error)
    character(len=*), parameter :: solvents(5) = [character(len=20) ::&
       & "h2o", "acetonitrile", "toluene", "ether", "dmso"]
    real(wp), parameter :: ref_energies(5) = &
-      &[-4.6919926186376_wp, -8.8807760297235_wp, -13.40715596616603_wp, &
-      & -13.822994859730_wp, -20.577952291079_wp]
+      &[-4.691966834534834_wp, -8.880608838859230_wp, -13.407098044870112_wp, &
+      & -13.822447571445171_wp, -20.577627233774599_wp]
    real(wp), parameter :: ref_gnorms(5) = &
-      &[0.05947676640487_wp, 0.09522104624089_wp, 0.1753769495334539_wp, &
-      & 0.12496594906548_wp, 0.19366601941116_wp]
+      &[0.059472120579392_wp, 0.095224192845175_wp, 0.175362338835436_wp, &
+      & 0.124794782905474_wp, 0.193682754414573_wp]
 
    call init(env)
    do iMol = 1, 5
@@ -611,9 +670,9 @@ subroutine test_gfnff_pdb(error)
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
    real(wp), parameter :: ref_energies(3) = &
-      &[-12.358885277947_wp, -12.442589821081_wp, -12.442131311040_wp]
+      &[-12.358374073082047_wp, -12.442021492870769_wp, -12.441563890957545_wp]
    real(wp), parameter :: ref_gnorms(3) = &
-      &[0.15855661051730_wp, 0.15148957207346_wp, 0.15151167424491_wp]
+      &[0.158543908308563_wp, 0.151470765364003_wp, 0.151492720120697_wp]
 
    call init(env)
    do iMol = 1, 3
@@ -682,9 +741,9 @@ subroutine test_gfnff_sdf(error)
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
    real(wp), parameter :: ref_energies(3) = &
-      &[-0.98330642628373_wp, -1.0826001865313_wp, -1.0826319029633_wp]
+      &[-0.983213277503977_wp, -1.082452170542686_wp, -1.082483911234450_wp]
    real(wp), parameter :: ref_gnorms(3) = &
-      &[0.11515550863614e-2_wp, 0.59760221346330e-2_wp, 0.59645861418074e-2_wp]
+      &[0.001248107348587_wp, 0.005694085165979_wp, 0.005681761874571_wp]
 
    call init(env)
    do iMol = 1, 3
@@ -760,16 +819,16 @@ subroutine test_gfnff_pbc(error)
     real(wp), parameter :: ref_energies(3) = &
         & [-9.522300465997_wp, -11.059826760233_wp, -46.265672821_wp ]
     real(wp), parameter :: ref_gnorms(3) = &
-        & [ 0.083513313043_wp, 0.083870455567_wp, 1.6127503967_wp ]
+        & [ 0.083513307537938_wp, 0.083870464024606_wp, 1.6127503967_wp ]
     real(wp), parameter :: ref_snorm(2) = &
         & [ 1.410826798_wp, 0.419545170_wp ]
     !> references for mcGFN-FF
     real(wp), parameter :: mcref_energies(2) = &
         & [-9.419561538766_wp, -10.850342427712_wp ]
     real(wp), parameter :: mcref_gnorms(2) = &
-        & [ 0.071130542937_wp, 0.104285414859_wp ]
+        & [ 0.071130542937_wp, 0.104285409436030_wp ]
     real(wp), parameter :: mcref_snorm(2) = &
-        & [ 0.839555069_wp, 0.729174967_wp ]
+        & [ 0.839555069_wp, 0.729174966856260_wp ]
 
     call init(env)
     do iMol = 1, 2
@@ -1038,16 +1097,16 @@ subroutine test_gfnff_LnAn_H(error)
     character(len=*), parameter :: struc(1) = ["Ce_0a7745"]
     !> references for original GFN-FF
     real(wp), parameter :: ref_charges(nat) = [&
-      &  0.93714798_wp, -0.39685427_wp, -0.00104516_wp, -0.01815703_wp, -0.26122075_wp, &
-      & -0.01774628_wp, -0.00287629_wp, -0.36261674_wp,  0.19471344_wp,  0.20497869_wp, &
-      &  0.09972845_wp,  0.08148308_wp,  0.10674954_wp,  0.09486206_wp,  0.17232582_wp, &
+      &  0.93746177_wp, -0.40179759_wp, -0.00012766_wp, -0.01777159_wp, -0.26280860_wp, &
+      & -0.01740112_wp, -0.00287629_wp, -0.36245214_wp,  0.19642020_wp,  0.20665288_wp, &
+      &  0.09972845_wp,  0.08148308_wp,  0.10674954_wp,  0.09486206_wp,  0.17296671_wp, &
       &  0.11414769_wp,  0.09722964_wp,  0.10512679_wp,  0.08798849_wp,  0.22945410_wp, &
       &  0.15310280_wp,  0.88629154_wp, -0.48033324_wp, -0.48478265_wp, -0.49522170_wp, &
-      & -0.14264511_wp, -0.12548232_wp, -0.01061975_wp, -0.40598965_wp,  0.13119126_wp, &
+      & -0.14264511_wp, -0.12522326_wp, -0.01061975_wp, -0.40598965_wp,  0.13119126_wp, &
       &  0.11822500_wp,  0.13303034_wp,  0.25781424_wp &
       & ]
-    real(wp), parameter :: ref_energy = -3.550331904533 ! reference energy
-    real(wp), parameter :: ref_gnorm = 0.213662567181 ! reference gradient norm
+    real(wp), parameter :: ref_energy = -3.550569267815145_wp ! reference energy
+    real(wp), parameter :: ref_gnorm = 0.213640754560263_wp ! reference gradient norm
     ! number of neighbors and sum of neighbor indices for atom 1 (Ce)
     integer, parameter :: ref_numnb_1 = 9
     integer, parameter :: ref_sumnb_1 = 177 ! 2+5+8+22+24+25+26+27+29 +9

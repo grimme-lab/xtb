@@ -699,8 +699,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
          endif
          if(mol%at(i).eq. 7)                 then
                                          ff=-0.13 ! N
-           if(piadr(i).ne.0)             ff=-0.14
-           if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))ff=-0.16
+           ! piadr is still a compact list here; piadr2 is indexed by atom.
+           if(piadr2(i).ne.0)            ff=-0.14
+           if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr2,i))ff=-0.16
          endif
          if(mol%at(i).eq. 8)                 then
                                          ff=-0.15 ! O
