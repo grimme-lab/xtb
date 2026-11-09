@@ -179,7 +179,7 @@ subroutine constrain_dist(fix,n,at,xyz,g,e)
    real(wp)va(3),vb(3),vc(3),vab(3),vcb(3),deda(3),dedc(3),dedb(3)
    real(wp)dda(3),ddb(3),ddc(3),ddd(3)
    real(wp)c0,rab2,rcb2,theta,dt,rmul1,rmul2,deddt,rp,cosa,ea,vlen,d
-   real(wp)c1,phi0,phi,dphi1,x1cos,x1sin,dij,valijkl,ff,dum1,dum2
+   real(wp)c1,phi0,phi,dphi1,x1cos,x1sin,dij,ff,dum1,dum2
    real(wp)dx,dy,dz,termx,termy,termz,abcx,abcy,abcz,a,z0,expo,expom1
 
    if(fix%n.eq.0) return
@@ -210,7 +210,8 @@ end subroutine constrain_dist
 subroutine constrain_angle(fix,n,at,xyz,g,e)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
-   use xtb_basic_geo
+   use xtb_internals_type, only : angle_value
+   use xtb_bmatrix, only : bmat_angle
    implicit none
    type(fix_setvar),intent(in) :: fix
    integer, intent(in)    :: n
@@ -219,12 +220,8 @@ subroutine constrain_angle(fix,n,at,xyz,g,e)
    real(wp),intent(inout) :: e
    real(wp),intent(inout) :: g(3,n)
 
-   integer i,j,k,l,m,mm
-   real(wp)rij(3),dum,r0,ffc,vp(3),ra(3),rb(3)
-   real(wp)va(3),vb(3),vc(3),vab(3),vcb(3),deda(3),dedc(3),dedb(3)
-   real(wp)dda(3),ddb(3),ddc(3),ddd(3)
-   real(wp)c0,rab2,rcb2,theta,dt,rmul1,rmul2,deddt,rp,cosa,ea,vlen,d
-   real(wp)dx,dy,dz,termx,termy,termz,abcx,abcy,abcz,a,z0,expo,expom1
+   integer :: i, j, k, m, mm
+   real(wp) :: c0, theta, dt, deddt, brow9(9)
 
    if(fix%n.eq.0) return
 
@@ -234,32 +231,14 @@ subroutine constrain_angle(fix,n,at,xyz,g,e)
       j = fix%atoms(mm+1)
       k = fix%atoms(mm+2)
       c0 = fix%val(m)
-      va = xyz(1:3,i)
-      vb = xyz(1:3,j)
-      vc = xyz(1:3,k)
-      vab = va-vb
-      vcb = vc-vb
-      rab2 = vab(1)*vab(1) + vab(2)*vab(2) + vab(3)*vab(3)
-      rcb2 = vcb(1)*vcb(1) + vcb(2)*vcb(2) + vcb(3)*vcb(3)
-      call crprod(vcb,vab,vp)
-      rp = norm2(vp)+1.d-14
-      call impsc(vab,vcb,cosa)
-      cosa = dble(min(1.0d0,max(-1.0d0,cosa)))
-      theta= dacos(cosa)
-      dt  = theta - c0
-      ea  = fix%fc* dt**2
-      deddt = 2.d0 * fix%fc * dt
-      e = e + ea
-      call crprod(vab,vp,deda)
-      rmul1 = -deddt / (rab2*rp)
-      deda = deda*rmul1
-      call crprod(vcb,vp,dedc)
-      rmul2 =  deddt / (rcb2*rp)
-      dedc = dedc*rmul2
-      dedb = deda+dedc
-      g(:,i) = g(:,i) + deda
-      g(:,j) = g(:,j) - dedb
-      g(:,k) = g(:,k) + dedc
+      theta = angle_value(xyz, i, j, k)
+      dt = theta - c0
+      e = e + fix%fc * dt**2
+      deddt = 2.0_wp * fix%fc * dt
+      brow9 = bmat_angle(xyz(:, i) - xyz(:, j), xyz(:, k) - xyz(:, j))
+      g(:, i) = g(:, i) + deddt * brow9(1:3)
+      g(:, j) = g(:, j) + deddt * brow9(4:6)
+      g(:, k) = g(:, k) + deddt * brow9(7:9)
    enddo
 
 end subroutine constrain_angle
@@ -268,7 +247,8 @@ subroutine constrain_dihedral(fix,n,at,xyz,g,e)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_type_setvar
-   use xtb_basic_geo
+   use xtb_internals_type, only : dihedral_value
+   use xtb_bmatrix, only : bmat_torsion
    implicit none
    type(fix_setvar),intent(in) :: fix
    integer, intent(in)    :: n
@@ -277,13 +257,8 @@ subroutine constrain_dihedral(fix,n,at,xyz,g,e)
    real(wp),intent(inout) :: e
    real(wp),intent(inout) :: g(3,n)
 
-   integer i,j,k,l,m,mm
-   real(wp)rij(3),dum,r0,ffc,vp(3),ra(3),rb(3)
-   real(wp)va(3),vb(3),vc(3),vab(3),vcb(3),deda(3),dedc(3),dedb(3)
-   real(wp)dda(3),ddb(3),ddc(3),ddd(3)
-   real(wp)c0,rab2,rcb2,theta,dt,rmul1,rmul2,deddt,rp,cosa,ea,vlen,d
-   real(wp)c1,phi0,phi,dphi1,x1cos,x1sin,dij,ff,dum1,dum2
-   real(wp)dx,dy,dz,termx,termy,termz,abcx,abcy,abcz,a,z0,expo,expom1
+   integer :: i, j, k, l, m, mm
+   real(wp) :: phi0, phi, dphi1, x1cos, x1sin, dij, bt(3, 4)
 
    if(fix%n.eq.0) return
 
@@ -294,18 +269,17 @@ subroutine constrain_dihedral(fix,n,at,xyz,g,e)
       k= fix%atoms(mm+2)
       l= fix%atoms(mm+3)
       phi0 =fix%val(m)
-      phi=valijkl(n,xyz,i,j,k,l)
-      if(abs(phi-pi).lt.1.d-8.or.abs(phi).lt.1.d-8) phi=phi+1.d-8
-      call dphidr(n,xyz,i,j,k,l,phi,dda,ddb,ddc,ddd)
-      dphi1=phi0-phi+pi
-      x1cos=cos(dphi1)
-      x1sin=sin(dphi1)
-      dij  =fix%fc*x1sin
-      g(:,i)=g(:,i)+dij*dda
-      g(:,j)=g(:,j)+dij*ddb
-      g(:,k)=g(:,k)+dij*ddc
-      g(:,l)=g(:,l)+dij*ddd
-      e=e+fix%fc*(1.0_wp+x1cos)
+      phi = dihedral_value(xyz, i, j, k, l)
+      bt = bmat_torsion(xyz(:, [i, j, k, l]))
+      dphi1 = phi0 - phi + pi
+      x1cos = cos(dphi1)
+      x1sin = sin(dphi1)
+      dij = fix%fc * x1sin
+      g(:, i) = g(:, i) + dij * bt(:, 1)
+      g(:, j) = g(:, j) + dij * bt(:, 2)
+      g(:, k) = g(:, k) + dij * bt(:, 3)
+      g(:, l) = g(:, l) + dij * bt(:, 4)
+      e = e + fix%fc * (1.0_wp + x1cos)
    enddo
 
 end subroutine constrain_dihedral

@@ -469,6 +469,8 @@ end subroutine
 
 subroutine xyzgeo(xyz,numat,na,nb,nc,degree,geo)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_constants, only : pi
+   use xtb_internals_type, only : angle_value, dihedral_value
    implicit none
    integer, intent(in)    :: numat
    real(wp),intent(in)    :: xyz(3,numat)
@@ -500,41 +502,11 @@ subroutine xyzgeo(xyz,numat,na,nb,nc,degree,geo)
       l=nc(i)
       if(i.lt.3) cycle
       ii=i
-      call bangle(xyz,ii,j,k,geo(2,i))
+      geo(2,i) = angle_value(xyz, ii, j, k)
       geo(2,i)=geo(2,i)*degree
       if(i.lt.4) cycle
-      !
-      !   make sure dihedral is meaninglful
-      !
-      !        call bangle(xyz,j,k,l,angl)
-      !        tol=0.2617994d0
-      !        if(angl.gt.3.1415926d0-tol.or.angl.lt.tol)then
-      !
-      !  angle is unsatisfactory, let's search for another atom for
-      !  defining the dihedral.
-      ! 88       sum=100.d0
-      !        do 74 i1=1,ii-1
-      !           r=(xyz(1,i1)-xyz(1,k))**2+
-      !    1          (xyz(2,i1)-xyz(2,k))**2+
-      !    2          (xyz(3,i1)-xyz(3,k))**2
-      !           if(r.lt.sum.and.i1.ne.j.and.i1.ne.k) then
-      !         call bangle(xyz,j,k,i1,angl)
-      !        if(angl.lt.3.1415926d0-tol.or.angl.gt.tol)then
-      !              sum=r
-      !              l=i1
-      !              nc(ii)=l
-      !           endif
-      !           endif
-      ! 74  continue
-      !     if(sum.gt.99.d0.and.tol.gt.0.1d0)then
-      !
-      ! anything within 5 degrees?
-      !
-      !     tol=0.087266d0
-      !     goto 88
-      !     endif
-      !           endif
-      call dihed(xyz,ii,j,k,l,geo(3,i))
+      geo(3,i) = dihedral_value(xyz, ii, j, k, l)
+      if (geo(3,i) > 0.0_wp) geo(3,i) = geo(3,i) - 2.0_wp*pi
       geo(3,i)=geo(3,i)*degree
       geo(1,i)= sqrt((xyz(1,i)-xyz(1,j))**2+&
          &               (xyz(2,i)-xyz(2,j))**2+&
@@ -619,136 +591,6 @@ subroutine xyzint(xyz,numat,na,nb,nc,degree,geo)
    call xyzgeo(xyz,numat,na,nb,nc,degree,geo)
 end subroutine xyzint
 
-pure subroutine bangle(xyz,i,j,k,angle)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
-   integer, intent(in) :: i,j,k
-   real(wp),intent(in) :: xyz(3,*)
-   real(wp),intent(out) :: angle
-   !********************************************************************
-   !
-   ! bangle calculates the angle between atoms i,j, and k. the
-   !        cartesian coordinates are in xyz.
-   !
-   !********************************************************************
-   real(wp) :: d2ij,d2jk,d2ik,xy,temp
-   d2ij = (xyz(1,i)-xyz(1,j))**2+&
-      &       (xyz(2,i)-xyz(2,j))**2+&
-      &       (xyz(3,i)-xyz(3,j))**2
-   d2jk = (xyz(1,j)-xyz(1,k))**2+&
-      &       (xyz(2,j)-xyz(2,k))**2+&
-      &       (xyz(3,j)-xyz(3,k))**2
-   d2ik = (xyz(1,i)-xyz(1,k))**2+&
-      &       (xyz(2,i)-xyz(2,k))**2+&
-      &       (xyz(3,i)-xyz(3,k))**2
-   xy = sqrt(d2ij*d2jk+1.d-14)
-   temp = 0.5d0 * (d2ij+d2jk-d2ik) / xy
-   if (temp .gt. 1.0d0) temp=1.0d0
-   if (temp .lt. -1.0d0) temp=-1.0d0
-   angle = acos( temp )
-end subroutine bangle
-subroutine dihed(xyz,i,j,k,l,angle)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
-   integer, intent(in)    :: i,j,k,l
-   real(wp),intent(inout) :: angle
-   real(wp),intent(in)    :: xyz(3,*)
-   !********************************************************************
-   !
-   !      dihed calculates the dihedral angle between atoms i, j, k,
-   !            and l.  the cartesian coordinates of these atoms
-   !            are in array xyz.
-   !
-   !     dihed is a modified version of a subroutine of the same name
-   !           which was written by dr. w. theil in 1973.
-   !
-   !********************************************************************
-   real(wp),parameter :: pi = 3.14159265358979d0
-   real(wp) :: xi1,xj1,xl1,xi2,xj2,xl2
-   real(wp) :: yi1,yj1,yl1,yi2,yj2,yl2,yi3,yl3
-   real(wp) :: zi1,zj1,zl1
-   real(wp) :: dist,yxdist
-   real(wp) :: cosa,sinth,costh,cosph,sinph
-   real(wp) :: ddd
-   xi1=xyz(1,i)-xyz(1,k)
-   xj1=xyz(1,j)-xyz(1,k)
-   xl1=xyz(1,l)-xyz(1,k)
-   yi1=xyz(2,i)-xyz(2,k)
-   yj1=xyz(2,j)-xyz(2,k)
-   yl1=xyz(2,l)-xyz(2,k)
-   zi1=xyz(3,i)-xyz(3,k)
-   zj1=xyz(3,j)-xyz(3,k)
-   zl1=xyz(3,l)-xyz(3,k)
-   !      rotate around z axis to put kj along y axis
-   dist= sqrt(xj1**2+yj1**2+zj1**2+1.d-14)
-   cosa=zj1/dist
-   if(cosa.gt.1.0d0) cosa=1.0d0
-   if(cosa.lt.-1.0d0) cosa=-1.0d0
-   ddd=1.0d0-cosa**2
-   if(ddd.le.0.0) go to 10
-   yxdist=dist* sqrt(ddd)
-   if(yxdist.gt.1.0d-12) go to 20
-   10 continue
-   xi2=xi1
-   xl2=xl1
-   yi2=yi1
-   yl2=yl1
-   costh=cosa
-   sinth=0.d0
-   go to 30
-   20 cosph=yj1/yxdist
-   sinph=xj1/yxdist
-   xi2=xi1*cosph-yi1*sinph
-   xj2=xj1*cosph-yj1*sinph
-   xl2=xl1*cosph-yl1*sinph
-   yi2=xi1*sinph+yi1*cosph
-   yj2=xj1*sinph+yj1*cosph
-   yl2=xl1*sinph+yl1*cosph
-   !      rotate kj around the x axis so kj lies along the z axis
-   costh=cosa
-   sinth=yj2/dist
-   30 continue
-   yi3=yi2*costh-zi1*sinth
-   yl3=yl2*costh-zl1*sinth
-   call dang(xl2,yl3,xi2,yi3,angle)
-   !     if (angle .lt. 0.) angle=2.0d0*pi+angle
-   !sg   if (angle .ge. 2.0d0*pi    ) angle=0.d0
-end subroutine dihed
-pure subroutine dang(a1,a2,b1,b2,rcos)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
-   real(wp),intent(inout) :: a1,a2,b1,b2
-   real(wp),intent(out)   :: rcos
-   !*********************************************************************
-   !
-   !    dang  determines the angle between the points (a1,a2), (0,0),
-   !          and (b1,b2).  the result is put in rcos.
-   !
-   !*********************************************************************
-   real(wp),parameter :: pi = 3.14159265358979d0
-   real(wp) :: zero
-   real(wp) :: anorm,bnorm
-   real(wp) :: sinth,costh
-   zero=1.0d-10
-   if( abs(a1).lt.zero.and. abs(a2).lt.zero) go to 10
-   if( abs(b1).lt.zero.and. abs(b2).lt.zero) go to 10
-   anorm=1.0d0/ sqrt(a1**2+a2**2)
-   bnorm=1.0d0/ sqrt(b1**2+b2**2)
-   a1=a1*anorm
-   a2=a2*anorm
-   b1=b1*bnorm
-   b2=b2*bnorm
-   sinth=(a1*b2)-(a2*b1)
-   costh=a1*b1+a2*b2
-   if(costh.gt.1.0d0) costh=1.0d0
-   if(costh.lt.-1.0d0) costh=-1.0d0
-   rcos= acos(costh)
-   if( abs(rcos).lt.zero) go to 10
-   if(sinth.gt.0.d0) rcos=2.0d0*pi-rcos
-   rcos=-rcos
-   return
-   10 rcos=0.0d0
-end subroutine dang
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 

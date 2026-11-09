@@ -544,6 +544,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    use xtb_type_atomlist
    use xtb_scanparam
    use xtb_splitparam
+   use xtb_internals_type, only : angle_value, dihedral_value
    implicit none
    character(len=*), parameter :: source = 'userdata_constr'
    type(TEnvironment), intent(inout) :: env
@@ -565,7 +566,6 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    logical  :: ldum
    integer  :: i,j,k,l
    real(wp) :: phi,dist,ra(3),rb(3)
-   real(wp),external :: valijkl
 
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
@@ -722,7 +722,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
          potset%angle%n = potset%angle%n-1 ! remove invalid contrain
          return
       end if
-      call bangl(xyz,i,j,k,phi)
+      phi = angle_value(xyz, i, j, k)
       if (trim(argv(narg)).eq.'auto') then
          potset%angle%val(potset%angle%n) = phi
       else
@@ -766,7 +766,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
          potset%dihedral%n = potset%dihedral%n-1 ! remove invalid contrain
          return
       end if
-      phi=valijkl(nat,xyz,i,j,k,l)
+      phi = dihedral_value(xyz, i, j, k, l)
       if (trim(argv(narg)).eq.'auto') then
          potset%dihedral%val(potset%dihedral%n) = phi
       else
@@ -852,7 +852,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
          nconstr = nconstr-1 ! remove invalid contrain
          return
       end if
-      call bangl(xyz,i,j,k,phi)
+      phi = angle_value(xyz, i, j, k)
       if (trim(argv(narg)).eq.'auto') then
          valconstr(nconstr) = phi
       else
@@ -898,7 +898,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
          nconstr = nconstr-1 ! remove invalid contrain
          return
       end if
-      phi=valijkl(nat,xyz,i,j,k,l)
+      phi = dihedral_value(xyz, i, j, k, l)
       if (trim(argv(narg)).eq.'auto') then
          valconstr(nconstr) = phi
       else

@@ -44,7 +44,6 @@ srcs += files(
   'aoparam.f90',
   'approxrab.f90',
   'axis_trafo.f90',
-  'basic_geo.f90',
   'bfgs.f90',
   'bias_path.f90',
   'blowsy.f90',

@@ -45,7 +45,6 @@ list(APPEND srcs
   "${dir}/aoparam.f90"
   "${dir}/approxrab.f90"
   "${dir}/axis_trafo.f90"
-  "${dir}/basic_geo.f90"
   "${dir}/bfgs.f90"
   "${dir}/bias_path.f90"
   "${dir}/blowsy.f90"

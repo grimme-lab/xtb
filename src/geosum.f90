@@ -16,6 +16,9 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine geosum(n,ic,xyzin)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_constants, only : pi
+   use xtb_internals_type, only : angle_value, dihedral_value
    use xtb_mctc_convert, only : autoaa
    use xtb_mctc_symbols, only : toSymbol
    use xtb_param_atomicrad, only : atomicRad
@@ -29,7 +32,7 @@ subroutine geosum(n,ic,xyzin)
    integer,allocatable :: bondlist(:,:),nbond(:),nty(:)
 
    real*8 brad,r,xxx,yyy,zzz,avv
-   real*8 xyz(3,3),ang,xyz4(3,4),ra(3),rb(3)
+   real*8 ang,ra(3),rb(3)
    integer i, j, nn, k, imin, jmin, iat1, iat2
    integer nm,ij,m,iat,jat, nsel
    integer nt,a,b,ia,ib,ja,jb,ii,jj,lin,linij
@@ -128,9 +131,6 @@ subroutine geosum(n,ic,xyzin)
    do i=1,nsel
       m=nbond(i)
       if(m.gt.1)then
-         xyz(1,2)=x(i)
-         xyz(2,2)=y(i)
-         xyz(3,2)=z(i)
          do a=1,m
             ia=bondlist(i,a)
             do b=1,a-1
@@ -139,13 +139,7 @@ subroutine geosum(n,ic,xyzin)
                write(lab,'(a2,i5,''-'',a2,i5,''-'',a2,i5)')&
                   &toSymbol(ic(ia)),ia,toSymbol(ic(i)),i,toSymbol(ic(ib)),ib
                call rmblank(lab,lab2)
-               xyz(1,1)=x(ia)
-               xyz(2,1)=y(ia)
-               xyz(3,1)=z(ia)
-               xyz(1,3)=x(ib)
-               xyz(2,3)=y(ib)
-               xyz(3,3)=z(ib)
-               call xbangle(xyz,ang)
+               ang = angle_value(xyzin, ia, i, ib) * 180.0_wp / pi
                write(angsum1(nt),'(a,''='',f6.2)')trim(lab2),ang
             enddo
          enddo
@@ -158,14 +152,8 @@ subroutine geosum(n,ic,xyzin)
    write(*,*)'---------------------------------'
    nt=0
    do i=1,nsel
-      xyz4(1,2)=x(i)
-      xyz4(2,2)=y(i)
-      xyz4(3,2)=z(i)
       do j=1,i
          if(i.eq.j)cycle
-         xyz4(1,3)=x(j)
-         xyz4(2,3)=y(j)
-         xyz4(3,3)=z(j)
          k=k+1
          r=sqrt((x(i)-x(j))**2+(y(i)-y(j))**2+(z(i)-z(j))**2)&
             &        *0.529177260d0
@@ -184,13 +172,7 @@ subroutine geosum(n,ic,xyzin)
                         &                  toSymbol(ic(ib)),ib,toSymbol(ic(i)),i,&
                         &                  toSymbol(ic(j)),j,  toSymbol(ic(jb)),jb
                      call rmblank(lab3,lab4)
-                     xyz4(1,1)=x(ib)
-                     xyz4(2,1)=y(ib)
-                     xyz4(3,1)=z(ib)
-                     xyz4(1,4)=x(jb)
-                     xyz4(2,4)=y(jb)
-                     xyz4(3,4)=z(jb)
-                     call xdihed(xyz4,ang)
+                     ang = modulo(dihedral_value(xyzin, ib, i, j, jb), 2.0_wp * pi) * 180.0_wp / pi
                      write(angsum2(nt),'(a,''='',f6.2)')&
                         &                  trim(lab4),ang
                   endif
@@ -230,127 +212,3 @@ subroutine rmblank(as,re)
    end do
 end subroutine rmblank
 
-subroutine xbangle(xyz,angle)
-   implicit integer (i-n)
-   implicit double precision (a-h,o-z)
-   dimension xyz(3,3)
-   !********************************************************************
-   !
-   ! bangle calculates the angle between atoms i,j, and k. the
-   !        cartesian coordinates are in xyz.
-   !
-   !********************************************************************
-   i=1
-   j=2
-   k=3
-   d2ij = (xyz(1,i)-xyz(1,j))**2+&
-      &       (xyz(2,i)-xyz(2,j))**2+&
-      &       (xyz(3,i)-xyz(3,j))**2
-   d2jk = (xyz(1,j)-xyz(1,k))**2+&
-      &       (xyz(2,j)-xyz(2,k))**2+&
-      &       (xyz(3,j)-xyz(3,k))**2
-   d2ik = (xyz(1,i)-xyz(1,k))**2+&
-      &       (xyz(2,i)-xyz(2,k))**2+&
-      &       (xyz(3,i)-xyz(3,k))**2
-   xy = sqrt(d2ij*d2jk)
-   temp = 0.5d0 * (d2ij+d2jk-d2ik) / xy
-   if (temp .gt. 1.0d0) temp=1.0d0
-   if (temp .lt. -1.0d0) temp=-1.0d0
-   angle = acos( temp )*180.0d0/3.14159265358979d0
-   return
-end subroutine xbangle
-subroutine xdihed(xyz,angle)
-   implicit integer (i-n)
-   implicit double precision (a-h,o-z)
-   dimension xyz(3,4)
-   !********************************************************************
-   !
-   !      dihed calculates the dihedral angle between atoms i, j, k,
-   !            and l.  the cartesian coordinates of these atoms
-   !            are in array xyz.
-   !
-   !     dihed is a modified version of a subroutine of the same name
-   !           which was written by dr. w. theil in 1973.
-   !
-   !********************************************************************
-   data pi/3.14159265358979d0/
-   i=1
-   j=2
-   k=3
-   l=4
-   xi1=xyz(1,i)-xyz(1,k)
-   xj1=xyz(1,j)-xyz(1,k)
-   xl1=xyz(1,l)-xyz(1,k)
-   yi1=xyz(2,i)-xyz(2,k)
-   yj1=xyz(2,j)-xyz(2,k)
-   yl1=xyz(2,l)-xyz(2,k)
-   zi1=xyz(3,i)-xyz(3,k)
-   zj1=xyz(3,j)-xyz(3,k)
-   zl1=xyz(3,l)-xyz(3,k)
-   !      rotate around z axis to put kj along y axis
-   dist= sqrt(xj1**2+yj1**2+zj1**2)
-   cosa=zj1/dist
-   if(cosa.gt.1.0d0) cosa=1.0d0
-   if(cosa.lt.-1.0d0) cosa=-1.0d0
-   ddd=1.0d0-cosa**2
-   if(ddd.le.0.0) go to 10
-   yxdist=dist* sqrt(ddd)
-   if(yxdist.gt.1.0d-9) go to 20
-   10 continue
-   xi2=xi1
-   xl2=xl1
-   yi2=yi1
-   yl2=yl1
-   costh=cosa
-   sinth=0.d0
-   go to 30
-   20 cosph=yj1/yxdist
-   sinph=xj1/yxdist
-   xi2=xi1*cosph-yi1*sinph
-   xj2=xj1*cosph-yj1*sinph
-   xl2=xl1*cosph-yl1*sinph
-   yi2=xi1*sinph+yi1*cosph
-   yj2=xj1*sinph+yj1*cosph
-   yl2=xl1*sinph+yl1*cosph
-   !      rotate kj around the x axis so kj lies along the z axis
-   costh=cosa
-   sinth=yj2/dist
-   30 continue
-   yi3=yi2*costh-zi1*sinth
-   yl3=yl2*costh-zl1*sinth
-   call xdang(xl2,yl3,xi2,yi3,angle)
-   if (angle .lt. 0.) angle=2.0d0*pi+angle
-   if (angle .ge. 2.0d0*pi    ) angle=0.d0
-   angle=angle*180.0d0/pi
-   return
-end subroutine xdihed
-subroutine xdang(a1,a2,b1,b2,rcos)
-   implicit double precision (a-h,o-z)
-   !*********************************************************************
-   !
-   !    dang  determines the angle between the points (a1,a2), (0,0),
-   !          and (b1,b2).  the result is put in rcos.
-   !
-   !*********************************************************************
-   data pi/3.14159265358979d0/
-   zero=1.0d-6
-   if( abs(a1).lt.zero.and. abs(a2).lt.zero) go to 10
-   if( abs(b1).lt.zero.and. abs(b2).lt.zero) go to 10
-   anorm=1.0d0/ sqrt(a1**2+a2**2)
-   bnorm=1.0d0/ sqrt(b1**2+b2**2)
-   a1=a1*anorm
-   a2=a2*anorm
-   b1=b1*bnorm
-   b2=b2*bnorm
-   sinth=(a1*b2)-(a2*b1)
-   costh=a1*b1+a2*b2
-   if(costh.gt.1.0d0) costh=1.0d0
-   if(costh.lt.-1.0d0) costh=-1.0d0
-   rcos= acos(costh)
-   if( abs(rcos).lt.4.0d-4) go to 10
-   if(sinth.gt.0.d0) rcos=2.0d0*pi-rcos
-   rcos=-rcos
-   return
-   10 rcos=0.0d0
-   return
-end subroutine xdang
