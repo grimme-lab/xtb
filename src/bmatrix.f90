@@ -22,7 +22,7 @@ module xtb_bmatrix
    use xtb_mctc_constants, only : pi
    use xtb_mctc_math, only : crossProd
    use xtb_internals_type, only : internal_coords_set_type, coord_bond, &
-      & coord_angle, coord_dihedral, coord_linbend
+      & coord_angle, coord_dihedral, coord_linbend, angle_value
    implicit none
 
    private
@@ -37,21 +37,10 @@ module xtb_bmatrix
    real(wp), parameter :: tol_collinear = 1.0e-13_wp
    !> Tolerance for cross-product magnitude (collinearity guard)
    real(wp), parameter :: tol_cross = 1.0e-10_wp
-   !> Tolerance for near-linear bend detection
-   real(wp), parameter :: tol_bend = 1.0e-6_wp
    !> Avoid zero division in angle derivatives (1e-24 is ~1e-12 in energy)
    real(wp), parameter :: eps_sqrt = 1.0e-24_wp
 
 contains
-
-!> Clamp a cosine to [-1, 1]; rounding can push it outside and make acos NaN.
-elemental function clamp(co) result(c)
-   !> Cosine to clamp.
-   real(wp), intent(in) :: co
-
-   real(wp) :: c
-   c = min(1.0_wp, max(-1.0_wp, co))
-end function clamp
 
 !> Wilson B row for a bond length (2 atoms).
 !>
@@ -79,44 +68,19 @@ pure function bmat_angle(vec1, vec2) result(bmat)
    real(wp), intent(in) :: vec2(3)
 
    real(wp) :: bmat(9)
-   real(wp) :: l1, l2, nvec1(3), nvec2(3)
-   real(wp) :: dl(2, 6), dnvec(2, 3, 6), dinprod(9)
-   real(wp) :: sinphi
-   integer :: ii
+   real(wp) :: l1, l2, nvec1(3), nvec2(3), co, sinphi, g1(3), g2(3)
 
    l1 = norm2(vec1)
    l2 = norm2(vec2)
    nvec1 = vec1 / l1
    nvec2 = vec2 / l2
-
-   dl = 0.0_wp
-   dl(1, 1:3) = nvec1
-   dl(1, 4:6) = -nvec1
-   dl(2, 1:3) = nvec2
-   dl(2, 4:6) = -nvec2
-
-   dnvec = 0.0_wp
-   do ii = 1, 6
-      dnvec(1, 1:3, ii) = -nvec1 * dl(1, ii) / l1
-      dnvec(2, 1:3, ii) = -nvec2 * dl(2, ii) / l2
-   end do
-   do ii = 1, 3
-      dnvec(1, ii, ii) = dnvec(1, ii, ii) + 1.0_wp / l1
-      dnvec(2, ii, ii) = dnvec(2, ii, ii) + 1.0_wp / l2
-      dnvec(1, ii, ii+3) = dnvec(1, ii, ii+3) - 1.0_wp / l1
-      dnvec(2, ii, ii+3) = dnvec(2, ii, ii+3) - 1.0_wp / l2
-   end do
-
-   dinprod = 0.0_wp
-   do ii = 1, 3
-      dinprod(ii) = dot_product(dnvec(1, :, ii), nvec2)
-      dinprod(ii+3) = dot_product(dnvec(1, :, ii+3), nvec2) &
-         & + dot_product(dnvec(2, :, ii+3), nvec1)
-      dinprod(ii+6) = dot_product(dnvec(2, :, ii), nvec1)
-   end do
-
-   sinphi = norm2(crossProd(nvec1, nvec2))
-   bmat = -dinprod / max(sqrt(eps_sqrt), sinphi)
+   co = dot_product(nvec1, nvec2)
+   sinphi = max(sqrt(eps_sqrt), norm2(crossProd(nvec1, nvec2)))
+   g1 = (co * nvec1 - nvec2) / (l1 * sinphi)
+   g2 = (co * nvec2 - nvec1) / (l2 * sinphi)
+   bmat(1:3) = g1
+   bmat(4:6) = -(g1 + g2)
+   bmat(7:9) = g2
 end function bmat_angle
 
 !> Orthonormal pair of directions perpendicular to a unit axis, the fixed frame
@@ -182,14 +146,14 @@ pure function bmat_torsion(xyz) result(bt)
    rij1 = norm2(xyz(:, 2) - xyz(:, 1))
    rjk1 = norm2(xyz(:, 3) - xyz(:, 2))
    rkl1 = norm2(xyz(:, 4) - xyz(:, 3))
-   brij = bmat_strtch(xyz(:, 1:2))
-   brjk = bmat_strtch(xyz(:, 2:3))
-   brkl = bmat_strtch(xyz(:, 3:4))
+   brij = reshape(bmat_bond(xyz(:, 1) - xyz(:, 2)), [3, 2])
+   brjk = reshape(bmat_bond(xyz(:, 2) - xyz(:, 3)), [3, 2])
+   brkl = reshape(bmat_bond(xyz(:, 3) - xyz(:, 4)), [3, 2])
 
-   fi2 = bend_angle(xyz(:, 1:3))
+   fi2 = angle_value(xyz, 1, 2, 3)
    sinfi2 = sin(fi2)
    cosfi2 = cos(fi2)
-   fi3 = bend_angle(xyz(:, 2:4))
+   fi3 = angle_value(xyz, 2, 3, 4)
    sinfi3 = sin(fi3)
    cosfi3 = cos(fi3)
 
@@ -206,6 +170,7 @@ pure function bmat_torsion(xyz) result(bt)
          & + rkl1 * cosfi3 * bt(ix, 4)) / rjk1
       bt(ix, 3) = -(bt(ix, 1) + bt(ix, 2) + bt(ix, 4))
    end do
+   bt = -bt
 end function bmat_torsion
 
 !> Wilson B rows for an out-of-plane angle (4 atoms, atom 4 central).
@@ -216,25 +181,12 @@ pure function bmat_outofplane(xyz) result(bt)
    real(wp), intent(in) :: xyz(3, 4)
 
    real(wp) :: bt(3, 4)
-   real(wp) :: r2(3), r3(3)
-   real(wp) :: q42, q43, e42(3), e43(3)
-   real(wp) :: cosfi1, fi1
+   real(wp) :: fi1
    real(wp) :: c14(3, 3), br14(3, 3)
    real(wp) :: r42(3), r43(3)
    integer :: ix, iy, iz
 
-   ! 4 -> 2 (bond in plane)
-   r2 = xyz(:, 2) - xyz(:, 4)
-   q42 = norm2(r2)
-   e42 = r2 / q42
-   ! 4 -> 3 (bond in plane)
-   r3 = xyz(:, 3) - xyz(:, 4)
-   q43 = norm2(r3)
-   e43 = r3 / q43
-
-   ! angle between e43 and e42
-   cosfi1 = clamp(dot_product(e43, e42))
-   fi1 = acos(cosfi1)
+   fi1 = angle_value(xyz, 2, 4, 3)
 
    ! dirty exit when 2-3-4 collinear
    if (abs(fi1 - pi) < tol_collinear) then
@@ -258,7 +210,7 @@ pure function bmat_outofplane(xyz) result(bt)
    end if
    c14(:, 3) = c14(:, 3) + xyz(:, 4)
 
-   br14 = bmat_bend(c14)
+   br14 = reshape(bmat_angle(c14(:, 1) - c14(:, 2), c14(:, 3) - c14(:, 2)), [3, 3])
 
    ! compute the WDC matrix
    do ix = 1, 3
@@ -283,19 +235,10 @@ pure function oop_angle(xyz) result(theta)
    real(wp), intent(in) :: xyz(3, 4)
 
    real(wp) :: theta
-   real(wp) :: r2(3), r3(3), q42, q43, e42(3), e43(3)
-   real(wp) :: cosfi1, fi1
+   real(wp) :: fi1
    real(wp) :: r42(3), r43(3), c14(3, 3)
 
-   r2 = xyz(:, 2) - xyz(:, 4)
-   q42 = norm2(r2)
-   e42 = r2 / q42
-   r3 = xyz(:, 3) - xyz(:, 4)
-   q43 = norm2(r3)
-   e43 = r3 / q43
-
-   cosfi1 = clamp(dot_product(e43, e42))
-   fi1 = acos(cosfi1)
+   fi1 = angle_value(xyz, 2, 4, 3)
 
    if (abs(fi1 - pi) < tol_collinear) then
       theta = 0.0_wp
@@ -314,7 +257,7 @@ pure function oop_angle(xyz) result(theta)
    end if
    c14(:, 3) = c14(:, 3) + xyz(:, 4)
 
-   theta = bend_angle(c14) - 0.5_wp * pi
+   theta = angle_value(c14, 1, 2, 3) - 0.5_wp * pi
 end function oop_angle
 
 !> Assemble the Wilson B matrix for an internal-coordinate set.
@@ -361,92 +304,6 @@ pure subroutine get_bmatrix(internals, xyz, bmat)
    end do
 end subroutine get_bmatrix
 
-!> Stretch B row for a 2-atom fragment (private helper).
-!>
-!> Row layout is [atom1(1:3), atom2(4:6)].
-pure function bmat_strtch(xyz) result(b)
-   !> Cartesian coordinates of atoms 1 and 2.
-   real(wp), intent(in) :: xyz(3, 2)
-
-   real(wp) :: b(3, 2)
-   real(wp) :: r(3), rr
-
-   r = xyz(:, 2) - xyz(:, 1)
-   rr = norm2(r)
-   b(:, 1) = -r / rr
-   b(:, 2) = -b(:, 1)
-end function bmat_strtch
-
-!> Bend angle for a 3-atom fragment in radians (private helper).
-pure function bend_angle(xyz) result(fir)
-   !> Cartesian coordinates of atoms 1-2-3; atom 2 is the angle centre.
-   real(wp), intent(in) :: xyz(3, 3)
-
-   real(wp) :: fir
-   real(wp) :: brij(3, 2), brjk(3, 2)
-   real(wp) :: co, crap
-   integer :: i
-
-   brij = bmat_strtch(xyz(:, 1:2))
-   brjk = bmat_strtch(xyz(:, 2:3))
-   co = 0.0_wp
-   crap = 0.0_wp
-   do i = 1, 3
-      co = co + brij(i, 1) * brjk(i, 2)
-      crap = crap + (brjk(i, 2) + brij(i, 1))**2
-   end do
-   co = clamp(co)
-   if (sqrt(crap) < tol_bend) then
-      fir = pi - asin(sqrt(crap))
-   else
-      fir = acos(co)
-   end if
-   if (abs(fir - pi) < tol_collinear) then
-      fir = pi
-   end if
-end function bend_angle
-
-!> Bend B rows for a 3-atom fragment (private helper).
-!>
-!> bf(:, a) is the 3-vector of angle derivatives with respect to atom a.
-pure function bmat_bend(xyz) result(bf)
-   !> Cartesian coordinates of atoms 1-2-3; atom 2 is the angle centre.
-   real(wp), intent(in) :: xyz(3, 3)
-
-   real(wp) :: bf(3, 3)
-   real(wp) :: brij(3, 2), brjk(3, 2)
-   real(wp) :: co, crap, fir, si
-   real(wp) :: rij1, rjk1
-   integer :: i
-
-   brij = bmat_strtch(xyz(:, 1:2))
-   brjk = bmat_strtch(xyz(:, 2:3))
-   rij1 = norm2(xyz(:, 2) - xyz(:, 1))
-   rjk1 = norm2(xyz(:, 3) - xyz(:, 2))
-   co = 0.0_wp
-   crap = 0.0_wp
-   do i = 1, 3
-      co = co + brij(i, 1) * brjk(i, 2)
-      crap = crap + (brjk(i, 2) + brij(i, 1))**2
-   end do
-   co = clamp(co)
-   if (sqrt(crap) < tol_bend) then
-      fir = pi - asin(sqrt(crap))
-      si = sqrt(crap)
-   else
-      fir = acos(co)
-      si = sqrt(1.0_wp - co**2)
-   end if
-   bf = 0.0_wp
-   if (abs(fir - pi) < tol_collinear) then
-      return
-   end if
-   do i = 1, 3
-      bf(i, 1) = (co*brij(i, 1) - brjk(i, 2)) / (si*rij1)
-      bf(i, 3) = (co*brjk(i, 2) - brij(i, 1)) / (si*rjk1)
-      bf(i, 2) = -(bf(i, 1) + bf(i, 3))
-   end do
-end function bmat_bend
 
 !> Accumulate scale * B^T B into a packed lower-triangular Cartesian Hessian.
 !>

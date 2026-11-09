@@ -23,12 +23,10 @@
 module xtb_internals_redundant
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi
-   use xtb_mctc_math, only : crossProd
-   use xtb_basic_geo, only : bangl
    use xtb_bmatrix, only : linbend_frame
    use xtb_internals_graph, only : graph_type
    use xtb_internals_type, only : internal_coords_set_type, coord_bond, &
-      & coord_angle, coord_dihedral, coord_linbend
+      & coord_angle, coord_dihedral, coord_linbend, angle_value, dihedral_value
    implicit none
    private
 
@@ -80,7 +78,7 @@ pure subroutine new_redundant(self, graph, xyz)
    real(wp), intent(in) :: xyz(:, :)
 
    integer :: i, j, k, a, b, ia, la, ndeg, component
-   real(wp) :: angle, b1(3), b2(3), b3(3), n1(3), n2(3), m(3)
+   real(wp) :: angle
    real(wp) :: v1(3), v2(3), bend_frame(3, 2)
 
    self%n = graph%n
@@ -99,7 +97,7 @@ pure subroutine new_redundant(self, graph, xyz)
       ndeg = graph%neighs(i)
       do a = 1, ndeg - 1
          do b = a + 1, ndeg
-            call bangl(xyz, graph%i_neigh(a, i), i, graph%i_neigh(b, i), angle)
+            angle = angle_value(xyz, graph%i_neigh(a, i), i, graph%i_neigh(b, i))
             if (angle > pi - lin_tol) then
                self%nangle = self%nangle + 2
             else
@@ -147,7 +145,7 @@ pure subroutine new_redundant(self, graph, xyz)
       ndeg = graph%neighs(i)
       do a = 1, ndeg - 1
          do b = a + 1, ndeg
-            call bangl(xyz, graph%i_neigh(a, i), i, graph%i_neigh(b, i), angle)
+            angle = angle_value(xyz, graph%i_neigh(a, i), i, graph%i_neigh(b, i))
             if (angle > pi - lin_tol) then
                v1 = xyz(:, graph%i_neigh(a, i)) - xyz(:, i)
                v1 = v1/norm2(v1)
@@ -191,13 +189,7 @@ pure subroutine new_redundant(self, graph, xyz)
                self%atoms(2, ia) = i
                self%atoms(3, ia) = j
                self%atoms(4, ia) = la
-               b1 = xyz(:, i) - xyz(:, self%atoms(1, ia))
-               b2 = xyz(:, j) - xyz(:, i)
-               b3 = xyz(:, la) - xyz(:, j)
-               n1 = crossProd(b1, b2)
-               n2 = crossProd(b2, b3)
-               m = crossProd(n1, b2/norm2(b2))
-               self%q(ia) = atan2(dot_product(m, n2), dot_product(n1, n2))
+               self%q(ia) = dihedral_value(xyz, self%atoms(1, ia), i, j, la)
             end do
          end do
       end do
@@ -217,8 +209,8 @@ pure logical function valid_torsion(xyz, i, j, k, l)
 
    real(wp) :: angle1, angle2
 
-   call bangl(xyz, i, j, k, angle1)
-   call bangl(xyz, j, k, l, angle2)
+   angle1 = angle_value(xyz, i, j, k)
+   angle2 = angle_value(xyz, j, k, l)
    valid_torsion = angle1 >= lin_tol .and. angle1 <= pi - lin_tol &
       & .and. angle2 >= lin_tol .and. angle2 <= pi - lin_tol
 end function valid_torsion

@@ -419,6 +419,7 @@ end subroutine calc_distances
 
 subroutine calc_angles(n,at,xyz,bond,maxbend,nbend,bend,ib)
    use xtb_mctc_accuracy, only : wp
+   use xtb_internals_type, only : angle_value
    implicit none
    integer,    intent(in)  :: n
    integer,    intent(in)  :: at(n)
@@ -446,7 +447,7 @@ subroutine calc_angles(n,at,xyz,bond,maxbend,nbend,bend,ib)
          do k = 1, j-1
             if (i.eq.k .or. j.eq.k) cycle
             if (bond(k,j).lt.1) cycle
-            call bangl(xyz,k,j,i,phi)
+            phi = angle_value(xyz, k, j, i)
             if (m.ge.maxbend) exit get_bend
             m = m+1
             ib(1,m) = k
@@ -462,6 +463,7 @@ end subroutine calc_angles
 
 subroutine calc_torsions(n,at,xyz,bond,maxtrsn,ntrsn,trsn,it)
    use xtb_mctc_accuracy, only : wp
+   use xtb_internals_type, only : dihedral_value
    implicit none
    integer,    intent(in)  :: n
    integer,    intent(in)  :: at(n)
@@ -474,7 +476,6 @@ subroutine calc_torsions(n,at,xyz,bond,maxtrsn,ntrsn,trsn,it)
 
    integer  :: i,j,k,l,m
    real(wp) :: phi
-   real(wp),external :: valijkl
 
    m = 0
    get_trsn: do i = 1, n
@@ -488,7 +489,7 @@ subroutine calc_torsions(n,at,xyz,bond,maxtrsn,ntrsn,trsn,it)
             do l = 1, n
                if (bond(l,k).lt.1) cycle
                if (i.eq.l .or. j.eq.l .or. k.eq.l) cycle
-               phi = valijkl(n,xyz,l,k,j,i)
+               phi = dihedral_value(xyz, l, k, j, i)
                if (m.ge.maxtrsn) exit get_trsn
                m = m+1
                it(1,m) = l

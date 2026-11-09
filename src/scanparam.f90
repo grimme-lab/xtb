@@ -148,13 +148,13 @@ subroutine pot_info(iunit,n,at,xyz)
    use xtb_mctc_convert
    use xtb_mctc_symbols, only : toSymbol
    use xtb_mctc_blas, only : mctc_nrm2
+   use xtb_internals_type, only : angle_value, dihedral_value
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: xyz(3,n)
 
-   real(wp),external :: valijkl
 
    integer :: i,ii,j,k,l,m,mm
    real(wp) :: val0,val
@@ -254,7 +254,7 @@ subroutine pot_info(iunit,n,at,xyz)
          j = potset%angle%atoms(mm+1)
          k = potset%angle%atoms(mm+2)
          val0 = potset%angle%val(m)
-         call bangl(xyz,i,j,k,val)
+         val = angle_value(xyz, i, j, k)
          write(iunit,'(3(i6,1x,i3,1x,a2),13x,1x,2f14.7)') &
             i,at(i),toSymbol(at(i)), &
             j,at(j),toSymbol(at(j)), &
@@ -290,7 +290,7 @@ subroutine pot_info(iunit,n,at,xyz)
          k = potset%dihedral%atoms(mm+2)
          l = potset%dihedral%atoms(mm+3)
          val0 = potset%dihedral%val(m)
-         val = valijkl(n,xyz,i,j,k,l)
+         val = dihedral_value(xyz, i, j, k, l)
          write(iunit,'(4(i6,1x,i3,1x,a2),1x,2f14.7)') &
             i,at(i),toSymbol(at(i)), &
             j,at(j),toSymbol(at(j)), &
@@ -353,6 +353,7 @@ end subroutine constrain_all_bonds
 subroutine constrain_all_angles(n,at,xyz)
    use xtb_mctc_constants
    use xtb_mctc_param
+   use xtb_internals_type, only : angle_value
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -376,7 +377,7 @@ subroutine constrain_all_angles(n,at,xyz)
          do k = 1, j-1
             if (i.eq.k .or. j.eq.k) cycle
             if (bond(k,j).lt.1) cycle
-            call bangl(xyz,k,j,i,phi)
+            phi = angle_value(xyz, k, j, i)
             if (abs(pi-phi).lt.thr) cycle
             ioffset = 3*potset%angle%n
             potset%angle%n = potset%angle%n+1
@@ -393,6 +394,7 @@ end subroutine constrain_all_angles
 subroutine constrain_all_torsions(n,at,xyz)
    use xtb_mctc_constants
    use xtb_mctc_param
+   use xtb_internals_type, only : angle_value, dihedral_value
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -403,7 +405,6 @@ subroutine constrain_all_torsions(n,at,xyz)
    real(wp) :: phi,thijk,thjkl
    integer, allocatable :: bond(:,:)
    real(wp),parameter   :: thr = 0.2_wp
-   real(wp),external    :: valijkl
 
    allocate( bond(n,n), source = 0 )
    call get_bonds(n,at,xyz,bond)
@@ -419,10 +420,10 @@ subroutine constrain_all_torsions(n,at,xyz)
             do l = 1, n
                if (bond(l,k).lt.1) cycle
                if (i.eq.l .or. j.eq.l .or. k.eq.l) cycle
-               call bangl(xyz,k,j,i,thijk)
-               call bangl(xyz,l,k,j,thjkl)
+               thijk = angle_value(xyz, k, j, i)
+               thjkl = angle_value(xyz, l, k, j)
                if (abs(pi-thijk).lt.thr .or. abs(pi-thjkl).lt.thr) cycle
-               phi = valijkl(n,xyz,l,k,j,i)
+               phi = dihedral_value(xyz, l, k, j, i)
                ioffset = 4*potset%dihedral%n
                potset%dihedral%n = potset%dihedral%n+1
                potset%dihedral%atoms(ioffset+1) = l

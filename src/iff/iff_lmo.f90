@@ -351,6 +351,7 @@ contains
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
    subroutine internal4(n, xyz, c, j, k, l, r, alp, bet)
+      use xtb_internals_type, only : angle_value, dihedral_value
       integer, intent(in) :: n, j, k, l
       real(wp), intent(in) :: xyz(3, n), c(3)
       real(wp), intent(out) :: r, alp, bet
@@ -367,10 +368,10 @@ contains
          xyz2(1:3, 1) = c(1:3)
          xyz2(1:3, 2) = xyz(1:3, j)
          xyz2(1:3, 3) = xyz(1:3, k)
-         call xbangle(XYZ2, 1, 2, 3, alp)
+         alp = angle_value(xyz2, 1, 2, 3)
          if (l .gt. 0) then
             xyz2(1:3, 4) = xyz(1:3, l)
-            call xDIHED(XYZ2, 1, 2, 3, 4, bet)
+            bet = dihedral_value(xyz2, 1, 2, 3, 4)
          end if
       end if
 
@@ -469,122 +470,5 @@ contains
    end subroutine trflp
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-   subroutine xBANGLE(XYZ, I, J, K, ANGLE)
-      integer, intent(in) :: I, J, K
-      real(wp), intent(in) :: XYZ(3, *)
-      real(wp), intent(out) :: ANGLE
-
-      real(wp) :: D2IJ, D2JK, D2IK, XY, TEMP
-! BANGLE CALCULATES THE ANGLE BETWEEN ATOMS I,J, AND K. THE
-!        CARTESIAN COORDINATES ARE IN XYZ.
-      D2IJ = (XYZ(1, I) - XYZ(1, J))**2 +&
-            &(XYZ(2, I) - XYZ(2, J))**2 +&
-            &(XYZ(3, I) - XYZ(3, J))**2
-      D2JK = (XYZ(1, J) - XYZ(1, K))**2 +&
-            &(XYZ(2, J) - XYZ(2, K))**2 +&
-            &(XYZ(3, J) - XYZ(3, K))**2
-      D2IK = (XYZ(1, I) - XYZ(1, K))**2 +&
-            &(XYZ(2, I) - XYZ(2, K))**2 +&
-            &(XYZ(3, I) - XYZ(3, K))**2
-      XY = SQRT(D2IJ*D2JK + 1.d-14)
-      TEMP = 0.5D0*(D2IJ + D2JK - D2IK)/XY
-      IF (TEMP .GT. 1.0D0) TEMP = 1.0D0
-      IF (TEMP .LT. -1.0D0) TEMP = -1.0D0
-      ANGLE = ACOS(TEMP)
-      RETURN
-   end subroutine xBANGLE
-
-   subroutine xDIHED(XYZ, I, J, K, L, ANGLE)
-      real(wp), intent(in) :: XYZ(3, 4)
-      integer, intent(in) :: I, J, K, L
-      real(wp), intent(out) :: ANGLE
-
-      real(wp) :: XI1, XJ1, XL1, YI1, YJ1, YL1, ZI1, ZJ1, ZL1
-      real(wp) :: XI2, XJ2, XL2, YI2, YJ2, YL2, ZI2, ZJ2, ZL2
-      real(wp) :: YI3, YL3
-      real(wp) :: DIST, COSA, DDD, YXDIST, COSTH, SINTH, COSPH, SINPH
-
-      real(wp), parameter :: PI = 3.14159265358979_wp
-      XI1 = XYZ(1, I) - XYZ(1, K)
-      XJ1 = XYZ(1, J) - XYZ(1, K)
-      XL1 = XYZ(1, L) - XYZ(1, K)
-      YI1 = XYZ(2, I) - XYZ(2, K)
-      YJ1 = XYZ(2, J) - XYZ(2, K)
-      YL1 = XYZ(2, L) - XYZ(2, K)
-      ZI1 = XYZ(3, I) - XYZ(3, K)
-      ZJ1 = XYZ(3, J) - XYZ(3, K)
-      ZL1 = XYZ(3, L) - XYZ(3, K)
-!      ROTATE AROUND Z AXIS TO PUT KJ ALONG Y AXIS
-      DIST = SQRT(XJ1**2 + YJ1**2 + ZJ1**2 + 1.d-14)
-      COSA = ZJ1/DIST
-      IF (COSA .GT. 1.0D0) COSA = 1.0D0
-      IF (COSA .LT. -1.0D0) COSA = -1.0D0
-      DDD = 1.0D0 - COSA**2
-      IF (DDD .GT. 0.0) then
-         YXDIST = DIST*SQRT(DDD)
-      end if
-      IF (YXDIST .LE. 1.0D-9 .AND. DDD .GT. 0.0) then
-         XI2 = XI1
-         XL2 = XL1
-         YI2 = YI1
-         YL2 = YL1
-         COSTH = COSA
-         SINTH = 0.D0
-      end if
-      IF (YXDIST .GT. 1.0D-9 .OR. DDD .LE. 0.0) then
-         COSPH = YJ1/YXDIST
-         SINPH = XJ1/YXDIST
-         XI2 = XI1*COSPH - YI1*SINPH
-         XJ2 = XJ1*COSPH - YJ1*SINPH
-         XL2 = XL1*COSPH - YL1*SINPH
-         YI2 = XI1*SINPH + YI1*COSPH
-         YJ2 = XJ1*SINPH + YJ1*COSPH
-         YL2 = XL1*SINPH + YL1*COSPH
-!      ROTATE KJ AROUND THE X AXIS SO KJ LIES ALONG THE Z AXIS
-         COSTH = COSA
-         SINTH = YJ2/DIST
-      end if
-      YI3 = YI2*COSTH - ZI1*SINTH
-      YL3 = YL2*COSTH - ZL1*SINTH
-      CALL xDANG(XL2, YL3, XI2, YI3, ANGLE)
-      IF (ANGLE .LT. 0.) ANGLE = 2.0D0*PI + ANGLE
-      IF (ANGLE .GE. 2.0d0*PI) ANGLE = 0.D0
-      RETURN
-   end subroutine xDIHED
-
-   subroutine xDANG(A1, A2, B1, B2, RCOS)
-      real(wp), intent(inout) :: A1, A2, B1, B2
-      real(wp), intent(out) :: RCOS
-
-      real(wp) :: ZERO, SINTH, COTH, ANORM, BNORM, COSTH
-      real(wp), parameter :: PI = 3.14159265358979_wp
-      ZERO = 1.0D-6
-      IF (ABS(A1) .LT. ZERO .AND. ABS(A2) .LT. ZERO) then
-         RCOS = 0.0D0
-         return
-      end if
-      IF (ABS(B1) .LT. ZERO .AND. ABS(B2) .LT. ZERO) then
-         RCOS = 0.0D0
-         return
-      end if
-      ANORM = 1.0D0/SQRT(A1**2 + A2**2)
-      BNORM = 1.0D0/SQRT(B1**2 + B2**2)
-      A1 = A1*ANORM
-      A2 = A2*ANORM
-      B1 = B1*BNORM
-      B2 = B2*BNORM
-      SINTH = (A1*B2) - (A2*B1)
-      COSTH = A1*B1 + A2*B2
-      IF (COSTH .GT. 1.0D0) COSTH = 1.0D0
-      IF (COSTH .LT. -1.0D0) COSTH = -1.0D0
-      RCOS = ACOS(COSTH)
-      IF (ABS(RCOS) .GE. 4.0D-4) then
-         IF (SINTH .GT. 0.D0) RCOS = 2.0D0*PI - RCOS
-         RCOS = -RCOS
-         RETURN
-      END IF
-      RCOS = 0.0D0
-      RETURN
-   end subroutine xDANG
 
 end module xtb_iff_ifflmo
