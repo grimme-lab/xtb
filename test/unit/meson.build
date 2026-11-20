@@ -41,6 +41,7 @@ tests = [
   'detrotra',
   'docking',
   'eeq',
+  'geovalues',
   'gfn0',
   'gfn1',
   'gfn2',

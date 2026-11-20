@@ -19,13 +19,13 @@ subroutine constralltors(n,at,xyz)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_scanparam
-   use xtb_intmodes
+   use xtb_internals_type, only : angle_value, dihedral_value
    implicit none
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
    real(wp),intent(in) :: xyz(3,n)
 
-   real(wp) :: phi,valijkl,a1,a2
+   real(wp) :: phi,a1,a2
    integer  :: i,j,k,ii,jj,kk,ll,irm
    integer  :: nb(0:20,n),list(n,n)
 
@@ -51,8 +51,8 @@ subroutine constralltors(n,at,xyz)
                   ll=nb(jj,j)
                   if(kk.eq.j) cycle
                   if(ll.eq.i) cycle
-                  call BANGLE(XYZ,I,J,ll,A1)       ! avoid linear cas
-                  call BANGLE(XYZ,J,I,KK,A2)
+                  a1 = angle_value(xyz, i, j, ll)
+                  a2 = angle_value(xyz, j, i, kk)
                   if(abs(pi-a1).lt.0.2.or.abs(pi-a2).lt.0.2)then
                      irm=irm+1
                      cycle
@@ -62,7 +62,7 @@ subroutine constralltors(n,at,xyz)
                   atconstr(2,k)=i
                   atconstr(3,k)=j
                   atconstr(4,k)=ll
-                  phi=valijkl(n,xyz,kk,i,j,ll)
+                  phi = dihedral_value(xyz, kk, i, j, ll)
                   valconstr(k)=phi
                   !                    write(*,*) atconstr(1:4,k),phi*180./3.14159
                enddo
@@ -80,11 +80,12 @@ subroutine constrallangles(n,at,xyz)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_scanparam
+   use xtb_internals_type, only : angle_value
    implicit none
    integer n, at(n)
    real(wp) xyz(3,n)
 
-   real(wp) phi,valijkl,a1,a2
+   real(wp) phi,a1,a2
    integer i,j,k,ii,jj,kk,ll,irm,nb(0:20,n),list(n,n)
 
    call neighbor(n,xyz,at,nb)
@@ -104,7 +105,7 @@ subroutine constrallangles(n,at,xyz)
          kk=nb(ii,i)
          do jj=1,nb(20,i)
             ll=nb(jj,i)
-            call bangl(xyz,kk,i,ll,phi)
+            phi = angle_value(xyz, kk, i, ll)
             if(abs(pi-phi).lt.0.2)then
                irm=irm+1
                cycle
@@ -160,6 +161,8 @@ subroutine constrpot(nat,at,xyz,g,e)
    use xtb_mctc_constants
    use xtb_scanparam
    use xtb_splitparam
+   use xtb_internals_type, only : angle_value, dihedral_value
+   use xtb_bmatrix, only : bmat_angle, bmat_torsion
    implicit none
    integer nat,at(nat)
    real(wp) e
@@ -167,11 +170,9 @@ subroutine constrpot(nat,at,xyz,g,e)
    real(wp) g(3,nat)
 
    integer i,j,k,l,kk
-   real(wp)rij(3),dum,r0,ffc,vp(3),ra(3),rb(3)
-   real(wp)va(3),vb(3),vc(3),vab(3),vcb(3),deda(3),dedc(3),dedb(3)
-   real(wp)dda(3),ddb(3),ddc(3),ddd(3)
-   real(wp)c0,rab2,rcb2,theta,dt,rmul1,rmul2,deddt,rp,cosa,ea,vlen,d
-   real(wp)c1,phi0,phi,dphi1,x1cos,x1sin,dij,valijkl,ff,dum1,dum2
+   real(wp)rij(3),dum,r0,ffc,ra(3),rb(3)
+   real(wp)c0,theta,dt,deddt,d,brow9(9),bt(3,4)
+   real(wp)phi0,phi,dphi1,x1cos,x1sin,dij,ff,dum2
    real(wp)dx,dy,dz,termx,termy,termz,abcx,abcy,abcz,a,z0,expo,expom1
 
    if(nconstr.eq.0) return
@@ -282,32 +283,14 @@ subroutine constrpot(nat,at,xyz,g,e)
          j= atconstr(2,kk)
          k= atconstr(3,kk)
          c0 =valconstr(kk)
-         va = xyz(1:3,i)
-         vb = xyz(1:3,j)
-         vc = xyz(1:3,k)
-         vab = va-vb
-         vcb = vc-vb
-         rab2 = vab(1)*vab(1) + vab(2)*vab(2) + vab(3)*vab(3)
-         rcb2 = vcb(1)*vcb(1) + vcb(2)*vcb(2) + vcb(3)*vcb(3)
-         call crprod(vcb,vab,vp)
-         rp = norm2(vp)+1.d-14
-         call impsc(vab,vcb,cosa)
-         cosa = dble(min(1.0d0,max(-1.0d0,cosa)))
-         theta= dacos(cosa)
-         dt  = theta - c0
-         ea  = ffc* dt**2
-         deddt = 2.d0 * ffc * dt
-         e = e + ea
-         call crprod(vab,vp,deda)
-         rmul1 = -deddt / (rab2*rp)
-         deda = deda*rmul1
-         call crprod(vcb,vp,dedc)
-         rmul2 =  deddt / (rcb2*rp)
-         dedc = dedc*rmul2
-         dedb = deda+dedc
-         g(1:3,i) = g(1:3,i) + deda(1:3)
-         g(1:3,j) = g(1:3,j) - dedb(1:3)
-         g(1:3,k) = g(1:3,k) + dedc(1:3)
+         theta = angle_value(xyz, i, j, k)
+         dt = theta - c0
+         e = e + ffc * dt**2
+         deddt = 2.0_wp * ffc * dt
+         brow9 = bmat_angle(xyz(:, i) - xyz(:, j), xyz(:, k) - xyz(:, j))
+         g(:, i) = g(:, i) + deddt * brow9(1:3)
+         g(:, j) = g(:, j) + deddt * brow9(4:6)
+         g(:, k) = g(:, k) + deddt * brow9(7:9)
       endif
       ! dihed
       if(atconstr(4,kk).ne.0)then
@@ -316,18 +299,17 @@ subroutine constrpot(nat,at,xyz,g,e)
          k= atconstr(3,kk)
          l= atconstr(4,kk)
          phi0 =valconstr(kk)
-         phi=valijkl(nat,xyz,i,j,k,l)
-         if(abs(phi-pi).lt.1.d-8.or.abs(phi).lt.1.d-8)phi=phi+1.d-8
-         call dphidr(nat,xyz,i,j,k,l,phi,dda,ddb,ddc,ddd)
-         dphi1=phi0-phi+pi
-         x1cos=cos(dphi1)
-         x1sin=sin(dphi1)
-         dij  =ffc*x1sin
-         g(1:3,i)=g(1:3,i)+dij*dda(1:3)
-         g(1:3,j)=g(1:3,j)+dij*ddb(1:3)
-         g(1:3,k)=g(1:3,k)+dij*ddc(1:3)
-         g(1:3,l)=g(1:3,l)+dij*ddd(1:3)
-         e=e+ffc*(1.+x1cos)
+         phi = dihedral_value(xyz, i, j, k, l)
+         bt = bmat_torsion(xyz(:, [i, j, k, l]))
+         dphi1 = phi0 - phi + pi
+         x1cos = cos(dphi1)
+         x1sin = sin(dphi1)
+         dij = ffc * x1sin
+         g(:, i) = g(:, i) + dij * bt(:, 1)
+         g(:, j) = g(:, j) + dij * bt(:, 2)
+         g(:, k) = g(:, k) + dij * bt(:, 3)
+         g(:, l) = g(:, l) + dij * bt(:, 4)
+         e = e + ffc * (1.0_wp + x1cos)
       endif
 
    enddo
@@ -404,77 +386,6 @@ subroutine constrhess(nat,at,xyz0,Hess)
 
 end subroutine
 
-!  .....................................................................
-
-Subroutine dthetadr(nat,xyz,j,k,i,theta,kijk,dei,dej,dek)
-   use xtb_mctc_accuracy, only : wp
-
-   !  .....................................................................
-   !
-   !   Input
-   !   -----
-   !                              __              __
-   !    ra,rb          : distance ij and distnace ik
-   !
-   !    sinth          : sinus of angle j-i-k
-   !
-   !    costh          : cosinus of angle j-i-k
-   !
-   !
-   !   Output
-   !   ------
-   !
-   !    dei            : derivatives of the atom i
-   !
-   !    dej            : derivatives of the atom j
-   !
-   !    dek            : derivatives of the atom k
-   !
-   !  .....................................................................
-
-   implicit none
-
-   external vecnorm
-
-   integer ic,nat,j,k,i
-
-   real(wp) :: &
-      &         ran,rbn,theta,xyz(3,nat),&
-      &         ra(3),rb(3),sinth,costh,&
-      &         dei(3),dej(3),dek(3),kijk,&
-      &         fac,vecnorm,eps
-
-   parameter (eps=1.d-14)
-
-   ! ... dtheta/dri, dtheta/drj and dtheta/drk
-
-   sinth=sin(theta)
-   costh=cos(theta)
-
-   do ic=1,3
-      ra(ic)=xyz(ic,j)-xyz(ic,i)
-      rb(ic)=xyz(ic,k)-xyz(ic,i)
-   end do
-
-   ran=vecnorm(ra,3,0)
-   rbn=vecnorm(rb,3,0)
-   if (abs(sinth).le.eps) then
-      fac=sign(kijk,costh)/(ran*rbn)
-   else
-      fac=1.d0/(sinth*ran*rbn)
-   end if
-
-   do ic=1,3
-      ! ... dedri
-      dei(ic)=fac*( ra(ic)+rb(ic)-(rbn*rbn*ra(ic)+ran*ran*rb(ic))*&
-         &                  costh/(ran*rbn))
-      ! ... dedrj
-      dej(ic)=fac*(ra(ic)*costh*rbn/ran-rb(ic))
-      ! ... dedrk
-      dek(ic)=fac*(rb(ic)*costh*ran/rbn-ra(ic))
-   end do
-
-End subroutine
 
 
 
@@ -658,81 +569,6 @@ Subroutine dphidrPBC(mode,nat,xyz,i,j,k,l,vTrR,vTrB,vTrC,phi,&
 
 End subroutine
 
-!  .....................................................................
-
-Subroutine domegadr&
-      &           (nat,xyz,&
-      &            i,j,k,l,omega,&
-      &            domegadri,domegadrj,domegadrk,domegadrl)
-   use xtb_mctc_accuracy, only : wp
-
-   !     inversion derivatives
-   !  .....................................................................
-
-   implicit none
-
-   external vecnorm
-
-   integer  ic,i,j,k,l,nat
-
-   real(wp)&
-      &         omega,sinomega,&
-      &         xyz(3,nat),onenner,vecnorm,rnn,rvn,&
-      &         rn(3),rv(3),rd(3),re(3),rdme(3),rve(3),&
-      &         rne(3),rdv(3),rdn(3),&
-      &         rvdme(3),rndme(3),nenner,&
-      &         domegadri(3),domegadrj(3),domegadrk(3),domegadrl(3),eps
-
-   parameter (eps=1.d-14)
-
-   sinomega=sin(omega)
-
-   do ic=1,3
-      rv(ic)=xyz(ic,l)-xyz(ic,i)
-      rd(ic)=xyz(ic,k)-xyz(ic,j)
-      re(ic)=xyz(ic,i)-xyz(ic,j)
-
-      rdme(ic)=rd(ic)-re(ic)
-   end do
-
-   call crossprod(re,rd,rn)
-   rvn=vecnorm(rv,3,0)
-   rnn=vecnorm(rn,3,0)
-
-   call crossprod(rv,re,rve)
-   call crossprod(rn,re,rne)
-   call crossprod(rd,rv,rdv)
-   call crossprod(rd,rn,rdn)
-   call crossprod(rv,rdme,rvdme)
-   call crossprod(rn,rdme,rndme)
-
-   nenner=rnn*rvn*cos(omega)
-   if (abs(nenner).gt.eps) then
-      onenner=1.d0/nenner
-      do ic=1,3
-         ! ... domega/dri
-         domegadri(ic)=onenner*(rdv(ic)-rn(ic)-&
-            &                       sinomega*(rvn/rnn*rdn(ic)-rnn/rvn*rv(ic)))
-
-         ! ... domega/drj
-         domegadrj(ic)=onenner*(rvdme(ic)-sinomega*rvn/rnn*rndme(ic))
-
-         ! ... domega/drk
-         domegadrk(ic)=onenner*(rve(ic)-sinomega*rvn/rnn*rne(ic))
-
-         ! ... domega/drl
-         domegadrl(ic)=onenner*(rn(ic)-sinomega*rnn/rvn*rv(ic))
-      end do
-   else
-      do ic=1,3
-         domegadri(ic)=0.d0
-         domegadrj(ic)=0.d0
-         domegadrk(ic)=0.d0
-         domegadrl(ic)=0.d0
-      end do
-   end if
-
-End subroutine
 
 !  .....................................................................
 
@@ -811,217 +647,6 @@ Subroutine domegadrPBC&
 
 End subroutine
 
-!  .....................................................................
-
-real(wp) Function valijkl(nat,xyz,i,j,k,l)
-   use xtb_mctc_accuracy, only : wp
-
-   !  .....................................................................
-
-   implicit none
-
-   external vecnorm,valijk
-
-   integer ic,i,j,k,l,nat
-
-   real(wp) :: &
-      &     xyz(3,nat),&
-      &     eps,ra(3),rb(3),rc(3),na(3),nb(3),&
-      &     rab,rbc,thab,thbc,valijk,&
-      &     vecnorm,nan,nbn,rcn,snanb,deter,pi,test,&
-      &     raabs,rbabs,rcabs
-
-   parameter (eps=1.0d-14)
-   data pi/3.1415926535897932384626433832795029d0/
-
-   raabs=0.0d0
-   rbabs=0.0d0
-   rcabs=0.0d0
-   ! ... get torsion coordinate
-   do ic=1,3
-      ra(ic)=xyz(ic,j)-xyz(ic,i)
-      rb(ic)=xyz(ic,k)-xyz(ic,j)
-      rc(ic)=xyz(ic,l)-xyz(ic,k)
-      raabs=raabs+ra(ic)*ra(ic)
-      rbabs=rbabs+rb(ic)*rb(ic)
-      rcabs=rcabs+rc(ic)*rc(ic)
-   end do
-   raabs=sqrt(raabs)
-   rbabs=sqrt(rbabs)
-   rcabs=sqrt(rcabs)
-   ! ... normalize vectors
-   do ic=1,3
-      ra(ic)=ra(ic)/raabs
-      rb(ic)=rb(ic)/rbabs
-      rc(ic)=rc(ic)/rcabs
-   end do
-   ! ... determinante of rb,ra,rc
-   deter= ra(1)*(rb(2)*rc(3)-rb(3)*rc(2))&
-      &      -ra(2)*(rb(1)*rc(3)-rb(3)*rc(1))&
-      &      +ra(3)*(rb(1)*rc(2)-rb(2)*rc(1))
-
-   call crossprod(-ra,rc,na)
-   test=0.0d0
-   do ic=1,3
-      test=test+na(ic)*rb(ic)
-   end do
-
-   thab=valijk(nat,xyz,i,k,j)
-   thbc=valijk(nat,xyz,j,l,k)
-   call crossprod(ra,rb,na)
-   call crossprod(rb,rc,nb)
-   nan=vecnorm(na,3,1)
-   nbn=vecnorm(nb,3,1)
-
-   snanb=0.0d0
-   do ic=1,3
-      snanb=snanb+na(ic)*nb(ic)
-   end do
-   if (abs(abs(snanb)-1.d0).lt.eps) then
-      snanb=sign(1.d0,snanb)
-   end if
-
-   valijkl=acos(snanb)
-   if(test.lt.0.0d0) valijkl=-acos(snanb)
-
-   ! the gradient dphir is only compatible with this subroutine
-   ! if the statement below is commented out. If not, opt. and
-   ! Hessian show large errors and imags. I don't understand
-   ! this entirely but thats how it is.
-   ! SG, Sat May 2411:41:42 CEST 2014
-
-   !     if (deter.lt.0) then
-   !        valijkl=2.d0*pi-valijkl
-   !     end if
-
-End function
-
-!  .....................................................................
-
-real(wp) Function valijk(nat,xyz,j,k,i)
-   use xtb_mctc_accuracy, only : wp
-
-   !  .....................................................................
-
-   implicit none
-
-   external vecnorm
-
-   integer nat,j,k,i,ic
-
-   real(wp) :: &
-      &         ra(3),rb(3),rab,eps,&
-      &         xyz(3,nat),vecnorm,ran,rbn
-
-   parameter (eps=1.d-14)
-
-   do ic=1,3
-      ra(ic)=xyz(ic,j)-xyz(ic,i)
-      rb(ic)=xyz(ic,k)-xyz(ic,i)
-   end do
-
-   ran=vecnorm(ra,3,1)
-   rbn=vecnorm(rb,3,1)
-   rab=0.d0
-   do ic=1,3
-      rab=rab+ra(ic)*rb(ic)
-   end do
-
-   if (abs(abs(rab)-1.d0).lt.eps) then
-      rab=sign(1.d0,rab)
-   end if
-   valijk=acos(rab)
-
-End function
-
-
-!  .....................................................................
-
-real(wp) Function valijkPBC(mode,nat,xyz,j,k,i,vTr1,vTr2,vTr3)
-   use xtb_mctc_accuracy, only : wp
-
-   !  .....................................................................
-
-   implicit none
-
-   external vecnorm
-
-   integer mode,nat,j,k,i,ic
-
-   real(wp) :: &
-      &         ra(3),rb(3),rab,eps,&
-      &         xyz(3,nat),vecnorm,ran,rbn,vTr1(3),vTr2(3),vTr3(3)
-
-   parameter (eps=1.d-14)
-
-   if (mode.eq.1) then ! here j=l,k=j,i=i are inserted, vTr1=vTrl, vTr2=vTrj
-     do ic=1,3
-       ra(ic)=(xyz(ic,j)+vTr1(ic))-xyz(ic,i)
-       rb(ic)=(xyz(ic,k)+vTr2(ic))-xyz(ic,i)
-     end do
-   elseif(mode.eq.2) then ! here j=i,k=k,i=j are inserted vTr1=vTrk, vTr2=vTrj
-     do ic=1,3
-       ra(ic)= xyz(ic,j)-(xyz(ic,i)+vTr2(ic))
-       rb(ic)=(xyz(ic,k)+vTr1(ic))-(xyz(ic,i)+vTr2(ic))
-     end do
-   elseif(mode.eq.3) then ! here j=R k=C i=B vTr1=vTrR vTr2=vTrC vTr3=vTrB
-     do ic=1,3
-       ra(ic)= (xyz(ic,j)+vTr1(ic))-(xyz(ic,i)+vTr3(ic)) ! R - B
-       rb(ic)= (xyz(ic,k)+vTr2(ic))-(xyz(ic,i)+vTr3(ic)) ! C - B
-     end do
-   elseif(mode.eq.4) then ! here j=B k=H i=C vTr1=vTrB vTr2=vTrC
-     do ic=1,3
-       ra(ic)=(xyz(ic,j)+vTr1(ic))-(xyz(ic,i)+vTr2(ic))
-       rb(ic)=(xyz(ic,k))         -(xyz(ic,i)+vTr2(ic))
-     end do
-   endif
-
-   ran=vecnorm(ra,3,1)
-   rbn=vecnorm(rb,3,1)
-   rab=0.d0
-   do ic=1,3
-      rab=rab+ra(ic)*rb(ic)
-   end do
-
-   if (abs(abs(rab)-1.d0).lt.eps) then
-      rab=sign(1.d0,rab)
-   end if
-   valijkPBC=acos(rab)
-
-End function
-
-!  .....................................................................
-
-real(wp) Function omega (nat,xyz,i,j,k,l)
-   use xtb_mctc_accuracy, only : wp
-
-   !   Calculates the inversion angle
-   !  .....................................................................
-
-   implicit none
-
-   external vecnorm
-
-   integer ic,nat,i,j,k,l
-
-   real(wp) :: &
-      &        xyz(3,nat),&
-      &        rd(3),re(3),rn(3),rv(3),rnv,&
-      &        vecnorm,rkjn,rljn,rnn,rvn
-
-   do ic=1,3
-      re(ic)=xyz(ic,i)-xyz(ic,j)
-      rd(ic)=xyz(ic,k)-xyz(ic,j)
-      rv(ic)=xyz(ic,l)-xyz(ic,i)
-   end do
-   call crossprod(re,rd,rn)
-   rnn=vecnorm(rn,3,1)
-   rvn=vecnorm(rv,3,1)
-
-   rnv=rn(1)*rv(1)+rn(2)*rv(2)+rn(3)*rv(3)
-   omega=asin( rnv )
-
-End function
 
 
 real(wp) Function omegaPBC (nat,xyz,i,j,k,l,vTr1,vTr2,vTr3)
@@ -1114,24 +739,6 @@ subroutine crprod(a,b,c)
    return
 end subroutine crprod
 
-!  .....................................................................
-
-subroutine vsc1(a,scale,tol)
-   use xtb_mctc_accuracy, only : wp
-   implicit integer (i-n)
-   implicit double precision (a-h,o-z)
-   dimension a(3)
-
-   rlen = norm2(a)
-
-   if (rlen.gt.tol) then
-      do i=1,3
-         a(i) = a(i)*scale/rlen
-      end do
-   endif
-
-   return
-end subroutine vsc1
 
 !  .....................................................................
 
@@ -1161,27 +768,6 @@ pure subroutine impsc(a,b,c)
    return
 end subroutine impsc
 
-!  .....................................................................
-
-pure subroutine bangl(xyz,i,j,k,angle)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
-   real(wp),intent(in)  :: xyz(3,*)
-   real(wp),intent(out) :: angle
-   integer, intent(in)  :: i,j,k
-
-   real(wp) d2ij,d2jk,d2ik,xy,temp
-
-   d2ij = sum((xyz(:,i)-xyz(:,j))**2)
-   d2jk = sum((xyz(:,j)-xyz(:,k))**2)
-   d2ik = sum((xyz(:,i)-xyz(:,k))**2)
-   xy = sqrt(d2ij*d2jk)
-   temp = 0.5d0 * (d2ij+d2jk-d2ik) / xy
-   if (temp .gt. 1.0d0)  temp= 1.0d0
-   if (temp .lt. -1.0d0) temp=-1.0d0
-   angle = acos( temp )
-
-end subroutine bangl
 
 pure subroutine banglPBC(mode,xyz,i,j,k,iTr,iTr2,neigh,angle)
    use xtb_mctc_accuracy, only : wp

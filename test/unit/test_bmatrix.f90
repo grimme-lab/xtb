@@ -25,6 +25,7 @@ module test_bmatrix
    use xtb_mctc_constants, only : pi
    use xtb_bmatrix, only : bmat_bond, bmat_angle, bmat_linbend, linbend_frame, &
       & bmat_torsion, bmat_outofplane
+   use xtb_internals_type, only : angle_value, dihedral_value
    implicit none
    private
 
@@ -42,6 +43,7 @@ subroutine collect_bmatrix(testsuite)
    type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
    testsuite = [ &
+      new_unittest("value-iupac", test_value_iupac), &
       new_unittest("bond-fd", test_bond_fd), &
       new_unittest("angle-fd", test_angle_fd), &
       new_unittest("angle-near-antiparallel", test_angle_near_antiparallel), &
@@ -55,6 +57,48 @@ subroutine collect_bmatrix(testsuite)
       ]
 
 end subroutine collect_bmatrix
+
+
+!> Pins angle_value (atan2 form, including near-linear precision) and
+!> dihedral_value (IUPAC Klyne-Prelog sign and range).
+subroutine test_value_iupac(error)
+   !> Failure report, allocated when the check fails.
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: delta = 1.0e-8_wp
+   real(wp) :: xyz(3, 4)
+
+   xyz(:, 1) = [0.0_wp, 1.0_wp, 0.0_wp]
+   xyz(:, 2) = [0.0_wp, 0.0_wp, 0.0_wp]
+   xyz(:, 3) = [1.0_wp, 0.0_wp, 0.0_wp]
+   xyz(:, 4) = [1.0_wp, 0.5_wp, 0.5_wp * sqrt(3.0_wp)]
+   call check(error, dihedral_value(xyz, 1, 2, 3, 4), pi / 3.0_wp, thr=thr)
+   if (allocated(error)) return
+
+   xyz(3, :) = -xyz(3, :)
+   call check(error, dihedral_value(xyz, 1, 2, 3, 4), -pi / 3.0_wp, thr=thr)
+   if (allocated(error)) return
+
+   xyz(:, 4) = [1.0_wp, 1.0_wp, 0.0_wp]
+   call check(error, dihedral_value(xyz, 1, 2, 3, 4), 0.0_wp, thr=thr)
+   if (allocated(error)) return
+
+   xyz(:, 4) = [1.0_wp, -1.0_wp, 0.0_wp]
+   call check(error, abs(dihedral_value(xyz, 1, 2, 3, 4)), pi, thr=thr)
+   if (allocated(error)) return
+
+   call check(error, angle_value(xyz, 1, 2, 3), 0.5_wp * pi, thr=thr)
+   if (allocated(error)) return
+
+   xyz(:, 1) = [1.0_wp, 0.0_wp, 0.0_wp]
+   xyz(:, 2) = [0.0_wp, 0.0_wp, 0.0_wp]
+   xyz(:, 3) = [-1.0_wp, 0.0_wp, 0.0_wp]
+   call check(error, angle_value(xyz, 1, 2, 3), pi, thr=thr)
+   if (allocated(error)) return
+
+   xyz(:, 3) = [-1.0_wp, delta, 0.0_wp]
+   call check(error, angle_value(xyz, 1, 2, 3), pi - atan(delta), thr=thr)
+end subroutine test_value_iupac
 
 
 !> Pins the analytic bond row of bmat_bond against central finite differences
@@ -172,26 +216,12 @@ function fd_angle(xyz0, c, k) result(dval)
 
    xyz = xyz0
    xyz(c, k) = xyz(c, k) + fd_eps
-   rp = angle_val(xyz)
+   rp = angle_value(xyz, 1, 2, 3)
    xyz = xyz0
    xyz(c, k) = xyz(c, k) - fd_eps
-   rm = angle_val(xyz)
+   rm = angle_value(xyz, 1, 2, 3)
    dval = (rp - rm) / (2.0_wp*fd_eps)
 end function fd_angle
-
-!> Valence angle (i-j-k) as scalar function of xyz
-function angle_val(xyz) result(val)
-   !> Reference geometry, three atoms.
-   real(wp), intent(in) :: xyz(3, 3)
-
-   real(wp) :: val
-   real(wp) :: v1(3), v2(3), co
-   v1 = xyz(:, 1) - xyz(:, 2)
-   v2 = xyz(:, 3) - xyz(:, 2)
-   co = dot_product(v1, v2) / (norm2(v1)*norm2(v2))
-   co = max(-1.0_wp, min(1.0_wp, co))
-   val = acos(co)
-end function angle_val
 
 
 !> Pins translational invariance and mutual orthogonality of the two rows a
@@ -362,31 +392,12 @@ function fd_torsion(xyz0, c, k) result(dval)
 
    xyz = xyz0
    xyz(c, k) = xyz(c, k) + fd_eps
-   rp = torsion_val(xyz)
+   rp = dihedral_value(xyz, 1, 2, 3, 4)
    xyz = xyz0
    xyz(c, k) = xyz(c, k) - fd_eps
-   rm = torsion_val(xyz)
+   rm = dihedral_value(xyz, 1, 2, 3, 4)
    dval = (rp - rm) / (2.0_wp*fd_eps)
 end function fd_torsion
-
-!> Dihedral angle as scalar function of xyz (4 atoms)
-function torsion_val(xyz) result(val)
-   !> Reference geometry, four atoms.
-   real(wp), intent(in) :: xyz(3, 4)
-
-   real(wp) :: val
-   real(wp) :: v1(3), v2(3), v3(3)
-   real(wp) :: n1(3), n2(3), s, c
-
-   v1 = xyz(:, 2) - xyz(:, 1)
-   v2 = xyz(:, 3) - xyz(:, 2)
-   v3 = xyz(:, 4) - xyz(:, 3)
-   n1 = cross(v1, v2)
-   n2 = cross(v2, v3)
-   s = -norm2(v2) * dot_product(v1, n2)
-   c = dot_product(n1, n2)
-   val = atan2(s, c)
-end function torsion_val
 
 
 !> Pins the torsion sign convention: two geometries that differ only by flipping
@@ -409,8 +420,8 @@ subroutine test_torsion_sign(error)
       & 1.5_wp, 0.8_wp, 0.0_wp], shape(xyz_b))
    real(wp) :: tau_a, tau_b
 
-   tau_a = torsion_val(xyz_a)
-   tau_b = torsion_val(xyz_b)
+   tau_a = dihedral_value(xyz_a, 1, 2, 3, 4)
+   tau_b = dihedral_value(xyz_b, 1, 2, 3, 4)
 
    ! Dihedrals should be opposite in sign
    call check(error, tau_a, -tau_b, thr=thr, &
@@ -438,8 +449,8 @@ subroutine test_torsion_atom_order(error)
       xyz_rev(:, k) = xyz_fwd(:, 5-k)
    end do
 
-   tau_fwd = torsion_val(xyz_fwd)
-   tau_rev = torsion_val(xyz_rev)
+   tau_fwd = dihedral_value(xyz_fwd, 1, 2, 3, 4)
+   tau_rev = dihedral_value(xyz_rev, 1, 2, 3, 4)
 
    ! |tau| should be the same for reversed ordering
    call check(error, abs(tau_fwd), abs(tau_rev), thr=thr, &
