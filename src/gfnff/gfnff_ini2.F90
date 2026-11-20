@@ -1641,7 +1641,7 @@ subroutine getring36(n,at,numnb,numctr,nbin,a0_in,cout,irout)
 ! included up to 1,4 interactions
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine goedeckera(env,n,at,pair,q,es,topo)
+subroutine goedeckera(env,n,at,pair,q,es,topo,qfrag_in,q_out)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
    implicit none
@@ -1653,11 +1653,13 @@ subroutine goedeckera(env,n,at,pair,q,es,topo)
    real(wp),intent(in)  :: pair(n*(n+1)/2)
    real(wp),intent(out) :: q(n)       ! output charges
    real(wp),intent(out) :: es         ! ES energy
+   real(wp),intent(in), optional :: qfrag_in(:,:)
+   real(wp),intent(out),optional :: q_out(:,:)
 
 !  local variables
    logical :: exitRun
    integer  :: m,i,j,k,l,ii,jj,kk
-   integer  :: ij,lj
+   integer  :: ij,lj,nrhs
    integer,allocatable :: ipiv(:)
 
    real(wp) :: gammij,sief1,sief2
@@ -1666,20 +1668,22 @@ subroutine goedeckera(env,n,at,pair,q,es,topo)
    real(wp) :: tsqrt2pi,bohr
    real(wp) :: tmp
    real(wp),allocatable :: A (:,:)
-   real(wp),allocatable :: x(:)
+   real(wp),allocatable :: x(:,:)
 
 !  parameter
    parameter (tsqrt2pi = 0.797884560802866_wp)
 
+   nrhs = 1
+   if (present(qfrag_in)) nrhs = size(qfrag_in, 2)
    m=n+topo%nfrag ! # atoms frag constrain
-   allocate(A(m,m),x(m),ipiv(m))
+   allocate(A(m,m),x(m,nrhs),ipiv(m))
 
 
    A = 0
 
 !  setup RHS
    do i=1,n
-      x(i)    =topo%chieeq(i) ! EN of atom
+      x(i,1:nrhs)=topo%chieeq(i) ! EN of atom
       A(i,i)  =topo%gameeq(i)+tsqrt2pi/sqrt(topo%alpeeq(i))
    enddo
 
@@ -1698,7 +1702,11 @@ subroutine goedeckera(env,n,at,pair,q,es,topo)
 
 !  fragment charge constrain
    do i=1,topo%nfrag
-      x(n+i)=topo%qfrag(i)
+      if (present(qfrag_in)) then
+         x(n+i,1:nrhs)=qfrag_in(i,1:nrhs)
+      else
+         x(n+i,1)=topo%qfrag(i)
+      endif
       do j=1,n
          if(topo%fraglist(j).eq.i) then
             A(n+i,j)=1
@@ -1716,9 +1724,10 @@ subroutine goedeckera(env,n,at,pair,q,es,topo)
       return
    end if
 
-   q(1:n) = x(1:n)
+   q(1:n) = x(1:n,1)
 
    if(n.eq.1) q(1)=topo%qfrag(1)
+   if (present(q_out)) q_out(1:n,1:nrhs) = x(1:n,1:nrhs)
 
 !  energy
       es = 0.0_wp

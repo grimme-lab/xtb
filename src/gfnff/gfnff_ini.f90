@@ -104,7 +104,10 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       real(wp),allocatable:: mchar(:)
       real(wp),allocatable:: rtmp (:)
       real(wp),allocatable:: pbo  (:)
-      real(wp),allocatable:: qtmp (:), dqa(:), qah(:)
+      real(wp),allocatable:: qtmp (:), qah(:)
+      integer, allocatable :: reach_list(:), pis_col(:), frag_col(:)
+      real(wp), allocatable :: qfrag_try(:,:), q_try(:,:)
+      integer :: nreach, nrhs_q
       real(wp),allocatable:: Api(:,:),S(:,:),Pold(:,:),pibo(:),occ(:),eps(:)
       real(wp),allocatable:: pispop(:),pisea(:),pisip(:),apisave(:,:)
       real(sp),allocatable:: rabd(:,:)
@@ -162,7 +165,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       allocate( topo%gameeq(mol%n), source = 0.0d0 )
       allocate( topo%alpeeq(mol%n), source = 0.0d0 )
       allocate( topo%qa(mol%n), source = 0.0d0 )
-      allocate( dqa(mol%n), source = 0.0d0)
       allocate( qah(mol%n), source = 0.0d0 )
       allocate( nbm(20,mol%n), source = 0 )
       allocate( mchar(mol%n), source = 0.0d0 )
@@ -504,17 +506,26 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
         enddo
       end do
       ! get the other 1,x neighbors with the direct neighbors from above
+      allocate(reach_list(mol%n))
       do k = 1, mol%n
-        do i = 1, mol%n
-           if (rabd(i, k) > gen%tdist_thr) cycle
-           do j = 1, mol%n
-              if (rabd(k, j) >  gen%tdist_thr) cycle !tdist_thr = 12.0
+        nreach = 0
+        do j = 1, mol%n
+           if (rabd(j, k) <= gen%tdist_thr) then !tdist_thr = 12.0
+              nreach = nreach + 1
+              reach_list(nreach) = j
+           end if
+        end do
+        do jj = 1, nreach
+           j = reach_list(jj)
+           do ii = 1, nreach
+              i = reach_list(ii)
               if (rabd(i, j) > (rabd(i, k) + rabd(k, j))) then
                   rabd(i, j) =  rabd(i, k) + rabd(k, j) ! get at least 1,4 distances
               end if
            end do
         end do
       end do
+      deallocate(reach_list)
 
       do i=1,mol%n
         do j=1,i-1
@@ -614,11 +625,13 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       endif
 
 !     make estimated, topology only EEQ charges from rabd values, including "right" fragment charge
-      call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,ees,topo)
-      call env%check(exitRun)
-      if (exitRun) then
-         call env%error("Failed to generate charges", source)
-         return
+      if (.not.(picount.gt.0.and.qloop_count.gt.0.and..not.frag_charges_known)) then
+         call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,ees,topo)
+         call env%check(exitRun)
+         if (exitRun) then
+            call env%error("Failed to generate charges", source)
+            return
+         end if
       end if
 
 !     estimate how much of the frag charge is on the pi sub systems
@@ -635,11 +648,10 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
             enddo
          enddo
          else                                               ! general case
-         qtmp = topo%qa ! save the "right" ones
-         qah  = topo%qa
-         ! heavy atoms only ie H condensed to neighbor
-         call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,qah) 
+         allocate(pis_col(picount), frag_col(topo%nfrag), source = 0)
+         nrhs_q = 1
          do pis=1,picount ! loop over pi systems
+            ifrag = 1
             do k=1,npiall
                if(pimvec(k).eq.pis) then
                   kk=piadr(k)
@@ -647,27 +659,42 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
                   exit
                endif
             enddo
-            dum2=topo%qfrag(ifrag) ! save
-            topo%qfrag(ifrag) = 0 ! make only this EEQ fragment neutral
-            call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,ees,topo) ! for neutral
-            call env%check(exitRun)
-            if (exitRun) then
-               call env%error("Failed to generate charges", source)
-               return
+            if (abs(topo%qfrag(ifrag)) > 0.0_wp .and. frag_col(ifrag) == 0) then
+               nrhs_q = nrhs_q + 1
+               frag_col(ifrag) = nrhs_q
             end if
-            topo%qfrag(ifrag) = dum2 ! back
-            call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,topo%qa)
-            dqa =qah-topo%qa ! difference charges upon ionization
-            dum1=0
-            dum=0
-            do k=1,npiall
-               if(pimvec(k).eq.pis) dum=dum+dqa(piadr(k)) ! only pi atoms
-            enddo
-            dum = dum * 1.1 !charges tend to be slightly too small 1.1-1.2
-            ipis(pis)=idnint(dum)
-            dum1=dum1+dum
+            pis_col(pis) = frag_col(ifrag)
          enddo
-         topo%qa = qtmp ! put "right" charges used in FF construction and for HB/XB in place
+         allocate(qfrag_try(topo%nfrag, nrhs_q), q_try(mol%n, nrhs_q))
+         qfrag_try = spread(topo%qfrag(1:topo%nfrag), 2, nrhs_q)
+         do ifrag = 1, topo%nfrag
+            if (frag_col(ifrag) > 0) qfrag_try(ifrag, frag_col(ifrag)) = 0.0_wp
+         end do
+         call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,ees,topo, &
+            & qfrag_in=qfrag_try,q_out=q_try)
+         call env%check(exitRun)
+         if (exitRun) then
+            call env%error("Failed to generate charges", source)
+            return
+         end if
+         qah  = topo%qa
+         ! heavy atoms only ie H condensed to neighbor
+         call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,qah)
+         do k = 2, nrhs_q
+            call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,q_try(:, k))
+            q_try(:, k) = qah - q_try(:, k) ! difference charges upon ionization
+         end do
+         do pis=1,picount
+            if (pis_col(pis) > 0) then
+               dum=0
+               do k=1,npiall
+                  if(pimvec(k).eq.pis) dum=dum+q_try(piadr(k), pis_col(pis)) ! only pi atoms
+               enddo
+               dum = dum * 1.1 !charges tend to be slightly too small 1.1-1.2
+               ipis(pis)=idnint(dum)
+            end if
+         enddo
+         deallocate(pis_col, frag_col, qfrag_try, q_try)
          endif
       endif
 
