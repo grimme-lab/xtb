@@ -57,6 +57,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efi
   logical :: do_print
   logical :: do_write
 
+  topo%default_fragment_charges = .false.
   do_print = .true.
   if (present(print_setup)) do_print = print_setup
   do_write = .true.
@@ -171,6 +172,7 @@ subroutine gfnff_input(env, mol, topo, neigh, print_setup)
        topo%qfrag(1) = mol%chrg
        topo%qfrag(2:topo%nfrag) = 0.0_wp
        topo%nfrag = 0
+       topo%default_fragment_charges = .true.
     end if
   !--------------------------------------------------------------------
   ! SDF case
@@ -221,6 +223,7 @@ subroutine gfnff_input(env, mol, topo, neigh, print_setup)
     ! initialize qfrag as in the default case
     topo%qfrag(1)=mol%chrg
     topo%qfrag(2:mol%n)=0
+    topo%default_fragment_charges = .true.
     endif
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
@@ -230,7 +233,11 @@ subroutine gfnff_input(env, mol, topo, neigh, print_setup)
     if (ich.ne.-1) then
       read(ich,'(a)') atmp_0 ! first line contains total charge
       read(ich,'(a)',iostat=err)atmp  ! second line contains fragment charges
-      if (err .ne. 0) atmp=atmp_0
+      if (err .ne. 0) then
+         atmp=atmp_0
+         ! A single line supplies only the total charge, not fragment charges.
+         topo%default_fragment_charges = .true.
+      end if
       call close_file(ich)
       call readline(atmp,floats,s,ns,nf)
       topo%qfrag(1:nf)=floats(1:nf)
@@ -239,11 +246,14 @@ subroutine gfnff_input(env, mol, topo, neigh, print_setup)
             & nint(sum(topo%qfrag(1:nf)))
       else
          ! ignore fragment charges if they are not consistent with the total charge
-         topo%qfrag(1:nf) = 0.0_wp
+         topo%qfrag = 0.0_wp
+         topo%qfrag(1) = mol%chrg
+         topo%default_fragment_charges = .true.
       end if
     else
       topo%qfrag(1)=mol%chrg
       topo%qfrag(2:mol%n)=0
+      topo%default_fragment_charges = .true.
     end if
   end select
 

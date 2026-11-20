@@ -16,8 +16,49 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 module xtb_gfnff_mrec
       private
-      public :: mrecgff, mrecgffPBC
+      public :: mrecgff, mrecgffPBC, canonical_charge_fragment
 contains
+
+  !> Select a unique largest fragment without using its label or atom indices.
+  !> Equal sizes are ranked lexicographically by element counts, high Z first.
+  !> Return zero for an unresolved tie; charge localization then needs input.
+  integer function canonical_charge_fragment(nat,at,nfrag,fraglist) result(selected)
+    integer,intent(in) :: nat,nfrag,at(nat),fraglist(nat)
+    integer,allocatable :: counts(:,:)
+    integer :: i,f,z,comparison,best,maxz
+    logical :: tied
+
+    selected=0
+    if(nat<=0.or.nfrag<=0) return
+    if(any(fraglist<1).or.any(fraglist>nfrag)) return
+    maxz=maxval(at)
+    allocate(counts(0:maxz,nfrag),source=0)
+    do i=1,nat
+      f=fraglist(i)
+      counts(0,f)=counts(0,f)+1
+      counts(at(i),f)=counts(at(i),f)+1
+    enddo
+    best=1
+    tied=.false.
+    do f=2,nfrag
+      comparison=counts(0,f)-counts(0,best)
+      if(comparison==0) then
+        do z=maxz,1,-1
+          comparison=counts(z,f)-counts(z,best)
+          if(comparison/=0) exit
+        enddo
+      endif
+      if(comparison>0) then
+        best=f
+        tied=.false.
+      else if(comparison==0) then
+        tied=.true.
+      endif
+    enddo
+    if(.not.tied) selected=best
+  end function canonical_charge_fragment
+
+
 
       subroutine mrecgff(nat,nb,molcount,molvec)
       ! molcount: number of total fragments (increased during search)
