@@ -393,13 +393,13 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
    real(wp),allocatable :: atmp(:,:)
    real(wp),allocatable :: Xfac(:)
    real(wp),allocatable :: Afac(:,:)
-
-!! ------------------------------------------------------------------------
-!  Lapack work variables
-!! ------------------------------------------------------------------------
-   integer, allocatable :: ipiv(:)
    real(wp),allocatable :: temp(:)
    real(wp),allocatable :: work(:)
+
+!! ------------------------------------------------------------------------
+!  Linear solver variables
+!! ------------------------------------------------------------------------
+   integer, allocatable :: ipiv(:)
    integer  :: info
 
 !! ------------------------------------------------------------------------
@@ -481,7 +481,7 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
    if (info == 0) then
       call mctc_sytrs(Atmp, Xtmp, ipiv, uplo='u', info=info)
    end if
-   if(info /= 0) call raise('E','(goedecker_solve) DSYSV failed')
+   if(info /= 0) call raise('E','(goedecker_solve) SYTRF/SYTRS failed')
 
    q = Xtmp(:n)
    if(abs(sum(q)-chrg) > 1.e-6_wp) &
@@ -754,13 +754,13 @@ subroutine eeq_chrgeq_core(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
    real(wp),allocatable :: atmp(:,:)
    real(wp),allocatable :: Xfac(:)
    real(wp),allocatable :: Afac(:,:)
-
-! ------------------------------------------------------------------------
-!  Lapack work variables
-! ------------------------------------------------------------------------
-   integer, allocatable :: ipiv(:)
    real(wp),allocatable :: temp(:)
    real(wp),allocatable :: work(:)
+
+! ------------------------------------------------------------------------
+!  Linear solver variables
+! ------------------------------------------------------------------------
+   integer, allocatable :: ipiv(:)
    integer  :: info
 
 ! ------------------------------------------------------------------------
@@ -1075,13 +1075,13 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
    real(wp),allocatable :: atmp(:,:)
    real(wp),allocatable :: Xfac(:)
    real(wp),allocatable :: Afac(:,:)
-
-! ------------------------------------------------------------------------
-!  Lapack work variables
-! ------------------------------------------------------------------------
-   integer, allocatable :: ipiv(:)
    real(wp),allocatable :: temp(:)
    real(wp),allocatable :: work(:)
+
+! ------------------------------------------------------------------------
+!  Linear solver variables
+! ------------------------------------------------------------------------
+   integer, allocatable :: ipiv(:)
    integer  :: info
 
    real(wp) :: gborn, ghb, r3, erft

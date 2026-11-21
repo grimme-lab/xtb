@@ -79,7 +79,7 @@ subroutine add_eeq_hessian(env, n, at, xyz, chrg, chrgeq, kq, hess)
    real(wp), allocatable :: xtmp(:)
    real(wp), allocatable :: atmp(:, :)
 
-   ! LAPACK work variables
+   ! Linear solver variables
    integer, allocatable :: ipiv(:)
    integer :: info
 
@@ -140,7 +140,7 @@ subroutine add_eeq_hessian(env, n, at, xyz, chrg, chrgeq, kq, hess)
       call mctc_sytrs(Atmp, Xtmp, ipiv, uplo="u", info=info)
    end if
    if (info /= 0) then
-      call env%error("DSYSV failed while solving EEQ charges", source)
+      call env%error("SYTRF/SYTRS failed while solving EEQ charges", source)
       return
    end if
 

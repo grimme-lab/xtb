@@ -731,7 +731,7 @@ pure subroutine mctc_ssyev(amat, eval, jobz, uplo, info)
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
    info_ = 0
-   if (size(amat, 1) < n) then
+   if (size(amat, 1) /= n) then
       info_ = -5
    else if (size(eval) < n) then
       info_ = -6
@@ -769,7 +769,7 @@ pure subroutine mctc_dsyev(amat, eval, jobz, uplo, info)
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
    info_ = 0
-   if (size(amat, 1) < n) then
+   if (size(amat, 1) /= n) then
       info_ = -5
    else if (size(eval) < n) then
       info_ = -6
@@ -808,7 +808,11 @@ pure subroutine mctc_ssyevd(amat, eval, jobz, uplo, info)
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
    info_ = 0
-   if (n > 0) then
+   if (size(amat, 1) /= n) then
+      info_ = -5
+   else if (size(eval) < n) then
+      info_ = -6
+   else if (n > 0) then
       call lapack_syevd(job, ula, n, amat, lda, eval, query, -1, iquery, -1, info_)
       if (info_ == 0) then
          lwork = max(1, nint(query(1)))
@@ -844,7 +848,11 @@ pure subroutine mctc_dsyevd(amat, eval, jobz, uplo, info)
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
    info_ = 0
-   if (n > 0) then
+   if (size(amat, 1) /= n) then
+      info_ = -5
+   else if (size(eval) < n) then
+      info_ = -6
+   else if (n > 0) then
       call lapack_syevd(job, ula, n, amat, lda, eval, query, -1, iquery, -1, info_)
       if (info_ == 0) then
          lwork = max(1, nint(query(1)))

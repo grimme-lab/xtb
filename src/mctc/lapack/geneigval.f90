@@ -583,7 +583,13 @@ pure subroutine mctc_ssygvd(amat, bmat, eval, itype, jobz, uplo, info)
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
    info_ = 0
-   if (n > 0) then
+   if (size(amat, 1) /= n) then
+      info_ = -6
+   else if (size(bmat, 1) /= n .or. size(bmat, 2) /= n) then
+      info_ = -8
+   else if (size(eval) < n) then
+      info_ = -9
+   else if (n > 0) then
       call lapack_sygvd(ity, job, ula, n, amat, lda, bmat, ldb, eval, query, -1, iquery, -1, info_)
       if (info_ == 0) then
          lwork = max(1, nint(query(1)))
@@ -626,7 +632,13 @@ pure subroutine mctc_dsygvd(amat, bmat, eval, itype, jobz, uplo, info)
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
    info_ = 0
-   if (n > 0) then
+   if (size(amat, 1) /= n) then
+      info_ = -6
+   else if (size(bmat, 1) /= n .or. size(bmat, 2) /= n) then
+      info_ = -8
+   else if (size(eval) < n) then
+      info_ = -9
+   else if (n > 0) then
       call lapack_sygvd(ity, job, ula, n, amat, lda, bmat, ldb, eval, query, -1, iquery, -1, info_)
       if (info_ == 0) then
          lwork = max(1, nint(query(1)))
