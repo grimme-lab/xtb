@@ -17,7 +17,7 @@
 
 !> LAPACK eigenproblem solvers
 module xtb_mctc_lapack_stdeigval
-   use xtb_mctc_accuracy, only : sp, dp
+   use xtb_mctc_accuracy, only : sp, dp, i8
    implicit none
    private
 
@@ -902,25 +902,49 @@ pure subroutine mctc_ssyevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info
    rng = merge('I', merge('V', 'A', present(vl) .or. present(vu)), present(il) .or. present(iu))
 
    mm = 0
-   if (present(z)) then
-      ldz = max(1, size(z, 1))
-      call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
-         & mm, eval, z, ldz, query, -1, idum1, idum2, info_)
-   else
-      call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
-         & mm, eval, zdum, 1, query, -1, idum1, idum2, info_)
+   info_ = 0
+   if ((present(il) .or. present(iu)) .and. (present(vl) .or. present(vu))) then
+      info_ = -2
+   else if (nn < 0) then
+      info_ = -4
+   else if (size(amat, 1) < nn .or. size(amat, 2) < nn &
+         & .or. (.not. present(n) .and. size(amat, 1) /= nn)) then
+      info_ = -6
+   else if (rng == 'I' .and. (ill < 1 .or. ill > max(1, nn))) then
+      info_ = -9
+   else if (rng == 'I' .and. (iuu < min(nn, ill) .or. iuu > nn)) then
+      info_ = -10
+   else if (size(eval) < nn) then
+      info_ = -13
+   else if (present(z)) then
+      if (size(z, 1) < nn) then
+         info_ = -15
+      else if (nn > 0 .and. size(z, 2) < merge(iuu - ill + 1, nn, rng == 'I')) then
+         info_ = -14
+      end if
    end if
-   if (info_ == 0) then
-      lwork = max(1, 8*nn, nint(query(1)))
-      allocate(work(lwork), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
-      if (stat /= 0) then
-         info_ = -1000
-      else if (present(z)) then
+
+   if (info_ == 0 .and. nn > 0) then
+      if (present(z)) then
+         ldz = max(1, size(z, 1))
          call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
-            & mm, eval, z, ldz, work, lwork, iwork, ifail, info_)
+            & mm, eval, z, ldz, query, -1, idum1, idum2, info_)
       else
          call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
-            & mm, eval, zdum, 1, work, lwork, iwork, ifail, info_)
+            & mm, eval, zdum, 1, query, -1, idum1, idum2, info_)
+      end if
+      if (info_ == 0) then
+         lwork = max(1, 8*nn, nint(query(1)))
+         allocate(work(lwork), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
+         if (stat /= 0) then
+            info_ = -1000
+         else if (present(z)) then
+            call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+               & mm, eval, z, ldz, work, lwork, iwork, ifail, info_)
+         else
+            call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+               & mm, eval, zdum, 1, work, lwork, iwork, ifail, info_)
+         end if
       end if
    end if
    if (present(m)) m = mm
@@ -961,25 +985,49 @@ pure subroutine mctc_dsyevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info
    rng = merge('I', merge('V', 'A', present(vl) .or. present(vu)), present(il) .or. present(iu))
 
    mm = 0
-   if (present(z)) then
-      ldz = max(1, size(z, 1))
-      call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
-         & mm, eval, z, ldz, query, -1, idum1, idum2, info_)
-   else
-      call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
-         & mm, eval, zdum, 1, query, -1, idum1, idum2, info_)
+   info_ = 0
+   if ((present(il) .or. present(iu)) .and. (present(vl) .or. present(vu))) then
+      info_ = -2
+   else if (nn < 0) then
+      info_ = -4
+   else if (size(amat, 1) < nn .or. size(amat, 2) < nn &
+         & .or. (.not. present(n) .and. size(amat, 1) /= nn)) then
+      info_ = -6
+   else if (rng == 'I' .and. (ill < 1 .or. ill > max(1, nn))) then
+      info_ = -9
+   else if (rng == 'I' .and. (iuu < min(nn, ill) .or. iuu > nn)) then
+      info_ = -10
+   else if (size(eval) < nn) then
+      info_ = -13
+   else if (present(z)) then
+      if (size(z, 1) < nn) then
+         info_ = -15
+      else if (nn > 0 .and. size(z, 2) < merge(iuu - ill + 1, nn, rng == 'I')) then
+         info_ = -14
+      end if
    end if
-   if (info_ == 0) then
-      lwork = max(1, 8*nn, nint(query(1)))
-      allocate(work(lwork), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
-      if (stat /= 0) then
-         info_ = -1000
-      else if (present(z)) then
+
+   if (info_ == 0 .and. nn > 0) then
+      if (present(z)) then
+         ldz = max(1, size(z, 1))
          call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
-            & mm, eval, z, ldz, work, lwork, iwork, ifail, info_)
+            & mm, eval, z, ldz, query, -1, idum1, idum2, info_)
       else
          call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
-            & mm, eval, zdum, 1, work, lwork, iwork, ifail, info_)
+            & mm, eval, zdum, 1, query, -1, idum1, idum2, info_)
+      end if
+      if (info_ == 0) then
+         lwork = max(1, 8*nn, nint(query(1)))
+         allocate(work(lwork), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
+         if (stat /= 0) then
+            info_ = -1000
+         else if (present(z)) then
+            call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+               & mm, eval, z, ldz, work, lwork, iwork, ifail, info_)
+         else
+            call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+               & mm, eval, zdum, 1, work, lwork, iwork, ifail, info_)
+         end if
       end if
    end if
    if (present(m)) m = mm
@@ -998,14 +1046,18 @@ pure subroutine mctc_sspevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info
 
    character(len=1) :: rng, ula
    integer :: nn, ill, iuu, mm, info_, stat
+   integer(i8) :: np
    real(sp) :: vll, vuu, tol, zdum(1, 1)
    real(sp), allocatable :: work(:)
    integer, allocatable :: iwork(:), ifail(:)
 
    ula = 'U'
    if (present(uplo)) ula = uplo
-   nn = int((-1 + sqrt(1 + 8*real(size(amat), sp))))/2
-   if (present(n)) nn = n
+   if (present(n)) then
+      nn = n
+   else
+      nn = nint((-1.0_dp + sqrt(1.0_dp + 8.0_dp*real(size(amat), dp)))*0.5_dp)
+   end if
    vll = 0.0_sp
    if (present(vl)) vll = vl
    vuu = 0.0_sp
@@ -1019,15 +1071,42 @@ pure subroutine mctc_sspevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info
    rng = merge('I', merge('V', 'A', present(vl) .or. present(vu)), present(il) .or. present(iu))
 
    mm = 0
-   allocate(work(max(1, 8*nn)), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
-   if (stat /= 0) then
-      info_ = -1000
-   else if (present(z)) then
-      call lapack_spevx('V', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
-         & mm, eval, z, max(1, size(z, 1)), work, iwork, ifail, info_)
+   info_ = 0
+   if ((present(il) .or. present(iu)) .and. (present(vl) .or. present(vu))) then
+      info_ = -2
+   else if (nn < 0) then
+      info_ = -4
    else
-      call lapack_spevx('N', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
-         & mm, eval, zdum, 1, work, iwork, ifail, info_)
+      np = int(nn, i8) * int(nn + 1, i8) / 2_i8
+      if (size(amat, kind=i8) < np &
+            & .or. (.not. present(n) .and. size(amat, kind=i8) /= np)) then
+         info_ = -5
+      else if (rng == 'I' .and. (ill < 1 .or. ill > max(1, nn))) then
+         info_ = -8
+      else if (rng == 'I' .and. (iuu < min(nn, ill) .or. iuu > nn)) then
+         info_ = -9
+      else if (size(eval) < nn) then
+         info_ = -12
+      else if (present(z)) then
+         if (size(z, 1) < nn) then
+            info_ = -14
+         else if (nn > 0 .and. size(z, 2) < merge(iuu - ill + 1, nn, rng == 'I')) then
+            info_ = -13
+         end if
+      end if
+   end if
+
+   if (info_ == 0 .and. nn > 0) then
+      allocate(work(max(1, 8*nn)), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
+      if (stat /= 0) then
+         info_ = -1000
+      else if (present(z)) then
+         call lapack_spevx('V', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
+            & mm, eval, z, max(1, size(z, 1)), work, iwork, ifail, info_)
+      else
+         call lapack_spevx('N', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
+            & mm, eval, zdum, 1, work, iwork, ifail, info_)
+      end if
    end if
    if (present(m)) m = mm
    if (present(info)) info = info_
@@ -1045,14 +1124,18 @@ pure subroutine mctc_dspevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info
 
    character(len=1) :: rng, ula
    integer :: nn, ill, iuu, mm, info_, stat
+   integer(i8) :: np
    real(dp) :: vll, vuu, tol, zdum(1, 1)
    real(dp), allocatable :: work(:)
    integer, allocatable :: iwork(:), ifail(:)
 
    ula = 'U'
    if (present(uplo)) ula = uplo
-   nn = int((-1 + sqrt(1 + 8*real(size(amat), dp))))/2
-   if (present(n)) nn = n
+   if (present(n)) then
+      nn = n
+   else
+      nn = nint((-1.0_dp + sqrt(1.0_dp + 8.0_dp*real(size(amat), dp)))*0.5_dp)
+   end if
    vll = 0.0_dp
    if (present(vl)) vll = vl
    vuu = 0.0_dp
@@ -1066,15 +1149,42 @@ pure subroutine mctc_dspevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info
    rng = merge('I', merge('V', 'A', present(vl) .or. present(vu)), present(il) .or. present(iu))
 
    mm = 0
-   allocate(work(max(1, 8*nn)), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
-   if (stat /= 0) then
-      info_ = -1000
-   else if (present(z)) then
-      call lapack_spevx('V', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
-         & mm, eval, z, max(1, size(z, 1)), work, iwork, ifail, info_)
+   info_ = 0
+   if ((present(il) .or. present(iu)) .and. (present(vl) .or. present(vu))) then
+      info_ = -2
+   else if (nn < 0) then
+      info_ = -4
    else
-      call lapack_spevx('N', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
-         & mm, eval, zdum, 1, work, iwork, ifail, info_)
+      np = int(nn, i8) * int(nn + 1, i8) / 2_i8
+      if (size(amat, kind=i8) < np &
+            & .or. (.not. present(n) .and. size(amat, kind=i8) /= np)) then
+         info_ = -5
+      else if (rng == 'I' .and. (ill < 1 .or. ill > max(1, nn))) then
+         info_ = -8
+      else if (rng == 'I' .and. (iuu < min(nn, ill) .or. iuu > nn)) then
+         info_ = -9
+      else if (size(eval) < nn) then
+         info_ = -12
+      else if (present(z)) then
+         if (size(z, 1) < nn) then
+            info_ = -14
+         else if (nn > 0 .and. size(z, 2) < merge(iuu - ill + 1, nn, rng == 'I')) then
+            info_ = -13
+         end if
+      end if
+   end if
+
+   if (info_ == 0 .and. nn > 0) then
+      allocate(work(max(1, 8*nn)), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
+      if (stat /= 0) then
+         info_ = -1000
+      else if (present(z)) then
+         call lapack_spevx('V', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
+            & mm, eval, z, max(1, size(z, 1)), work, iwork, ifail, info_)
+      else
+         call lapack_spevx('N', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
+            & mm, eval, zdum, 1, work, iwork, ifail, info_)
+      end if
    end if
    if (present(m)) m = mm
    if (present(info)) info = info_
