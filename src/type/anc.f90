@@ -17,8 +17,8 @@
 
 module xtb_type_anc
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas
-   use xtb_mctc_lapack, only : lapack_spevd, lapack_syevd
+   use xtb_mctc_blas, only : mctc_gemv
+   use xtb_mctc_lapack, only : mctc_syevd
    implicit none
 
    public :: tb_anc
@@ -216,35 +216,16 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear,rigid)
    integer  :: i,itry
    integer  :: nvar
    integer  :: info
-   
-   !> LAPACK, length of auxilary fp workspace
-   integer  :: lwork
-
-   !> LAPACK, length of auxilary integer workspace
-   integer  :: liwork
-
-   !> LAPACK, auxilary workspace for integer operations
-   integer, allocatable :: iwork(:)
-   
    real(wp) :: elow,damp,thr
-   
-   !> LAPACK, auxilary workspace for floating point operations
-   real(wp),allocatable :: aux(:) ! = work
-
    logical  :: fail
    logical  :: remove_rigid
    
    ! Intialize !
    self%xyz = xyz
    thr = thr2
-   lwork  = 1 + 6*self%n3 + 2*self%n3**2
-   liwork = 8 * self%n3
-   allocate(iwork(liwork), source = 0)
-   allocate(aux(lwork), source = 0.0_wp)
 
    ! Diagonalize Hessian !
-   call lapack_syevd('V','U',self%n3,hess,self%n3,self%eigv, &
-      &        aux,lwork,iwork,liwork,info)
+   call mctc_syevd(hess, self%eigv, jobz='V', uplo='U', info=info)
 
    ! determine, sort, and nullify rot/trans modes !  
    remove_rigid = .true.
@@ -306,98 +287,6 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear,rigid)
    self%coord = 0.0_wp
 
 end subroutine generate_anc_blowup
-
-subroutine generate_anc_packed(self,xyz,hess,pr)
-   use xtb_mctc_io, only : stdout
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_la
-   implicit none
-   class(tb_anc),intent(inout) :: self
-   real(wp),     intent(in)    :: xyz(3,self%n)
-   real(wp),     intent(inout) :: hess(self%n3*(self%n3+1)/2)
-   logical,      intent(in)    :: pr
-
-   real(wp),parameter   :: thr1 = 1.0e-10_wp
-   real(wp),parameter   :: thr2 = 1.0e-11_wp
-   integer, parameter   :: maxtry = 4
-   integer  :: i,itry
-   integer  :: nvar
-   integer  :: info
-   integer  :: lwork
-   integer  :: liwork
-   logical  :: fail
-   integer, allocatable :: iwork(:)
-   real(wp) :: elow,damp,thr
-   real(wp),allocatable :: aux(:)
-   real(wp),allocatable :: u(:,:)
-
-   self%xyz = xyz
-
-   thr = thr2
-   lwork  = 1 + 6*self%n3 + 2*self%n3**2
-   liwork = 8 * self%n3
-
-   allocate(iwork(liwork), source = 0 )
-   allocate(aux(lwork), source = 0.0_wp )
-   allocate(u(self%n3,self%n3), source = 0.0_wp )
-
-   call lapack_spevd('V','U',self%n3,hess,self%eigv,u,self%n3, &
-      &        aux,lwork,iwork,liwork,info)
-
-   !elow = 1.0e+99_wp
-   elow = minval(self%eigv,mask=(abs(self%eigv) > thr1))
-   !do i = 1, self%n3
-   !   if (abs(self%eigv(i)) > thr1 ) elow = min(elow,self%eigv(i))
-   !enddo
-
-   damp = max(self%hlow - elow,0.0_wp)
-   where(abs(self%eigv) > thr2) self%eigv = self%eigv + damp
-!   do i = 1, self%n3
-!      if (abs(self%eigv(i)) > thr2 ) self%eigv(i) = self%eigv(i) + damp
-!   enddo
-
-   if(pr)then
-      write(stdout,*) 'Shifting diagonal of input Hessian by ', damp
-      write(stdout,*) 'Lowest  eigenvalues of input Hessian'
-      write(stdout,'(6F12.6)')(self%eigv(i),i=1,min(18,self%n3))
-      write(stdout,*) 'Highest eigenvalues'
-      write(stdout,'(6F12.6)')(self%eigv(i),i=self%n3-5,self%n3)
-      write(stdout,*)
-   endif
-
-   fail = .true.
-   get_anc: do itry = 1, maxtry
-      self%B = 0.0_wp
-      self%hess = 0.0_wp
-      nvar = 0
-      ! take largest (positive) first !
-      do i = self%n3, 1, -1
-         if (abs(self%eigv(i)) > thr .and. nvar < self%nvar) then
-            nvar = nvar+1
-            self%B(:,nvar) = u(:,i)
-            self%hess(nvar+nvar*(nvar-1)/2) = &
-               min(max(self%eigv(i),self%hlow),self%hmax)
-         endif
-      enddo
-
-      if (nvar.ne.self%nvar) then
-         thr = thr * 0.1_wp
-         cycle get_anc
-      endif
-
-      fail = .false.
-      exit get_anc
-
-   enddo get_anc
-
-   if (fail) &
-      call raise('E',"ANC generation failed!")
-
-   call sort(self%n3,self%nvar,self%hess,self%B)
-
-   self%coord = 0.0_wp
-
-end subroutine generate_anc_packed
 
 !> sort eigenvalues and eigenvectors
 pure subroutine sort(nat3,nvar,hess,b)
@@ -477,7 +366,7 @@ subroutine get_cartesian(self,xyz)
    if (debug) & !####### DEBUG #######
       call self%write(stdout,self%nvar)
  
-   call dgemv('n',self%n3,self%nvar,1.0_wp,self%B,self%n3,self%coord,1,0.0_wp,displ_cartesian,1) ! B * coord
+   call mctc_gemv(self%B, self%coord, displ_cartesian, m=self%n3, n=self%nvar) ! B * coord
    xyz = xyz + reshape(displ_cartesian,(/3,self%n/)) ! xyz + displ_cartesian
 
 end subroutine get_cartesian
@@ -505,7 +394,7 @@ subroutine get_normal(self,g_cartesian, g_normal)
    allocate(array_form(3*self%n), source = 0.0_wp)
    array_form = reshape(g_cartesian,(/3*self%n/))
    
-   call dgemv('t',self%n3,self%nvar,1.0_wp,self%B,self%n3,array_form,1,0.0_wp,g_normal,1)
+   call mctc_gemv(self%B, array_form, g_normal, trans='t', m=self%n3, n=self%nvar)
 
 end subroutine get_normal
 

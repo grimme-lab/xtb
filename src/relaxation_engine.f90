@@ -20,6 +20,8 @@
 module xtb_relaxation_engine
    use xtb_io_writer, only : writeMolecule
    use xtb_mctc_accuracy, only : wp, sp
+   use xtb_mctc_blas, only : mctc_dot, mctc_gemv, mctc_spmv
+   use xtb_mctc_lapack, only : mctc_syev, mctc_sytrf, mctc_sytrs
    use xtb_mctc_convert, only : fstoau, amutoau
    use xtb_mctc_fileTypes, only : fileType
    use xtb_type_environment, only : TEnvironment
@@ -413,7 +415,6 @@ subroutine l_ancopt &
       &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail, iter_needed)
 
    use xtb_mctc_convert
-   use xtb_mctc_lapack, only : lapack_syev
 
    use xtb_type_molecule
    use xtb_type_restart
@@ -489,14 +490,12 @@ subroutine l_ancopt &
    !  ANC generation
    integer :: i,j,ij,k
    integer :: nat3
-   integer :: lwork
    integer :: info
    integer :: itry
    real(wp) :: thr
    real(wp) :: damp
    real(wp) :: edum
    real(sp), allocatable :: hess(:,:)
-   real(sp), allocatable :: aux(:)
    real(sp), allocatable :: eig(:)
    real(wp), allocatable :: trafo(:,:)
    real(wp), allocatable :: hdiag(:)
@@ -671,22 +670,13 @@ subroutine l_ancopt &
          call frag_hess_diag(mol%n,hess,eig,calc%topo%ispinsyst, &
             & calc%topo%nspinsyst,calc%topo%nsystem,fixset%n == 0)
        else if (calc%topo%nsystem.eq.1) then
-          lwork  = 1 + 6*nat3 + 2*nat3**2
-          allocate(aux(lwork))
-          call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
-          deallocate(aux)
+          call mctc_syev(hess, eig, jobz='V', uplo='U', info=info)
        end if
    else
-      lwork  = 1 + 6*nat3 + 2*nat3**2
-      allocate(aux(lwork))
-      call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
-      deallocate(aux)
+      call mctc_syev(hess, eig, jobz='V', uplo='U', info=info)
    end if
    class default
-      lwork  = 1 + 6*nat3 + 2*nat3**2
-      allocate(aux(lwork))
-      call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
-      deallocate(aux)
+      call mctc_syev(hess, eig, jobz='V', uplo='U', info=info)
    end select
 
    ! with fixed atoms the null space is already projected exactly
@@ -850,8 +840,6 @@ subroutine lbfgs_step(iter,memory,nvar,gradient,glast,displacement, &
    real(wp), allocatable :: a(:)
    real(wp) :: b
 
-   real(wp), external :: ddot
-
    integer :: thisiter
    integer :: lastiter
    integer :: mem
@@ -863,7 +851,7 @@ subroutine lbfgs_step(iter,memory,nvar,gradient,glast,displacement, &
    s(:,thisiter) = displacement
    y(:,thisiter) = gradient - glast
 
-   b = ddot(nvar,s(:,thisiter),1,y(:,thisiter),1)
+   b = mctc_dot(s(:,thisiter), y(:,thisiter), n=nvar)
 
    rho(thisiter) = 1.0_wp / max(abs(b), epsilon(1.0_wp))
 
@@ -872,7 +860,7 @@ subroutine lbfgs_step(iter,memory,nvar,gradient,glast,displacement, &
       !i = mod(thisiter - mem - 1, memory) + 1
    do mem = iter, max(1,iter-memory), -1
       i = mod(mem-1,memory)+1
-      a(i) = rho(i) * ddot(nvar,s(:,i),1,q,1)
+      a(i) = rho(i) * mctc_dot(s(:,i), q, n=nvar)
       q = q - a(i) * y(:,i)
    enddo
 
@@ -883,7 +871,7 @@ subroutine lbfgs_step(iter,memory,nvar,gradient,glast,displacement, &
       !i = mod(lastiter + mem - 1, memory) + 1
    do mem = max(1,iter-memory), iter
       i = mod(mem-1,memory)+1
-      b = rho(i) * ddot(nvar,y(:,i),1,d,1)
+      b = rho(i) * mctc_dot(y(:,i), d, n=nvar)
       d = d + s(:,i) * (a(i) - b)
    enddo
 
@@ -982,13 +970,9 @@ subroutine lbfgs_relax &
    !  RF variables
    integer :: nvar1,npvar,npvar1
    real(sp) :: dsnrm
-   real(sp), external :: sdot
    real(sp), allocatable :: eaug(:)
    real(sp), allocatable :: Uaug(:,:)
    real(sp), allocatable :: Aaug(:)
-
-   !  BLAS interface
-   real(wp), external :: ddot
 
    !  displacement in coordinates is lower than given threshold
    logical  :: dconverged
@@ -1012,9 +996,9 @@ subroutine lbfgs_relax &
 
    if (profile) call timer%measure(4,'coordinate transformation')
    ! transform cartesian gradient in ANC's
-   call dgemv('t',3*mol%n,nvar,1.0_wp,trafo,3*mol%n,g_xyz,1,0.0_wp,g_anc,1)
+   call mctc_gemv(trafo, g_xyz, g_anc, trans='t', m=3*mol%n, n=nvar)
    ! get current gradient norm
-   gnorm = sqrt(ddot(nvar,g_anc,1,g_anc,1))
+   gnorm = sqrt(mctc_dot(g_anc, g_anc, n=nvar))
    if (profile) call timer%measure(4)
    if (profile) call timer%measure(5,"Rational function")
 
@@ -1035,7 +1019,7 @@ subroutine lbfgs_relax &
    Aaug(npvar+1:npvar1-1) = g_anc
    ! do steepest decent guess
    Uaug(:,1)=[-real(g_anc,sp),1.0_sp]
-   dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
+   dsnrm = sqrt(mctc_dot(Uaug(:,1), Uaug(:,1), n=nvar1))
    Uaug  = Uaug/dsnrm
    ! refine guess with davidson
    !call sdavid(debug,.false.,nvar1,1,opt%rfthr,Aaug,Uaug,eaug)
@@ -1067,7 +1051,7 @@ subroutine lbfgs_relax &
       endif
 
       ! check if step is too large
-      step_length = alpha * sqrt(ddot(nvar,displacement,1,displacement,1))
+      step_length = alpha * sqrt(mctc_dot(displacement, displacement, n=nvar))
       ! the old ANCopt used to cut of the displacement, which will immediately
       ! destroy the LBFGS procedure, therefore we *have* to rescale
       if (step_length > opt%max_displacement) then
@@ -1103,7 +1087,7 @@ subroutine lbfgs_relax &
 
       ! transform cartesian gradient in ANC coordinate system
       if (profile) call timer%measure(4)
-      call dgemv('t',3*mol%n,nvar,1.0_wp,trafo,3*mol%n,g_xyz,1,0.0_wp,g_anc,1)
+      call mctc_gemv(trafo, g_xyz, g_anc, trans='t', m=3*mol%n, n=nvar)
       if (profile) call timer%measure(4)
 
       if (profile) call timer%measure(7,"optimization log")
@@ -1133,7 +1117,7 @@ subroutine lbfgs_relax &
       econverged = ediff < 0.0_wp .and. abs(ediff) < opt%e_thr
 
       ! check for convergence of the gradient norm
-      gnorm = sqrt(ddot(nvar,g_anc,1,g_anc,1))
+      gnorm = sqrt(mctc_dot(g_anc, g_anc, n=nvar))
       gconverged = gnorm < opt%g_thr
 
       if (pr) then
@@ -1256,9 +1240,6 @@ subroutine inertial_relax &
    real(wp) :: lat_time_step
    real(wp) :: lat_apar
 
-   !  BLAS interface
-   real(wp), external :: ddot
-
    !  displacement in coordinates is lower than given threshold
    logical  :: dconverged
    logical  :: econverged
@@ -1294,17 +1275,17 @@ subroutine inertial_relax &
    lat_power = 0.0_wp
 
    ! get current gradient norm
-   gnorm = sqrt(ddot(3*mol%n,gradient,1,gradient,1))
+   gnorm = sqrt(mctc_dot(gradient, gradient, n=3*mol%n))
    ! get current speed
-   speed = sqrt(ddot(3*mol%n,velocities,1,velocities,1))
+   speed = sqrt(mctc_dot(velocities, velocities, n=3*mol%n))
    ! get power based on v·F = -v·g
-   power = -ddot(3*mol%n,velocities,1,gradient,1)/opt%mass
+   power = -mctc_dot(velocities, gradient, n=3*mol%n)/opt%mass
    if (optcell) then
       inv_lat = mat_inv_3x3(mol%lattice)
       call sigma_to_latgrad(sigma,inv_lat,lat_gradient)
-      lat_gnorm = sqrt(ddot(9,lat_gradient,1,lat_gradient,1))
-      lat_speed = sqrt(ddot(9,lat_velocities,1,lat_velocities,1))
-      lat_power = -ddot(9,lat_velocities,1,lat_gradient,1)/opt%lat_mass
+      lat_gnorm = sqrt(mctc_dot(lat_gradient, lat_gradient, n=9))
+      lat_speed = sqrt(mctc_dot(lat_velocities, lat_velocities, n=9))
+      lat_power = -mctc_dot(lat_velocities, lat_gradient, n=9)/opt%lat_mass
    endif
 
    jstep = 0
@@ -1325,10 +1306,10 @@ subroutine inertial_relax &
       ! update velocities based on current forces
       if (power > opt%pcut) then
          if (.not.fail .and. opt%precon) then
-            gpinvg = -ddot(3*mol%n,gradient,1,pinvg,1)
-            call dspmv('u',3*mol%n,1.0_wp,hessp,velocities,1,0.0_wp,scratch,1)
+            gpinvg = -mctc_dot(gradient, pinvg, n=3*mol%n)
+            call mctc_spmv(hessp, velocities, scratch, uplo='u', n=3*mol%n)
             velocities = (1.0_wp - apar) * velocities &
-               &       + apar * pinvg/gpinvg * ddot(3*mol%n,scratch,1,velocities,1)
+               &       + apar * pinvg/gpinvg * mctc_dot(scratch, velocities, n=3*mol%n)
          else
             velocities = (1.0_wp - apar) * velocities &
                &       - apar * gradient/gnorm * speed
@@ -1372,9 +1353,9 @@ subroutine inertial_relax &
       endif
 
       ! get new speed
-      speed = sqrt(ddot(3*mol%n,velocities,1,velocities,1))
+      speed = sqrt(mctc_dot(velocities, velocities, n=3*mol%n))
       if (optcell) then
-         lat_speed = sqrt(ddot(9,lat_velocities,1,lat_velocities,1))
+         lat_speed = sqrt(mctc_dot(lat_velocities, lat_velocities, n=9))
       endif
 
       if (profile) call timer%measure(2)
@@ -1387,7 +1368,7 @@ subroutine inertial_relax &
       endif
 
       ! renormalize if step taken is to large
-      step_length = sqrt(ddot(3*mol%n,displacement,1,displacement,1))
+      step_length = sqrt(mctc_dot(displacement, displacement, n=3*mol%n))
       if (step_length > opt%max_displacement) then
          write(env%unit,'(" * rescaling displacement step")')
          displacement = opt%max_displacement * displacement / step_length
@@ -1397,7 +1378,7 @@ subroutine inertial_relax &
       !print*,gradient
       !print*,displacement
       if (optcell) then
-         lat_step_length = sqrt(ddot(9,lat_displacement,1,lat_displacement,1))
+         lat_step_length = sqrt(mctc_dot(lat_displacement, lat_displacement, n=9))
          if (lat_step_length > opt%max_displacement) then
             write(env%unit,'(" * rescaling lattice displacement")')
             lat_displacement = opt%max_displacement*lat_displacement/lat_step_length
@@ -1442,14 +1423,14 @@ subroutine inertial_relax &
       econverged = ediff < 0.0_wp .and. abs(ediff) < opt%e_thr
 
       ! get new power
-      power = -ddot(3*mol%n,velocities,1,gradient,1)/opt%mass
+      power = -mctc_dot(velocities, gradient, n=3*mol%n)/opt%mass
       ! check for convergence of the gradient norm
-      gnorm = sqrt(ddot(3*mol%n,gradient,1,gradient,1))
+      gnorm = sqrt(mctc_dot(gradient, gradient, n=3*mol%n))
       if (optcell) then
          inv_lat = mat_inv_3x3(mol%lattice)
          call sigma_to_latgrad(sigma,inv_lat,lat_gradient)
-         lat_power = -ddot(9,lat_velocities,1,lat_gradient,1)/opt%lat_mass
-         lat_gnorm = sqrt(ddot(9,lat_gradient,1,lat_gradient,1))
+         lat_power = -mctc_dot(lat_velocities, lat_gradient, n=9)/opt%lat_mass
+         lat_gnorm = sqrt(mctc_dot(lat_gradient, lat_gradient, n=9))
       endif
 
       gconverged = gnorm < opt%g_thr .and. &
@@ -1519,14 +1500,13 @@ function predict_energy_change(nat3,grad,displ,hess) result(depred)
    real(wp) :: depred
 
    real(wp), dimension(nat3) :: hdx
-   real(wp), external :: ddot
    real(wp) :: gtmp, htmp
 
-   call dspmv('u',nat3,0.5_wp,hess,displ,1,0.0_wp,hdx,1)
+   call mctc_spmv(hess, displ, hdx, uplo='u', alpha=0.5_wp)
 
-   gtmp   = ddot(nat3,displ,1,grad,1)
+   gtmp   = mctc_dot(displ, grad)
 
-   htmp   = ddot(nat3,displ,1,hdx,1)
+   htmp   = mctc_dot(displ, hdx)
 
    depred = htmp + gtmp
 
@@ -1540,16 +1520,14 @@ subroutine get_preconditioner_metric(nvar,hess,grad,pinvg,fail)
    integer, intent(in) :: nvar
    real(wp), intent(in) :: hess(:)
    real(wp), intent(in) :: grad(:,:)
-   real(wp), intent(out) :: pinvg(:,:)
+   real(wp), intent(out), contiguous, target :: pinvg(:,:)
    logical, intent(out) :: fail
 
    integer :: i,ii,j,ij
    integer :: info
-   integer :: lwork
    integer, allocatable :: ipiv(:)
-   real(wp) :: test(1)
-   real(wp), allocatable :: work(:)
    real(wp), allocatable :: htmp(:,:)
+   real(wp), pointer :: pinvg1(:)
 
    real(wp), parameter :: c_stab = 0.1_wp
 
@@ -1570,18 +1548,14 @@ subroutine get_preconditioner_metric(nvar,hess,grad,pinvg,fail)
 
    ! initialize right hand side
    pinvg = -grad
+   pinvg1(1:nvar) => pinvg
 
-   call dsysv('u',nvar,1,htmp,nvar,ipiv,pinvg,nvar,test,-1,info)
-   if (info.eq.0) then
-      lwork = int(test(1))
-      allocate( work(lwork), source = 0.0_wp )
+   call mctc_sytrf(htmp, ipiv, uplo='u', info=info)
+   if (info == 0) then
+      call mctc_sytrs(htmp, pinvg1, ipiv, uplo='u', info=info)
+   end if
 
-      call dsysv('u',nvar,1,htmp,nvar,ipiv,pinvg,nvar,work,lwork,info)
-
-      deallocate(work,ipiv)
-   endif
-
-   fail = info.ne.0
+   fail = info /= 0
 end subroutine get_preconditioner_metric
 
 pure function bool2string(bool) result(string)

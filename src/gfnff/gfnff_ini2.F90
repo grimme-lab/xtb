@@ -1657,9 +1657,8 @@ subroutine goedeckera(env,n,at,pair,q,es,topo,qfrag_in,q_out)
    real(wp),intent(out),optional :: q_out(:,:)
 
 !  local variables
-   logical :: exitRun
    integer  :: m,i,j,k,l,ii,jj,kk
-   integer  :: ij,lj,nrhs
+   integer  :: ij,lj,nrhs,info
    integer,allocatable :: ipiv(:)
 
    real(wp) :: gammij,sief1,sief2
@@ -1715,11 +1714,12 @@ subroutine goedeckera(env,n,at,pair,q,es,topo,qfrag_in,q_out)
       enddo
    enddo
 
-   call mctc_sytrf(env, a, ipiv)
-   call mctc_sytrs(env, a, x, ipiv)
+   call mctc_sytrf(a, ipiv, info=info)
+   if (info == 0) then
+      call mctc_sytrs(a, x, ipiv, info=info)
+   end if
 
-   call env%check(exitRun)
-   if (exitRun) then
+   if (info /= 0) then
       call env%error('Solving linear equations failed', source)
       return
    end if
@@ -1761,9 +1761,8 @@ subroutine goedeckera_PBC(env,mol,pair,topo,q,es)
    real(wp),intent(out) :: es         ! ES energy
 
 !  local variables
-   logical :: exitRun
    integer  :: m,i,j,k,l,ii,jj,kk,n
-   integer  :: ij,lj
+   integer  :: ij,lj,info
    integer,allocatable :: ipiv(:)
 
    real(wp) :: gammij,sief1,sief2
@@ -1848,11 +1847,12 @@ subroutine goedeckera_PBC(env,mol,pair,topo,q,es)
       enddo
    enddo
 
-   call mctc_sytrf(env, a, ipiv)
-   call mctc_sytrs(env, a, x, ipiv)
+   call mctc_sytrf(a, ipiv, info=info)
+   if (info == 0) then
+      call mctc_sytrs(a, x, ipiv, info=info)
+   end if
 
-   call env%check(exitRun)
-   if (exitRun) then
+   if (info /= 0) then
       call env%error('Solving linear equations failed', source)
       return
    end if

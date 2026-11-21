@@ -49,7 +49,7 @@ module xtb_mctc_blas_wrap3
 contains
 
 
-subroutine mctc_sgemm323(amat, bmat, cmat, transa, transb, alpha, beta)
+subroutine mctc_sgemm323(amat, bmat, cmat, transa, transb, alpha, beta, m, n, k)
    real(sp), intent(in), contiguous, target :: amat(:, :, :)
    real(sp), intent(in) :: bmat(:, :)
    real(sp), intent(inout), contiguous, target :: cmat(:, :, :)
@@ -57,8 +57,9 @@ subroutine mctc_sgemm323(amat, bmat, cmat, transa, transb, alpha, beta)
    character(len=1), intent(in), optional :: transb
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
+   integer, intent(in), optional :: m, n, k
    real(sp), pointer :: aptr(:, :), cptr(:, :)
-   character(len=1) :: tra, trb
+   character(len=1) :: tra
    if (present(transa)) then
       tra = transa
    else
@@ -70,11 +71,11 @@ subroutine mctc_sgemm323(amat, bmat, cmat, transa, transb, alpha, beta)
       aptr(1:size(amat, 1), 1:size(amat, 2)*size(amat, 3)) => amat
    end if
    cptr(1:size(cmat, 1)*size(cmat, 2), 1:size(cmat, 3)) => cmat
-   call mctc_gemm(aptr, bmat, cptr, tra, transb, alpha, beta)
+   call mctc_gemm(aptr, bmat, cptr, tra, transb, alpha, beta, m, n, k)
 end subroutine mctc_sgemm323
 
 
-subroutine mctc_sgemm233(amat, bmat, cmat, transa, transb, alpha, beta)
+subroutine mctc_sgemm233(amat, bmat, cmat, transa, transb, alpha, beta, m, n, k)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in), contiguous, target :: bmat(:, :, :)
    real(sp), intent(inout), contiguous, target :: cmat(:, :, :)
@@ -82,6 +83,7 @@ subroutine mctc_sgemm233(amat, bmat, cmat, transa, transb, alpha, beta)
    character(len=1), intent(in), optional :: transb
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
+   integer, intent(in), optional :: m, n, k
    real(sp), pointer :: bptr(:, :), cptr(:, :)
    character(len=1) :: trb
    if (present(transb)) then
@@ -94,11 +96,12 @@ subroutine mctc_sgemm233(amat, bmat, cmat, transa, transb, alpha, beta)
    else
       bptr(1:size(bmat, 1)*size(bmat, 2), 1:size(bmat, 3)) => bmat
    end if
-   call mctc_gemm(amat, bptr, cptr, transa, trb, alpha, beta)
+   cptr(1:size(cmat, 1), 1:size(cmat, 2)*size(cmat, 3)) => cmat
+   call mctc_gemm(amat, bptr, cptr, transa, trb, alpha, beta, m, n, k)
 end subroutine mctc_sgemm233
 
 
-subroutine mctc_sgemm332(amat, bmat, cmat, transa, transb, alpha, beta)
+subroutine mctc_sgemm332(amat, bmat, cmat, transa, transb, alpha, beta, m, n, k)
    real(sp), intent(in), contiguous, target :: amat(:, :, :)
    real(sp), intent(in), contiguous, target :: bmat(:, :, :)
    real(sp), intent(inout) :: cmat(:, :)
@@ -106,6 +109,7 @@ subroutine mctc_sgemm332(amat, bmat, cmat, transa, transb, alpha, beta)
    character(len=1), intent(in), optional :: transb
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
+   integer, intent(in), optional :: m, n, k
    real(sp), pointer :: aptr(:, :), bptr(:, :)
    character(len=1) :: tra, trb
    if (present(transa)) then
@@ -128,11 +132,11 @@ subroutine mctc_sgemm332(amat, bmat, cmat, transa, transb, alpha, beta)
    else
       bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
    end if
-   call mctc_gemm(aptr, bptr, cmat, tra, trb, alpha, beta)
+   call mctc_gemm(aptr, bptr, cmat, tra, trb, alpha, beta, m, n, k)
 end subroutine mctc_sgemm332
 
 
-subroutine mctc_dgemm323(amat, bmat, cmat, transa, transb, alpha, beta)
+subroutine mctc_dgemm323(amat, bmat, cmat, transa, transb, alpha, beta, m, n, k)
    real(dp), intent(in), contiguous, target :: amat(:, :, :)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(inout), contiguous, target :: cmat(:, :, :)
@@ -140,6 +144,7 @@ subroutine mctc_dgemm323(amat, bmat, cmat, transa, transb, alpha, beta)
    character(len=1), intent(in), optional :: transb
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
+   integer, intent(in), optional :: m, n, k
    real(dp), pointer :: aptr(:, :), cptr(:, :)
    character(len=1) :: tra
    if (present(transa)) then
@@ -153,11 +158,11 @@ subroutine mctc_dgemm323(amat, bmat, cmat, transa, transb, alpha, beta)
       aptr(1:size(amat, 1), 1:size(amat, 2)*size(amat, 3)) => amat
    end if
    cptr(1:size(cmat, 1)*size(cmat, 2), 1:size(cmat, 3)) => cmat
-   call mctc_gemm(aptr, bmat, cptr, tra, transb, alpha, beta)
+   call mctc_gemm(aptr, bmat, cptr, tra, transb, alpha, beta, m, n, k)
 end subroutine mctc_dgemm323
 
 
-subroutine mctc_dgemm233(amat, bmat, cmat, transa, transb, alpha, beta)
+subroutine mctc_dgemm233(amat, bmat, cmat, transa, transb, alpha, beta, m, n, k)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in), contiguous, target :: bmat(:, :, :)
    real(dp), intent(inout), contiguous, target :: cmat(:, :, :)
@@ -165,6 +170,7 @@ subroutine mctc_dgemm233(amat, bmat, cmat, transa, transb, alpha, beta)
    character(len=1), intent(in), optional :: transb
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
+   integer, intent(in), optional :: m, n, k
    real(dp), pointer :: bptr(:, :), cptr(:, :)
    character(len=1) :: trb
    if (present(transb)) then
@@ -178,11 +184,11 @@ subroutine mctc_dgemm233(amat, bmat, cmat, transa, transb, alpha, beta)
       bptr(1:size(bmat, 1)*size(bmat, 2), 1:size(bmat, 3)) => bmat
    end if
    cptr(1:size(cmat, 1), 1:size(cmat, 2)*size(cmat, 3)) => cmat
-   call mctc_gemm(amat, bptr, cptr, transa, trb, alpha, beta)
+   call mctc_gemm(amat, bptr, cptr, transa, trb, alpha, beta, m, n, k)
 end subroutine mctc_dgemm233
 
 
-subroutine mctc_dgemm332(amat, bmat, cmat, transa, transb, alpha, beta)
+subroutine mctc_dgemm332(amat, bmat, cmat, transa, transb, alpha, beta, m, n, k)
    real(dp), intent(in), contiguous, target :: amat(:, :, :)
    real(dp), intent(in), contiguous, target :: bmat(:, :, :)
    real(dp), intent(inout) :: cmat(:, :)
@@ -190,6 +196,7 @@ subroutine mctc_dgemm332(amat, bmat, cmat, transa, transb, alpha, beta)
    character(len=1), intent(in), optional :: transb
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
+   integer, intent(in), optional :: m, n, k
    real(dp), pointer :: aptr(:, :), bptr(:, :)
    character(len=1) :: tra, trb
    if (present(transa)) then
@@ -212,7 +219,7 @@ subroutine mctc_dgemm332(amat, bmat, cmat, transa, transb, alpha, beta)
    else
       bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
    end if
-   call mctc_gemm(aptr, bptr, cmat, tra, trb, alpha, beta)
+   call mctc_gemm(aptr, bptr, cmat, tra, trb, alpha, beta, m, n, k)
 end subroutine mctc_dgemm332
 
 

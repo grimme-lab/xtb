@@ -22,6 +22,7 @@ module xtb_type_calculator
    use xtb_mctc_math, only : crossProd
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_blas, only : mctc_gemm, mctc_nrm2, mctc_dot
+   use xtb_mctc_lapack, only : mctc_syev
    use xtb_solv_model, only : TSolvModel
    use xtb_type_data, only : scc_results
    use xtb_type_environment, only : TEnvironment
@@ -288,7 +289,7 @@ subroutine hessian_odlr(self, env, mol0, chk0, step, hess, final_err, dipgrad, p
    type(scc_results) :: res
    type(adj_list), allocatable :: neighborlist(:)
    real(wp), allocatable :: distmat(:, :), h0(:, :), tmp_grad(:, :), &
-      & g0(:), g(:, :), work(:), eigvec(:, :), eigval(:), &
+      & g0(:), g(:, :), eigvec(:, :), eigval(:), &
       & dipdir(:, :), poldir(:, :), prop_tmp(:, :)
    real(wp) :: energy, sigma(3, 3), egap, dist, barycenter(3), inertia(3), &
       & ax(3, 3), cross(3), Imat0, vec(3), ri, rj, delta_r1, dip0(3), alpha0(3, 3), &
@@ -296,7 +297,7 @@ subroutine hessian_odlr(self, env, mol0, chk0, step, hess, final_err, dipgrad, p
    logical :: terminate_run, linear, do_dipgrad, do_polgrad
    integer, allocatable :: nbcounts(:)
    character(len=128) :: msg
-   integer :: N, i, j, k, Ntr, info, lwork, ndispl_final, max_nb, ndispl0, nimg, rmode
+   integer :: N, i, j, k, Ntr, info, ndispl_final, max_nb, ndispl0, nimg, rmode
    ! iterative repair locals
    integer :: neg_round, nadd, nmodes_det, prev_nimg, ndiag_window
    real(wp), allocatable :: cand_modes(:, :), cand_freqs(:), sel_modes(:, :), vscratch(:)
@@ -376,13 +377,7 @@ subroutine hessian_odlr(self, env, mol0, chk0, step, hess, final_err, dipgrad, p
       end do
    end do
 
-   lwork = -1
-   allocate (work(1))
-   call dsyev('V', 'U', 3, ax, 3, inertia, work, lwork, info)
-   lwork = int(work(1))
-   deallocate (work)
-   allocate (work(lwork))
-   call dsyev('V', 'U', 3, ax, 3, inertia, work, lwork, info)
+   call mctc_syev(ax, inertia, jobz='V', uplo='U', info=info)
    linear = mol0%linear
 
    ! rotational displacements
@@ -570,14 +565,7 @@ subroutine hessian_odlr(self, env, mol0, chk0, step, hess, final_err, dipgrad, p
       allocate (eigvec(N, N))
       eigvec = hess
       allocate (eigval(N))
-      lwork = -1
-      deallocate (work)
-      allocate (work(1))
-      call dsyev('V', 'U', N, eigvec, N, eigval, work, lwork, info)
-      lwork = int(work(1))
-      deallocate (work)
-      allocate (work(lwork))
-      call dsyev('V', 'U', N, eigvec, N, eigval, work, lwork, info)
+      call mctc_syev(eigvec, eigval, jobz='V', uplo='U', info=info)
       if (info /= 0) then
          call env%error("hessian_odlr: DSYEV failed while searching for "//&
             & "imaginary modes", source)

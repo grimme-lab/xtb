@@ -18,7 +18,7 @@
 !> Utililty functions for dealing with hessian and frequency calculations
 module xtb_freq_utils
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_lapack, only : lapack_syev
+   use xtb_mctc_lapack, only : mctc_syev
    use xtb_type_environment, only : TEnvironment
    implicit none
    private
@@ -61,12 +61,9 @@ subroutine diagHessian(env, hessian, freq)
    type(TEnvironment), intent(inout) :: env
    real(wp), intent(inout) :: hessian(:, :)
    real(wp), intent(out) :: freq(:)
-   real(wp), allocatable :: work(:)
-   integer :: ndim, lwork, info, ii, nn, zero(6)
+   integer :: ndim, info, ii, nn, zero(6)
    ndim = size(hessian, 1)
-   lwork = 1 + 6*ndim + 2*ndim**2
-   allocate(work(lwork))
-   call lapack_syev('v', 'u', ndim, hessian, ndim, freq, work, lwork, info)
+   call mctc_syev(hessian, freq, jobz='v', uplo='u', info=info)
 
    if (info /= 0) then
       call env%error("Could not diagonalize Hessian", source)

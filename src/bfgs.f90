@@ -19,7 +19,7 @@ contains
 
 subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas, only : blas_spmv, blas_dot
+   use xtb_mctc_blas, only : mctc_spmv, mctc_dot
    !-------------------------------------------------------------------
    ! Purpose:
    ! Performs BFGS update of Hessian matrix
@@ -45,7 +45,7 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    integer  :: i,j,ij,ii
    real(wp),allocatable :: svec(:),tvec(:)
    real(wp) :: ddtd, dds, temp
-   real(wp) :: ddot, thrs, scal, damp, dampO,dampD,thr
+   real(wp) :: thrs, scal, damp, dampO,dampD,thr
    real(wp) :: ooddtd, oodds, sdds, tddtd
    !---------------------------------------------------------------------
    allocate( svec(nat3),tvec(nat3), source = 0.0_wp )
@@ -58,11 +58,11 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    svec(1:nat3) = grad(1:nat3) - grado(1:nat3)
 
    ! calculate tvec = h*dx
-   call blas_spmv('u',nat3,1.0_wp,hess,dx,1,0.0_wp,tvec,1)
+   call mctc_spmv(hess, dx, tvec, uplo='u')
 
    ! calculate scalar dxdx and jtdx
-   ddtd = blas_dot(nat3,tvec,1,dx,1)
-   dds  = blas_dot(nat3,svec,1,dx,1)
+   ddtd = mctc_dot(tvec, dx)
+   dds  = mctc_dot(svec, dx)
    ooddtd = 1.0_wp / ddtd
    oodds  = 1.0_wp / dds
 
@@ -104,6 +104,7 @@ end subroutine bfgs
 
 subroutine powell(nat3,gnorm,grad,grado,dx,hess)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_blas, only : mctc_spmv, mctc_dot
 
    !-------------------------------------------------------------------
    ! Purpose:
@@ -128,7 +129,7 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
    integer :: i,j,ij
    real(wp) :: dds,ddtd,temp
    real(wp), dimension(nat3) :: tvec
-   real(wp) :: ddot, thrs, scal, damp, dampO,dampD
+   real(wp) :: thrs, scal, damp, dampO,dampD
    !---------------------------------------------------------------------
 
    ! damping of H update
@@ -136,15 +137,15 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
 
    thrs=1.d-14
 
-   call dspmv('u',nat3,1.0d0,hess,dx,1,0.0d0,tvec,1)
+   call mctc_spmv(hess, dx, tvec, uplo='u')
 
    tvec(1:nat3) = grad(1:nat3) - grado(1:nat3) - tvec(1:nat3)
 
    ! calculate scalar dxdx and jtdx
-   dds  = ddot(nat3,dx,1,dx,1)
+   dds  = mctc_dot(dx, dx)
 
    if(dds > thrs) then
-      ddtd = ddot(nat3,tvec,1,dx,1)/dds
+      ddtd = mctc_dot(tvec, dx)/dds
       do i=1,nat3
          do j=1,i
             ij = i*(i-1)/2 + j

@@ -21,6 +21,7 @@
 
 subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
       use xtb_mctc_accuracy, only : wp
+      use xtb_mctc_lapack, only : mctc_syev, mctc_sygvd
       use xtb_scc_core, only : dmat, fermismear, occu
       implicit none
       integer ndim      ! # basis
@@ -35,12 +36,10 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
       real(wp) A(ndim,ndim)
       real(wp) S(ndim,ndim)
 
-      integer ihomoa,ihomob,i,liwork,info,lwork
+      integer ihomoa,ihomob,i,info
       real(wp) ga,gb,efa,efb,nfoda,nfodb
       real(wp),allocatable:: X(:,:)
-      real(wp),allocatable:: focca(:),foccb(:),aux(:)
-!     real*4  ,allocatable:: aux4(:),e4(:),A4(:,:)
-      integer,allocatable :: iwork(:),ifail(:)
+      real(wp),allocatable:: focca(:),foccb(:)
 
 
       allocate(focca(ndim),foccb(ndim))
@@ -48,23 +47,12 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
 ! ZDO case
       if(.not.ovlp) then
 
-      lwork  = 1 + 6*ndim + 2*ndim**2
-      allocate(aux(lwork))
-      call dsyev ('V','U',ndim,A,ndim,e,aux,lwork,info)
+      call mctc_syev(A, e, jobz='V', uplo='U', info=info)
 
       else
 ! with overlap case
 
-      allocate (aux(1),iwork(1),ifail(ndim))
-      call DSYGVD(1,'V','U',ndim,A,ndim,S,ndim,e,aux, &  !workspace query
-     &               -1,IWORK,LIWORK,INFO)
-      lwork=int(aux(1))
-      liwork=iwork(1)
-      deallocate(aux,iwork)
-
-      allocate (aux(lwork),iwork(liwork))              !do it
-      call DSYGVD(1,'V','U',ndim,A,ndim,S,ndim,e,aux, &
-     &            LWORK,IWORK,LIWORK,INFO)
+      call mctc_sygvd(A, S, e, itype=1, jobz='V', uplo='U', info=info)
 
       endif
 ! DONE

@@ -30,11 +30,6 @@ module xtb_mctc_blas_level2
    public :: mctc_gemv, mctc_ger, mctc_spmv, mctc_spr, mctc_spr2, mctc_symv
    public :: mctc_syr, mctc_syr2
 
-   public :: blas_gbmv, blas_gemv, blas_ger, blas_gerc, blas_geru
-   public :: blas_hbmv, blas_hemv, blas_her, blas_her2, blas_hpmv, blas_hpr, blas_hpr2
-   public :: blas_sbmv, blas_spmv, blas_spr, blas_spr2, blas_symv, blas_syr, blas_syr2
-   public :: blas_tbmv, blas_tbsv, blas_tpmv, blas_tpsv, blas_trmv, blas_trsv
-
 
    !> Performs one of the matrix-vector operations
    !
@@ -1176,16 +1171,17 @@ module xtb_mctc_blas_level2
 contains
 
 
-pure subroutine mctc_sgemv(amat, xvec, yvec, alpha, beta, trans)
+pure subroutine mctc_sgemv(amat, xvec, yvec, alpha, beta, trans, m, n)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
    character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
    real(sp) :: a, b
    character(len=1) :: tra
-   integer :: incx, incy, m, n, lda
+   integer :: incx, incy, mm, nn, lda
    if (present(alpha)) then
       a = alpha
    else
@@ -1204,30 +1200,39 @@ pure subroutine mctc_sgemv(amat, xvec, yvec, alpha, beta, trans)
    incx = 1
    incy = 1
    lda = max(1, size(amat, 1))
-   m = size(amat, 1)
-   n = size(amat, 2)
+   if (present(m)) then
+      mm = m
+   else
+      mm = size(amat, 1)
+   end if
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(amat, 2)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec, yvec, amat)
    !$acc host_data use_device(xvec, yvec, amat)
-   call cublasSgemv(tra, m, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   call cublasSgemv(tra, mm, nn, a, amat, lda, xvec, incx, b, yvec, incy)
    !$acc end host_data
    !$acc exit data copyout(yvec) delete(amat, xvec)
 #else
-   call blas_gemv(tra, m, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   call blas_gemv(tra, mm, nn, a, amat, lda, xvec, incx, b, yvec, incy)
 #endif
 end subroutine mctc_sgemv
 
 
-pure subroutine mctc_dgemv(amat, xvec, yvec, alpha, beta, trans)
+pure subroutine mctc_dgemv(amat, xvec, yvec, alpha, beta, trans, m, n)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
    character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
    real(dp) :: a, b
    character(len=1) :: tra
-   integer :: incx, incy, m, n, lda
+   integer :: incx, incy, mm, nn, lda
    if (present(alpha)) then
       a = alpha
    else
@@ -1246,16 +1251,24 @@ pure subroutine mctc_dgemv(amat, xvec, yvec, alpha, beta, trans)
    incx = 1
    incy = 1
    lda = max(1, size(amat, 1))
-   m = size(amat, 1)
-   n = size(amat, 2)
+   if (present(m)) then
+      mm = m
+   else
+      mm = size(amat, 1)
+   end if
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(amat, 2)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec, yvec, amat)
    !$acc host_data use_device(xvec, yvec, amat)
-   call cublasDgemv(tra, m, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   call cublasDgemv(tra, mm, nn, a, amat, lda, xvec, incx, b, yvec, incy)
    !$acc end host_data
    !$acc exit data copyout(yvec) delete(amat, xvec)
 #else
-   call blas_gemv(tra, m, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   call blas_gemv(tra, mm, nn, a, amat, lda, xvec, incx, b, yvec, incy)
 #endif
 end subroutine mctc_dgemv
 
@@ -1318,16 +1331,17 @@ pure subroutine mctc_dger(amat, xvec, yvec, alpha)
 end subroutine mctc_dger
 
 
-pure subroutine mctc_sspmv(amat, xvec, yvec, uplo, alpha, beta)
+pure subroutine mctc_sspmv(amat, xvec, yvec, uplo, alpha, beta, n)
    character(len=1), intent(in), optional :: uplo
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
    real(sp), intent(in) :: amat(:)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
+   integer, intent(in), optional :: n
    character(len=1) :: ula
    real(sp) :: a, b
-   integer :: incx, incy, n
+   integer :: incx, incy, nn
    if (present(alpha)) then
       a = alpha
    else
@@ -1345,29 +1359,34 @@ pure subroutine mctc_sspmv(amat, xvec, yvec, uplo, alpha, beta)
    end if
    incx = 1
    incy = 1
-   n = size(xvec)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec, yvec, amat)
    !$acc host_data use_device(xvec, yvec, amat)
-   call cublasSspmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
+   call cublasSspmv(ula, nn, a, amat, xvec, incx, b, yvec, incy)
    !$acc end host_data
    !$acc exit data copyout(yvec) delete(amat, xvec)
 #else
-   call blas_spmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
+   call blas_spmv(ula, nn, a, amat, xvec, incx, b, yvec, incy)
 #endif
 end subroutine mctc_sspmv
 
 
-pure subroutine mctc_dspmv(amat, xvec, yvec, uplo, alpha, beta)
+pure subroutine mctc_dspmv(amat, xvec, yvec, uplo, alpha, beta, n)
    character(len=1), intent(in), optional :: uplo
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
    real(dp), intent(in) :: amat(:)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
+   integer, intent(in), optional :: n
    character(len=1) :: ula
    real(dp) :: a, b
-   integer :: incx, incy, n
+   integer :: incx, incy, nn
    if (present(alpha)) then
       a = alpha
    else
@@ -1385,15 +1404,19 @@ pure subroutine mctc_dspmv(amat, xvec, yvec, uplo, alpha, beta)
    end if
    incx = 1
    incy = 1
-   n = size(xvec)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec, yvec, amat)
    !$acc host_data use_device(xvec, yvec, amat)
-   call cublasDspmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
+   call cublasDspmv(ula, nn, a, amat, xvec, incx, b, yvec, incy)
    !$acc end host_data
    !$acc exit data copyout(yvec) delete(amat, xvec)
 #else
-   call blas_spmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
+   call blas_spmv(ula, nn, a, amat, xvec, incx, b, yvec, incy)
 #endif
 end subroutine mctc_dspmv
 
@@ -1530,16 +1553,17 @@ pure subroutine mctc_dspr2(amat, xvec, yvec, uplo, alpha)
 end subroutine mctc_dspr2
 
 
-pure subroutine mctc_ssymv(amat, xvec, yvec, uplo, alpha, beta)
+pure subroutine mctc_ssymv(amat, xvec, yvec, uplo, alpha, beta, n)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
    character(len=1), intent(in), optional :: uplo
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
+   integer, intent(in), optional :: n
    character(len=1) :: ula
    real(sp) :: a, b
-   integer :: incx, incy, n, lda
+   integer :: incx, incy, nn, lda
    if (present(alpha)) then
       a = alpha
    else
@@ -1558,29 +1582,34 @@ pure subroutine mctc_ssymv(amat, xvec, yvec, uplo, alpha, beta)
    incx = 1
    incy = 1
    lda = max(1, size(amat, 1))
-   n = size(amat, 2)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(amat, 2)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec, yvec, amat)
    !$acc host_data use_device(xvec, yvec, amat)
-   call cublasSsymv(ula, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   call cublasSsymv(ula, nn, a, amat, lda, xvec, incx, b, yvec, incy)
    !$acc end host_data
    !$acc exit data copyout(yvec) delete(amat, xvec)
 #else
-   call blas_symv(ula, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   call blas_symv(ula, nn, a, amat, lda, xvec, incx, b, yvec, incy)
 #endif
 end subroutine mctc_ssymv
 
 
-pure subroutine mctc_dsymv(amat, xvec, yvec, uplo, alpha, beta)
+pure subroutine mctc_dsymv(amat, xvec, yvec, uplo, alpha, beta, n)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
    character(len=1), intent(in), optional :: uplo
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
+   integer, intent(in), optional :: n
    character(len=1) :: ula
    real(dp) :: a, b
-   integer :: incx, incy, n, lda
+   integer :: incx, incy, nn, lda
    if (present(alpha)) then
       a = alpha
    else
@@ -1599,15 +1628,19 @@ pure subroutine mctc_dsymv(amat, xvec, yvec, uplo, alpha, beta)
    incx = 1
    incy = 1
    lda = max(1, size(amat, 1))
-   n = size(amat, 2)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(amat, 2)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec, yvec, amat)
    !$acc host_data use_device(xvec, yvec, amat)
-   call cublasDsymv(ula, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   call cublasDsymv(ula, nn, a, amat, lda, xvec, incx, b, yvec, incy)
    !$acc end host_data
    !$acc exit data copyout(yvec) delete(amat, xvec)
 #else
-   call blas_symv(ula, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   call blas_symv(ula, nn, a, amat, lda, xvec, incx, b, yvec, incy)
 #endif
 end subroutine mctc_dsymv
 

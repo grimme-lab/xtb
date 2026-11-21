@@ -21,10 +21,14 @@ module xtb_mctc_lapack_geneigval
    implicit none
    private
 
-   public :: lapack_sygv, lapack_sygvd, lapack_sygvx, lapack_spgv, lapack_spgvd
-   public :: lapack_spgvx
-   public :: lapack_hegv, lapack_hegvd, lapack_hegvx, lapack_hpgv, lapack_hpgvd
-   public :: lapack_hpgvx
+   public :: mctc_sygvd
+   public :: lapack_sygvd
+
+
+   interface mctc_sygvd
+      module procedure :: mctc_ssygvd
+      module procedure :: mctc_dsygvd
+   end interface mctc_sygvd
 
 
    interface lapack_sygv
@@ -551,6 +555,92 @@ module xtb_mctc_lapack_geneigval
 
 
 contains
+
+
+pure subroutine mctc_ssygvd(amat, bmat, eval, itype, jobz, uplo, info)
+   real(sp), intent(inout) :: amat(:, :)
+   real(sp), intent(inout) :: bmat(:, :)
+   real(sp), intent(out) :: eval(:)
+   integer, intent(in), optional :: itype
+   character(len=1), intent(in), optional :: jobz
+   character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
+
+   integer :: ity, n, lda, ldb, lwork, liwork, info_, stat, iquery(1)
+   character(len=1) :: job, ula
+   real(sp) :: query(1)
+   real(sp), allocatable :: work(:)
+   integer, allocatable :: iwork(:)
+
+   ity = 1
+   if (present(itype)) ity = itype
+   job = 'V'
+   if (present(jobz)) job = jobz
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+
+   lda = max(1, size(amat, 1))
+   ldb = max(1, size(bmat, 1))
+   n = size(amat, 2)
+   info_ = 0
+   if (n > 0) then
+      call lapack_sygvd(ity, job, ula, n, amat, lda, bmat, ldb, eval, query, -1, iquery, -1, info_)
+      if (info_ == 0) then
+         lwork = max(1, nint(query(1)))
+         liwork = max(1, iquery(1))
+         allocate(work(lwork), iwork(liwork), stat=stat)
+         if (stat == 0) then
+            call lapack_sygvd(ity, job, ula, n, amat, lda, bmat, ldb, eval, work, lwork, iwork, liwork, info_)
+         else
+            info_ = -1000
+         end if
+      end if
+   end if
+   if (present(info)) info = info_
+end subroutine mctc_ssygvd
+
+
+pure subroutine mctc_dsygvd(amat, bmat, eval, itype, jobz, uplo, info)
+   real(dp), intent(inout) :: amat(:, :)
+   real(dp), intent(inout) :: bmat(:, :)
+   real(dp), intent(out) :: eval(:)
+   integer, intent(in), optional :: itype
+   character(len=1), intent(in), optional :: jobz
+   character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
+
+   integer :: ity, n, lda, ldb, lwork, liwork, info_, stat, iquery(1)
+   character(len=1) :: job, ula
+   real(dp) :: query(1)
+   real(dp), allocatable :: work(:)
+   integer, allocatable :: iwork(:)
+
+   ity = 1
+   if (present(itype)) ity = itype
+   job = 'V'
+   if (present(jobz)) job = jobz
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+
+   lda = max(1, size(amat, 1))
+   ldb = max(1, size(bmat, 1))
+   n = size(amat, 2)
+   info_ = 0
+   if (n > 0) then
+      call lapack_sygvd(ity, job, ula, n, amat, lda, bmat, ldb, eval, query, -1, iquery, -1, info_)
+      if (info_ == 0) then
+         lwork = max(1, nint(query(1)))
+         liwork = max(1, iquery(1))
+         allocate(work(lwork), iwork(liwork), stat=stat)
+         if (stat == 0) then
+            call lapack_sygvd(ity, job, ula, n, amat, lda, bmat, ldb, eval, work, lwork, iwork, liwork, info_)
+         else
+            info_ = -1000
+         end if
+      end if
+   end if
+   if (present(info)) info = info_
+end subroutine mctc_dsygvd
 
 
 end module xtb_mctc_lapack_geneigval

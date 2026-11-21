@@ -34,23 +34,89 @@ module xtb_mctc_blas_wrap2
    ! where alpha and beta are scalars, x and y are vectors and A is an
    ! m by n matrix.
    interface mctc_gemv
+      module procedure :: mctc_sgemv212
+      module procedure :: mctc_sgemv221
       module procedure :: mctc_sgemv312
       module procedure :: mctc_sgemv321
+      module procedure :: mctc_dgemv212
+      module procedure :: mctc_dgemv221
       module procedure :: mctc_dgemv312
       module procedure :: mctc_dgemv321
    end interface mctc_gemv
+
+   interface mctc_spmv
+      module procedure :: mctc_sspmv122
+      module procedure :: mctc_dspmv122
+   end interface mctc_spmv
 
 
 contains
 
 
-subroutine mctc_sgemv312(amat, xvec, yvec, alpha, beta, trans)
+pure subroutine mctc_sgemv212(amat, xvec, yvec, alpha, beta, trans, m, n)
+   real(sp), intent(in) :: amat(:, :)
+   real(sp), intent(in) :: xvec(:)
+   real(sp), intent(inout), contiguous, target :: yvec(:, :)
+   real(sp), intent(in), optional :: alpha
+   real(sp), intent(in), optional :: beta
+   character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
+   real(sp), pointer :: yptr(:)
+   yptr(1:size(yvec)) => yvec
+   call mctc_gemv(amat, xvec, yptr, alpha, beta, trans, m, n)
+end subroutine mctc_sgemv212
+
+
+subroutine mctc_sgemv221(amat, xvec, yvec, alpha, beta, trans, m, n)
+   real(sp), intent(in) :: amat(:, :)
+   real(sp), intent(in), contiguous, target :: xvec(:, :)
+   real(sp), intent(inout) :: yvec(:)
+   real(sp), intent(in), optional :: alpha
+   real(sp), intent(in), optional :: beta
+   character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
+   real(sp), pointer :: xptr(:)
+   xptr(1:size(xvec)) => xvec
+   call mctc_gemv(amat, xptr, yvec, alpha, beta, trans, m, n)
+end subroutine mctc_sgemv221
+
+
+pure subroutine mctc_dgemv212(amat, xvec, yvec, alpha, beta, trans, m, n)
+   real(dp), intent(in) :: amat(:, :)
+   real(dp), intent(in) :: xvec(:)
+   real(dp), intent(inout), contiguous, target :: yvec(:, :)
+   real(dp), intent(in), optional :: alpha
+   real(dp), intent(in), optional :: beta
+   character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
+   real(dp), pointer :: yptr(:)
+   yptr(1:size(yvec)) => yvec
+   call mctc_gemv(amat, xvec, yptr, alpha, beta, trans, m, n)
+end subroutine mctc_dgemv212
+
+
+subroutine mctc_dgemv221(amat, xvec, yvec, alpha, beta, trans, m, n)
+   real(dp), intent(in) :: amat(:, :)
+   real(dp), intent(in), contiguous, target :: xvec(:, :)
+   real(dp), intent(inout) :: yvec(:)
+   real(dp), intent(in), optional :: alpha
+   real(dp), intent(in), optional :: beta
+   character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
+   real(dp), pointer :: xptr(:)
+   xptr(1:size(xvec)) => xvec
+   call mctc_gemv(amat, xptr, yvec, alpha, beta, trans, m, n)
+end subroutine mctc_dgemv221
+
+
+subroutine mctc_sgemv312(amat, xvec, yvec, alpha, beta, trans, m, n)
    real(sp), intent(in), contiguous, target :: amat(:, :, :)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout), contiguous, target :: yvec(:, :)
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
    character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
    real(sp), pointer :: aptr(:, :), yptr(:)
    character(len=1) :: tra
    if (present(trans)) then
@@ -65,17 +131,18 @@ subroutine mctc_sgemv312(amat, xvec, yvec, alpha, beta, trans)
       aptr(1:size(amat, 1), 1:size(amat, 2)*size(amat, 3)) => amat
       yptr(1:size(yvec, 1) * size(yvec, 2)) => yvec
    end if
-   call mctc_gemv(aptr, xvec, yptr, alpha, beta, tra)
+   call mctc_gemv(aptr, xvec, yptr, alpha, beta, tra, m, n)
 end subroutine mctc_sgemv312
 
 
-subroutine mctc_sgemv321(amat, xvec, yvec, alpha, beta, trans)
+subroutine mctc_sgemv321(amat, xvec, yvec, alpha, beta, trans, m, n)
    real(sp), intent(in), contiguous, target :: amat(:, :, :)
    real(sp), intent(in), contiguous, target :: xvec(:, :)
    real(sp), intent(inout) :: yvec(:)
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
    character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
    real(sp), pointer :: aptr(:, :), xptr(:)
    character(len=1) :: tra
    if (present(trans)) then
@@ -90,17 +157,18 @@ subroutine mctc_sgemv321(amat, xvec, yvec, alpha, beta, trans)
       aptr(1:size(amat, 1)*size(amat, 2), 1:size(amat, 3)) => amat
       xptr(1:size(xvec, 1) * size(xvec, 2)) => xvec
    end if
-   call mctc_gemv(aptr, xptr, yvec, alpha, beta, tra)
+   call mctc_gemv(aptr, xptr, yvec, alpha, beta, tra, m, n)
 end subroutine mctc_sgemv321
 
 
-subroutine mctc_dgemv312(amat, xvec, yvec, alpha, beta, trans)
+subroutine mctc_dgemv312(amat, xvec, yvec, alpha, beta, trans, m, n)
    real(dp), intent(in), contiguous, target :: amat(:, :, :)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout), contiguous, target :: yvec(:, :)
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
    character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
    real(dp), pointer :: aptr(:, :), yptr(:)
    character(len=1) :: tra
    if (present(trans)) then
@@ -115,17 +183,18 @@ subroutine mctc_dgemv312(amat, xvec, yvec, alpha, beta, trans)
       aptr(1:size(amat, 1), 1:size(amat, 2)*size(amat, 3)) => amat
       yptr(1:size(yvec, 1) * size(yvec, 2)) => yvec
    end if
-   call mctc_gemv(aptr, xvec, yptr, alpha, beta, tra)
+   call mctc_gemv(aptr, xvec, yptr, alpha, beta, tra, m, n)
 end subroutine mctc_dgemv312
 
 
-subroutine mctc_dgemv321(amat, xvec, yvec, alpha, beta, trans)
+subroutine mctc_dgemv321(amat, xvec, yvec, alpha, beta, trans, m, n)
    real(dp), intent(in), contiguous, target :: amat(:, :, :)
    real(dp), intent(in), contiguous, target :: xvec(:, :)
    real(dp), intent(inout) :: yvec(:)
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
    character(len=1), intent(in), optional :: trans
+   integer, intent(in), optional :: m, n
    real(dp), pointer :: aptr(:, :), xptr(:)
    character(len=1) :: tra
    if (present(trans)) then
@@ -140,8 +209,38 @@ subroutine mctc_dgemv321(amat, xvec, yvec, alpha, beta, trans)
       aptr(1:size(amat, 1)*size(amat, 2), 1:size(amat, 3)) => amat
       xptr(1:size(xvec, 1) * size(xvec, 2)) => xvec
    end if
-   call mctc_gemv(aptr, xptr, yvec, alpha, beta, tra)
+   call mctc_gemv(aptr, xptr, yvec, alpha, beta, tra, m, n)
 end subroutine mctc_dgemv321
+
+
+subroutine mctc_sspmv122(amat, xvec, yvec, uplo, alpha, beta, n)
+   real(sp), intent(in) :: amat(:)
+   real(sp), intent(in), contiguous, target :: xvec(:, :)
+   real(sp), intent(inout), contiguous, target :: yvec(:, :)
+   character(len=1), intent(in), optional :: uplo
+   real(sp), intent(in), optional :: alpha
+   real(sp), intent(in), optional :: beta
+   integer, intent(in), optional :: n
+   real(sp), pointer :: xptr(:), yptr(:)
+   xptr(1:size(xvec)) => xvec
+   yptr(1:size(yvec)) => yvec
+   call mctc_spmv(amat, xptr, yptr, uplo, alpha, beta, n)
+end subroutine mctc_sspmv122
+
+
+subroutine mctc_dspmv122(amat, xvec, yvec, uplo, alpha, beta, n)
+   real(dp), intent(in) :: amat(:)
+   real(dp), intent(in), contiguous, target :: xvec(:, :)
+   real(dp), intent(inout), contiguous, target :: yvec(:, :)
+   character(len=1), intent(in), optional :: uplo
+   real(dp), intent(in), optional :: alpha
+   real(dp), intent(in), optional :: beta
+   integer, intent(in), optional :: n
+   real(dp), pointer :: xptr(:), yptr(:)
+   xptr(1:size(xvec)) => xvec
+   yptr(1:size(yvec)) => yvec
+   call mctc_spmv(amat, xptr, yptr, uplo, alpha, beta, n)
+end subroutine mctc_dspmv122
 
 
 end module xtb_mctc_blas_wrap2

@@ -32,9 +32,9 @@
 !----------------------------------------------------------------------------------------------
 module xtb_lineardep
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_lapack, only : lapack_sygvd, lapack_syev
+   use xtb_mctc_lapack, only : mctc_potrf, mctc_syev
    use xtb_setparam, only: set
-   use xtb_mctc_blas, only : blas_gemm, blas_symm
+   use xtb_mctc_blas, only : mctc_gemm
    implicit none
 
    !real(wp) :: lidethr    ! cut-off threshold for small overlap eigenvalues
@@ -80,8 +80,8 @@ subroutine cholesky(iunit,printl,ndim,A,fail)
     allocate(U(ndim,ndim))
     fail=.false.
     U=A
-    call dpotrf('U',ndim,U,ndim,ierr) !LAPACK routine  A = U**T*U
-                                      !on input U=A, retruns U
+    call mctc_potrf(U, uplo='U', info=ierr) !LAPACK routine  A = U**T*U
+                                            !on input U=A, retruns U
 
     if(printl) then
       write(iunit,'(2x,a)')'done.'
@@ -252,26 +252,14 @@ subroutine canorthog2(ndim,S,U,ssq,fail)
     logical,intent(out)  :: fail
    !---
     integer :: ierr
-    integer :: lwork
-    real(wp),dimension(1) :: wdim
-    real(wp),allocatable  :: work(:)
 
    !---
     fail=.false.
     U=S
     ssq=0.0d0
-   !--- determine optimal work space
-   !--- only calculates the optimal size of the 'work' array
-    call lapack_syev('v','l',ndim,U,ndim,ssq,wdim,-1,ierr)
-    if(ierr /= 0)then
-       fail=.true.
-       return
-    endif
-    lwork=int(wdim(1))
-    allocate(work(lwork))
 
    !--- diagonalize overlap s = U**T*S*U
-    call lapack_syev('v','l',ndim,U,ndim,ssq,work,lwork,ierr)
+    call mctc_syev(U, ssq, jobz='v', uplo='l', info=ierr)
     if(ierr /= 0)then
        fail=.true.
        return
@@ -484,35 +472,32 @@ subroutine orthgsolve(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
    real(wp),intent(in)   :: acc
    logical, intent(out)  :: fail
 
-   integer :: i,j,info,lwork,liwork,nfound,iu
+   integer :: i,j,info,nfound,iu
    integer :: nbf,xbf
-   integer, allocatable :: iwork(:),ifail(:)
-   real(wp),allocatable :: aux  (:)
-   real(wp),allocatable :: Haux(:,:),Paux(:,:)
+   real(wp),allocatable :: Haux(:,:)
    fail =.false.
 
 
   !--- DIAG IN ORTHOGONAL BASIS WITH X=U*s^-1/2 TRAFO
     nbf = ndim
     xbf = cutdim
-    lwork  = 1 + 6*nbf + 2*nbf**2
-    allocate (aux(lwork))
   !--- calculate F'=X**T*F*X  
-
-    call blas_gemm('n','n',nbf,xbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
-    call blas_gemm('t','n',xbf,xbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,xbf)
+    allocate(Haux(xbf,xbf))
+    call mctc_gemm(H, X, P, m=nbf, n=xbf, k=nbf)
+    call mctc_gemm(X, P, Haux, transa='t', m=xbf, n=xbf, k=nbf)
     
   !--- Caluclate C' and ε from F'*C' = C'*ε
-    call lapack_syev('v','u',xbf,H,xbf,e,aux,lwork,info)
+    e = 0.0_wp
+    call mctc_syev(Haux, e(:xbf), jobz='v', uplo='u', info=info)
     if(info.ne.0)then
        fail=.true.
        return
     endif
   !--- calculate C = X*C'
     P=0.0d0
-    call blas_gemm('N','N',nbf,xbf,xbf,1.0d0,X,nbf,H,xbf,0.0d0,P,nbf)
+    call mctc_gemm(X, Haux, P, m=nbf, n=xbf, k=xbf)
     H=P
-    deallocate(aux)
+    deallocate(Haux)
     return
 end subroutine orthgsolve
 
@@ -531,10 +516,8 @@ subroutine orthgsolve2(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
    real(wp),intent(in)   :: acc
    logical, intent(out)  :: fail
 
-   integer :: i,j,info,lwork,liwork,nfound,iu
+   integer :: i,j,info,nfound,iu
    integer :: nbf,xbf
-   integer, allocatable :: iwork(:),ifail(:)
-   real(wp),allocatable :: aux  (:)
    real(wp),allocatable :: Haux(:,:),Paux(:,:),Xaux(:,:)
    fail =.false.
 
@@ -542,17 +525,16 @@ subroutine orthgsolve2(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
   !--- DIAG IN ORTHOGONAL BASIS WITH X=U*s^-1/2 TRAFO
     nbf = ndim
     xbf = cutdim
-    lwork  = 1 + 6*nbf + 2*nbf**2
-    allocate (aux(lwork))
   !--- calculate F'=X**T*F*X  
     allocate(Xaux(nbf,xbf),Paux(nbf,xbf))
     Xaux=X(:,1:xbf)
-    call blas_gemm('n','n',nbf,xbf,nbf,1.0d0,H,nbf,Xaux,nbf,0.0d0,Paux,nbf)
+    call mctc_gemm(H, Xaux, Paux)
     allocate(Haux(xbf,xbf))
-    call blas_gemm('t','n',xbf,xbf,nbf,1.0d0,Xaux,nbf,Paux,nbf,0.0d0,Haux,xbf)
+    call mctc_gemm(Xaux, Paux, Haux, transa='t')
 
   !--- Caluclate C' and ε from F'*C' = C'*ε
-    call lapack_syev('v','u',xbf,Haux,xbf,e,aux,lwork,info)
+    e = 0.0_wp
+    call mctc_syev(Haux, e(:xbf), jobz='v', uplo='u', info=info)
     !call prmat(6,e,nbf,1,"eigenvalues")
 
     if(info.ne.0)then
@@ -561,11 +543,10 @@ subroutine orthgsolve2(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
     endif
   !--- calculate C = X*C'
     P=0.0d0
-    call blas_gemm('N','N',nbf,xbf,xbf,1.0d0,Xaux,nbf,Haux,xbf,0.0d0,P,nbf)
+    call mctc_gemm(Xaux, Haux, P, m=nbf, n=xbf, k=xbf)
     H=P
 
     deallocate(Haux,Paux,Xaux)
-    deallocate(aux)
     return
 end subroutine orthgsolve2
 

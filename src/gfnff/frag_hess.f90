@@ -362,6 +362,7 @@ module xtb_gfnff_fraghess
      ! eig_calc - diagonalized hessian (eigenvalues)
      !---------------------------------------------------------------------------------------------
      use xtb_mctc_accuracy, only : wp, sp
+     use xtb_mctc_lapack, only : mctc_syev
         implicit none
         !Dummy Arguments
         integer,  intent(in)     :: nat                          ! # of atoms
@@ -378,12 +379,10 @@ module xtb_gfnff_fraghess
         integer                  :: nat_cur                      ! # of atoms in fragment
         integer                  :: nat3_cur                     ! nat in fragments * 3
         integer                  :: info                         ! for ssyev
-        integer                  :: lwork                        ! for ssyev
         integer                  :: at_i, at_j, l
         real(sp)                 :: ev_calc(3*nat,3*nat)         ! eigenvectors of entire system
         real(sp), allocatable    :: mini_hess(:,:)               ! eigenvectors of fragment
         real(sp), allocatable    :: eig(:)                       ! eigenvalues of fragment
-        real(sp), allocatable    :: aux(:)                       ! for ssyev
 
 
         ev_calc  = 0.0e0_sp
@@ -391,7 +390,7 @@ module xtb_gfnff_fraghess
         nat3     = 3 * nat
 
 !$omp parallel default(none) &
-!$omp private(isystem,i,j,k,l,at_i,at_j,nat3_cur,mini_hess,eig,lwork,aux,info) &
+!$omp private(isystem,i,j,k,l,at_i,at_j,nat3_cur,mini_hess,eig,info) &
 !$omp shared(nsystem,ev_calc,eig_calc,hess,nspinsyst,ispinsyst)
 !$omp do schedule(dynamic)
         do isystem = 1 , nsystem
@@ -413,10 +412,7 @@ module xtb_gfnff_fraghess
               end do
            end do
 
-           lwork = 1 + 6*nat3_cur + 2*nat3_cur**2
-           allocate(aux(lwork))
-           call ssyev ('V','U',nat3_cur,mini_hess,nat3_cur,eig,aux,lwork,info)
-           deallocate(aux)
+           call mctc_syev(mini_hess, eig, jobz='V', uplo='U', info=info)
 
 !$omp critical
            ! Traverse columns first for contiguous access to mini_hess

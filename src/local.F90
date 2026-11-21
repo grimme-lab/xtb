@@ -37,7 +37,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert, only : autoev,autoaa
    use xtb_mctc_symbols, only : toSymbol
-   use xtb_mctc_blas, only : blas_gemm
+   use xtb_mctc_blas, only : mctc_gemm
    use xtb_type_basisset
    use xtb_setparam
    use xtb_scc_core, only : get_wiberg
@@ -58,7 +58,8 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
 
    real(wp),allocatable :: op(:,:)
    real(wp),allocatable :: oc(:,:,:)
-   real(wp),allocatable :: cca(:)
+   real(wp),allocatable,target :: cca(:)
+   real(wp),pointer :: ccaptr(:,:)
    real(wp),allocatable :: dip2(:)
    real(wp),allocatable :: qua (:,:)
    real(wp),allocatable :: dip (:,:)
@@ -203,7 +204,8 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
       ! the lmos
       tmp_cmo = cmo
       ! Apply transformation if there is a occupied orbital to be localized
-      CALL dgemm('N','N',nao,n,n,1.D0,cca,nao,d,n,0.D0,tmp_cmo,nao) ! non-std BLAS
+      ccaptr(1:nao, 1:n) => cca(1:nao*n)
+      call mctc_gemm(ccaptr, d, tmp_cmo, m=nao, n=n, k=n)
    
    end if
 

@@ -25,7 +25,6 @@ module xtb_mctc_lapack_wrap
       & mctc_potri, mctc_pptri, mctc_trtri
    use xtb_mctc_lapack_trs, only : mctc_getrs, mctc_sytrs, mctc_sptrs, &
       & mctc_potrs, mctc_pptrs
-   use xtb_type_environment, only : TEnvironment
    implicit none
    private
 
@@ -74,235 +73,235 @@ module xtb_mctc_lapack_wrap
 contains
 
 
-subroutine mctc_sgetrs1(env, amat, bvec, ipiv, trans)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_sgetrs1(amat, bvec, ipiv, trans, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout), target :: bvec(:)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: trans
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_getrs(env, amat, bptr, ipiv, trans)
+   call mctc_getrs(amat, bptr, ipiv, trans, info)
 end subroutine mctc_sgetrs1
 
 
-subroutine mctc_sgetrs3(env, amat, bmat, ipiv, trans)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_sgetrs3(amat, bmat, ipiv, trans, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout), contiguous, target :: bmat(:, :, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: trans
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_getrs(env, amat, bptr, ipiv, trans)
+   call mctc_getrs(amat, bptr, ipiv, trans, info)
 end subroutine mctc_sgetrs3
 
 
-subroutine mctc_dgetrs1(env, amat, bvec, ipiv, trans)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dgetrs1(amat, bvec, ipiv, trans, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout), target :: bvec(:)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: trans
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_getrs(env, amat, bptr, ipiv, trans)
+   call mctc_getrs(amat, bptr, ipiv, trans, info)
 end subroutine mctc_dgetrs1
 
 
-subroutine mctc_dgetrs3(env, amat, bmat, ipiv, trans)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dgetrs3(amat, bmat, ipiv, trans, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout), contiguous, target :: bmat(:, :, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: trans
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_getrs(env, amat, bptr, ipiv, trans)
+   call mctc_getrs(amat, bptr, ipiv, trans, info)
 end subroutine mctc_dgetrs3
 
 
-subroutine mctc_ssytrs1(env, amat, bvec, ipiv, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssytrs1(amat, bvec, ipiv, uplo, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout), target :: bvec(:)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_sytrs(env, amat, bptr, ipiv, uplo)
+   call mctc_sytrs(amat, bptr, ipiv, uplo, info)
 end subroutine mctc_ssytrs1
 
 
-subroutine mctc_ssytrs3(env, amat, bmat, ipiv, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssytrs3(amat, bmat, ipiv, uplo, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout), contiguous, target :: bmat(:, :, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_sytrs(env, amat, bptr, ipiv, uplo)
+   call mctc_sytrs(amat, bptr, ipiv, uplo, info)
 end subroutine mctc_ssytrs3
 
 
-subroutine mctc_dsytrs1(env, amat, bvec, ipiv, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsytrs1(amat, bvec, ipiv, uplo, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout), target :: bvec(:)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_sytrs(env, amat, bptr, ipiv, uplo)
+   call mctc_sytrs(amat, bptr, ipiv, uplo, info)
 end subroutine mctc_dsytrs1
 
 
-subroutine mctc_dsytrs3(env, amat, bmat, ipiv, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsytrs3(amat, bmat, ipiv, uplo, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout), contiguous, target :: bmat(:, :, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_sytrs(env, amat, bptr, ipiv, uplo)
+   call mctc_sytrs(amat, bptr, ipiv, uplo, info)
 end subroutine mctc_dsytrs3
 
 
-subroutine mctc_ssptrs1(env, amat, bvec, ipiv, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssptrs1(amat, bvec, ipiv, uplo, info)
    real(sp), intent(in) :: amat(:)
    real(sp), intent(inout), target :: bvec(:)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_sptrs(env, amat, bptr, ipiv, uplo)
+   call mctc_sptrs(amat, bptr, ipiv, uplo, info)
 end subroutine mctc_ssptrs1
 
 
-subroutine mctc_ssptrs3(env, amat, bmat, ipiv, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssptrs3(amat, bmat, ipiv, uplo, info)
    real(sp), intent(in) :: amat(:)
    real(sp), intent(inout), contiguous, target :: bmat(:, :, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_sptrs(env, amat, bptr, ipiv, uplo)
+   call mctc_sptrs(amat, bptr, ipiv, uplo, info)
 end subroutine mctc_ssptrs3
 
 
-subroutine mctc_dsptrs1(env, amat, bvec, ipiv, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsptrs1(amat, bvec, ipiv, uplo, info)
    real(dp), intent(in) :: amat(:)
    real(dp), intent(inout), target :: bvec(:)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_sptrs(env, amat, bptr, ipiv, uplo)
+   call mctc_sptrs(amat, bptr, ipiv, uplo, info)
 end subroutine mctc_dsptrs1
 
 
-subroutine mctc_dsptrs3(env, amat, bmat, ipiv, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsptrs3(amat, bmat, ipiv, uplo, info)
    real(dp), intent(in) :: amat(:)
    real(dp), intent(inout), contiguous, target :: bmat(:, :, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_sptrs(env, amat, bptr, ipiv, uplo)
+   call mctc_sptrs(amat, bptr, ipiv, uplo, info)
 end subroutine mctc_dsptrs3
 
 
-subroutine mctc_spotrs1(env, amat, bvec, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spotrs1(amat, bvec, uplo, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout), target :: bvec(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_potrs(env, amat, bptr, uplo)
+   call mctc_potrs(amat, bptr, uplo, info)
 end subroutine mctc_spotrs1
 
 
-subroutine mctc_spotrs3(env, amat, bmat, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spotrs3(amat, bmat, uplo, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout), contiguous, target :: bmat(:, :, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_potrs(env, amat, bptr, uplo)
+   call mctc_potrs(amat, bptr, uplo, info)
 end subroutine mctc_spotrs3
 
 
-subroutine mctc_dpotrs1(env, amat, bvec, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpotrs1(amat, bvec, uplo, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout), target :: bvec(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_potrs(env, amat, bptr, uplo)
+   call mctc_potrs(amat, bptr, uplo, info)
 end subroutine mctc_dpotrs1
 
 
-subroutine mctc_dpotrs3(env, amat, bmat, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpotrs3(amat, bmat, uplo, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout), contiguous, target :: bmat(:, :, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_potrs(env, amat, bptr, uplo)
+   call mctc_potrs(amat, bptr, uplo, info)
 end subroutine mctc_dpotrs3
 
 
-subroutine mctc_spptrs1(env, amat, bvec, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spptrs1(amat, bvec, uplo, info)
    real(sp), intent(in) :: amat(:)
    real(sp), intent(inout), target :: bvec(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_pptrs(env, amat, bptr, uplo)
+   call mctc_pptrs(amat, bptr, uplo, info)
 end subroutine mctc_spptrs1
 
 
-subroutine mctc_spptrs3(env, amat, bmat, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spptrs3(amat, bmat, uplo, info)
    real(sp), intent(in) :: amat(:)
    real(sp), intent(inout), contiguous, target :: bmat(:, :, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(sp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_pptrs(env, amat, bptr, uplo)
+   call mctc_pptrs(amat, bptr, uplo, info)
 end subroutine mctc_spptrs3
 
 
-subroutine mctc_dpptrs1(env, amat, bvec, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpptrs1(amat, bvec, uplo, info)
    real(dp), intent(in) :: amat(:)
    real(dp), intent(inout), target :: bvec(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bvec), 1:1) => bvec
-   call mctc_pptrs(env, amat, bptr, uplo)
+   call mctc_pptrs(amat, bptr, uplo, info)
 end subroutine mctc_dpptrs1
 
 
-subroutine mctc_dpptrs3(env, amat, bmat, uplo)
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpptrs3(amat, bmat, uplo, info)
    real(dp), intent(in) :: amat(:)
    real(dp), intent(inout), contiguous, target :: bmat(:, :, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    real(dp), pointer :: bptr(:, :)
    bptr(1:size(bmat, 1), 1:size(bmat, 2)*size(bmat, 3)) => bmat
-   call mctc_pptrs(env, amat, bptr, uplo)
+   call mctc_pptrs(amat, bptr, uplo, info)
 end subroutine mctc_dpptrs3
 
 

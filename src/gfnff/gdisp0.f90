@@ -17,6 +17,7 @@
 
 module xtb_gfnff_gdisp0
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_blas, only : mctc_gemv
    use xtb_mctc_la, only : contract
    use xtb_param_sqrtzr4r2, only : sqrtZr4r2
    use xtb_type_molecule
@@ -343,7 +344,7 @@ subroutine d3_gradient(dispm, nat, at, xyz, npair, pairlist, zeta_scale, radii, 
    enddo
    !$omp end parallel do
 
-   call dgemv('n', 3*nat, nat, 1.0_wp, dcndr, 3*nat, dEdcn, 1, 1.0_wp, gradient, 1)
+   call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
 
    energy = sum(energies)
 

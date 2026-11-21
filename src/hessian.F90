@@ -38,6 +38,7 @@ subroutine numhess( &
 
    use xtb_mctc_convert
    use xtb_mctc_blas
+   use xtb_mctc_lapack, only : mctc_syev
 
 !! ========================================================================
 !  type definitions
@@ -85,7 +86,7 @@ subroutine numhess( &
    real(wp) :: dumj,acc,w0,w1,step2,aa,bb,cc,scalh,hof,h298
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
-   integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
+   integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,a,b,ri,rj
    integer  :: nread,kend,lowmode,nzero,nproj
    integer  :: nonfrozh
    integer, allocatable :: nb(:,:)
@@ -103,7 +104,6 @@ subroutine numhess( &
    real(wp),allocatable :: fc_bias(:)
    real(wp),allocatable :: v(:)
    real(wp),allocatable :: freq_scal(:)
-   real(wp),allocatable :: aux (:)
    real(wp),allocatable :: isqm(:)
    real(wp),allocatable :: gl  (:,:)
    real(wp),allocatable :: pold(:)
@@ -444,9 +444,7 @@ subroutine numhess( &
    ! calcualte htb without RMSD bias
    if (set%runtyp.eq.p_run_bhess) htb=res%hess-hbias
    ! diag
-   lwork  = 1 + 6*n3 + 2*n3**2
-   allocate(aux(lwork))
-   call dsyev ('V','U',n3,res%hess,n3,res%freq,aux,lwork,info)
+   call mctc_syev(res%hess, res%freq, jobz='V', uplo='U', info=info)
    if(info.ne.0) then
       call env%error('Diagonalization of hessian failed', source)
       return

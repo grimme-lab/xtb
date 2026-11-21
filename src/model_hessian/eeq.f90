@@ -19,32 +19,13 @@
 !> EEQ model Hessian contribution
 module xtb_modelhessian_eeq
    use xtb_bmatrix, only : bmat_accum_pairblock_packed
-   use xtb_mctc_blas_wrap3, only : mctc_gemm
+   use xtb_mctc_blas, only : mctc_gemm
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi
-   use xtb_mctc_lapack_trf, only : lapack_sytrf
-   use xtb_mctc_lapack_tri, only : lapack_sytri
+   use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs, mctc_sytri
    use xtb_type_environment, only : TEnvironment
    use xtb_type_param, only : chrg_parameter
    implicit none(type, external)
-
-   interface
-      subroutine dsysv(uplo, n, nrhs, a, lda, ipiv, b, ldb, work, lwork, info)
-         import :: wp
-         implicit none(type, external)
-         character(len = 1), intent(in) :: uplo
-         integer, intent(in) :: n, nrhs, lda, ldb, lwork
-         ! allow(C071)
-         real(wp), intent(inout) :: a(lda, *)
-         ! allow(C071)
-         integer, intent(out) :: ipiv(*)
-         ! allow(C071)
-         real(wp), intent(inout) :: b(ldb, *)
-         ! allow(C071)
-         real(wp), intent(inout) :: work(*)
-         integer, intent(out) :: info
-      end subroutine dsysv
-   end interface
 
    public :: add_eeq_hessian
    private
@@ -100,10 +81,7 @@ subroutine add_eeq_hessian(env, n, at, xyz, chrg, chrgeq, kq, hess)
 
    ! LAPACK work variables
    integer, allocatable :: ipiv(:)
-   real(wp), allocatable :: work(:)
-   integer :: lwork
    integer :: info
-   real(wp) :: test(1)
 
    ! Initialization
    m = n + 1
@@ -157,16 +135,10 @@ subroutine add_eeq_hessian(env, n, at, xyz, chrg, chrgeq, kq, hess)
    allocate( Atmp(m, m), source = Amat )
    allocate( Xtmp(m), source = Xvec )
 
-   ! assume work space query, set best value to test after first dsysv call
-   call dsysv("u", m, 1, Atmp, m, ipiv, Xtmp, m, test, -1, info)
-   if (info /= 0) then
-      call env%error("DSYSV workspace query failed for the EEQ matrix", source)
-      return
+   call mctc_sytrf(Atmp, ipiv, uplo="u", info=info)
+   if (info == 0) then
+      call mctc_sytrs(Atmp, Xtmp, ipiv, uplo="u", info=info)
    end if
-   lwork = max(1, int(test(1)))
-   allocate( work(lwork), source = 0.0_wp )
-
-   call dsysv("u", m, 1, Atmp, m, ipiv, Xtmp, m, work, lwork, info)
    if (info /= 0) then
       call env%error("DSYSV failed while solving EEQ charges", source)
       return
@@ -217,20 +189,8 @@ subroutine add_eeq_hessian(env, n, at, xyz, chrg, chrgeq, kq, hess)
 !  A⁻¹ = (L·D·L^T)⁻¹ = L^T·D⁻¹·L
    allocate( Ainv(m, m), source = Amat )
 
-   ! assume work space query, set best value to test after first dsytrf call
-   call lapack_sytrf("L", m, Ainv, m, ipiv, test, -1, info)
-   if (info /= 0) then
-      call env%error("DSYTRF workspace query failed for the EEQ matrix", source)
-      return
-   end if
-   if (int(test(1)) > lwork) then
-      deallocate(work)
-      lwork = int(test(1))
-      allocate( work(lwork), source = 0.0_wp )
-   end if
-
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call lapack_sytrf("L", m, Ainv, m, ipiv, work, lwork, info)
+   call mctc_sytrf(Ainv, ipiv, uplo="L", info=info)
    if (info /= 0) then
       call env%error("DSYTRF failed while factorizing the EEQ matrix", source)
       return
@@ -238,7 +198,7 @@ subroutine add_eeq_hessian(env, n, at, xyz, chrg, chrgeq, kq, hess)
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
-   call lapack_sytri("L", m, Ainv, m, ipiv, work, info)
+   call mctc_sytri(Ainv, ipiv, uplo="L", info=info)
    if (info /= 0) then
       call env%error("DSYTRI failed while inverting the EEQ matrix", source)
       return

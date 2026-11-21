@@ -31,9 +31,6 @@ module xtb_mctc_blas_level1
    public :: mctc_asum, mctc_axpy, mctc_copy, mctc_dot, mctc_nrm2, mctc_rot
    public :: mctc_scal, mctc_swap, mctc_iamax
 
-   public :: blas_asum, blas_axpy, blas_copy, blas_dot, blas_dotc, blas_dotu
-   public :: blas_nrm2, blas_rot, blas_scal, blas_swap, blas_iamax, blas_cabs1
-
 
    !> Takes the sum of the absolute values.
    interface mctc_asum
@@ -485,48 +482,59 @@ module xtb_mctc_blas_level1
 contains
 
 
-function mctc_sasum(xvec) result(asum)
+pure function mctc_sasum(xvec, n) result(asum)
    real(sp) :: asum
    real(sp), intent(in) :: xvec(:)
-   integer :: incx, n
+   integer, intent(in), optional :: n
+   integer :: incx, nn
    incx = 1
-   n = size(xvec)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec) create(asum)
    !$acc host_data use_device(xvec, asum)
-   asum = cublasSasum(n, xvec, incx)
+   asum = cublasSasum(nn, xvec, incx)
    !$acc end host_data
    !$acc exit data copyout(asum) delete(xvec)
 #else
-   asum = blas_asum(n, xvec, incx)
+   asum = blas_asum(nn, xvec, incx)
 #endif
 end function mctc_sasum
 
 
-function mctc_dasum(xvec) result(asum)
+pure function mctc_dasum(xvec, n) result(asum)
    real(dp) :: asum
    real(dp), intent(in) :: xvec(:)
-   integer :: incx, n
+   integer, intent(in), optional :: n
+   integer :: incx, nn
    incx = 1
-   n = size(xvec)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec) create(asum)
    !$acc host_data use_device(xvec, asum)
-   asum = cublasDasum(n, xvec, incx)
+   asum = cublasDasum(nn, xvec, incx)
    !$acc end host_data
    !$acc exit data copyout(asum) delete(xvec)
 #else
-   asum = blas_asum(n, xvec, incx)
+   asum = blas_asum(nn, xvec, incx)
 #endif
 end function mctc_dasum
 
 
-subroutine mctc_saxpy(xvec, yvec, alpha)
+pure subroutine mctc_saxpy(xvec, yvec, alpha, n)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
    real(sp), intent(in), optional :: alpha
+   integer, intent(in), optional :: n
    real(sp) :: a
-   integer :: incx, incy, n
+   integer :: incx, incy, nn
    if (present(alpha)) then
       a = alpha
    else
@@ -534,25 +542,30 @@ subroutine mctc_saxpy(xvec, yvec, alpha)
    end if
    incx = 1
    incy = 1
-   n = size(xvec)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec, yvec)
    !$acc host_data use_device(xvec, yvec)
-   call cublasSaxpy(n, a, xvec, incx, yvec, incy)
+   call cublasSaxpy(nn, a, xvec, incx, yvec, incy)
    !$acc end host_data
    !$acc exit data copyout(yvec) delete(xvec)
 #else
-   call blas_axpy(n, a, xvec, incx, yvec, incy)
+   call blas_axpy(nn, a, xvec, incx, yvec, incy)
 #endif
 end subroutine mctc_saxpy
 
 
-subroutine mctc_daxpy(xvec, yvec, alpha)
+pure subroutine mctc_daxpy(xvec, yvec, alpha, n)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
    real(dp), intent(in), optional :: alpha
+   integer, intent(in), optional :: n
    real(dp) :: a
-   integer :: incx, incy, n
+   integer :: incx, incy, nn
    if (present(alpha)) then
       a = alpha
    else
@@ -560,170 +573,244 @@ subroutine mctc_daxpy(xvec, yvec, alpha)
    end if
    incx = 1
    incy = 1
-   n = size(xvec)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
 #ifdef USE_CUBLAS
    !$acc enter data copyin(xvec, yvec)
    !$acc host_data use_device(xvec, yvec)
-   call cublasDaxpy(n, a, xvec, incx, yvec, incy)
+   call cublasDaxpy(nn, a, xvec, incx, yvec, incy)
    !$acc end host_data
    !$acc exit data copyout(yvec) delete(xvec)
 #else
-   call blas_axpy(n, a, xvec, incx, yvec, incy)
+   call blas_axpy(nn, a, xvec, incx, yvec, incy)
 #endif
 end subroutine mctc_daxpy
 
 
-subroutine mctc_scopy(xvec, yvec)
+pure subroutine mctc_scopy(xvec, yvec, n)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
-   integer :: incx, incy, n
+   integer, intent(in), optional :: n
+   integer :: incx, incy, nn
    incx = 1
    incy = 1
-   n = size(xvec)
-   call blas_copy(n, xvec, incx, yvec, incy)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   call blas_copy(nn, xvec, incx, yvec, incy)
 end subroutine mctc_scopy
 
 
-subroutine mctc_dcopy(xvec, yvec)
+pure subroutine mctc_dcopy(xvec, yvec, n)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
-   integer :: incx, incy, n
+   integer, intent(in), optional :: n
+   integer :: incx, incy, nn
    incx = 1
    incy = 1
-   n = size(xvec)
-   call blas_copy(n, xvec, incx, yvec, incy)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   call blas_copy(nn, xvec, incx, yvec, incy)
 end subroutine mctc_dcopy
 
 
-function mctc_sdot(xvec, yvec) result(dot)
+pure function mctc_sdot(xvec, yvec, n) result(dot)
    real(sp) :: dot
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(in) :: yvec(:)
-   integer :: incx, incy, n
+   integer, intent(in), optional :: n
+   integer :: incx, incy, nn
    incx = 1
    incy = 1
-   n = size(xvec)
-   dot = blas_dot(n, xvec, incx, yvec, incy)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   dot = blas_dot(nn, xvec, incx, yvec, incy)
 end function mctc_sdot
 
 
-function mctc_ddot(xvec, yvec) result(dot)
+pure function mctc_ddot(xvec, yvec, n) result(dot)
    real(dp) :: dot
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(in) :: yvec(:)
-   integer :: incx, incy, n
+   integer, intent(in), optional :: n
+   integer :: incx, incy, nn
    incx = 1
    incy = 1
-   n = size(xvec)
-   dot = blas_dot(n, xvec, incx, yvec, incy)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   dot = blas_dot(nn, xvec, incx, yvec, incy)
 end function mctc_ddot
 
 
-function mctc_snrm2(xvec) result(nrm2)
+pure function mctc_snrm2(xvec, n) result(nrm2)
    real(sp) :: nrm2
    real(sp), intent(in) :: xvec(:)
-   integer :: incx, n
+   integer, intent(in), optional :: n
+   integer :: incx, nn
    incx = 1
-   n = size(xvec)
-   nrm2 = blas_nrm2(n, xvec, incx)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   nrm2 = blas_nrm2(nn, xvec, incx)
 end function mctc_snrm2
 
 
-function mctc_dnrm2(xvec) result(nrm2)
+pure function mctc_dnrm2(xvec, n) result(nrm2)
    real(dp) :: nrm2
    real(dp), intent(in) :: xvec(:)
-   integer :: incx, n
+   integer, intent(in), optional :: n
+   integer :: incx, nn
    incx = 1
-   n = size(xvec)
-   nrm2 = blas_nrm2(n, xvec, incx)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   nrm2 = blas_nrm2(nn, xvec, incx)
 end function mctc_dnrm2
 
 
-subroutine mctc_srot(xvec, yvec, c, s)
+pure subroutine mctc_srot(xvec, yvec, c, s, n)
    real(sp), intent(in) :: c
    real(sp), intent(in) :: s
    real(sp), intent(inout) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
-   integer :: incx, incy, n
+   integer, intent(in), optional :: n
+   integer :: incx, incy, nn
    incx = 1
    incy = 1
-   n = size(xvec)
-   call blas_rot(n, xvec, incx, yvec, incy, c, s)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   call blas_rot(nn, xvec, incx, yvec, incy, c, s)
 end subroutine mctc_srot
 
 
-subroutine mctc_drot(xvec, yvec, c, s)
+pure subroutine mctc_drot(xvec, yvec, c, s, n)
    real(dp), intent(in) :: c
    real(dp), intent(in) :: s
    real(dp), intent(inout) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
-   integer :: incx, incy, n
+   integer, intent(in), optional :: n
+   integer :: incx, incy, nn
    incx = 1
    incy = 1
-   n = size(xvec)
-   call blas_rot(n, xvec, incx, yvec, incy, c, s)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   call blas_rot(nn, xvec, incx, yvec, incy, c, s)
 end subroutine mctc_drot
 
 
-subroutine mctc_sscal(xvec, alpha)
+pure subroutine mctc_sscal(xvec, alpha, n)
    real(sp), intent(in) :: alpha
    real(sp), intent(inout) :: xvec(:)
-   integer :: incx, n
+   integer, intent(in), optional :: n
+   integer :: incx, nn
    incx = 1
-   n = size(xvec)
-   call blas_scal(n, alpha, xvec, incx)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   call blas_scal(nn, alpha, xvec, incx)
 end subroutine mctc_sscal
 
 
-subroutine mctc_dscal(xvec, alpha)
+pure subroutine mctc_dscal(xvec, alpha, n)
    real(dp), intent(in) :: alpha
    real(dp), intent(inout) :: xvec(:)
-   integer :: incx, n
+   integer, intent(in), optional :: n
+   integer :: incx, nn
    incx = 1
-   n = size(xvec)
-   call blas_scal(n, alpha, xvec, incx)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   call blas_scal(nn, alpha, xvec, incx)
 end subroutine mctc_dscal
 
 
-subroutine mctc_sswap(xvec, yvec)
+pure subroutine mctc_sswap(xvec, yvec, n)
    real(sp), intent(inout) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
-   integer :: incx, incy, n
+   integer, intent(in), optional :: n
+   integer :: incx, incy, nn
    incx = 1
    incy = 1
-   n = size(xvec)
-   call blas_swap(n, xvec, incx, yvec, incy)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   call blas_swap(nn, xvec, incx, yvec, incy)
 end subroutine mctc_sswap
 
 
-subroutine mctc_dswap(xvec, yvec)
+pure subroutine mctc_dswap(xvec, yvec, n)
    real(dp), intent(inout) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
-   integer :: incx, incy, n
+   integer, intent(in), optional :: n
+   integer :: incx, incy, nn
    incx = 1
    incy = 1
-   n = size(xvec)
-   call blas_swap(n, xvec, incx, yvec, incy)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   call blas_swap(nn, xvec, incx, yvec, incy)
 end subroutine mctc_dswap
 
 
-function mctc_isamax(xvec) result(iamax)
+pure function mctc_isamax(xvec, n) result(iamax)
    integer :: iamax
    real(sp), intent(in) :: xvec(:)
-   integer :: incx, n
+   integer, intent(in), optional :: n
+   integer :: incx, nn
    incx = 1
-   n = size(xvec)
-   iamax = blas_iamax(n, xvec, incx)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   iamax = blas_iamax(nn, xvec, incx)
 end function mctc_isamax
 
 
-function mctc_idamax(xvec) result(iamax)
+pure function mctc_idamax(xvec, n) result(iamax)
    integer :: iamax
    real(dp), intent(in) :: xvec(:)
-   integer :: incx, n
+   integer, intent(in), optional :: n
+   integer :: incx, nn
    incx = 1
-   n = size(xvec)
-   iamax = blas_iamax(n, xvec, incx)
+   if (present(n)) then
+      nn = n
+   else
+      nn = size(xvec)
+   end if
+   iamax = blas_iamax(nn, xvec, incx)
 end function mctc_idamax
 
 

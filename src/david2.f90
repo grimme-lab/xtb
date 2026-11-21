@@ -24,8 +24,8 @@ contains
 
 subroutine sdavid2(n,crite,H,C,e,fail)
    use xtb_mctc_accuracy, only : wp => sp
-   use xtb_mctc_lapack, only : lapack_syevd
-   use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot, blas_spmv
+   use xtb_mctc_lapack, only : mctc_syevd
+   use xtb_mctc_blas, only : mctc_axpy, mctc_dot, mctc_spmv
    implicit none
    logical,parameter :: pr = .false.
    logical,parameter :: ini = .false.
@@ -42,13 +42,12 @@ subroutine sdavid2(n,crite,H,C,e,fail)
    parameter (maxiter=100)
    integer iter,ineue(1),janf,lun1,lun2
    integer iideks(maxiter),idum,j,jalt,ilauf,jneu
-   integer l1,l2,k,LWORK,LIWORK,INFO,i,ien,ialt,memlun2
-   integer,allocatable :: iwork(:)
+   integer l1,l2,k,INFO,i,ien,ialt,memlun2
    logical lconf
 
    real(wp) valn(1),uim,s,one,zero,denerg
    real(wp), allocatable :: adiag(:),vecf1(:),vecf2(:),w(:)
-   real(wp), allocatable :: Uaug(:,:),d(:),aux(:)
+   real(wp), allocatable :: Uaug(:,:),d(:)
    real(wp), allocatable :: AB(:,:),av(:),tmpav(:,:)
    real(wp), allocatable :: HP(:)
    parameter (one =1)
@@ -82,7 +81,7 @@ subroutine sdavid2(n,crite,H,C,e,fail)
 
    ! H * C for initialization
    call smwrite(n,lun1,C(1,1),1)
-   call blas_spmv('U',n,  ONE,HP, C(:,1),1,ZERO,vecf2,1)
+   call mctc_spmv(HP, C(:,1), vecf2, uplo='U')
    call smwrite(n,lun2,vecf2,1)
 
    ! aufbau des iideks feldes
@@ -98,7 +97,7 @@ subroutine sdavid2(n,crite,H,C,e,fail)
       adiag(i)=H(i,i)
    enddo
 
-   av(1)=blas_dot(n,C(:,1),1,vecf2,1)
+   av(1)=mctc_dot(C(:,1), vecf2, n=n)
    ! done
 
    j = 1
@@ -109,9 +108,7 @@ subroutine sdavid2(n,crite,H,C,e,fail)
 
    do iter = 1, maxiter-1
 
-      lwork  = 1 + 6*j + 2*j**2
-      liwork = 8*j
-      allocate(Uaug(j,j),d(j),iwork(liwork),aux(lwork))
+      allocate(Uaug(j,j),d(j))
 
       k=0
       do l1=1,j
@@ -121,7 +118,7 @@ subroutine sdavid2(n,crite,H,C,e,fail)
             Uaug(l1,l2) = av(k)
          enddo
       enddo
-      call lapack_syevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
+      call mctc_syevd(Uaug, d, jobz='V', uplo='U', info=INFO)
       valn(1:1) = d(1:1)
 
       ! aufbau der eigentlichen vektoren, die stehen dann auf vecf1
@@ -130,7 +127,7 @@ subroutine sdavid2(n,crite,H,C,e,fail)
       do i=1,j
          call smread(n,lun1,w,i)
          uim = Uaug(i,1)
-         call blas_axpy(n,uim,w,1,vecf1,1)
+         call mctc_axpy(w, vecf1, alpha=uim, n=n)
       enddo
 
       ! aufbau -E*bi: vecf1 ist bi; vecf2 dann E*bi
@@ -142,9 +139,9 @@ subroutine sdavid2(n,crite,H,C,e,fail)
          call smread(n,lun2,w,i)
          memlun2 = i
          uim = Uaug(i,1)
-         call blas_axpy(n,uim,w,1,vecf2,1)
+         call mctc_axpy(w, vecf2, alpha=uim, n=n)
       enddo
-      deallocate(Uaug,d,iwork,aux)
+      deallocate(Uaug,d)
 
       C(1:n,1)=vecf1
 
@@ -167,11 +164,11 @@ subroutine sdavid2(n,crite,H,C,e,fail)
          ! orthogonaliesung des betrachteten auf die alten
          do jalt = 1,ialt
             call smread(n,lun1,w,jalt)
-            s=-blas_dot(n,w,1,vecf1,1)
-            call blas_axpy(n,s,w,1,vecf1,1)
+            s=-mctc_dot(w, vecf1, n=n)
+            call mctc_axpy(w, vecf1, alpha=s, n=n)
          enddo
          ! normierung dessen was vom betrachteten uebrig bleibt
-         s=blas_dot(n,vecf1,1,vecf1,1)
+         s=mctc_dot(vecf1, vecf1, n=n)
          if (s.gt.0.00000001) then
             ! neuer wird mitgenommen
             s = ONE /sqrt(s)
@@ -186,7 +183,7 @@ subroutine sdavid2(n,crite,H,C,e,fail)
       endif
 
       ! H * C
-      call blas_spmv('U',n,  ONE,HP, vecf1,1,ZERO,vecf2,1)
+      call mctc_spmv(HP, vecf1, vecf2, uplo='U')
 
       call smwrite(n,lun2,vecf2,memlun2+1)
 
@@ -195,11 +192,11 @@ subroutine sdavid2(n,crite,H,C,e,fail)
       do jalt = 1,j
          call smread(n,lun1,w,jalt)
          ilauf = iideks(j) + jalt
-         av(ilauf) = blas_dot(n,w,1,vecf2,1)
+         av(ilauf) = mctc_dot(w, vecf2, n=n)
          ilauf = ilauf + 1 + j
       enddo
       ! dann mit den neuen
-      av(iideks(j+1)) = blas_dot(n,vecf2,1,vecf1,1)
+      av(iideks(j+1)) = mctc_dot(vecf2, vecf1, n=n)
 
       ! increase expansion space and iterate further
       e = valn
@@ -220,8 +217,8 @@ end subroutine sdavid2
 
 subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
    use xtb_mctc_accuracy, only : wp => sp
-   use xtb_mctc_lapack, only : lapack_syevd
-   use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot, mctc_spmv
+   use xtb_mctc_lapack, only : mctc_syevd
+   use xtb_mctc_blas, only : mctc_axpy, mctc_dot, mctc_spmv
    implicit none
    logical, intent(in) :: pr
    logical,parameter :: ini = .false.
@@ -238,15 +235,14 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
    parameter (maxiter=100)
    integer iter,ineue(1),janf!,lun1,lun2
    integer iideks(maxiter),idum,j,jalt,ilauf,jneu
-   integer l1,l2,k,LWORK,LIWORK,INFO,i,ien,ialt,memlun2
-   integer,allocatable :: iwork(:)
+   integer l1,l2,k,INFO,i,ien,ialt,memlun2
    logical lconf
    real(wp), allocatable :: lun1(:,:),lun2(:,:)
    integer, parameter :: initial_dyn_array_size = 10
 
    real(wp) valn(1),uim,s,denerg
    real(wp), allocatable :: adiag(:),vecf1(:),vecf2(:),w(:)
-   real(wp), allocatable :: Uaug(:,:),d(:),aux(:)
+   real(wp), allocatable :: Uaug(:,:),d(:)
    real(wp), allocatable :: AB(:,:),av(:),tmpav(:,:)
 
    fail = .true.
@@ -286,7 +282,7 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
       adiag(i)=HP(i*(i+1)/2)
    enddo
 
-   av(1)=blas_dot(n,C(:,1),1,vecf2,1)
+   av(1)=mctc_dot(C(:,1), vecf2, n=n)
    ! done
 
    j = 1
@@ -297,9 +293,7 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
 
    do iter = 1, maxiter-1
 
-      lwork  = 1 + 6*j + 2*j**2
-      liwork = 8*j
-      allocate(Uaug(j,j),d(j),iwork(liwork),aux(lwork))
+      allocate(Uaug(j,j),d(j))
 
       k=0
       do l1=1,j
@@ -309,7 +303,7 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
             Uaug(l1,l2) = av(k)
          enddo
       enddo
-      call lapack_syevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
+      call mctc_syevd(Uaug, d, jobz='V', uplo='U', info=INFO)
       valn(1:1) = d(1:1)
 
       ! aufbau der eigentlichen vektoren, die stehen dann auf vecf1
@@ -318,7 +312,7 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
       do i=1,j
          call smread(n,lun1,w,i)
          uim = Uaug(i,1)
-         call blas_axpy(n,uim,w,1,vecf1,1)
+         call mctc_axpy(w, vecf1, alpha=uim, n=n)
       enddo
 
       ! aufbau -E*bi: vecf1 ist bi; vecf2 dann E*bi
@@ -330,9 +324,9 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
          call smread(n,lun2,w,i)
          memlun2 = i
          uim = Uaug(i,1)
-         call blas_axpy(n,uim,w,1,vecf2,1)
+         call mctc_axpy(w, vecf2, alpha=uim, n=n)
       enddo
-      deallocate(Uaug,d,iwork,aux)
+      deallocate(Uaug,d)
 
       C(1:n,1)=vecf1
 
@@ -355,11 +349,11 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
          ! orthogonaliesung des betrachteten auf die alten
          do jalt = 1,ialt
             call smread(n,lun1,w,jalt)
-            s=-blas_dot(n,w,1,vecf1,1)
-            call blas_axpy(n,s,w,1,vecf1,1)
+            s=-mctc_dot(w, vecf1, n=n)
+            call mctc_axpy(w, vecf1, alpha=s, n=n)
          enddo
          ! normierung dessen was vom betrachteten uebrig bleibt
-         s=blas_dot(n,vecf1,1,vecf1,1)
+         s=mctc_dot(vecf1, vecf1, n=n)
          if (s.gt.0.00000001) then
             ! neuer wird mitgenommen
             s = 1.0_wp /sqrt(s)
@@ -383,11 +377,11 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
       do jalt = 1,j
          call smread(n,lun1,w,jalt)
          ilauf = iideks(j) + jalt
-         av(ilauf) = blas_dot(n,w,1,vecf2,1)
+         av(ilauf) = mctc_dot(w, vecf2, n=n)
          ilauf = ilauf + 1 + j
       enddo
       ! dann mit den neuen
-      av(iideks(j+1)) = blas_dot(n,vecf2,1,vecf1,1)
+      av(iideks(j+1)) = mctc_dot(vecf2, vecf1, n=n)
 
       ! increase expansion space and iterate further
       e = valn

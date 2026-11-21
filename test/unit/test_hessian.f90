@@ -26,6 +26,7 @@
 module test_hessian
    use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_lapack, only : mctc_syev
    use xtb_mctc_io, only : stdout
    use xtb_mctc_convert, only : autoaa
    use xtb_mctc_constants, only : pi
@@ -513,9 +514,9 @@ subroutine test_o1numhess_linear_h2o_gfn1(error)
    type(TRestart) :: chk
    type(TEnvironment) :: env
    type(TxTBCalculator) :: calc
-   real(wp), allocatable :: hessian(:, :), aux(:), freq(:), dipgrad_dummy(:, :)
+   real(wp), allocatable :: hessian(:, :), freq(:), dipgrad_dummy(:, :)
    real(wp) :: final_err
-   integer :: N, i, lwork, info
+   integer :: N, i, info
 
    N = 3 * nat
    call init(env)
@@ -527,9 +528,7 @@ subroutine test_o1numhess_linear_h2o_gfn1(error)
    allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
    allocate(freq(N))
-   lwork = 1 + 6 * N + 2 * N**2
-   allocate(aux(lwork))
-   call dsyev("V", "U", N, hessian, N, freq, aux, lwork, info)
+   call mctc_syev(hessian, freq, jobz="V", uplo="U", info=info)
    call check(error, info, 0)
    if (allocated(error)) return
    if (count(abs(freq) < 1.0e-4_wp) /= 3) then
@@ -570,9 +569,9 @@ subroutine test_o1numhess_linear_h2o_gfn2(error)
    type(TRestart) :: chk
    type(TEnvironment) :: env
    type(TxTBCalculator) :: calc
-   real(wp), allocatable :: hessian(:, :), aux(:), freq(:), dipgrad_dummy(:, :)
+   real(wp), allocatable :: hessian(:, :), freq(:), dipgrad_dummy(:, :)
    real(wp) :: final_err
-   integer :: N, i, lwork, info
+   integer :: N, i, info
 
    N = 3 * nat
    call init(env)
@@ -584,9 +583,7 @@ subroutine test_o1numhess_linear_h2o_gfn2(error)
    allocate(hessian(N, N), dipgrad_dummy(3, N), source=0.0_wp)
    call calc%hessian(env, mol, chk, [(i, i=1, mol%n)], step, hessian, dipgrad_dummy, odlr=.true., final_err=final_err)
    allocate(freq(N))
-   lwork = 1 + 6 * N + 2 * N**2
-   allocate(aux(lwork))
-   call dsyev("V", "U", N, hessian, N, freq, aux, lwork, info)
+   call mctc_syev(hessian, freq, jobz="V", uplo="U", info=info)
    call check(error, info, 0)
    if (allocated(error)) return
 
@@ -1560,13 +1557,13 @@ subroutine get_eigenvalues(error, matrix, eig)
    !> Eigenvalues in ascending order
    real(wp), allocatable, intent(out) :: eig(:)
 
-   real(wp), allocatable :: work(:), scratch(:, :)
+   real(wp), allocatable :: scratch(:, :)
    integer :: ndim, info
 
    ndim = size(matrix, 1)
    scratch = matrix
-   allocate(eig(ndim), work(3*ndim))
-   call dsyev("N", "U", ndim, scratch, ndim, eig, work, size(work), info)
+   allocate(eig(ndim))
+   call mctc_syev(scratch, eig, jobz="N", uplo="U", info=info)
    call check(error, info, 0)
 
 end subroutine get_eigenvalues

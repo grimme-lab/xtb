@@ -33,9 +33,9 @@ c note: the current version only works for the LOWEST root i.e. nr=1 !!!
 c-----------------------------------------------------------------------
  
       subroutine ddavid(pr,ini,n,nr,crite,H,C,e)
-      use xtb_mctc_lapack, only : lapack_syevd
-      use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot,
-     & blas_spmv
+      use xtb_mctc_lapack, only : mctc_syevd
+      use xtb_mctc_blas, only : mctc_copy, mctc_axpy, mctc_dot,
+     & mctc_spmv
       implicit none                        
       logical pr      ! print logical
       logical ini     ! initialize start vector if .true., if false starts from previous vector
@@ -51,12 +51,11 @@ c local
       parameter (maxiter=100)      
       integer iter,iconf(nr),ineue(nr),janf,jneu1,lun1,lun2
       integer iideks(nr*maxiter),mx2,idum,j,jalt,ilauf,jneu,nneue
-      integer lauf,l1,l2,k,LWORK,LIWORK,INFO,ianf,i,ien,ico,ialt,memlun2
-      integer,allocatable :: iwork(:)
+      integer lauf,l1,l2,k,INFO,ianf,i,ien,ico,ialt,memlun2
 
       real*8 valn(nr),uim,s,one,zero,denerg
       real*8, allocatable :: adiag(:),vecf1(:),vecf2(:),w(:)
-      real*8, allocatable :: Uaug(:,:),d(:),aux(:)
+      real*8, allocatable :: Uaug(:,:),d(:)
       real*8, allocatable :: AB(:,:),av(:),tmpav(:,:)
       real*8, allocatable :: HP(:)
       parameter (one =1)      
@@ -100,12 +99,12 @@ C H * C for initialization
             call random_number(s)
             C(k,i)=s
           enddo
-          s=blas_dot(n,C(:,i),1,C(:,i),1)
+          s=mctc_dot(C(:,i),C(:,i),n=n)
           C(1:n,i)=C(1:n,i)/sqrt(s)
          endif
          call dmwrite(n,lun1,C(1,i),i)
 c        call dgemv('N',n,n,ONE,H,n,C(1,i),1,ZERO,vecf2(ianf),1)
-         call blas_spmv('U',n,ONE,HP,C(:,i),1,ZERO,vecf2(ianf:),1)
+         call mctc_spmv(HP,C(:,i),vecf2(ianf:),uplo='U',n=n)
          call dmwrite(n,lun2,vecf2(ianf),i)   
          ianf = ianf + n
       enddo
@@ -124,7 +123,7 @@ c aufbau des iideks feldes
       enddo
     
       if(nr.eq.1)then
-         av(1)=blas_dot(n,C(:,1),1,vecf2,1)
+         av(1)=mctc_dot(C(:,1),vecf2,n=n)
       else
          error stop '# roots > 1 not implemented'
 c aufbau der startmatrix av = bi*a*bj mit bi, bj startvektoren
@@ -148,9 +147,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       do iter = 1, maxiter
 
-      lwork  = 1 + 6*j + 2*j**2
-      liwork = 8*j
-      allocate(Uaug(j,j),d(j),iwork(liwork),aux(lwork))
+      allocate(Uaug(j,j),d(j))
 
       k=0
       do l1=1,j
@@ -160,7 +157,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
             Uaug(l1,l2) = av(k)
          enddo
       enddo
-      call lapack_syevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
+      call mctc_syevd(Uaug,d,jobz='V',uplo='U',info=INFO)
       valn(1:nr) = d(1:nr)
 
 c aufbau der eigentlichen vektoren, die stehen dann auf vecf1
@@ -171,7 +168,7 @@ c multiplikation der vorherigen entwicklungsvektoren mit den entwicklungskoeffiz
          ianf = 1
          do lauf = 1,nr    
             uim = Uaug(i,lauf)
-            call blas_axpy(n,uim,w,1,vecf1(ianf:),1)
+            call mctc_axpy(w,vecf1(ianf:),alpha=uim,n=n)
             ianf = ianf + n
          enddo
       enddo
@@ -192,11 +189,11 @@ c h*bi-e*bi steht jetzt auf vecf2
          ianf = 1
          do lauf = 1,nr   
             uim = Uaug(i,lauf)
-            call blas_axpy(n,uim,w,1,vecf2(ianf:),1)
+            call mctc_axpy(w,vecf2(ianf:),alpha=uim,n=n)
             ianf = ianf + n
          enddo
       enddo
-      deallocate(Uaug,d,iwork,aux)
+      deallocate(Uaug,d)
 
       ianf = 1
       do lauf = 1,nr            
@@ -234,11 +231,11 @@ c-- mit allen alten
 c orthogonaliesung des betrachteten auf die alten
            do jalt = 1,ialt
               call dmread(n,lun1,w,jalt)
-              s=-blas_dot(n,w,1,vecf1(ianf:),1)
-              call blas_axpy(n,s,w,1,vecf1(ianf:),1)
+              s=-mctc_dot(w,vecf1(ianf:),n=n)
+              call mctc_axpy(w,vecf1(ianf:),alpha=s,n=n)
            enddo
 c normierung dessen was vom betrachteten uebrig bleibt
-           s=blas_dot(n,vecf1(ianf:),1,vecf1(ianf:),1)
+           s=mctc_dot(vecf1(ianf:),vecf1(ianf:),n=n)
            if (s.gt.0.00000001)then
 c neuer wird mitgenommen
               s = ONE /sqrt(s)
@@ -258,7 +255,10 @@ c wegschreiben des neuen zu den alten
 c umspeichern der ueberlebenden vektoren auf vecf1
       ianf = 1
       do lauf = 1,nneue
-         call blas_copy(n,vecf1(ineue(lauf):),1,vecf1(ianf:),1)
+         if (ineue(lauf).ne.ianf) then
+            call mctc_copy(vecf1(ineue(lauf):ineue(lauf)+n-1),
+     &         vecf1(ianf:ianf+n-1))
+         endif
          ianf = ianf + n
       enddo
 
@@ -266,7 +266,7 @@ C H * C
       ianf = 1
       do i = 1,nneue
 c        call dgemv('N',n,n,ONE,H,n,vecf1(ianf),1,ZERO,vecf2(ianf),1)
-         call blas_spmv('U',n,ONE,HP,vecf1(ianf:),1,ZERO,vecf2(ianf:),1)
+         call mctc_spmv(HP,vecf1(ianf:),vecf2(ianf:),uplo='U',n=n)
          ianf = ianf + n
       enddo
 
@@ -283,7 +283,7 @@ c zunaechst mit den alten
         ianf = 1 
         ilauf = iideks(j) + jalt
         do jneu = 1,nneue 
-           av(ilauf) = blas_dot(n,w,1,vecf2(ianf:),1)
+           av(ilauf) = mctc_dot(w,vecf2(ianf:),n=n)
            ilauf = ilauf + jneu + j 
            ianf = ianf + n 
         enddo  
@@ -294,7 +294,7 @@ c dann mit den neuen
          janf = 1 
          ilauf = iideks(j+jneu) - jneu + 1 
          do jneu1 = 1,jneu
-            av(ilauf) = blas_dot(n,vecf2(ianf:),1,vecf1(janf:),1)
+            av(ilauf) = mctc_dot(vecf2(ianf:),vecf1(janf:),n=n)
             janf = janf + n 
             ilauf = ilauf + 1 
         enddo
@@ -358,9 +358,9 @@ c real*4 version
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine sdavid(pr,ini,n,nr,crite,H,C,e)
-      use xtb_mctc_lapack, only : lapack_syevd
-      use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot,
-     & blas_spmv
+      use xtb_mctc_lapack, only : mctc_syevd
+      use xtb_mctc_blas, only : mctc_copy, mctc_axpy, mctc_dot,
+     & mctc_spmv
       implicit none                        
       logical pr      ! print logical
       logical ini     ! initialize start vector if .true., if false starts from previous vector
@@ -376,12 +376,11 @@ c local
       parameter (maxiter=100)      
       integer iter,iconf(nr),ineue(nr),janf,jneu1,lun1,lun2
       integer iideks(nr*maxiter),mx2,idum,j,jalt,ilauf,jneu,nneue
-      integer lauf,l1,l2,k,LWORK,LIWORK,INFO,ianf,i,ien,ico,ialt,memlun2
-      integer,allocatable :: iwork(:)
+      integer lauf,l1,l2,k,INFO,ianf,i,ien,ico,ialt,memlun2
 
       real*4 valn(nr),uim,s,one,zero,denerg
       real*4, allocatable :: adiag(:),vecf1(:),vecf2(:),w(:)
-      real*4, allocatable :: Uaug(:,:),d(:),aux(:)
+      real*4, allocatable :: Uaug(:,:),d(:)
       real*4, allocatable :: AB(:,:),av(:),tmpav(:,:)
       real*4, allocatable :: HP(:)
       parameter (one =1)      
@@ -425,12 +424,12 @@ C H * C for initialization
             call random_number(s)
             C(k,i)=s
           enddo
-          s=blas_dot(n,C(:,i),1,C(:,i),1)
+          s=mctc_dot(C(:,i),C(:,i),n=n)
           C(1:n,i)=C(1:n,i)/sqrt(s)
          endif
          call smwrite(n,lun1,C(1,i),i)
 c        call sgemv('N',n,n,ONE,H,n,C(1,i),1,ZERO,vecf2(ianf),1)
-         call blas_spmv('U',n,ONE,HP, C(:,i),1,ZERO,vecf2(ianf:),1)
+         call mctc_spmv(HP,C(:,i),vecf2(ianf:),uplo='U',n=n)
          call smwrite(n,lun2,vecf2(ianf),i)   
          ianf = ianf + n
       enddo
@@ -449,7 +448,7 @@ c aufbau des iideks feldes
       enddo
     
       if(nr.eq.1)then
-         av(1)=blas_dot(n,C(:,1),1,vecf2,1)
+         av(1)=mctc_dot(C(:,1),vecf2,n=n)
       else
          error stop '# roots > 1 not implemented'
 c aufbau der startmatrix av = bi*a*bj mit bi, bj startvektoren
@@ -473,9 +472,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       do iter = 1, maxiter
 
-      lwork  = 1 + 6*j + 2*j**2
-      liwork = 8*j
-      allocate(Uaug(j,j),d(j),iwork(liwork),aux(lwork))
+      allocate(Uaug(j,j),d(j))
 
       k=0
       do l1=1,j
@@ -485,7 +482,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
             Uaug(l1,l2) = av(k)
          enddo
       enddo
-      call lapack_syevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
+      call mctc_syevd(Uaug,d,jobz='V',uplo='U',info=INFO)
       valn(1:nr) = d(1:nr)
 
 c aufbau der eigentlichen vektoren, die stehen dann auf vecf1
@@ -496,7 +493,7 @@ c multiplikation der vorherigen entwicklungsvektoren mit den entwicklungskoeffiz
          ianf = 1
          do lauf = 1,nr    
             uim = Uaug(i,lauf)
-            call blas_axpy(n,uim,w,1,vecf1(ianf:),1)
+            call mctc_axpy(w,vecf1(ianf:),alpha=uim,n=n)
             ianf = ianf + n
          enddo
       enddo
@@ -517,11 +514,11 @@ c h*bi-e*bi steht jetzt auf vecf2
          ianf = 1
          do lauf = 1,nr   
             uim = Uaug(i,lauf)
-            call blas_axpy(n,uim,w,1,vecf2(ianf:),1)
+            call mctc_axpy(w,vecf2(ianf:),alpha=uim,n=n)
             ianf = ianf + n
          enddo
       enddo
-      deallocate(Uaug,d,iwork,aux)
+      deallocate(Uaug,d)
 
       ianf = 1
       do lauf = 1,nr            
@@ -559,11 +556,11 @@ c-- mit allen alten
 c orthogonaliesung des betrachteten auf die alten
            do jalt = 1,ialt
               call smread(n,lun1,w,jalt)
-              s=-blas_dot(n,w,1,vecf1(ianf:),1)
-              call blas_axpy(n,s,w,1,vecf1(ianf:),1)
+              s=-mctc_dot(w,vecf1(ianf:),n=n)
+              call mctc_axpy(w,vecf1(ianf:),alpha=s,n=n)
            enddo
 c normierung dessen was vom betrachteten uebrig bleibt
-           s=blas_dot(n,vecf1(ianf:),1,vecf1(ianf:),1)
+           s=mctc_dot(vecf1(ianf:),vecf1(ianf:),n=n)
            if (s.gt.0.00000001)then
 c neuer wird mitgenommen
               s = ONE /sqrt(s)
@@ -583,7 +580,10 @@ c wegschreiben des neuen zu den alten
 c umspeichern der ueberlebenden vektoren auf vecf1
       ianf = 1
       do lauf = 1,nneue
-         call blas_copy(n,vecf1(ineue(lauf):),1,vecf1(ianf:),1)
+         if (ineue(lauf).ne.ianf) then
+            call mctc_copy(vecf1(ineue(lauf):ineue(lauf)+n-1),
+     &         vecf1(ianf:ianf+n-1))
+         endif
          ianf = ianf + n
       enddo
 
@@ -591,7 +591,7 @@ C H * C
       ianf = 1
       do i = 1,nneue
 c        call sgemv('N',n,n,ONE,H,n,vecf1(ianf),1,ZERO,vecf2(ianf),1)
-         call blas_spmv('U',n,ONE,HP,vecf1(ianf:),1,ZERO,vecf2(ianf:),1)
+         call mctc_spmv(HP,vecf1(ianf:),vecf2(ianf:),uplo='U',n=n)
          ianf = ianf + n
       enddo
 
@@ -608,7 +608,7 @@ c zunaechst mit den alten
         ianf = 1 
         ilauf = iideks(j) + jalt
         do jneu = 1,nneue 
-           av(ilauf) = blas_dot(n,w,1,vecf2(ianf:),1)
+           av(ilauf) = mctc_dot(w,vecf2(ianf:),n=n)
            ilauf = ilauf + jneu + j 
            ianf = ianf + n 
         enddo  
@@ -619,7 +619,7 @@ c dann mit den neuen
          janf = 1 
          ilauf = iideks(j+jneu) - jneu + 1 
          do jneu1 = 1,jneu
-            av(ilauf) = blas_dot(n,vecf2(ianf:),1,vecf1(janf:),1)
+            av(ilauf) = mctc_dot(vecf2(ianf:),vecf1(janf:),n=n)
             janf = janf + n 
             ilauf = ilauf + 1 
         enddo

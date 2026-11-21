@@ -19,7 +19,7 @@
 module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
-   use xtb_mctc_lapack, only : lapack_sygvd
+   use xtb_mctc_lapack, only : mctc_sygvd
    use xtb_mctc_blas, only : mctc_symv, mctc_gemm, mctc_syrk
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
@@ -916,17 +916,13 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    real(wp),intent(in)   :: acc
    logical, intent(out)  :: fail
 
-   integer i,j,info,lwork,liwork,nfound,iu,nbf
-   integer, allocatable :: iwork(:),ifail(:)
-   real(wp),allocatable :: aux  (:)
-   real(wp) w0,w1,t0,t1
+   integer :: info
 
    real(sp),allocatable :: H4(:,:)
    real(sp),allocatable :: S4(:,:)
    real(sp),allocatable :: X4(:,:)
    real(sp),allocatable :: P4(:,:)
    real(sp),allocatable :: e4(:)
-   real(sp),allocatable :: aux4(:)
 
 
    allocate(H4(ndim,ndim),S4(ndim,ndim))
@@ -941,22 +937,13 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                                     call timing(t0,w0)
 !     if(ndim.gt.0)then
 !     USE DIAG IN NON-ORTHORGONAL BASIS
-      allocate (aux4(1),iwork(1),ifail(ndim))
       P4 = s4
-      call lapack_sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &!workspace query
-     &           -1,iwork,liwork,info)
-      lwork=int(aux4(1))
-      liwork=iwork(1)
-      deallocate(aux4,iwork)
-      allocate (aux4(lwork),iwork(liwork))              !do it
-      call lapack_sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &
-     &           lwork,iwork,liwork,info)
+      call mctc_sygvd(h4, p4, e4, itype=1, jobz='v', uplo='u', info=info)
       if(info.ne.0) then
          fail=.true.
          return
       endif
       X4 = H4 ! save
-      deallocate(aux4,iwork,ifail)
 
 !     else
 !        USE DIAG IN ORTHOGONAL BASIS WITH X=S^-1/2 TRAFO
@@ -1017,10 +1004,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    real(wp),intent(in)   :: acc
    logical, intent(out)  :: fail
 
-   integer i,j,info,lwork,liwork,nfound,iu,nbf
-   integer, allocatable :: iwork(:),ifail(:)
-   real(wp),allocatable :: aux  (:)
-   real(wp) w0,w1,t0,t1
+   integer :: info
 
    fail =.false.
 
@@ -1029,23 +1013,14 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                                     call timing(t0,w0)
 !     if(ndim.gt.0)then
 !     USE DIAG IN NON-ORTHORGONAL BASIS
-      allocate (aux(1),iwork(1),ifail(ndim))
       P = s
-      call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &!workspace query
-     &           -1,iwork,liwork,info)
-      lwork=int(aux(1))
-      liwork=iwork(1)
-      deallocate(aux,iwork)
-      allocate (aux(lwork),iwork(liwork))              !do it
-      call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &
-     &           lwork,iwork,liwork,info)
+      call mctc_sygvd(h, p, e, itype=1, jobz='v', uplo='u', info=info)
       !write(*,*)'SYGVD INFO', info
       if(info.ne.0) then
          fail=.true.
          return
       endif
       X = H ! save
-      deallocate(aux,iwork,ifail)
 
 !     else
 !        USE DIAG IN ORTHOGONAL BASIS WITH X=S^-1/2 TRAFO
