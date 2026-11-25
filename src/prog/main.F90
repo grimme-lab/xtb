@@ -38,6 +38,7 @@ module xtb_prog_main
    use xtb_splitparam
    use xtb_fixparam
    use xtb_features, only: get_xtb_feature
+   use xtb_gpu_ctrl, only: gpuConfig, gpuSetup, gpuBanner, gpuReport
    use xtb_constrain_param, only: read_userdata
    use xtb_shake, only: init_shake
    use xtb_gfnff_shake, only: gff_init_shake => init_shake
@@ -194,6 +195,7 @@ contains
 !! ------------------------------------------------------------------------
 !  undocumented and unexplainable variables go here
       integer :: nFiles, iFile
+      integer :: gpu_stat
       integer :: rohf, err
       real(wp) :: dum5, egap, etot, ipeashift
       real(wp) :: zero, t0, t1, w0, w1, etot2, g298
@@ -228,6 +230,17 @@ contains
       ! read the command line arguments
       call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
          & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
+
+      !> open the CUDA device requested by --gpu.  A failure here is a warning,
+      !> not an error: every GPU path has a CPU fallback, so the run continues.
+      call gpuSetup(gpu_stat)
+      select case(gpu_stat)
+      case(1)
+         call env%warning("--gpu ignored: this xtb was built without CUDA support "// &
+            & "(configure with -Dgpu=true)", source)
+      case(2)
+         call env%warning("--gpu ignored: no usable CUDA device", source)
+      end select
 
       ! ONIOM evaluates its GFN-xTB methods with tblite, independent of the flag order
       if (allocated(oniom%second_arg) .and. set%tblite) then
@@ -1456,6 +1469,21 @@ contains
          case ('--define')
             call set_define
 
+         case ('--gpu')
+            !> CUDA acceleration.  Optional argument pins the device;
+            !> without it the largest visible device is chosen by SM count,
+            !> which beats trusting the CUDA ordering (it is "fastest first"
+            !> by default, not PCI order, and on a mixed host it guesses).
+            gpuConfig%enabled = .true.
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               if (getValue(env, sec, idum)) then
+                  gpuConfig%device = idum
+               else
+                  call env%error("Integer argument for --gpu is missing", source)
+               end if
+            end if
+
          case ('-P', '--parallel')
 !$          if (.false.) then
                call env%warning('Program compiled without threading support', source)
@@ -2292,6 +2320,10 @@ contains
       if (set%runtyp == p_run_mdopt) then
          call prtiming(10, 'MD opt.')
       end if
+
+      !> --gpu timing breakdown (XTB_GPU_STATS=1), after the CPU timings so the
+      !> two can be read side by side
+      call gpuReport
 
       write (env%unit, '(a)')
       call terminate(0)

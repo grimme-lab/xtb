@@ -170,6 +170,8 @@ subroutine help(iunit)
    "                           or an energetic Hessian; Hessian workflows combine GFN2-xTB with PTB",&
    "                           response properties.",&
    "      --spinpol            enables spin-polarization for xTB methods (tblite required)",&
+   "      --gpu [INT]          run the SCC and ANC eigensolvers on CUDA device INT",&
+   "                           (default: the largest visible device); requires -Dgpu=true",&
    "      --oniom [METHOD] LIST",&
    "                           use subtractive embedding via ONIOM method. 'METHOD' is given as",&
    "                           'inner:outer' (default: 'gfn2:gfnff') where 'inner' can be 'orca',",&

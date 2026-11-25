@@ -27,6 +27,7 @@ module xtb_mctc_lapack_eigensolve
    use xtb_mctc_lapack_trf, only : mctc_potrf
    use xtb_mctc_lapack_tri, only : mctc_trtri
    use xtb_type_environment, only : TEnvironment
+   use xtb_gpu_ctrl, only : gpuEigActive, gpuSygvd, gpuRampReset
 #ifdef USE_CUSOLVER
    use xtb_mctc_global
    use cusolverDn
@@ -61,6 +62,12 @@ module xtb_mctc_lapack_eigensolve
       real(dp), allocatable :: dtau(:)
       real(dp), allocatable :: desub(:)
       real(dp), allocatable :: dwork_trd(:)
+      !> --gpu: the overlap itself, kept only when the SCC solves go to the
+      !> GPU (dbmat holds its inverse Cholesky factor for the CPU path)
+      real(dp), allocatable :: dsmat(:, :)
+      !> --gpu: the last fact_solve_subspace ran on the GPU and left all
+      !> eigenvectors in amat, so fact_backtransform only has to copy them
+      logical :: gpu_vecs = .false.
 #ifdef USE_CUSOLVER
       integer :: lwork
 #endif
@@ -159,6 +166,7 @@ subroutine initDEigenSolver(self, env, bmat)
    allocate(self%dtau(self%n), self%desub(self%n))
 
    self%dbmat = bmat
+   if (gpuEigActive(self%n)) self%dsmat = bmat
    lda = max(1, self%n)
    call lapack_sytrd('U', self%n, self%dzmat, lda, self%dwork, self%desub, &
       & self%dtau, work_trd_q, -1, info)
@@ -172,6 +180,11 @@ subroutine initDEigenSolver(self, env, bmat)
    call env%check(exitRun)
    if (exitRun) return
    call mctc_trtri(env, self%dbmat)
+
+   !> A new solver means a new SCF, so the GPU precision ramp starts over.
+   !> Without this a geometry optimisation would stay in FP64 from the second
+   !> cycle on and lose most of the speedup.
+   call gpuRampReset()
 
 end subroutine initDEigenSolver
 
@@ -212,6 +225,17 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
 #endif
 
    self%dbmat(:, :) = bmat
+
+   !> cuSOLVER with the FP32 -> FP64 precision ramp (--gpu).  A negative
+   !> return leaves everything untouched and we fall through to LAPACK.
+   if (gpuEigActive(self%n)) then
+      info = gpuSygvd(self%n, amat, self%dbmat, eval)
+      if (info == 0) return
+      if (info > 0) then
+         call env%error("GPU eigensolver failed after overwriting the Hamiltonian", source)
+         return
+      end if
+   end if
 
 #ifdef USE_CUSOLVER
    !$acc enter data copyin(amat, self%dbmat, eval, info) create(self%dwork)
@@ -369,6 +393,25 @@ subroutine mctc_dsygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
    integer, intent(in), optional :: m_sub
    integer :: j, jj, k, info, ldwork, liwork, ldwork_trd
 
+   self%gpu_vecs = .false.
+   if (allocated(self%dsmat)) then
+      ! --gpu: the full generalised problem on the device, with the FP32 -> FP64
+      ! precision ramp.  amat comes back holding every eigenvector, so there is
+      ! no back-transform left to defer.
+      info = gpuSygvd(self%n, amat, self%dsmat, eval)
+      if (info > 0) then
+         call env%error("GPU eigensolver failed after overwriting the Hamiltonian", source)
+         return
+      end if
+      if (info == 0) then
+         self%gpu_vecs = .true.
+         if (present(m_sub) .and. present(cmat)) then
+            if (m_sub > 0) call self%fact_backtransform(env, amat, cmat, 1, m_sub)
+         end if
+         return
+      end if
+   end if
+
    ldwork_trd = size(self%dwork_trd)
    ldwork = size(self%dwork)
    liwork = size(self%iwork)
@@ -452,6 +495,10 @@ subroutine mctc_dsygvd_fact_backtransform(self, env, amat, cmat, ilo, ihi)
 
    m = ihi - ilo + 1
    if (m <= 0) return
+   if (self%gpu_vecs) then
+      cmat(:, ilo:ihi) = amat(:, ilo:ihi)
+      return
+   end if
    ldwork_trd = size(self%dwork_trd)
 
    call lapack_ormtr('L', 'U', 'N', self%n, m, amat, self%n, self%dtau, &

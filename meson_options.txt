@@ -70,10 +70,12 @@ option(
 
 # GPU specific options
 option('gpu', type: 'boolean', value: false,
-       description: 'use GPU acceleration')
+       description: 'use GPU acceleration: the cuSOLVER eigensolvers enabled at runtime with --gpu (with nvfortran also the OpenACC port)')
 option('gpu_arch', type: 'string', value: '70',
-       description: 'GPU architecture version string')
+       description: 'GPU architecture version string (nvfortran/OpenACC only)')
+option('gpu_prefix', type: 'string', value: '/usr/local/cuda',
+       description: 'CUDA toolkit prefix for -Dgpu=true (expects include/ and lib64/ or lib/)')
 option('cusolver', type: 'boolean', value: false,
-       description: 'Use cuSOLVER for eigensolver routines')
+       description: 'legacy NVHPC/OpenACC cuSOLVER path (requires nvfortran), unrelated to -Dgpu')
 option('nvtx', type: 'boolean', value: false,
        description: 'use NVTX markers')

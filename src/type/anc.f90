@@ -19,6 +19,7 @@ module xtb_type_anc
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_blas
    use xtb_mctc_lapack, only : lapack_spevd, lapack_syevd
+   use xtb_gpu_ctrl, only : gpuEigActive, gpuSyevd
    implicit none
 
    public :: tb_anc
@@ -243,8 +244,15 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear,rigid)
    allocate(aux(lwork), source = 0.0_wp)
 
    ! Diagonalize Hessian !
-   call lapack_syevd('V','U',self%n3,hess,self%n3,self%eigv, &
-      &        aux,lwork,iwork,liwork,info)
+   ! For a protein sized system this is a 3N x 3N solve that rivals the SCC
+   ! eigenproblem in cost, so it goes to the GPU as well (FP64, no ramp --
+   ! this runs once and its eigenvectors define the optimisation space).
+   info = -1
+   if (gpuEigActive(self%n3)) info = gpuSyevd(self%n3, hess, self%eigv)
+   if (info > 0) call raise('E', "GPU eigensolver failed after overwriting the Hessian")
+   if (info /= 0) &
+      call lapack_syevd('V','U',self%n3,hess,self%n3,self%eigv, &
+         &        aux,lwork,iwork,liwork,info)
 
    ! determine, sort, and nullify rot/trans modes !  
    remove_rigid = .true.

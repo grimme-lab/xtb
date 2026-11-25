@@ -111,6 +111,7 @@ incdir = include_directories('include')
 xtb_lib = library(
   meson.project_name(),
   sources: srcs,
+  objects: gpu_objects,
   version: meson.project_version(),
   dependencies: lib_deps,
   include_directories: incdir,
