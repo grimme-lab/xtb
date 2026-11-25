@@ -47,7 +47,7 @@ Known issues with combinations:
 
 ### Meson
 
-Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.62 or newer (except 1.8.0 and 1.8.1).
+Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.62 or newer.
 To use the default backend of meson you have to install [ninja](https://ninja-build.org/) version 1.7 or newer.
 
 ```bash

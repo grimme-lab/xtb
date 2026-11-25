@@ -30,11 +30,6 @@ project(
   ],
 )
 
-# Check for specific unsupported meson versions
- if meson.version().version_compare('==1.8.0') or meson.version().version_compare('==1.8.1')
-   error('Meson versions 1.8.0 and 1.8.1 have known issues — please use any other version ≥ 0.62.0')
- endif
-
 install = not meson.is_subproject()
 install_modules = install and get_option('install_modules')
 
@@ -108,32 +103,47 @@ xtb_inc = meson.current_source_dir() / 'include'
 incdir = include_directories('include')
 
 # Build target
-xtb_lib = library(
-  meson.project_name(),
-  sources: srcs,
-  version: meson.project_version(),
-  dependencies: lib_deps,
-  include_directories: incdir,
-  install: install,
-  fortran_args: [
-    '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
-    '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
-  ],
-  link_language: 'fortran',
-)
+xtb_fargs = [
+  '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
+  '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
+]
+lib_kwargs = {
+  'dependencies': lib_deps,
+  'include_directories': incdir,
+  'install': install,
+  'fortran_args': xtb_fargs,
+  'link_language': 'fortran',
+}
+
+if get_option('default_library') == 'both'
+  # Avoid both_libraries(): Meson >= 1.8 misses .mod deps when linking its static lib.
+  xtb_common = static_library(meson.project_name(), srcs, pic: true, kwargs: lib_kwargs)
+  xtb_lib = shared_library(
+    meson.project_name(),
+    objects: xtb_common.extract_all_objects(recursive: true),
+    version: meson.project_version(),
+    kwargs: lib_kwargs,
+  )
+else
+  xtb_common = library(
+    meson.project_name(),
+    srcs,
+    version: meson.project_version(),
+    kwargs: lib_kwargs,
+  )
+  xtb_lib = xtb_common
+endif
 
 xtb_dep = declare_dependency(
   link_with: xtb_lib,
-  include_directories: [incdir, xtb_lib.private_dir_include()],
+  include_directories: [incdir, xtb_common.private_dir_include()],
   dependencies: lib_deps,
   version: meson.project_version(),
 )
 
-xtb_common = get_option('default_library') == 'both' ? xtb_lib.get_static_lib() : xtb_lib
-
 xtb_dep_static = declare_dependency(
   link_with: xtb_common,
-  include_directories: [incdir, xtb_lib.private_dir_include()],
+  include_directories: [incdir, xtb_common.private_dir_include()],
   dependencies: lib_deps,
   version: meson.project_version(),
 )
@@ -144,10 +154,7 @@ xtb_exe = executable(
   dependencies: xtb_dep_static,
   link_language: 'fortran',
   install: install,
-  fortran_args: [
-    '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
-    '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
-  ],
+  fortran_args: xtb_fargs,
 )
 
 xtb_header = files('include/xtb.h')
@@ -191,14 +198,15 @@ if install
 endif
 
 if install_modules
-  xtb_objs = []
-  foreach file: srcs
-    xtb_objs += '@0@.o'.format('_'.join(file.split('/')))
-  endforeach
-  install_subdir(meson.current_build_dir()/'@0@@sta'.format(meson.project_name()),
-                 install_dir: 'include',
-                 strip_directory: true,
-                 exclude_files: xtb_objs)
+  meson.add_install_script(
+    python, '-c',
+    'import glob, os, shutil, sys; '
+    + 'dst = os.path.join(os.environ["MESON_INSTALL_DESTDIR_PREFIX"], sys.argv[2].lstrip("/\\\\")); '
+    + 'os.makedirs(dst, exist_ok=True); '
+    + '[shutil.copy2(f, dst) for f in glob.glob(os.path.join(sys.argv[1], "*.mod"))]',
+    '@0@.p'.format(xtb_common.full_path()),
+    get_option('includedir'),
+  )
 endif
 
 # additional misc. files
