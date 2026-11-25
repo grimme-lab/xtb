@@ -19,7 +19,7 @@
 module xtb_xtb_eeq
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_blas, only : mctc_dot, mctc_symv
-   use xtb_mctc_lapack, only : lapack_sytrf, lapack_sytri
+   use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs, mctc_sytri
    use xtb_mctc_la, only : contract
    use xtb_type_coulomb, only : TCoulomb
    use xtb_type_environment, only : TEnvironment
@@ -420,10 +420,7 @@ subroutine solve_sysv(env, mat, rhs, vec)
 
    real(wp), intent(out), target :: vec(:)
 
-   integer :: lwork, ndim, info
-   real(wp), pointer :: ptr(:, :)
-   real(wp) :: test(1)
-   real(wp), allocatable :: work(:)
+   integer :: ndim, info
    integer, allocatable :: ipiv(:)
 
    ndim = size(mat, dim=1)
@@ -434,16 +431,13 @@ subroutine solve_sysv(env, mat, rhs, vec)
 
    vec(:ndim) = rhs(:ndim)
    allocate(ipiv(ndim))
-   ptr(1:ndim, 1:1) => vec(1:ndim)
 
-   ! assume work space query, set best value to test after first dsysv call
-   call dsysv('l', ndim, 1, mat, ndim, ipiv, ptr, ndim, test, -1, info)
-   lwork = int(test(1))
-   allocate(work(lwork))
+   call mctc_sytrf(mat, ipiv, uplo='l', info=info)
+   if (info == 0) then
+      call mctc_sytrs(mat, vec(:ndim), ipiv, uplo='l', info=info)
+   end if
 
-   call dsysv('l', ndim, 1, mat, ndim, ipiv, ptr, ndim, work, lwork, info)
-
-   if (info > 0) then
+   if (info /= 0) then
       call env%error("LAPACK linear equation solver failed", source)
       return
    end if
@@ -495,9 +489,7 @@ subroutine invert_sytri(env, mat)
    real(wp), intent(inout) :: mat(:, :)
 
    integer :: ii, jj
-   integer :: lwork, ndim, info
-   real(wp) :: test(1)
-   real(wp), allocatable :: work(:)
+   integer :: ndim, info
    integer, allocatable :: ipiv(:)
 
    ndim = size(mat, dim=1)
@@ -508,22 +500,17 @@ subroutine invert_sytri(env, mat)
 
    allocate(ipiv(ndim))
 
-   ! assume work space query, set best value to test after first dsytrf call
-   call lapack_sytrf('L', ndim, mat, ndim, ipiv, test, -1, info)
-   lwork = int(test(1))
-   allocate(work(lwork))
-
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call lapack_sytrf('L', ndim, mat, ndim, ipiv, work, lwork, info)
-   if(info > 0)then
+   call mctc_sytrf(mat, ipiv, uplo='L', info=info)
+   if(info /= 0)then
       call env%error('Bunch-Kaufman factorization failed', source)
       return
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in matrix
    ! matrix is overwritten with lower triangular part of A⁻¹
-   call lapack_sytri('L', ndim, mat, ndim, ipiv, work, info)
-   if (info > 0) then
+   call mctc_sytri(mat, ipiv, uplo='L', info=info)
+   if (info /= 0) then
       call env%error('Bunch-Kaufman inversion failed', source)
       return
    endif

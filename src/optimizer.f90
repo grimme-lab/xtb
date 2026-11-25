@@ -634,7 +634,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
       &          timer,exact,avconv)
 
-   use xtb_mctc_blas, only : blas_gemv
+   use xtb_mctc_blas, only : mctc_gemv, mctc_dot
    use xtb_type_molecule
    use xtb_type_anc
    use xtb_type_restart
@@ -717,7 +717,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    integer  :: maxcycle, iter, prlevel
    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
    real(wp) :: energy,ethr,gthr,dsnrm,maxdispl,t0,w0,t1,w1
-   real(wp) :: lambda,gnorm,dnorm,ddot,eold,xdum,estart,acc,e_in
+   real(wp) :: lambda,gnorm,dnorm,eold,xdum,estart,acc,e_in
    real(wp) :: depred,echng,dummy,maxd,alp,gchng,smallreal,gnold
    real(wp),allocatable :: gold(:)
    real(wp),allocatable :: displ(:), gint(:)
@@ -731,7 +731,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    !> Augmented Hessian
    real(sp),allocatable :: Aaug(:)
 
-   real(sp) :: r4dum,sdot
+   real(sp) :: r4dum
    parameter (r4dum=1.e-8)
    parameter (smallreal=1.d-14)
 
@@ -817,7 +817,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 
    ! transform xyz (g) to internal gradient (gint) !
    if (profile) call timer%measure(4)
-   call dgemv('t',anc%n3,anc%nvar,1.0_wp,anc%B,anc%n3,g,1,0.0_wp,gint,1)
+   call mctc_gemv(anc%B, g, gint, trans='t', m=anc%n3, n=anc%nvar)
    if (profile) call timer%measure(4)
 
    ! check Euclidean norm of the normal gradient !
@@ -926,7 +926,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       ! steepest decent guess for displacement !
       if (ii.eq.1) then
          Uaug(:,1)=[-real(gint(1:anc%nvar),sp),1.0_sp]
-         dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
+         dsnrm = sqrt(mctc_dot(Uaug(:,1), Uaug(:,1), n=nvar1))
          Uaug  = Uaug/dsnrm
       endif
       call solver_sdavidson(nvar1,r4dum,Aaug,Uaug,eaug,fail,.false.)
@@ -952,7 +952,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    enddo
    
    ! now some output !
-   dsnrm=sqrt(ddot(anc%nvar,displ,1,displ,1)) ! displacement norm
+   dsnrm=sqrt(mctc_dot(displ, displ, n=anc%nvar)) ! displacement norm
    if(pr)then
       
       ! find the largest displacement !
@@ -1005,37 +1005,8 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 
 end subroutine relax
 
-pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
-   use xtb_mctc_lapack, only : lapack_syevx
-   implicit none
-   integer, intent(in)    :: n
-   real(sp),intent(in)    :: thr
-   real(sp),intent(inout) :: A(:,:)
-   real(sp),intent(inout) :: U(:,:)
-   real(sp),intent(inout) :: e(:)
-   logical, intent(out)   :: fail
-
-   integer :: i,j,k
-   integer :: lwork,info
-   real(sp),allocatable :: work(:)
-   integer, allocatable :: iwork(:)
-   integer, allocatable :: ifail(:)
-   real(sp) :: dum
-
-   lwork = 1+8*n+n**2
-   allocate(iwork(5*n),work(lwork),ifail(n))
-
-   j=1
-   call lapack_syevx('V','I','U',n,A,n,dum,dum,j,j,thr, &
-   &           i,e,U,n,work,lwork,iwork,ifail,info)
-   fail = .false.
-   if (info.ne.0) fail = .true.
-
-   deallocate(iwork,work,ifail)
-end subroutine solver_ssyevx
-
 pure subroutine solver_sspevx(n,thr,A,U,e,fail)
-   use xtb_mctc_lapack, only : lapack_spevx
+   use xtb_mctc_lapack, only : mctc_spevx
    implicit none
    integer, intent(in)    :: n
    real(sp),intent(in)    :: thr
@@ -1044,21 +1015,10 @@ pure subroutine solver_sspevx(n,thr,A,U,e,fail)
    real(sp),intent(inout) :: e(:)
    logical, intent(out)   :: fail
 
-   integer :: i,j,k
-   integer :: info
-   real(sp),allocatable :: work(:)
-   integer, allocatable :: iwork(:)
-   integer, allocatable :: ifail(:)
-   real(sp) :: dum
+   integer :: i, info
 
-   allocate(iwork(5*n),work(8*n),ifail(n))
-
-   j=1
-   call lapack_spevx('V','I','U',n,A,dum,dum,j,j,thr,i,e,U,n,work,iwork,ifail,info)
-   fail = .false.
-   if (info.ne.0) fail = .true.
-
-   deallocate(iwork,work,ifail)
+   call mctc_spevx(A, e, uplo='U', z=U, il=1, iu=1, abstol=thr, m=i, info=info, n=n)
+   fail = info /= 0
 end subroutine solver_sspevx
 
 subroutine findlroot(i0,n,e,el)
@@ -1135,7 +1095,7 @@ subroutine prdechng(nat3,grad,displ,hess,depred)
 ! Output:
 ! depred - Predicted energy change
 !---------------------------------------------------------------------
-   use xtb_mctc_blas, only : blas_spmv
+   use xtb_mctc_blas, only : mctc_spmv, mctc_dot
    implicit none
 
 ! Input:
@@ -1150,17 +1110,14 @@ subroutine prdechng(nat3,grad,displ,hess,depred)
 ! Local:
    real(wp), allocatable :: hdx(:)
    real(wp) :: gtmp, htmp
-
-! BLAS functions:
-   real(wp), external :: ddot
 !---------------------------------------------------------------------
    allocate( hdx(nat3), source = 0.0_wp )
 
-   call blas_spmv('u',nat3,0.5d0,hess,displ,1,0.0d0,hdx,1) ! hdx = 0.5*H*displ
+   call mctc_spmv(hess, displ, hdx, uplo='u', alpha=0.5_wp) ! hdx = 0.5*H*displ
 
-   gtmp   = ddot(nat3,displ,1,grad,1) ! gtmp = grad*displ
+   gtmp   = mctc_dot(displ, grad) ! gtmp = grad*displ
 
-   htmp   = ddot(nat3,displ,1,hdx,1) ! htmp = hdx*displ
+   htmp   = mctc_dot(displ, hdx) ! htmp = hdx*displ
 
    depred = htmp + gtmp
 
@@ -1339,7 +1296,7 @@ end subroutine modhes
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine itochess(nvar,nat3,b,hess,fc)
-   use xtb_mctc_blas, only : blas_gemm
+   use xtb_mctc_blas, only : mctc_gemm
    implicit none
    integer, intent(in)  :: nvar
    integer, intent(in)  :: nat3
@@ -1366,10 +1323,10 @@ subroutine itochess(nvar,nat3,b,hess,fc)
    enddo
 
 !  calculate H*B (note: B is saved as Bt)
-   call blas_gemm ('n','t',nvar,nat3,nvar,1.0d0,h,nvar,b,nat3,0.0d0,hb,nvar)
+   call mctc_gemm(h, b, hb, transb='t', m=nvar, n=nat3, k=nvar)
 
 !  calculate Bt*HB
-   call blas_gemm ('n','n',nat3,nat3,nvar,1.0d0,b,nat3,hb,nvar,0.0d0,chess,nat3)
+   call mctc_gemm(b, hb, chess, m=nat3, n=nat3, k=nvar)
 
 !  pack
    k=0

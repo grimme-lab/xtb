@@ -18,13 +18,10 @@
 !> Helper routines to transform generalized eigenvalue problems in standard form.
 module xtb_mctc_lapack_gst
    use xtb_mctc_accuracy, only : sp, dp
-   use xtb_type_environment, only : TEnvironment
    implicit none
    private
 
    public :: mctc_sygst, mctc_spgst
-
-   public :: lapack_sygst, lapack_spgst, lapack_hegst, lapack_hpgst
 
 
    !> Reduces a real symmetric-definite generalized eigenproblem
@@ -194,15 +191,14 @@ module xtb_mctc_lapack_gst
 contains
 
 
-subroutine mctc_ssygst(env, amat, bmat, itype, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sygst'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssygst(amat, bmat, itype, uplo, info)
    real(sp), intent(inout) :: amat(:, :)
    real(sp), intent(in) :: bmat(:, :)
    integer, intent(in), optional :: itype
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: ity, info, n, lda, ldb
+   integer :: ity, info_, n, lda, ldb
    if(present(itype)) then
       ity = itype
    else
@@ -216,22 +212,19 @@ subroutine mctc_ssygst(env, amat, bmat, itype, uplo)
    lda = max(1, size(amat, 1))
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
-   call lapack_sygst(ity, ula, n, amat, lda, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Transformation of the eigenvalue problem failed", source)
-   end if
+   call lapack_sygst(ity, ula, n, amat, lda, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_ssygst
 
 
-subroutine mctc_dsygst(env, amat, bmat, itype, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sygst'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsygst(amat, bmat, itype, uplo, info)
    real(dp), intent(inout) :: amat(:, :)
    real(dp), intent(in) :: bmat(:, :)
    integer, intent(in), optional :: itype
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: ity, info, n, lda, ldb
+   integer :: ity, info_, n, lda, ldb
    if(present(itype)) then
       ity = itype
    else
@@ -245,22 +238,19 @@ subroutine mctc_dsygst(env, amat, bmat, itype, uplo)
    lda = max(1, size(amat, 1))
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
-   call lapack_sygst(ity, ula, n, amat, lda, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Transformation of the eigenvalue problem failed", source)
-   end if
+   call lapack_sygst(ity, ula, n, amat, lda, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dsygst
 
 
-subroutine mctc_sspgst(env, amat, bmat, itype, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_spgst'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_sspgst(amat, bmat, itype, uplo, info)
    real(sp), intent(inout) :: amat(:)
    real(sp), intent(in) :: bmat(:)
    integer, intent(in), optional :: itype
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: ity, info, n, nn
+   integer :: ity, info_, n, nn
    if(present(itype)) then
       ity = itype
    else
@@ -277,22 +267,19 @@ subroutine mctc_sspgst(env, amat, bmat, itype, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, sp))))/2
    endif
-   call lapack_spgst(ity, ula, n, amat, bmat, info)
-   if (info /= 0) then
-      call env%error("Transformation of the eigenvalue problem failed", source)
-   end if
+   call lapack_spgst(ity, ula, n, amat, bmat, info_)
+   if (present(info)) info = info_
 end subroutine mctc_sspgst
 
 
-subroutine mctc_dspgst(env, amat, bmat, itype, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_spgst'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dspgst(amat, bmat, itype, uplo, info)
    real(dp), intent(inout) :: amat(:)
    real(dp), intent(in) :: bmat(:)
    integer, intent(in), optional :: itype
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: ity, info, n, nn
+   integer :: ity, info_, n, nn
    if(present(itype)) then
       ity = itype
    else
@@ -309,10 +296,8 @@ subroutine mctc_dspgst(env, amat, bmat, itype, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, dp))))/2
    endif
-   call lapack_spgst(ity, ula, n, amat, bmat, info)
-   if (info /= 0) then
-      call env%error("Transformation of the eigenvalue problem failed", source)
-   end if
+   call lapack_spgst(ity, ula, n, amat, bmat, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dspgst
 
 

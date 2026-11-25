@@ -23,22 +23,21 @@
 !**********************************************************************
 
 subroutine makel(nao, s, can, clo)
-   use xtb_mctc_lapack, only: lapack_syev
-   use xtb_mctc_blas, only: blas_gemm
+   use xtb_mctc_lapack, only: mctc_syev
+   use xtb_mctc_blas, only: mctc_gemm
    implicit integer (i - n)
    implicit real * 8(a - h, o - z)
    dimension s(nao, nao)
    dimension can(nao, nao)
    dimension clo(nao, nao)
-   real*8, allocatable :: aux(:), vecs(:, :), e(:), cc(:, :), x(:, :)
+   real*8, allocatable :: vecs(:, :), e(:), cc(:, :), x(:, :)
 
-   lwork = 1 + 6 * nao + 2 * nao**2
-   allocate (vecs(nao, nao), e(nao), aux(lwork), cc(nao, nao))
+   allocate (vecs(nao, nao), e(nao), cc(nao, nao))
    allocate (x(nao, nao))
 
    vecs = s
 
-   call lapack_syev('V', 'U', nao, vecs, nao, e, aux, lwork, info)
+   call mctc_syev(vecs, e, jobz='V', uplo='U', info=info)
 
    do i = 1, nao
       if (e(i) < 0) stop 'sorry, must stop in S^1/2!'
@@ -52,13 +51,12 @@ subroutine makel(nao, s, can, clo)
       end do
    end do
 
-   call blas_gemm('N', 'T', nao, nao, nao, 1.0d0, x, nao, cc, nao, 0.0d0, vecs, nao)
+   call mctc_gemm(x, cc, vecs, transb='T')
 
    x = vecs
-   deallocate (e, aux, cc, vecs)
+   deallocate (e, cc, vecs)
 
-   moci = nao
-   call blas_gemm('n', 'n', nao, moci, nao, 1.d0, x, nao, can, nao, 0.d0, clo, nao)
+   call mctc_gemm(x, can, clo)
 
    deallocate (x)
    return
@@ -66,8 +64,8 @@ end subroutine makel
 
 ! unrestricted version
 subroutine umakel(nao, s, cana, canb, cloa, clob)
-   use xtb_mctc_lapack, only: lapack_syev
-   use xtb_mctc_blas, only: blas_gemm
+   use xtb_mctc_lapack, only: mctc_syev
+   use xtb_mctc_blas, only: mctc_gemm
    implicit integer (i-n)
    implicit real * 8(a - h, o - z)
    dimension s(nao, nao)
@@ -75,15 +73,14 @@ subroutine umakel(nao, s, cana, canb, cloa, clob)
    dimension cloa(nao, nao)
    dimension canb(nao, nao)
    dimension clob(nao, nao)
-   real*8, allocatable :: aux(:), vecs(:, :), e(:), cc(:, :), x(:, :)
+   real*8, allocatable :: vecs(:, :), e(:), cc(:, :), x(:, :)
 
-   lwork = 1 + 6 * nao + 2 * nao**2
-   allocate (vecs(nao, nao), e(nao), aux(lwork), cc(nao, nao))
+   allocate (vecs(nao, nao), e(nao), cc(nao, nao))
    allocate (x(nao, nao))
 
    vecs = s
 
-   call lapack_syev('V', 'U', nao, vecs, nao, e, aux, lwork, info)
+   call mctc_syev(vecs, e, jobz='V', uplo='U', info=info)
 
    do i = 1, nao
       if (e(i) < 0) stop 'sorry, must stop in S^1/2!'
@@ -97,14 +94,13 @@ subroutine umakel(nao, s, cana, canb, cloa, clob)
       end do
    end do
 
-   call blas_gemm('N', 'T', nao, nao, nao, 1.0d0, x, nao, cc, nao, 0.0d0, vecs, nao)
+   call mctc_gemm(x, cc, vecs, transb='T')
 
    x = vecs
-   deallocate (e, aux, cc, vecs)
+   deallocate (e, cc, vecs)
 
-   moci = nao
-   call blas_gemm('n', 'n', nao, moci, nao, 1.d0, x, nao, cana, nao, 0.d0, cloa, nao)
-   call blas_gemm('n', 'n', nao, moci, nao, 1.d0, x, nao, canb, nao, 0.d0, clob, nao)
+   call mctc_gemm(x, cana, cloa)
+   call mctc_gemm(x, canb, clob)
 
    deallocate (x)
    return

@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 module xtb_onetri
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas, only : blas_symm, blas_gemm
+   use xtb_mctc_blas, only : mctc_symm, mctc_gemm
    use xtb_blowsy
    implicit none
    private
@@ -41,10 +41,13 @@ subroutine onetri(ity,s,s1,array,n,ival)
    integer, intent(in) :: ity
    integer, intent(in) :: ival
    real(wp), intent(in) :: s(*)
-   real(wp), intent(inout) :: s1(*)
+   real(wp), intent(inout), target :: s1(*)
    real(wp), intent(in) :: array(n,ival)
    real(wp) :: s2(n,n)
-   external :: dsymm, dgemm ! can't use wrappers due to change of leading dim
+   real(wp), pointer :: s1_ao(:, :), s1_mo(:, :)
+
+   s1_ao(1:n, 1:n) => s1(1:n*n)
+   s1_mo(1:ival, 1:ival) => s1(1:ival*ival)
 
    !
    !     determine if we have an antisymmetric integral
@@ -55,16 +58,16 @@ subroutine onetri(ity,s,s1,array,n,ival)
 
       !
       !     transformation of s
-      call dsymm('l','l',n,ival,1.d0,s1,n,array,n,0.d0,s2,n)
-      call dgemm('t','n',ival,ival,n,1.d0,array,n,s2,n,0.d0,s1,ival)
+      call mctc_symm(s1_ao, array, s2, side='l', uplo='l', m=n, n=ival)
+      call mctc_gemm(array, s2, s1_mo, transa='t', m=ival, n=ival, k=n)
    else
       !
       !     blow up anti-symmetric matrix s
       call blowsy(ity,s,s1,n)
       !
       !     transformation of s
-      call dgemm('n','n',n,ival,n,1.d0,s1,n,array,n,0.d0,s2,n)
-      call dgemm('t','n',ival,ival,n,1.d0,array,n,s2,n,0.d0,s1,ival)
+      call mctc_gemm(s1_ao, array, s2, m=n, n=ival, k=n)
+      call mctc_gemm(array, s2, s1_mo, transa='t', m=ival, n=ival, k=n)
    end if
 end subroutine
 

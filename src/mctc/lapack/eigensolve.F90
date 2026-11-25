@@ -19,11 +19,11 @@
 !> Wrapper for eigensolver routines
 module xtb_mctc_lapack_eigensolve
    use xtb_mctc_accuracy, only : sp, dp
-   use xtb_mctc_blas_level3, only : blas_trsm, blas_trmm, blas_gemm
+   use xtb_mctc_blas, only : mctc_trsm, mctc_trmm, mctc_gemm
    use xtb_mctc_lapack_geneigval, only : lapack_sygvd
    use xtb_mctc_lapack_stdeigval, only : lapack_syevd, lapack_sytrd, &
       & lapack_stedc, lapack_ormtr
-   use xtb_mctc_lapack_gst, only : lapack_sygst
+   use xtb_mctc_lapack_gst, only : mctc_sygst
    use xtb_mctc_lapack_trf, only : mctc_potrf
    use xtb_mctc_lapack_tri, only : mctc_trtri
    use xtb_type_environment, only : TEnvironment
@@ -66,17 +66,17 @@ module xtb_mctc_lapack_eigensolve
 #endif
    contains
       generic :: solve => sgen_solve, dgen_solve
-      procedure :: sgen_solve => mctc_ssygvd
-      procedure :: dgen_solve => mctc_dsygvd
+      procedure :: sgen_solve => solve_ssygvd
+      procedure :: dgen_solve => solve_dsygvd
       generic :: fact_solve => sfact_solve, dfact_solve
-      procedure :: sfact_solve => mctc_ssygvd_factorized
-      procedure :: dfact_solve => mctc_dsygvd_factorized
+      procedure :: sfact_solve => solve_ssygvd_factorized
+      procedure :: dfact_solve => solve_dsygvd_factorized
       generic :: fact_solve_subspace => sfact_solve_subspace, dfact_solve_subspace
-      procedure :: sfact_solve_subspace => mctc_ssygvd_fact_subspace
-      procedure :: dfact_solve_subspace => mctc_dsygvd_fact_subspace
+      procedure :: sfact_solve_subspace => solve_ssygvd_fact_subspace
+      procedure :: dfact_solve_subspace => solve_dsygvd_fact_subspace
       generic :: fact_backtransform => sfact_backtransform, dfact_backtransform
-      procedure :: sfact_backtransform => mctc_ssygvd_fact_backtransform
-      procedure :: dfact_backtransform => mctc_dsygvd_fact_backtransform
+      procedure :: sfact_backtransform => solve_ssygvd_fact_backtransform
+      procedure :: dfact_backtransform => solve_dsygvd_fact_backtransform
    end type TEigenSolver
 
 
@@ -96,7 +96,6 @@ subroutine initSEigenSolver(self, env, bmat)
    real(sp), intent(in) :: bmat(:, :)
    integer :: info, lwork_trd, lda
    real(sp) :: work_trd_q(1), work_orm_q(1)
-   logical :: exitRun
 
    self%n = size(bmat, 1)
 
@@ -115,10 +114,15 @@ subroutine initSEigenSolver(self, env, bmat)
    allocate(self%swork_trd(lwork_trd))
 
    ! Check for Cholesky factorisation
-   call mctc_potrf(env, self%sbmat)
-   call env%check(exitRun)
-   if (exitRun) return
-   call mctc_trtri(env, self%sbmat)
+   call mctc_potrf(self%sbmat, info=info)
+   if (info /= 0) then
+      call env%error("Factorisation of matrix failed", source)
+      return
+   end if
+   call mctc_trtri(self%sbmat, info=info)
+   if (info /= 0) then
+      call env%error("Inverting matrix failed", source)
+   end if
 
 end subroutine initSEigenSolver
 
@@ -136,7 +140,6 @@ subroutine initDEigenSolver(self, env, bmat)
 #endif
    integer :: info, ldwork_cpu, lwork_trd, lda
    real(dp) :: work_trd_q(1), work_orm_q(1)
-   logical :: exitRun
 
    self%n = size(bmat, 1)
    ldwork_cpu = 1 + 6*self%n + 2*self%n**2
@@ -168,15 +171,20 @@ subroutine initDEigenSolver(self, env, bmat)
    allocate(self%dwork_trd(lwork_trd))
 
    ! Check for Cholesky factorisation
-   call mctc_potrf(env, self%dbmat)
-   call env%check(exitRun)
-   if (exitRun) return
-   call mctc_trtri(env, self%dbmat)
+   call mctc_potrf(self%dbmat, info=info)
+   if (info /= 0) then
+      call env%error("Factorisation of matrix failed", source)
+      return
+   end if
+   call mctc_trtri(self%dbmat, info=info)
+   if (info /= 0) then
+      call env%error("Inverting matrix failed", source)
+   end if
 
 end subroutine initDEigenSolver
 
 
-subroutine mctc_ssygvd(self, env, amat, bmat, eval)
+subroutine solve_ssygvd(self, env, amat, bmat, eval)
    character(len=*), parameter :: source = 'mctc_lapack_sygvd'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -196,10 +204,10 @@ subroutine mctc_ssygvd(self, env, amat, bmat, eval)
       call env%error("Failed to solve eigenvalue problem", source)
    end if
 
-end subroutine mctc_ssygvd
+end subroutine solve_ssygvd
 
 
-subroutine mctc_dsygvd(self, env, amat, bmat, eval)
+subroutine solve_dsygvd(self, env, amat, bmat, eval)
    character(len=*), parameter :: source = 'mctc_lapack_sygvd'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -238,10 +246,10 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
       call env%error("Failed to solve eigenvalue problem", source)
    end if
 
-end subroutine mctc_dsygvd
+end subroutine solve_dsygvd
 
 
-subroutine mctc_ssygvd_factorized(self, env, amat, bmat_factorized, eval)
+subroutine solve_ssygvd_factorized(self, env, amat, bmat_factorized, eval)
    character(len=*), parameter :: source = 'mctc_lapack_ssygvd_factorized'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -253,26 +261,28 @@ subroutine mctc_ssygvd_factorized(self, env, amat, bmat_factorized, eval)
    lswork = size(self%swork)
    liwork = size(self%iwork)
 
-   CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
+   call mctc_sygst(amat, bmat_factorized, itype=1, uplo='u', info=info)
 
    if (info /= 0) then
       call env%error("Failed to reduce eigenvalue problem", source)
       return
    end if
 
-   CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%swork, lswork, self%iwork, liwork, info )
+   call lapack_syevd('v', 'u', self%n, amat, self%n, eval, self%swork, lswork, &
+      & self%iwork, liwork, info)
 
    if (info /= 0) then
       call env%error("Failed to compute eigenvalues and eigenvectors", source)
       return
    end if
 
-   CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_sp, bmat_factorized, self%n, amat, self%n )
+   call mctc_trsm(bmat_factorized, amat, side='l', uplo='u', transa='n', &
+      & diag='n', alpha=1.0_sp, m=self%n, n=self%n)
 
-end subroutine mctc_ssygvd_factorized
+end subroutine solve_ssygvd_factorized
 
 
-subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
+subroutine solve_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
    character(len=*), parameter :: source = 'mctc_lapack_dsygvd_factorized'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -284,26 +294,28 @@ subroutine mctc_dsygvd_factorized(self, env, amat, bmat_factorized, eval)
    ldwork = size(self%dwork)
    liwork = size(self%iwork)
 
-   CALL lapack_sygst( 1, 'u', self%n, amat, self%n, bmat_factorized, self%n, info )
+   call mctc_sygst(amat, bmat_factorized, itype=1, uplo='u', info=info)
 
    if (info /= 0) then
       call env%error("Failed to reduce eigenvalue problem", source)
       return
    end if
 
-   CALL lapack_syevd( 'v', 'u', self%n, amat, self%n, eval, self%dwork, ldwork, self%iwork, liwork, info )
+   call lapack_syevd('v', 'u', self%n, amat, self%n, eval, self%dwork, ldwork, &
+      & self%iwork, liwork, info)
 
    if (info /= 0) then
       call env%error("Failed to compute eigenvalues and eigenvectors", source)
       return
    end if
 
-   CALL blas_trsm( 'l', 'u', 'n', 'n', self%n, self%n, 1.0_dp, bmat_factorized, self%n, amat, self%n )
+   call mctc_trsm(bmat_factorized, amat, side='l', uplo='u', transa='n', &
+      & diag='n', alpha=1.0_dp, m=self%n, n=self%n)
 
-end subroutine mctc_dsygvd_factorized
+end subroutine solve_dsygvd_factorized
 
 
-subroutine mctc_ssygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
+subroutine solve_ssygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
    character(len=*), parameter :: source = 'mctc_lapack_ssygvd_fact_subspace'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -326,14 +338,14 @@ subroutine mctc_ssygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
       jj = min(self%n, j + nb - 1)
       k = jj - j + 1
       self%szmat(1:jj, j:jj) = amat(1:jj, j:jj)
-      call blas_trmm('R', 'U', 'N', 'N', jj, k, 1.0_sp, self%sbmat(j:jj, j:jj), k, &
-         & self%szmat(:, j:jj), self%n)
+      call mctc_trmm(self%sbmat(j:jj, j:jj), self%szmat(:, j:jj), side='R', &
+         & uplo='U', transa='N', diag='N', alpha=1.0_sp, m=jj, n=k)
       if (j > 1) then
-         call blas_gemm('N', 'N', jj, k, j - 1, 1.0_sp, amat, self%n, &
-            & self%sbmat(:, j:jj), self%n, 1.0_sp, self%szmat(:, j:jj), self%n)
+         call mctc_gemm(amat, self%sbmat(:, j:jj), self%szmat(:, j:jj), &
+            & alpha=1.0_sp, beta=1.0_sp, m=jj, n=k, k=j - 1)
       end if
-      call blas_trmm('L', 'U', 'T', 'N', jj, k, 1.0_sp, self%sbmat, self%n, &
-         & self%szmat(:, j:jj), self%n)
+      call mctc_trmm(self%sbmat, self%szmat(:, j:jj), side='L', uplo='U', &
+         & transa='T', diag='N', alpha=1.0_sp, m=jj, n=k)
    end do
    do j = 1, self%n
       amat(1:j, j) = self%szmat(1:j, j)
@@ -356,10 +368,10 @@ subroutine mctc_ssygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
       end if
    end if
 
-end subroutine mctc_ssygvd_fact_subspace
+end subroutine solve_ssygvd_fact_subspace
 
 
-subroutine mctc_dsygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
+subroutine solve_dsygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
    character(len=*), parameter :: source = 'mctc_lapack_dsygvd_fact_subspace'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -382,14 +394,14 @@ subroutine mctc_dsygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
       jj = min(self%n, j + nb - 1)
       k = jj - j + 1
       self%dzmat(1:jj, j:jj) = amat(1:jj, j:jj)
-      call blas_trmm('R', 'U', 'N', 'N', jj, k, 1.0_dp, self%dbmat(j:jj, j:jj), k, &
-         & self%dzmat(:, j:jj), self%n)
+      call mctc_trmm(self%dbmat(j:jj, j:jj), self%dzmat(:, j:jj), side='R', &
+         & uplo='U', transa='N', diag='N', alpha=1.0_dp, m=jj, n=k)
       if (j > 1) then
-         call blas_gemm('N', 'N', jj, k, j - 1, 1.0_dp, amat, self%n, &
-            & self%dbmat(:, j:jj), self%n, 1.0_dp, self%dzmat(:, j:jj), self%n)
+         call mctc_gemm(amat, self%dbmat(:, j:jj), self%dzmat(:, j:jj), &
+            & alpha=1.0_dp, beta=1.0_dp, m=jj, n=k, k=j - 1)
       end if
-      call blas_trmm('L', 'U', 'T', 'N', jj, k, 1.0_dp, self%dbmat, self%n, &
-         & self%dzmat(:, j:jj), self%n)
+      call mctc_trmm(self%dbmat, self%dzmat(:, j:jj), side='L', uplo='U', &
+         & transa='T', diag='N', alpha=1.0_dp, m=jj, n=k)
    end do
    do j = 1, self%n
       amat(1:j, j) = self%dzmat(1:j, j)
@@ -412,10 +424,10 @@ subroutine mctc_dsygvd_fact_subspace(self, env, amat, eval, cmat, m_sub)
       end if
    end if
 
-end subroutine mctc_dsygvd_fact_subspace
+end subroutine solve_dsygvd_fact_subspace
 
 
-subroutine mctc_ssygvd_fact_backtransform(self, env, amat, cmat, ilo, ihi)
+subroutine solve_ssygvd_fact_backtransform(self, env, amat, cmat, ilo, ihi)
    character(len=*), parameter :: source = 'mctc_lapack_ssygvd_fact_backtransform'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -434,14 +446,14 @@ subroutine mctc_ssygvd_fact_backtransform(self, env, amat, cmat, ilo, ihi)
       call env%error("Failed to back-transform eigenvectors", source)
       return
    end if
-   call blas_trmm('L', 'U', 'N', 'N', self%n, m, 1.0_sp, self%sbmat, self%n, &
-      & self%szmat(:, ilo:ihi), self%n)
+   call mctc_trmm(self%sbmat, self%szmat(:, ilo:ihi), side='L', uplo='U', &
+      & transa='N', diag='N', alpha=1.0_sp, m=self%n, n=m)
    cmat(:, ilo:ihi) = self%szmat(:, ilo:ihi)
 
-end subroutine mctc_ssygvd_fact_backtransform
+end subroutine solve_ssygvd_fact_backtransform
 
 
-subroutine mctc_dsygvd_fact_backtransform(self, env, amat, cmat, ilo, ihi)
+subroutine solve_dsygvd_fact_backtransform(self, env, amat, cmat, ilo, ihi)
    character(len=*), parameter :: source = 'mctc_lapack_dsygvd_fact_backtransform'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -460,10 +472,10 @@ subroutine mctc_dsygvd_fact_backtransform(self, env, amat, cmat, ilo, ihi)
       call env%error("Failed to back-transform eigenvectors", source)
       return
    end if
-   call blas_trmm('L', 'U', 'N', 'N', self%n, m, 1.0_dp, self%dbmat, self%n, &
-      & self%dzmat(:, ilo:ihi), self%n)
+   call mctc_trmm(self%dbmat, self%dzmat(:, ilo:ihi), side='L', uplo='U', &
+      & transa='N', diag='N', alpha=1.0_dp, m=self%n, n=m)
    cmat(:, ilo:ihi) = self%dzmat(:, ilo:ihi)
 
-end subroutine mctc_dsygvd_fact_backtransform
+end subroutine solve_dsygvd_fact_backtransform
 
 end module xtb_mctc_lapack_eigensolve

@@ -25,7 +25,7 @@ module xtb_ptb_mmlpopanalysis
 #if WITH_TBLITE
    use mctc_env, only: wp
 
-   use xtb_mctc_lapack, only: lapack_syev
+   use xtb_mctc_lapack, only: mctc_syev
 
    use tblite_basis_type, only: basis_type
    use tblite_blas, only: gemm
@@ -50,8 +50,7 @@ contains
       !> Eigenvalues of overlap matrix (exponentiated)
       real(wp), allocatable :: seig(:), seig1(:), seig2(:)
       !> Auxiliary variables for diagonalization
-      integer :: lwork, info, i, j
-      real(wp), allocatable :: aux(:)
+      integer :: info, i, j
       !> Temporary overlap matrix as a result of the diagonalization
       real(wp), allocatable :: tmps(:, :)
       !> Temporary overlap matrix for the matrix multiplication
@@ -64,13 +63,7 @@ contains
       & seig1(bas%nao), seig2(bas%nao))
       tmps = overlap
 
-      allocate (aux(1))
-      lwork = -1
-      call lapack_syev('V', 'U', bas%nao, tmps, bas%nao, seig, aux, lwork, info)
-      lwork = int(aux(1))
-      deallocate (aux)
-      allocate (aux(lwork))
-      call lapack_syev('V', 'U', bas%nao, tmps, bas%nao, seig, aux, lwork, info)
+      call mctc_syev(tmps, seig, jobz='V', uplo='U', info=info)
       do i = 1, bas%nao
          seig1(i) = seig(i)**(1.0_wp - ratio)
          seig2(i) = seig(i)**ratio

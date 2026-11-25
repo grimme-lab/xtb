@@ -17,23 +17,33 @@
 
 !> LAPACK eigenproblem solvers
 module xtb_mctc_lapack_stdeigval
-   use xtb_mctc_accuracy, only : sp, dp
-   use xtb_type_environment, only : TEnvironment
+   use xtb_mctc_accuracy, only : sp, dp, i8
    implicit none
    private
 
-   public :: mctc_syev
-   public :: lapack_syev, lapack_syevd, lapack_syevx, lapack_syevr, lapack_spev
-   public :: lapack_spevd, lapack_spevx
-   public :: lapack_heev, lapack_heevd, lapack_heevx, lapack_heevr, lapack_hpev
-   public :: lapack_hpevd, lapack_hpevx
-   public :: lapack_sytrd, lapack_stedc, lapack_ormtr
+   public :: mctc_syev, mctc_syevd, mctc_syevx, mctc_spevx
+   public :: lapack_syevd, lapack_sytrd, lapack_stedc, lapack_ormtr
 
 
    interface mctc_syev
       module procedure :: mctc_ssyev
       module procedure :: mctc_dsyev
    end interface mctc_syev
+
+   interface mctc_syevd
+      module procedure :: mctc_ssyevd
+      module procedure :: mctc_dsyevd
+   end interface mctc_syevd
+
+   interface mctc_syevx
+      module procedure :: mctc_ssyevx
+      module procedure :: mctc_dsyevx
+   end interface mctc_syevx
+
+   interface mctc_spevx
+      module procedure :: mctc_sspevx
+      module procedure :: mctc_dspevx
+   end interface mctc_spevx
 
    interface lapack_sytrd
       pure subroutine ssytrd(uplo, n, a, lda, d, e, tau, work, lwork, info)
@@ -703,23 +713,14 @@ module xtb_mctc_lapack_stdeigval
 contains
 
 
-!> Solve a real symmetric eigenvalue problem in single precision.
-subroutine mctc_ssyev(env, amat, eval, jobz, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_syev'
-   !> Calculation environment receiving errors.
-   type(TEnvironment), intent(inout) :: env
-   !> Symmetric matrix, overwritten with eigenvectors when requested.
+pure subroutine mctc_ssyev(amat, eval, jobz, uplo, info)
    real(sp), intent(inout) :: amat(:, :)
-   !> Eigenvalues in ascending order.
    real(sp), intent(out) :: eval(:)
-   !> Compute eigenvectors ('V') or eigenvalues only ('N').
-   character(len=1), intent(in), optional :: jobz
-   !> Triangle containing matrix data, upper ('U') or lower ('L').
-   character(len=1), intent(in), optional :: uplo
+   character(len=1), intent(in), optional :: jobz, uplo
+   integer, intent(out), optional :: info
 
    character(len=1) :: job, ula
-   character(len=80) :: message
-   integer :: info, lda, lwork, n, stat
+   integer :: info_, lda, lwork, n, stat
    real(sp) :: query(1)
    real(sp), allocatable :: work(:)
 
@@ -727,69 +728,37 @@ subroutine mctc_ssyev(env, amat, eval, jobz, uplo)
    if (present(jobz)) job = jobz
    ula = 'U'
    if (present(uplo)) ula = uplo
-
-   n = size(amat, 1)
-   if (size(amat, 2) /= n) then
-      call env%error("Matrix must be square", source)
-      return
+   lda = max(1, size(amat, 1))
+   n = size(amat, 2)
+   info_ = 0
+   if (size(amat, 1) /= n) then
+      info_ = -5
+   else if (size(eval) < n) then
+      info_ = -6
+   else if (n > 0) then
+      call lapack_syev(job, ula, n, amat, lda, eval, query, -1, info_)
+      if (info_ == 0) then
+         lwork = max(1, nint(query(1)))
+         allocate(work(lwork), stat=stat)
+         if (stat == 0) then
+            call lapack_syev(job, ula, n, amat, lda, eval, work, lwork, info_)
+         else
+            info_ = -1000
+         end if
+      end if
    end if
-   if (size(eval) < n) then
-      call env%error("Eigenvalue array is too small", source)
-      return
-   end if
-   if (job /= 'V' .and. job /= 'v' .and. job /= 'N' .and. job /= 'n') then
-      call env%error("Invalid eigenvector option", source)
-      return
-   end if
-   if (ula /= 'U' .and. ula /= 'u' .and. ula /= 'L' .and. ula /= 'l') then
-      call env%error("Invalid matrix triangle", source)
-      return
-   end if
-   if (n == 0) return
-
-   lda = max(1, n)
-   call lapack_syev(job, ula, n, amat, lda, eval, query, -1, info)
-   if (info /= 0) then
-      write(message, '(a, i0)') "Workspace query failed with info = ", info
-      call env%error(message, source)
-      return
-   end if
-
-   lwork = max(1, nint(query(1)))
-   allocate(work(lwork), stat=stat)
-   if (stat /= 0) then
-      call env%error("Workspace allocation failed", source)
-      return
-   end if
-
-   call lapack_syev(job, ula, n, amat, lda, eval, work, lwork, info)
-   if (info < 0) then
-      write(message, '(a, i0)') "LAPACK received an illegal argument, info = ", info
-      call env%error(message, source)
-   else if (info > 0) then
-      write(message, '(a, i0)') "Eigenvalue solver did not converge, info = ", info
-      call env%error(message, source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_ssyev
 
 
-!> Solve a real symmetric eigenvalue problem in double precision.
-subroutine mctc_dsyev(env, amat, eval, jobz, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_syev'
-   !> Calculation environment receiving errors.
-   type(TEnvironment), intent(inout) :: env
-   !> Symmetric matrix, overwritten with eigenvectors when requested.
+pure subroutine mctc_dsyev(amat, eval, jobz, uplo, info)
    real(dp), intent(inout) :: amat(:, :)
-   !> Eigenvalues in ascending order.
    real(dp), intent(out) :: eval(:)
-   !> Compute eigenvectors ('V') or eigenvalues only ('N').
-   character(len=1), intent(in), optional :: jobz
-   !> Triangle containing matrix data, upper ('U') or lower ('L').
-   character(len=1), intent(in), optional :: uplo
+   character(len=1), intent(in), optional :: jobz, uplo
+   integer, intent(out), optional :: info
 
    character(len=1) :: job, ula
-   character(len=80) :: message
-   integer :: info, lda, lwork, n, stat
+   integer :: info_, lda, lwork, n, stat
    real(dp) :: query(1)
    real(dp), allocatable :: work(:)
 
@@ -797,50 +766,429 @@ subroutine mctc_dsyev(env, amat, eval, jobz, uplo)
    if (present(jobz)) job = jobz
    ula = 'U'
    if (present(uplo)) ula = uplo
-
-   n = size(amat, 1)
-   if (size(amat, 2) /= n) then
-      call env%error("Matrix must be square", source)
-      return
+   lda = max(1, size(amat, 1))
+   n = size(amat, 2)
+   info_ = 0
+   if (size(amat, 1) /= n) then
+      info_ = -5
+   else if (size(eval) < n) then
+      info_ = -6
+   else if (n > 0) then
+      call lapack_syev(job, ula, n, amat, lda, eval, query, -1, info_)
+      if (info_ == 0) then
+         lwork = max(1, nint(query(1)))
+         allocate(work(lwork), stat=stat)
+         if (stat == 0) then
+            call lapack_syev(job, ula, n, amat, lda, eval, work, lwork, info_)
+         else
+            info_ = -1000
+         end if
+      end if
    end if
-   if (size(eval) < n) then
-      call env%error("Eigenvalue array is too small", source)
-      return
-   end if
-   if (job /= 'V' .and. job /= 'v' .and. job /= 'N' .and. job /= 'n') then
-      call env%error("Invalid eigenvector option", source)
-      return
-   end if
-   if (ula /= 'U' .and. ula /= 'u' .and. ula /= 'L' .and. ula /= 'l') then
-      call env%error("Invalid matrix triangle", source)
-      return
-   end if
-   if (n == 0) return
-
-   lda = max(1, n)
-   call lapack_syev(job, ula, n, amat, lda, eval, query, -1, info)
-   if (info /= 0) then
-      write(message, '(a, i0)') "Workspace query failed with info = ", info
-      call env%error(message, source)
-      return
-   end if
-
-   lwork = max(1, nint(query(1)))
-   allocate(work(lwork), stat=stat)
-   if (stat /= 0) then
-      call env%error("Workspace allocation failed", source)
-      return
-   end if
-
-   call lapack_syev(job, ula, n, amat, lda, eval, work, lwork, info)
-   if (info < 0) then
-      write(message, '(a, i0)') "LAPACK received an illegal argument, info = ", info
-      call env%error(message, source)
-   else if (info > 0) then
-      write(message, '(a, i0)') "Eigenvalue solver did not converge, info = ", info
-      call env%error(message, source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_dsyev
+
+
+pure subroutine mctc_ssyevd(amat, eval, jobz, uplo, info)
+   real(sp), intent(inout) :: amat(:, :)
+   real(sp), intent(out) :: eval(:)
+   character(len=1), intent(in), optional :: jobz, uplo
+   integer, intent(out), optional :: info
+
+   character(len=1) :: job, ula
+   integer :: info_, lda, lwork, liwork, n, stat, iquery(1)
+   real(sp) :: query(1)
+   real(sp), allocatable :: work(:)
+   integer, allocatable :: iwork(:)
+
+   job = 'V'
+   if (present(jobz)) job = jobz
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+   lda = max(1, size(amat, 1))
+   n = size(amat, 2)
+   info_ = 0
+   if (size(amat, 1) /= n) then
+      info_ = -5
+   else if (size(eval) < n) then
+      info_ = -6
+   else if (n > 0) then
+      call lapack_syevd(job, ula, n, amat, lda, eval, query, -1, iquery, -1, info_)
+      if (info_ == 0) then
+         lwork = max(1, nint(query(1)))
+         liwork = max(1, iquery(1))
+         allocate(work(lwork), iwork(liwork), stat=stat)
+         if (stat == 0) then
+            call lapack_syevd(job, ula, n, amat, lda, eval, work, lwork, iwork, liwork, info_)
+         else
+            info_ = -1000
+         end if
+      end if
+   end if
+   if (present(info)) info = info_
+end subroutine mctc_ssyevd
+
+
+pure subroutine mctc_dsyevd(amat, eval, jobz, uplo, info)
+   real(dp), intent(inout) :: amat(:, :)
+   real(dp), intent(out) :: eval(:)
+   character(len=1), intent(in), optional :: jobz, uplo
+   integer, intent(out), optional :: info
+
+   character(len=1) :: job, ula
+   integer :: info_, lda, lwork, liwork, n, stat, iquery(1)
+   real(dp) :: query(1)
+   real(dp), allocatable :: work(:)
+   integer, allocatable :: iwork(:)
+
+   job = 'V'
+   if (present(jobz)) job = jobz
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+   lda = max(1, size(amat, 1))
+   n = size(amat, 2)
+   info_ = 0
+   if (size(amat, 1) /= n) then
+      info_ = -5
+   else if (size(eval) < n) then
+      info_ = -6
+   else if (n > 0) then
+      call lapack_syevd(job, ula, n, amat, lda, eval, query, -1, iquery, -1, info_)
+      if (info_ == 0) then
+         lwork = max(1, nint(query(1)))
+         liwork = max(1, iquery(1))
+         allocate(work(lwork), iwork(liwork), stat=stat)
+         if (stat == 0) then
+            call lapack_syevd(job, ula, n, amat, lda, eval, work, lwork, iwork, liwork, info_)
+         else
+            info_ = -1000
+         end if
+      end if
+   end if
+   if (present(info)) info = info_
+end subroutine mctc_dsyevd
+
+
+pure subroutine mctc_ssyevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info, n)
+   real(sp), intent(inout) :: amat(:, :)
+   real(sp), intent(out) :: eval(:)
+   character(len=1), intent(in), optional :: uplo
+   real(sp), intent(out), optional :: z(:, :)
+   real(sp), intent(in), optional :: vl, vu, abstol
+   integer, intent(in), optional :: il, iu, n
+   integer, intent(out), optional :: m, info
+
+   character(len=1) :: rng, ula
+   integer :: nn, lda, ldz, ill, iuu, mm, lwork, info_, stat, idum1(1), idum2(1)
+   real(sp) :: vll, vuu, tol, query(1), zdum(1, 1)
+   real(sp), allocatable :: work(:)
+   integer, allocatable :: iwork(:), ifail(:)
+
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+   lda = max(1, size(amat, 1))
+   nn = size(amat, 2)
+   if (present(n)) nn = n
+   vll = 0.0_sp
+   if (present(vl)) vll = vl
+   vuu = 0.0_sp
+   if (present(vu)) vuu = vu
+   ill = 1
+   if (present(il)) ill = il
+   iuu = nn
+   if (present(iu)) iuu = iu
+   tol = 0.0_sp
+   if (present(abstol)) tol = abstol
+   rng = merge('I', merge('V', 'A', present(vl) .or. present(vu)), present(il) .or. present(iu))
+
+   mm = 0
+   info_ = 0
+   if ((present(il) .or. present(iu)) .and. (present(vl) .or. present(vu))) then
+      info_ = -2
+   else if (nn < 0) then
+      info_ = -4
+   else if (size(amat, 1) < nn .or. size(amat, 2) < nn &
+         & .or. (.not. present(n) .and. size(amat, 1) /= nn)) then
+      info_ = -6
+   else if (rng == 'I' .and. (ill < 1 .or. ill > max(1, nn))) then
+      info_ = -9
+   else if (rng == 'I' .and. (iuu < min(nn, ill) .or. iuu > nn)) then
+      info_ = -10
+   else if (size(eval) < nn) then
+      info_ = -13
+   else if (present(z)) then
+      if (size(z, 1) < nn) then
+         info_ = -15
+      else if (nn > 0 .and. size(z, 2) < merge(iuu - ill + 1, nn, rng == 'I')) then
+         info_ = -14
+      end if
+   end if
+
+   if (info_ == 0 .and. nn > 0) then
+      if (present(z)) then
+         ldz = max(1, size(z, 1))
+         call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+            & mm, eval, z, ldz, query, -1, idum1, idum2, info_)
+      else
+         call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+            & mm, eval, zdum, 1, query, -1, idum1, idum2, info_)
+      end if
+      if (info_ == 0) then
+         lwork = max(1, 8*nn, nint(query(1)))
+         allocate(work(lwork), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
+         if (stat /= 0) then
+            info_ = -1000
+         else if (present(z)) then
+            call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+               & mm, eval, z, ldz, work, lwork, iwork, ifail, info_)
+         else
+            call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+               & mm, eval, zdum, 1, work, lwork, iwork, ifail, info_)
+         end if
+      end if
+   end if
+   if (present(m)) m = mm
+   if (present(info)) info = info_
+end subroutine mctc_ssyevx
+
+
+pure subroutine mctc_dsyevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info, n)
+   real(dp), intent(inout) :: amat(:, :)
+   real(dp), intent(out) :: eval(:)
+   character(len=1), intent(in), optional :: uplo
+   real(dp), intent(out), optional :: z(:, :)
+   real(dp), intent(in), optional :: vl, vu, abstol
+   integer, intent(in), optional :: il, iu, n
+   integer, intent(out), optional :: m, info
+
+   character(len=1) :: rng, ula
+   integer :: nn, lda, ldz, ill, iuu, mm, lwork, info_, stat, idum1(1), idum2(1)
+   real(dp) :: vll, vuu, tol, query(1), zdum(1, 1)
+   real(dp), allocatable :: work(:)
+   integer, allocatable :: iwork(:), ifail(:)
+
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+   lda = max(1, size(amat, 1))
+   nn = size(amat, 2)
+   if (present(n)) nn = n
+   vll = 0.0_dp
+   if (present(vl)) vll = vl
+   vuu = 0.0_dp
+   if (present(vu)) vuu = vu
+   ill = 1
+   if (present(il)) ill = il
+   iuu = nn
+   if (present(iu)) iuu = iu
+   tol = 0.0_dp
+   if (present(abstol)) tol = abstol
+   rng = merge('I', merge('V', 'A', present(vl) .or. present(vu)), present(il) .or. present(iu))
+
+   mm = 0
+   info_ = 0
+   if ((present(il) .or. present(iu)) .and. (present(vl) .or. present(vu))) then
+      info_ = -2
+   else if (nn < 0) then
+      info_ = -4
+   else if (size(amat, 1) < nn .or. size(amat, 2) < nn &
+         & .or. (.not. present(n) .and. size(amat, 1) /= nn)) then
+      info_ = -6
+   else if (rng == 'I' .and. (ill < 1 .or. ill > max(1, nn))) then
+      info_ = -9
+   else if (rng == 'I' .and. (iuu < min(nn, ill) .or. iuu > nn)) then
+      info_ = -10
+   else if (size(eval) < nn) then
+      info_ = -13
+   else if (present(z)) then
+      if (size(z, 1) < nn) then
+         info_ = -15
+      else if (nn > 0 .and. size(z, 2) < merge(iuu - ill + 1, nn, rng == 'I')) then
+         info_ = -14
+      end if
+   end if
+
+   if (info_ == 0 .and. nn > 0) then
+      if (present(z)) then
+         ldz = max(1, size(z, 1))
+         call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+            & mm, eval, z, ldz, query, -1, idum1, idum2, info_)
+      else
+         call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+            & mm, eval, zdum, 1, query, -1, idum1, idum2, info_)
+      end if
+      if (info_ == 0) then
+         lwork = max(1, 8*nn, nint(query(1)))
+         allocate(work(lwork), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
+         if (stat /= 0) then
+            info_ = -1000
+         else if (present(z)) then
+            call lapack_syevx('V', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+               & mm, eval, z, ldz, work, lwork, iwork, ifail, info_)
+         else
+            call lapack_syevx('N', rng, ula, nn, amat, lda, vll, vuu, ill, iuu, tol, &
+               & mm, eval, zdum, 1, work, lwork, iwork, ifail, info_)
+         end if
+      end if
+   end if
+   if (present(m)) m = mm
+   if (present(info)) info = info_
+end subroutine mctc_dsyevx
+
+
+pure subroutine mctc_sspevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info, n)
+   real(sp), intent(inout) :: amat(:)
+   real(sp), intent(out) :: eval(:)
+   character(len=1), intent(in), optional :: uplo
+   real(sp), intent(out), optional :: z(:, :)
+   real(sp), intent(in), optional :: vl, vu, abstol
+   integer, intent(in), optional :: il, iu, n
+   integer, intent(out), optional :: m, info
+
+   character(len=1) :: rng, ula
+   integer :: nn, ill, iuu, mm, info_, stat
+   integer(i8) :: np
+   real(sp) :: vll, vuu, tol, zdum(1, 1)
+   real(sp), allocatable :: work(:)
+   integer, allocatable :: iwork(:), ifail(:)
+
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+   if (present(n)) then
+      nn = n
+   else
+      nn = nint((-1.0_dp + sqrt(1.0_dp + 8.0_dp*real(size(amat), dp)))*0.5_dp)
+   end if
+   vll = 0.0_sp
+   if (present(vl)) vll = vl
+   vuu = 0.0_sp
+   if (present(vu)) vuu = vu
+   ill = 1
+   if (present(il)) ill = il
+   iuu = nn
+   if (present(iu)) iuu = iu
+   tol = 0.0_sp
+   if (present(abstol)) tol = abstol
+   rng = merge('I', merge('V', 'A', present(vl) .or. present(vu)), present(il) .or. present(iu))
+
+   mm = 0
+   info_ = 0
+   if ((present(il) .or. present(iu)) .and. (present(vl) .or. present(vu))) then
+      info_ = -2
+   else if (nn < 0) then
+      info_ = -4
+   else
+      np = int(nn, i8) * int(nn + 1, i8) / 2_i8
+      if (size(amat, kind=i8) < np &
+            & .or. (.not. present(n) .and. size(amat, kind=i8) /= np)) then
+         info_ = -5
+      else if (rng == 'I' .and. (ill < 1 .or. ill > max(1, nn))) then
+         info_ = -8
+      else if (rng == 'I' .and. (iuu < min(nn, ill) .or. iuu > nn)) then
+         info_ = -9
+      else if (size(eval) < nn) then
+         info_ = -12
+      else if (present(z)) then
+         if (size(z, 1) < nn) then
+            info_ = -14
+         else if (nn > 0 .and. size(z, 2) < merge(iuu - ill + 1, nn, rng == 'I')) then
+            info_ = -13
+         end if
+      end if
+   end if
+
+   if (info_ == 0 .and. nn > 0) then
+      allocate(work(max(1, 8*nn)), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
+      if (stat /= 0) then
+         info_ = -1000
+      else if (present(z)) then
+         call lapack_spevx('V', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
+            & mm, eval, z, max(1, size(z, 1)), work, iwork, ifail, info_)
+      else
+         call lapack_spevx('N', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
+            & mm, eval, zdum, 1, work, iwork, ifail, info_)
+      end if
+   end if
+   if (present(m)) m = mm
+   if (present(info)) info = info_
+end subroutine mctc_sspevx
+
+
+pure subroutine mctc_dspevx(amat, eval, uplo, z, vl, vu, il, iu, abstol, m, info, n)
+   real(dp), intent(inout) :: amat(:)
+   real(dp), intent(out) :: eval(:)
+   character(len=1), intent(in), optional :: uplo
+   real(dp), intent(out), optional :: z(:, :)
+   real(dp), intent(in), optional :: vl, vu, abstol
+   integer, intent(in), optional :: il, iu, n
+   integer, intent(out), optional :: m, info
+
+   character(len=1) :: rng, ula
+   integer :: nn, ill, iuu, mm, info_, stat
+   integer(i8) :: np
+   real(dp) :: vll, vuu, tol, zdum(1, 1)
+   real(dp), allocatable :: work(:)
+   integer, allocatable :: iwork(:), ifail(:)
+
+   ula = 'U'
+   if (present(uplo)) ula = uplo
+   if (present(n)) then
+      nn = n
+   else
+      nn = nint((-1.0_dp + sqrt(1.0_dp + 8.0_dp*real(size(amat), dp)))*0.5_dp)
+   end if
+   vll = 0.0_dp
+   if (present(vl)) vll = vl
+   vuu = 0.0_dp
+   if (present(vu)) vuu = vu
+   ill = 1
+   if (present(il)) ill = il
+   iuu = nn
+   if (present(iu)) iuu = iu
+   tol = 0.0_dp
+   if (present(abstol)) tol = abstol
+   rng = merge('I', merge('V', 'A', present(vl) .or. present(vu)), present(il) .or. present(iu))
+
+   mm = 0
+   info_ = 0
+   if ((present(il) .or. present(iu)) .and. (present(vl) .or. present(vu))) then
+      info_ = -2
+   else if (nn < 0) then
+      info_ = -4
+   else
+      np = int(nn, i8) * int(nn + 1, i8) / 2_i8
+      if (size(amat, kind=i8) < np &
+            & .or. (.not. present(n) .and. size(amat, kind=i8) /= np)) then
+         info_ = -5
+      else if (rng == 'I' .and. (ill < 1 .or. ill > max(1, nn))) then
+         info_ = -8
+      else if (rng == 'I' .and. (iuu < min(nn, ill) .or. iuu > nn)) then
+         info_ = -9
+      else if (size(eval) < nn) then
+         info_ = -12
+      else if (present(z)) then
+         if (size(z, 1) < nn) then
+            info_ = -14
+         else if (nn > 0 .and. size(z, 2) < merge(iuu - ill + 1, nn, rng == 'I')) then
+            info_ = -13
+         end if
+      end if
+   end if
+
+   if (info_ == 0 .and. nn > 0) then
+      allocate(work(max(1, 8*nn)), iwork(max(1, 5*nn)), ifail(max(1, nn)), stat=stat)
+      if (stat /= 0) then
+         info_ = -1000
+      else if (present(z)) then
+         call lapack_spevx('V', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
+            & mm, eval, z, max(1, size(z, 1)), work, iwork, ifail, info_)
+      else
+         call lapack_spevx('N', rng, ula, nn, amat, vll, vuu, ill, iuu, tol, &
+            & mm, eval, zdum, 1, work, iwork, ifail, info_)
+      end if
+   end if
+   if (present(m)) m = mm
+   if (present(info)) info = info_
+end subroutine mctc_dspevx
 
 
 end module xtb_mctc_lapack_stdeigval

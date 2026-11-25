@@ -566,14 +566,14 @@ contains
 
 pure function moments_of_inertia(n,atmass,xyz) result(moments)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_lapack, only : lapack_spev
+   use xtb_mctc_lapack, only : mctc_syev
    use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: atmass(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp) :: moments(3)
-   real(wp) :: center(3),mass,t(6),work(9),tmp(3,3)
+   real(wp) :: center(3),mass,t(3,3)
    real(wp) :: x,x2,y,y2,z,z2
    integer  :: iat,info
 
@@ -586,15 +586,15 @@ pure function moments_of_inertia(n,atmass,xyz) result(moments)
       x = xyz(1,iat)-center(1); x2 = x**2
       y = xyz(2,iat)-center(2); y2 = y**2
       z = xyz(3,iat)-center(3); z2 = z**2
-      t(1) = t(1) + mass * (y2+z2)
-      t(2) = t(2) - mass * x*y
-      t(3) = t(3) + mass * (x2+z2)
-      t(4) = t(4) - mass * x*z
-      t(5) = t(5) - mass * y*z
-      t(6) = t(6) + mass * (x2+y2)
+      t(1,1) = t(1,1) + mass * (y2+z2)
+      t(1,2) = t(1,2) - mass * x*y
+      t(2,2) = t(2,2) + mass * (x2+z2)
+      t(1,3) = t(1,3) - mass * x*z
+      t(2,3) = t(2,3) - mass * y*z
+      t(3,3) = t(3,3) + mass * (x2+y2)
    enddo
 
-   call lapack_spev('N','U',3,t,moments,tmp,3,work,info)
+   call mctc_syev(t, moments, jobz='N', uplo='U', info=info)
    if (info.ne.0) moments = -1.0_wp
 
 end function moments_of_inertia

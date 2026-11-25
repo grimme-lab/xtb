@@ -37,7 +37,7 @@ contains
 subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
       &                   alpha,omega,df,u,a)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_lapack, only : lapack_getrf, lapack_getrs
+   use xtb_mctc_lapack, only : mctc_getrf, mctc_getrs
    implicit none
 
    integer i,j
@@ -135,9 +135,9 @@ subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
    !     build beta^-1
    !     solve beta^T gamma = c via LU decomposition
    gamma(:,1) = c
-   call lapack_getrf(it1,it1,beta,it1,ipiv,info)
+   call mctc_getrf(beta, ipiv, info=info)
    if (info == 0) then
-      call lapack_getrs('t',it1,1,beta,it1,ipiv,gamma,it1,info)
+      call mctc_getrs(beta, gamma, ipiv, trans='t', info=info)
    endif
    if(info .ne. 0)then
       write(*,*)"Error in Broyden linear equation solve!"

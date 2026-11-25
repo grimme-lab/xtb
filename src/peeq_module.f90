@@ -19,6 +19,7 @@ module xtb_peeq
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_la
+   use xtb_mctc_blas, only : mctc_gemv
    use xtb_xtb_data
    use xtb_chargemodel
    use xtb_type_latticepoint, only : TLatticePoint, init_l
@@ -546,14 +547,14 @@ subroutine peeq &
    endif
    if (mol%npbc > 0) then
       ! setup CN sigma
-      call dgemv('n',9,mol%n,1.0_wp,dcndL,9,dhdcn,1,1.0_wp,sigma,1)
+      call mctc_gemv(dcndL, dhdcn, sigma, beta=1.0_wp)
       ! setup  q sigma
-      call dgemv('n',9,mol%n,1.0_wp,dqdL, 9, dhdq,1,1.0_wp,sigma,1)
+      call mctc_gemv(dqdL, dhdq, sigma, beta=1.0_wp)
    endif
    ! setup CN gradient
-   call dgemv('n',3*mol%n,mol%n, 1.0_wp,dcndr,3*mol%n,dhdcn,1,1.0_wp,gradient,1)
+   call mctc_gemv(dcndr, dhdcn, gradient, beta=1.0_wp)
    ! setup  q gradient
-   call dgemv('n',3*mol%n,mol%n, 1.0_wp,dqdr, 3*mol%n, dhdq,1,1.0_wp,gradient,1)
+   call mctc_gemv(dqdr, dhdq, gradient, beta=1.0_wp)
 
    if (profile) call timer%measure(8)
 

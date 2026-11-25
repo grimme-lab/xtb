@@ -18,13 +18,10 @@
 !> LAPACK linear equation solvers.
 module xtb_mctc_lapack_trs
    use xtb_mctc_accuracy, only : sp, dp
-   use xtb_type_environment, only : TEnvironment
    implicit none
    private
 
    public :: mctc_getrs, mctc_sytrs, mctc_sptrs, mctc_potrs, mctc_pptrs
-
-   public :: lapack_getrs, lapack_sytrs, lapack_sptrs, lapack_potrs, lapack_pptrs
 
 
    interface mctc_getrs
@@ -296,15 +293,14 @@ module xtb_mctc_lapack_trs
 contains
 
 
-subroutine mctc_sgetrs(env, amat, bmat, ipiv, trans)
-   character(len=*), parameter :: source = 'mctc_lapack_getrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_sgetrs(amat, bmat, ipiv, trans, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: bmat(:, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: trans
+   integer, intent(out), optional :: info
    character(len=1) :: tra
-   integer :: info, n, nrhs, lda, ldb
+   integer :: info_, n, nrhs, lda, ldb
    if (present(trans)) then
       tra = trans
    else
@@ -314,22 +310,19 @@ subroutine mctc_sgetrs(env, amat, bmat, ipiv, trans)
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
    nrhs = size(bmat, 2)
-   call lapack_getrs(tra, n, nrhs, amat, lda, ipiv, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_getrs(tra, n, nrhs, amat, lda, ipiv, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_sgetrs
 
 
-subroutine mctc_dgetrs(env, amat, bmat, ipiv, trans)
-   character(len=*), parameter :: source = 'mctc_lapack_getrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dgetrs(amat, bmat, ipiv, trans, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: bmat(:, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: trans
+   integer, intent(out), optional :: info
    character(len=1) :: tra
-   integer :: info, n, nrhs, lda, ldb
+   integer :: info_, n, nrhs, lda, ldb
    if (present(trans)) then
       tra = trans
    else
@@ -339,22 +332,19 @@ subroutine mctc_dgetrs(env, amat, bmat, ipiv, trans)
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
    nrhs = size(bmat, 2)
-   call lapack_getrs(tra, n, nrhs, amat, lda, ipiv, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_getrs(tra, n, nrhs, amat, lda, ipiv, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dgetrs
 
 
-subroutine mctc_ssytrs(env, amat, bmat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sytrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssytrs(amat, bmat, ipiv, uplo, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: bmat(:, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nrhs, lda, ldb
+   integer :: info_, n, nrhs, lda, ldb
    if (present(uplo)) then
       ula = uplo
    else
@@ -364,22 +354,19 @@ subroutine mctc_ssytrs(env, amat, bmat, ipiv, uplo)
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
    nrhs = size(bmat, 2)
-   call lapack_sytrs(ula, n, nrhs, amat, lda, ipiv, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_sytrs(ula, n, nrhs, amat, lda, ipiv, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_ssytrs
 
 
-subroutine mctc_dsytrs(env, amat, bmat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sytrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsytrs(amat, bmat, ipiv, uplo, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: bmat(:, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nrhs, lda, ldb
+   integer :: info_, n, nrhs, lda, ldb
    if (present(uplo)) then
       ula = uplo
    else
@@ -389,22 +376,19 @@ subroutine mctc_dsytrs(env, amat, bmat, ipiv, uplo)
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
    nrhs = size(bmat, 2)
-   call lapack_sytrs(ula, n, nrhs, amat, lda, ipiv, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_sytrs(ula, n, nrhs, amat, lda, ipiv, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dsytrs
 
 
-subroutine mctc_ssptrs(env, amat, bmat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sptrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssptrs(amat, bmat, ipiv, uplo, info)
    real(sp), intent(in) :: amat(:)
    real(sp), intent(inout) :: bmat(:, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nrhs, ldb, nn
+   integer :: info_, n, nrhs, ldb, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -418,22 +402,19 @@ subroutine mctc_ssptrs(env, amat, bmat, ipiv, uplo)
       n = int((-1+sqrt(1+8*real(nn, sp))))/2
    end if
    nrhs = size(bmat, 2)
-   call lapack_sptrs(ula, n, nrhs, amat, ipiv, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_sptrs(ula, n, nrhs, amat, ipiv, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_ssptrs
 
 
-subroutine mctc_dsptrs(env, amat, bmat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sptrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsptrs(amat, bmat, ipiv, uplo, info)
    real(dp), intent(in) :: amat(:)
    real(dp), intent(inout) :: bmat(:, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nrhs, ldb, nn
+   integer :: info_, n, nrhs, ldb, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -447,22 +428,18 @@ subroutine mctc_dsptrs(env, amat, bmat, ipiv, uplo)
       n = int((-1+sqrt(1+8*real(nn, dp))))/2
    end if
    nrhs = size(bmat, 2)
-   call lapack_sptrs(ula, n, nrhs, amat, ipiv, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_sptrs(ula, n, nrhs, amat, ipiv, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dsptrs
 
 
-subroutine mctc_spotrs(env, amat, bmat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_potrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spotrs(amat, bmat, uplo, info)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nrhs, lda, ldb
-   intrinsic max, present, size
+   integer :: info_, n, nrhs, lda, ldb
    if (present(uplo)) then
       ula = uplo
    else
@@ -472,22 +449,18 @@ subroutine mctc_spotrs(env, amat, bmat, uplo)
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
    nrhs = size(bmat, 2)
-   call lapack_potrs(ula, n, nrhs, amat, lda, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_potrs(ula, n, nrhs, amat, lda, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_spotrs
 
 
-subroutine mctc_dpotrs(env, amat, bmat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_potrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpotrs(amat, bmat, uplo, info)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nrhs, lda, ldb
-   intrinsic max, present, size
+   integer :: info_, n, nrhs, lda, ldb
    if (present(uplo)) then
       ula = uplo
    else
@@ -497,21 +470,18 @@ subroutine mctc_dpotrs(env, amat, bmat, uplo)
    ldb = max(1, size(bmat, 1))
    n = size(amat, 2)
    nrhs = size(bmat, 2)
-   call lapack_potrs(ula, n, nrhs, amat, lda, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_potrs(ula, n, nrhs, amat, lda, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dpotrs
 
 
-subroutine mctc_spptrs(env, amat, bmat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_pptrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spptrs(amat, bmat, uplo, info)
    real(sp), intent(in) :: amat(:)
    real(sp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nrhs, ldb, nn
+   integer :: info_, n, nrhs, ldb, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -525,21 +495,18 @@ subroutine mctc_spptrs(env, amat, bmat, uplo)
       n = int((-1+sqrt(1+8*real(nn, sp))))/2
    end if
    nrhs = size(bmat, 2)
-   call lapack_pptrs(ula, n, nrhs, amat, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_pptrs(ula, n, nrhs, amat, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_spptrs
 
 
-subroutine mctc_dpptrs(env, amat, bmat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_pptrs'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpptrs(amat, bmat, uplo, info)
    real(dp), intent(in) :: amat(:)
    real(dp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nrhs, ldb, nn
+   integer :: info_, n, nrhs, ldb, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -553,10 +520,8 @@ subroutine mctc_dpptrs(env, amat, bmat, uplo)
       n = int((-1+sqrt(1+8*real(nn, dp))))/2
    end if
    nrhs = size(bmat, 2)
-   call lapack_pptrs(ula, n, nrhs, amat, bmat, ldb, info)
-   if (info /= 0) then
-      call env%error("Solving linear system failed", source)
-   end if
+   call lapack_pptrs(ula, n, nrhs, amat, bmat, ldb, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dpptrs
 
 

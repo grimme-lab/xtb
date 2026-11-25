@@ -16,6 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 module xtb_biaspath
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_blas, only : mctc_dot
    implicit none
    private
 
@@ -85,7 +86,7 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
    real(wp) fnat,rmsd_prod_thr,alp_change,k_change,edrmsd,ppull
    real(wp) gdum,gts,emax,eback,eforw,eforw_prev,gsum_prev,pthr
-   real(wp) de_min,grad_min,e_ed,e_pr,de,ddot,gthr
+   real(wp) de_min,grad_min,e_ed,e_pr,de,gthr
 
    character(len=80) :: atmp,btmp
    logical fail,ex,done,degen
@@ -448,7 +449,7 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    write(env%unit,'("point",5x,"drms",5x,"energy",1x,"pmode ovlp",1x,"pmode grad")')
    do i=2,np
       call guess_tsmode(mol%n,np,i,xyzpath,pvec1,pvec2)
-      gdum=ddot(3*mol%n,pvec1,1,pvec2,1)
+      gdum=mctc_dot(pvec1,pvec2)
       mol%xyz=xyzpath(:,:,i)
       call rmsd(mol%n,xyzpath(:,:,i),xyzpath(:,:,i-1),0,U,x,y,rms,.false.,gtmp)
       dum1=(epath(i)-epath(i-1))/(rms*real(mol%n))  ! gradient along path
@@ -859,7 +860,7 @@ subroutine cleanpath(np,n,xyz,xyz0,xyz1,pthr)
    real(wp)  pthr              ! threshold
 
    real(wp), allocatable :: pvec1(:), pvec2(:), ovlp(:), delta(:,:), xyzdum(:,:,:)
-   real(wp)              :: dum, ddot
+   real(wp)              :: dum
    integer               :: i,j,k,l
    integer               :: ib, ie
 
@@ -870,14 +871,14 @@ subroutine cleanpath(np,n,xyz,xyz0,xyz1,pthr)
    ovlp = 1
    do i=2,np-1
       call guess_tsmode(n,np,i,xyz,pvec1,pvec2)
-      ovlp(i)=ddot(3*n,pvec1,1,pvec2,1)
+      ovlp(i)=mctc_dot(pvec1,pvec2)
    enddo
    write(*,*) 'path overlaps before alignment'
    write(*,'(20f6.2)') ovlp(1:np)
    call alignpath(n,np,xyz)
    do i=2,np-1
       call guess_tsmode(n,np,i,xyz,pvec1,pvec2)
-      ovlp(i)=ddot(3*n,pvec1,1,pvec2,1)
+      ovlp(i)=mctc_dot(pvec1,pvec2)
    enddo
    write(*,*) 'path overlaps after alignment'
    write(*,'(20f6.2)') ovlp(1:np)
@@ -918,7 +919,7 @@ subroutine cleanpath(np,n,xyz,xyz0,xyz1,pthr)
    call alignpath(n,np,xyz)
    do i=2,np-1
       call guess_tsmode(n,np,i,xyz,pvec1,pvec2)
-      ovlp(i)=ddot(3*n,pvec1,1,pvec2,1)
+      ovlp(i)=mctc_dot(pvec1,pvec2)
    enddo
    write(*,*) 'path overlaps after cleaning and alignment'
    write(*,'(20f6.2)') ovlp(1:np)

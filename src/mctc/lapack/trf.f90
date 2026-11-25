@@ -18,13 +18,10 @@
 !> LAPACK linear equation solvers.
 module xtb_mctc_lapack_trf
    use xtb_mctc_accuracy, only : sp, dp
-   use xtb_type_environment, only : TEnvironment
    implicit none
    private
 
    public :: mctc_getrf, mctc_sytrf, mctc_sptrf, mctc_potrf, mctc_pptrf
-
-   public :: lapack_getrf, lapack_sytrf, lapack_sptrf, lapack_potrf, lapack_pptrf
 
 
    interface mctc_getrf
@@ -244,46 +241,39 @@ module xtb_mctc_lapack_trf
 contains
 
 
-subroutine mctc_sgetrf(env, amat, ipiv)
-   character(len=*), parameter :: source = 'mctc_lapack_getrf'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_sgetrf(amat, ipiv, info)
    real(sp), intent(inout) :: amat(:, :)
    integer, intent(out) :: ipiv(:)
-   integer :: info, m, n, lda
+   integer, intent(out), optional :: info
+   integer :: info_, m, n, lda
    lda = max(1, size(amat, 1))
    m = size(amat, 1)
    n = size(amat, 2)
-   call lapack_getrf(m, n, amat, lda, ipiv, info)
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   call lapack_getrf(m, n, amat, lda, ipiv, info_)
+   if (present(info)) info = info_
 end subroutine mctc_sgetrf
 
 
-subroutine mctc_dgetrf(env, amat, ipiv)
-   character(len=*), parameter :: source = 'mctc_lapack_getrf'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dgetrf(amat, ipiv, info)
    real(dp), intent(inout) :: amat(:, :)
    integer, intent(out) :: ipiv(:)
-   integer :: info, m, n, lda
+   integer, intent(out), optional :: info
+   integer :: info_, m, n, lda
    lda = max(1, size(amat, 1))
    m = size(amat, 1)
    n = size(amat, 2)
-   call lapack_getrf(m, n, amat, lda, ipiv, info)
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   call lapack_getrf(m, n, amat, lda, ipiv, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dgetrf
 
 
-subroutine mctc_ssytrf(env, amat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sytrf'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssytrf(amat, ipiv, uplo, info)
    real(sp), intent(inout) :: amat(:, :)
    integer, intent(out) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, lda, lwork, stat_alloc, stat_dealloc
+   integer :: info_, n, lda, lwork, stat_alloc
    real(sp), allocatable :: work(:)
    real(sp) :: test(1)
    if (present(uplo)) then
@@ -293,35 +283,28 @@ subroutine mctc_ssytrf(env, amat, ipiv, uplo)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   stat_alloc = 0
    lwork = -1
-   call lapack_sytrf(ula, n, amat, lda, ipiv, test, lwork, info)
-   if (info == 0) then
-      lwork = nint(test(1))
-      if (stat_alloc==0) then
-         allocate(work(lwork), stat=stat_alloc)
-      end if
-      if (stat_alloc==0) then
-         call lapack_sytrf(ula, n, amat, lda, ipiv, work, lwork, info)
+   call lapack_sytrf(ula, n, amat, lda, ipiv, test, lwork, info_)
+   if (info_ == 0) then
+      lwork = max(1, nint(test(1)))
+      allocate(work(lwork), stat=stat_alloc)
+      if (stat_alloc == 0) then
+         call lapack_sytrf(ula, n, amat, lda, ipiv, work, lwork, info_)
       else
-         info = -1000
+         info_ = -1000
       end if
-      deallocate(work, stat=stat_dealloc)
    end if
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_ssytrf
 
 
-subroutine mctc_dsytrf(env, amat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sytrf'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsytrf(amat, ipiv, uplo, info)
    real(dp), intent(inout) :: amat(:, :)
    integer, intent(out) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, lda, lwork, stat_alloc, stat_dealloc
+   integer :: info_, n, lda, lwork, stat_alloc
    real(dp), allocatable :: work(:)
    real(dp) :: test(1)
    if (present(uplo)) then
@@ -331,35 +314,28 @@ subroutine mctc_dsytrf(env, amat, ipiv, uplo)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   stat_alloc = 0
    lwork = -1
-   call lapack_sytrf(ula, n, amat, lda, ipiv, test, lwork, info)
-   if (info == 0) then
-      lwork = nint(test(1))
-      if (stat_alloc==0) then
-         allocate(work(lwork), stat=stat_alloc)
-      end if
-      if (stat_alloc==0) then
-         call lapack_sytrf(ula, n, amat, lda, ipiv, work, lwork, info)
+   call lapack_sytrf(ula, n, amat, lda, ipiv, test, lwork, info_)
+   if (info_ == 0) then
+      lwork = max(1, nint(test(1)))
+      allocate(work(lwork), stat=stat_alloc)
+      if (stat_alloc == 0) then
+         call lapack_sytrf(ula, n, amat, lda, ipiv, work, lwork, info_)
       else
-         info = -1000
+         info_ = -1000
       end if
-      deallocate(work, stat=stat_dealloc)
    end if
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_dsytrf
 
 
-subroutine mctc_ssptrf(env, amat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sptrf'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssptrf(amat, ipiv, uplo, info)
    real(sp), intent(inout) :: amat(:)
    integer, intent(out) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, stat_alloc, stat_dealloc, nn
+   integer :: info_, n, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -371,26 +347,18 @@ subroutine mctc_ssptrf(env, amat, ipiv, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, sp))))/2
    end if
-   stat_alloc = 0
-   if (stat_alloc==0) then
-      call lapack_sptrf(ula, n, amat, ipiv, info)
-   else
-      info = -1000
-   end if
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   call lapack_sptrf(ula, n, amat, ipiv, info_)
+   if (present(info)) info = info_
 end subroutine mctc_ssptrf
 
 
-subroutine mctc_dsptrf(env, amat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sptrf'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsptrf(amat, ipiv, uplo, info)
    real(dp), intent(inout) :: amat(:)
    integer, intent(out) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, stat_alloc, stat_dealloc, nn
+   integer :: info_, n, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -402,25 +370,17 @@ subroutine mctc_dsptrf(env, amat, ipiv, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, dp))))/2
    end if
-   stat_alloc = 0
-   if (stat_alloc==0) then
-      call lapack_sptrf(ula, n, amat, ipiv, info)
-   else
-      info = -1000
-   end if
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   call lapack_sptrf(ula, n, amat, ipiv, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dsptrf
 
 
-subroutine mctc_spotrf(env, amat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_potrf'
-   character(len=1), intent(in), optional :: uplo
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spotrf(amat, uplo, info)
    real(sp), intent(inout) :: amat(:, :)
+   character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, lda
+   integer :: info_, n, lda
    if (present(uplo)) then
       ula = uplo
    else
@@ -428,20 +388,17 @@ subroutine mctc_spotrf(env, amat, uplo)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   call lapack_potrf(ula, n, amat, lda, info)
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   call lapack_potrf(ula, n, amat, lda, info_)
+   if (present(info)) info = info_
 end subroutine mctc_spotrf
 
 
-subroutine mctc_dpotrf(env, amat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_potrf'
-   character(len=1), intent(in), optional :: uplo
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpotrf(amat, uplo, info)
    real(dp), intent(inout) :: amat(:, :)
+   character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, lda
+   integer :: info_, n, lda
    if (present(uplo)) then
       ula = uplo
    else
@@ -449,20 +406,17 @@ subroutine mctc_dpotrf(env, amat, uplo)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   call lapack_potrf(ula, n, amat, lda, info)
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   call lapack_potrf(ula, n, amat, lda, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dpotrf
 
 
-subroutine mctc_spptrf(env, amat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_pptrf'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spptrf(amat, uplo, info)
    real(sp), intent(inout) :: amat(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nn
+   integer :: info_, n, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -474,20 +428,17 @@ subroutine mctc_spptrf(env, amat, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, sp))))/2
    end if
-   call lapack_pptrf(ula, n, amat, info)
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   call lapack_pptrf(ula, n, amat, info_)
+   if (present(info)) info = info_
 end subroutine mctc_spptrf
 
 
-subroutine mctc_dpptrf(env, amat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_pptrf'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpptrf(amat, uplo, info)
    real(dp), intent(inout) :: amat(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nn
+   integer :: info_, n, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -499,10 +450,8 @@ subroutine mctc_dpptrf(env, amat, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, dp))))/2
    end if
-   call lapack_pptrf(ula, n, amat, info)
-   if (info /= 0) then
-      call env%error("Factorisation of matrix failed", source)
-   end if
+   call lapack_pptrf(ula, n, amat, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dpptrf
 
 

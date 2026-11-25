@@ -465,13 +465,13 @@ subroutine compute_compliance(env, H, B, xyz, nat, nint, C)
    !> Compliance matrix, dimension (nint, nint), in Bohr^2/Hartree.
    real(wp), intent(out) :: C(nint, nint)
 
-   integer :: i, j, ndim, nrigid, nvib, rank_h
+   character(len=*), parameter :: source = "compliance"
+   integer :: i, j, ndim, nrigid, nvib, rank_h, info
    real(wp) :: tol_h, normq, center(3), rotation_scale
    ! Relative to the largest rotation norm, sqrt(epsilon) makes the rank test size-independent.
    real(wp), parameter :: rigid_basis_tol = sqrt(epsilon(1.0_wp))
    real(wp), allocatable :: Hp(:, :), Q(:, :), W(:), Z(:, :), ZD(:, :), &
       & T1(:, :), T2(:, :)
-   logical :: failed
 
    if (nint == 0) then
       C = 0.0_wp
@@ -525,9 +525,11 @@ subroutine compute_compliance(env, H, B, xyz, nat, nint, C)
    Hp = 0.5_wp * (Hp + transpose(Hp))
 
    ! Hp = V W V^T, overwriting Hp with V
-   call mctc_syev(env, Hp, W, jobz="V", uplo="U")
-   call env%check(failed)
-   if (failed) return
+   call mctc_syev(Hp, W, jobz="V", uplo="U", info=info)
+   if (info /= 0) then
+      call env%error("Failed to diagonalize projected Hessian", source)
+      return
+   end if
 
    ! Z = B V
    ! ZD = Z D, with D(i,i) = 1/W(i) for retained modes and zero otherwise

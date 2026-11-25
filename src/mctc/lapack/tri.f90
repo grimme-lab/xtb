@@ -18,14 +18,10 @@
 !> LAPACK linear equation solvers.
 module xtb_mctc_lapack_tri
    use xtb_mctc_accuracy, only : sp, dp
-   use xtb_type_environment, only : TEnvironment
    implicit none
    private
 
    public :: mctc_getri, mctc_sytri, mctc_sptri, mctc_potri, mctc_pptri, mctc_trtri
-
-   public :: lapack_getri, lapack_sytri, lapack_sptri, lapack_potri, lapack_pptri, &
-      & lapack_trtri
 
 
    interface mctc_getri
@@ -293,72 +289,61 @@ module xtb_mctc_lapack_tri
 contains
 
 
-subroutine mctc_sgetri(env, amat, ipiv)
-   character(len=*), parameter :: source = 'mctc_lapack_getri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_sgetri(amat, ipiv, info)
    real(sp), intent(inout) :: amat(:, :)
    integer, intent(in) :: ipiv(:)
-   integer :: info, n, lda, lwork, stat_alloc, stat_dealloc
+   integer, intent(out), optional :: info
+   integer :: info_, n, lda, lwork, stat_alloc
    real(sp), allocatable :: work(:)
    real(sp) :: test(1)
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   stat_alloc = 0
    lwork = -1
-   call lapack_getri(n, amat, lda, ipiv, test, lwork, info)
-   if (info == 0) then
-      lwork = nint(test(1))
+   call lapack_getri(n, amat, lda, ipiv, test, lwork, info_)
+   if (info_ == 0) then
+      lwork = max(1, nint(test(1)))
       allocate(work(lwork), stat=stat_alloc)
-      if (stat_alloc==0) then
-         call lapack_getri(n, amat, lda, ipiv, work, lwork, info)
+      if (stat_alloc == 0) then
+         call lapack_getri(n, amat, lda, ipiv, work, lwork, info_)
       else
-         info = -1000
+         info_ = -1000
       end if
-      deallocate(work, stat=stat_dealloc)
    end if
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_sgetri
 
 
-subroutine mctc_dgetri(env, amat, ipiv)
-   character(len=*), parameter :: source = 'mctc_lapack_getri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dgetri(amat, ipiv, info)
    real(dp), intent(inout) :: amat(:, :)
    integer, intent(in) :: ipiv(:)
-   integer :: info, n, lda, lwork, stat_alloc, stat_dealloc
+   integer, intent(out), optional :: info
+   integer :: info_, n, lda, lwork, stat_alloc
    real(dp), allocatable :: work(:)
    real(dp) :: test(1)
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   stat_alloc = 0
    lwork = -1
-   call lapack_getri(n, amat, lda, ipiv, test, lwork, info)
-   if (info == 0) then
-      lwork = nint(test(1))
+   call lapack_getri(n, amat, lda, ipiv, test, lwork, info_)
+   if (info_ == 0) then
+      lwork = max(1, nint(test(1)))
       allocate(work(lwork), stat=stat_alloc)
-      if (stat_alloc==0) then
-         call lapack_getri(n, amat, lda, ipiv, work, lwork, info)
+      if (stat_alloc == 0) then
+         call lapack_getri(n, amat, lda, ipiv, work, lwork, info_)
       else
-         info = -1000
+         info_ = -1000
       end if
-      deallocate(work, stat=stat_dealloc)
    end if
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_dgetri
 
 
-subroutine mctc_ssytri(env, amat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sytri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssytri(amat, ipiv, uplo, info)
    real(sp), intent(inout) :: amat(:, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, lda, stat_alloc, stat_dealloc
+   integer :: info_, n, lda, stat_alloc
    real(sp), allocatable :: work(:)
    if (present(uplo)) then
       ula = uplo
@@ -367,28 +352,23 @@ subroutine mctc_ssytri(env, amat, ipiv, uplo)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   stat_alloc = 0
-   allocate(work(n), stat=stat_alloc)
-   if (stat_alloc==0) then
-      call lapack_sytri(ula, n, amat, lda, ipiv, work, info)
+   allocate(work(max(1, n)), stat=stat_alloc)
+   if (stat_alloc == 0) then
+      call lapack_sytri(ula, n, amat, lda, ipiv, work, info_)
    else
-      info = -1000
+      info_ = -1000
    end if
-   deallocate(work, stat=stat_dealloc)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_ssytri
 
 
-subroutine mctc_dsytri(env, amat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sytri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsytri(amat, ipiv, uplo, info)
    real(dp), intent(inout) :: amat(:, :)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, lda, stat_alloc, stat_dealloc
+   integer :: info_, n, lda, stat_alloc
    real(dp), allocatable :: work(:)
    if (present(uplo)) then
       ula = uplo
@@ -397,28 +377,23 @@ subroutine mctc_dsytri(env, amat, ipiv, uplo)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   stat_alloc = 0
-   allocate(work(n), stat=stat_alloc)
-   if (stat_alloc==0) then
-      call lapack_sytri(ula, n, amat, lda, ipiv, work, info)
+   allocate(work(max(1, n)), stat=stat_alloc)
+   if (stat_alloc == 0) then
+      call lapack_sytri(ula, n, amat, lda, ipiv, work, info_)
    else
-      info = -1000
+      info_ = -1000
    end if
-   deallocate(work, stat=stat_dealloc)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_dsytri
 
 
-subroutine mctc_ssptri(env, amat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sptri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_ssptri(amat, ipiv, uplo, info)
    real(sp), intent(inout) :: amat(:)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, stat_alloc, stat_dealloc, nn
+   integer :: info_, n, stat_alloc, nn
    real(sp), allocatable :: work(:)
    if (present(uplo)) then
       ula = uplo
@@ -431,28 +406,23 @@ subroutine mctc_ssptri(env, amat, ipiv, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, sp))))/2
    end if
-   stat_alloc = 0
-   allocate(work(n), stat=stat_alloc)
-   if (stat_alloc==0) then
-      call lapack_sptri(ula, n, amat, ipiv, work, info)
+   allocate(work(max(1, n)), stat=stat_alloc)
+   if (stat_alloc == 0) then
+      call lapack_sptri(ula, n, amat, ipiv, work, info_)
    else
-      info = -1000
+      info_ = -1000
    end if
-   deallocate(work, stat=stat_dealloc)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_ssptri
 
 
-subroutine mctc_dsptri(env, amat, ipiv, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_sptri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dsptri(amat, ipiv, uplo, info)
    real(dp), intent(inout) :: amat(:)
    integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, stat_alloc, stat_dealloc, nn
+   integer :: info_, n, stat_alloc, nn
    real(dp), allocatable :: work(:)
    if (present(uplo)) then
       ula = uplo
@@ -465,27 +435,22 @@ subroutine mctc_dsptri(env, amat, ipiv, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, dp))))/2
    end if
-   stat_alloc = 0
-   allocate(work(n), stat=stat_alloc)
-   if (stat_alloc==0) then
-      call lapack_sptri(ula, n, amat, ipiv, work, info)
+   allocate(work(max(1, n)), stat=stat_alloc)
+   if (stat_alloc == 0) then
+      call lapack_sptri(ula, n, amat, ipiv, work, info_)
    else
-      info = -1000
+      info_ = -1000
    end if
-   deallocate(work, stat=stat_dealloc)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   if (present(info)) info = info_
 end subroutine mctc_dsptri
 
 
-subroutine mctc_spotri(env, amat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_potri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spotri(amat, uplo, info)
    real(sp), intent(inout) :: amat(:, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, lda
+   integer :: info_, n, lda
    if (present(uplo)) then
       ula = uplo
    else
@@ -493,20 +458,17 @@ subroutine mctc_spotri(env, amat, uplo)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   call lapack_potri(ula, n, amat, lda, info)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   call lapack_potri(ula, n, amat, lda, info_)
+   if (present(info)) info = info_
 end subroutine mctc_spotri
 
 
-subroutine mctc_dpotri(env, amat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_potri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpotri(amat, uplo, info)
    real(dp), intent(inout) :: amat(:, :)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, lda
+   integer :: info_, n, lda
    if (present(uplo)) then
       ula = uplo
    else
@@ -514,20 +476,17 @@ subroutine mctc_dpotri(env, amat, uplo)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   call lapack_potri(ula, n, amat, lda, info)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   call lapack_potri(ula, n, amat, lda, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dpotri
 
 
-subroutine mctc_spptri(env, amat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_pptri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_spptri(amat, uplo, info)
    real(sp), intent(inout) :: amat(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nn
+   integer :: info_, n, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -539,20 +498,17 @@ subroutine mctc_spptri(env, amat, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, sp))))/2
    end if
-   call lapack_pptri(ula, n, amat, info)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   call lapack_pptri(ula, n, amat, info_)
+   if (present(info)) info = info_
 end subroutine mctc_spptri
 
 
-subroutine mctc_dpptri(env, amat, uplo)
-   character(len=*), parameter :: source = 'mctc_lapack_pptri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dpptri(amat, uplo, info)
    real(dp), intent(inout) :: amat(:)
    character(len=1), intent(in), optional :: uplo
+   integer, intent(out), optional :: info
    character(len=1) :: ula
-   integer :: info, n, nn
+   integer :: info_, n, nn
    if (present(uplo)) then
       ula = uplo
    else
@@ -564,21 +520,18 @@ subroutine mctc_dpptri(env, amat, uplo)
    else
       n = int((-1+sqrt(1+8*real(nn, dp))))/2
    end if
-   call lapack_pptri(ula, n, amat, info)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   call lapack_pptri(ula, n, amat, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dpptri
 
 
-subroutine mctc_strtri(env, amat, uplo, diag)
-   character(len=*), parameter :: source = 'mctc_lapack_trtri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_strtri(amat, uplo, diag, info)
    real(sp), intent(inout) :: amat(:, :)
    character(len=1), intent(in), optional :: uplo
    character(len=1), intent(in), optional :: diag
+   integer, intent(out), optional :: info
    character(len=1) :: ula, dia
-   integer :: info, n, lda
+   integer :: info_, n, lda
    if (present(uplo)) then
       ula = uplo
    else
@@ -591,21 +544,18 @@ subroutine mctc_strtri(env, amat, uplo, diag)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   call lapack_trtri(ula, dia, n, amat, lda, info)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   call lapack_trtri(ula, dia, n, amat, lda, info_)
+   if (present(info)) info = info_
 end subroutine mctc_strtri
 
 
-subroutine mctc_dtrtri(env, amat, uplo, diag)
-   character(len=*), parameter :: source = 'mctc_lapack_trtri'
-   type(TEnvironment), intent(inout) :: env
+pure subroutine mctc_dtrtri(amat, uplo, diag, info)
    real(dp), intent(inout) :: amat(:, :)
    character(len=1), intent(in), optional :: uplo
    character(len=1), intent(in), optional :: diag
+   integer, intent(out), optional :: info
    character(len=1) :: ula, dia
-   integer :: info, n, lda
+   integer :: info_, n, lda
    if (present(uplo)) then
       ula = uplo
    else
@@ -618,10 +568,8 @@ subroutine mctc_dtrtri(env, amat, uplo, diag)
    end if
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
-   call lapack_trtri(ula, dia, n, amat, lda, info)
-   if (info /= 0) then
-      call env%error("Inverting matrix failed", source)
-   end if
+   call lapack_trtri(ula, dia, n, amat, lda, info_)
+   if (present(info)) info = info_
 end subroutine mctc_dtrtri
 
 

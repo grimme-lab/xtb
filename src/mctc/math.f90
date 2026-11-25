@@ -18,7 +18,6 @@
 !> Simple algebraic functions
 module xtb_mctc_math
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_lapack, only : lapack_syev
    use xtb_mctc_constants, only : twothirdpi
    implicit none
    private

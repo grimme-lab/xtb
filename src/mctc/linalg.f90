@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_mctc_la
-   use xtb_mctc_accuracy, only : wp, sp, dp
+   use xtb_mctc_accuracy, only : sp, dp
    use xtb_mctc_lapack
    use xtb_mctc_blas
    use xtb_mctc_blas_wrap3, only : contract => mctc_gemm
@@ -24,7 +24,7 @@ module xtb_mctc_la
    implicit none
    public ! Forward lapack/blas module
 
-   private :: wp, sp, dp
+   private :: sp, dp
 
 
 
@@ -106,10 +106,10 @@ subroutine dsyprj(nbdim,m,bmat,n,asym)
   call htosq(n,scra,asym)
 
 ! Calculate scrb = asym*bmat
-  call blas_symm('l','u',n,m,1.0_dp,scra,n,bmat,nbdim,0.0_dp,scrb,n)
+  call mctc_symm(scra, bmat, scrb, side='l', uplo='u', m=n, n=m)
   
 ! Calculate scra = scrb*bmat'
-  call blas_gemm('n','t',n,n,m,1.0_dp,scrb,n,bmat,nbdim,0.0_dp,scra,n)
+  call mctc_gemm(scrb, bmat, scra, transb='t', m=n, n=n, k=m)
 
 ! Calculate asym = asym - scra - scra'
   do i=1,n
@@ -120,10 +120,10 @@ subroutine dsyprj(nbdim,m,bmat,n,asym)
   end do
      
 ! Calculate scrb' = scra'*bmat
-  call blas_gemm('t','n',n,m,n,1.0_dp,scra,n,bmat,nbdim,0.0_dp,scrb,n)
+  call mctc_gemm(scra, bmat, scrb, transa='t', m=n, n=m, k=n)
 
 ! Calculate scra = bmat*scrb'
-  call blas_gemm('n','t',n,n,m,1.0_dp,bmat,nbdim,scrb,n,0.0_dp,scra,n)
+  call mctc_gemm(bmat, scrb, scra, transb='t', m=n, n=n, k=m)
   
 ! Calculate asym = asym + scra
   do i=1,n
@@ -166,8 +166,6 @@ subroutine dblckmgs(m,n,ndim,darray)
 !---------------------------------------------------------------------- 
 ! Local parameters
   real(dp) thr
-! use BLAS directly without MCTC interfaces, for dirty hacks
-  external dgemm ! I hope you know what you are doing...
 !----------------------------------------------------------------------  
 
   thr = epsilon(1.0_dp) !Threshold for zero vectors
@@ -194,7 +192,7 @@ subroutine dblckmgs(m,n,ndim,darray)
 !-----------------------------------------------------------------
   do ii=1,ibsize
 
-     tmp = blas_dot(m,darray(:,ii),1,darray(:,ii),1)
+     tmp = mctc_dot(darray(:,ii), darray(:,ii), n=m)
 
 ! Linear dependence
      if(tmp < thr) then
@@ -203,11 +201,11 @@ subroutine dblckmgs(m,n,ndim,darray)
      end if
 
      tmp = 1.0_dp/sqrt(tmp)
-     call blas_scal(m,tmp,darray(:,ii),1)
+     call mctc_scal(darray(:,ii), tmp, n=m)
 
      do jj=ii+1,ibsize
-        tmp = blas_dot(m,darray(:,ii),1,darray(:,jj),1)
-        call blas_axpy(m,-tmp,darray(:,ii),1,darray(:,jj),1)
+        tmp = mctc_dot(darray(:,ii), darray(:,jj), n=m)
+        call mctc_axpy(darray(:,ii), darray(:,jj), alpha=-tmp, n=m)
      end do
 
   end do
@@ -229,15 +227,17 @@ subroutine dblckmgs(m,n,ndim,darray)
 ! Initial index of the block jj
         jstrt = (jj-1)*ibsize+1
 
-        call dgemm('t','n',ibsize,ncol,m,1.0_dp,darray(1,jstrt),ndim,darray(1,istrt),ndim,0.0_dp,smat,ibsize)
-        call dgemm('n','n',m,ncol,ibsize,-1.0_dp,darray(1,jstrt),ndim,smat,ibsize,1.0_dp,darray(1,istrt),ndim)
+        call mctc_gemm(darray(:,jstrt:), darray(:,istrt:), smat, &
+           & transa='t', m=ibsize, n=ncol, k=m)
+        call mctc_gemm(darray(:,jstrt:), smat, darray(:,istrt:), &
+           & alpha=-1.0_dp, beta=1.0_dp, m=m, n=ncol, k=ibsize)
 
      end do
 
 ! Othogonalize vectors on the block ii+1 among themself using modified schmidt
      do kk=istrt,iend
 
-        tmp = blas_dot(m,darray(:,kk),1,darray(:,kk),1)
+        tmp = mctc_dot(darray(:,kk), darray(:,kk), n=m)
 
 ! Linear dependence
         if(tmp < thr) then
@@ -246,11 +246,11 @@ subroutine dblckmgs(m,n,ndim,darray)
         end if
      
         tmp = 1.0_dp/sqrt(tmp)
-        call blas_scal(m,tmp,darray(:,kk),1)
+        call mctc_scal(darray(:,kk), tmp, n=m)
 
         do ll=kk+1,iend
-           tmp = blas_dot(m,darray(:,kk),1,darray(:,ll),1)
-           call blas_axpy(m,-tmp,darray(:,kk),1,darray(:,ll),1)
+           tmp = mctc_dot(darray(:,kk), darray(:,ll), n=m)
+           call mctc_axpy(darray(:,kk), darray(:,ll), alpha=-tmp, n=m)
         end do
 
      end do
@@ -268,26 +268,19 @@ function ssyluinv(Amat,m) result(info)
    integer, intent(in) :: m
    real(sp), intent(inout) :: Amat(m,m)
    integer, allocatable :: ipiv(:)
-   real(sp),allocatable :: temp(:)
-   real(sp),allocatable :: work(:)
-   integer  :: lwork
    integer  :: info
-   real(sp) :: test(1)
    integer  :: i,j
 
-   ! assume work space query, set best value to test after first dsytrf call
-   call lapack_sytrf('L',m,Amat,m,ipiv,test,-1,info)
-   lwork=int(test(1))
-   allocate( work(lwork), source = 0.0_sp )
+   allocate( ipiv(m), source = 0 )
 
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call lapack_sytrf('L',m,Amat,m,ipiv,work,lwork,info)
-   if(info > 0) return
+   call mctc_sytrf(Amat, ipiv, uplo='L', info=info)
+   if (info /= 0) return
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Amat matrix
    ! Amat matrix is overwritten with lower triangular part of A⁻¹
-   call lapack_sytri('L',m,Amat,m,ipiv,work,info)
-   if (info > 0) return
+   call mctc_sytri(Amat, ipiv, uplo='L', info=info)
+   if (info /= 0) return
 
    ! symmetrizes A⁻¹ matrix from lower triangular part of inverse matrix
    do i = 1, m
@@ -303,28 +296,19 @@ function dsyluinv(Amat,m) result(info)
    integer, intent(in) :: m
    real(dp), intent(inout) :: Amat(m,m)
    integer, allocatable :: ipiv(:)
-   real(dp),allocatable :: temp(:)
-   real(dp),allocatable :: work(:)
-   integer  :: lwork
    integer  :: info
-   real(dp) :: test(1)
    integer  :: i,j
 
    allocate( ipiv(m), source = 0 )
 
-   ! assume work space query, set best value to test after first dsytrf call
-   call lapack_sytrf('L',m,Amat,m,ipiv,test,-1,info)
-   lwork=int(test(1))
-   allocate( work(lwork), source = 0.0_dp )
-
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call lapack_sytrf('L',m,Amat,m,ipiv,work,lwork,info)
-   if(info > 0) return
+   call mctc_sytrf(Amat, ipiv, uplo='L', info=info)
+   if (info /= 0) return
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Amat matrix
    ! Amat matrix is overwritten with lower triangular part of A⁻¹
-   call lapack_sytri('L',m,Amat,m,ipiv,work,info)
-   if (info > 0) return
+   call mctc_sytri(Amat, ipiv, uplo='L', info=info)
+   if (info /= 0) return
 
    ! symmetrizes A⁻¹ matrix from lower triangular part of inverse matrix
    do i = 1, m
@@ -334,113 +318,6 @@ function dsyluinv(Amat,m) result(info)
    enddo
 
 end function dsyluinv
-
-
-subroutine contract211(amat, bvec, cvec, alpha, beta)
-
-   real(wp), intent(in), contiguous :: amat(:, :)
-   real(wp), intent(in), contiguous :: bvec(:)
-   real(wp), intent(inout), contiguous :: cvec(:)
-   real(wp), intent(in), optional :: alpha
-   real(wp), intent(in), optional :: beta
-
-   integer :: nn, mm
-   real(wp) :: aa, bb
-
-   aa = 1.0_wp
-   if (present(alpha)) aa = alpha
-   bb = 0.0_wp
-   if (present(beta)) bb = beta
-
-   nn = size(amat, dim=1)
-   mm = size(amat, dim=2)
-
-   call blas_gemv('n', nn, mm, aa, amat, nn, bvec, 1, bb, cvec, 1)
-
-end subroutine contract211
-
-
-subroutine contract312(amat, bvec, cvec, alpha, beta)
-
-   real(wp), intent(in), contiguous, target :: amat(:, :, :)
-   real(wp), intent(in), contiguous :: bvec(:)
-   real(wp), intent(inout), contiguous, target :: cvec(:, :)
-   real(wp), intent(in), optional :: alpha
-   real(wp), intent(in), optional :: beta
-   real(wp), pointer :: aptr(:, :)
-   real(wp), pointer :: cptr(:)
-
-   integer :: nn, mm
-   real(wp) :: aa, bb
-
-   aa = 1.0_wp
-   if (present(alpha)) aa = alpha
-   bb = 0.0_wp
-   if (present(beta)) bb = beta
-
-   nn = size(amat, dim=1)*size(amat, dim=2)
-   mm = size(amat, dim=3)
-   aptr(1:size(amat, dim=1) * size(amat, dim=2), 1:size(amat, dim=3)) => amat
-   cptr(1:size(cvec, dim=1) * size(cvec, dim=2)) => cvec
-
-   call blas_gemv('n', nn, mm, aa, aptr, nn, bvec, 1, bb, cptr, 1)
-
-end subroutine contract312
-
-
-subroutine contract222(amat, bmat, cmat, alpha, beta)
-
-   real(wp), intent(in), contiguous :: amat(:, :)
-   real(wp), intent(in), contiguous :: bmat(:, :)
-   real(wp), intent(inout), contiguous :: cmat(:, :)
-   real(wp), intent(in), optional :: alpha
-   real(wp), intent(in), optional :: beta
-
-   integer :: nn, mm, kk
-   real(wp) :: aa, bb
-
-   aa = 1.0_wp
-   if (present(alpha)) aa = alpha
-   bb = 0.0_wp
-   if (present(beta)) bb = beta
-
-   nn = size(amat, dim=1)
-   mm = size(amat, dim=2)
-   kk = size(cmat, dim=2)
-
-   call blas_gemm('n', 'n', nn, kk, mm, aa, amat, nn, bmat, mm, bb, cmat, nn)
-
-end subroutine contract222
-
-
-subroutine contract323(amat, bmat, cmat, alpha, beta)
-
-   real(wp), intent(in), contiguous, target :: amat(:, :, :)
-   real(wp), intent(in), contiguous :: bmat(:, :)
-   real(wp), intent(inout), contiguous, target :: cmat(:, :, :)
-   real(wp), intent(in), optional :: alpha
-   real(wp), intent(in), optional :: beta
-   real(wp), pointer :: aptr(:, :)
-   real(wp), pointer :: cptr(:, :)
-
-   integer :: nn, mm, kk
-   real(wp) :: aa, bb
-
-   aa = 1.0_wp
-   if (present(alpha)) aa = alpha
-   bb = 0.0_wp
-   if (present(beta)) bb = beta
-
-   nn = size(amat, dim=1)*size(amat, dim=2)
-   mm = size(amat, dim=3)
-   kk = size(cmat, dim=3)
-   aptr(1:size(amat, dim=1) * size(amat, dim=2), 1:size(amat, dim=3)) => amat
-   cptr(1:size(cmat, dim=1) * size(cmat, dim=2), 1:size(cmat, dim=3)) => cmat
-
-   call blas_gemm('n', 'n', nn, kk, mm, aa, aptr, nn, bmat, mm, bb, cptr, nn)
-
-end subroutine contract323
-
 
 
 end module xtb_mctc_la

@@ -24,7 +24,6 @@ module xtb_gfnff_eg
    use xtb_solv_gbsa, only : TBorn
    use xtb_type_environment, only : TEnvironment
    use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
-   use xtb_mctc_la , only : contract323
    use xtb_mctc_blas, only : mctc_gemv
    use xtb_param_sqrtzr4r2, only : sqrtZr4r2
    use xtb_mctc_constants, only : pi
@@ -1800,13 +1799,12 @@ subroutine goed_gfnff(env,single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa,param,top
    !> Solvation
    type(TBorn), allocatable, intent(in) :: gbsa
 
-   integer  :: m,i,j,k,ii,ij
+   integer  :: m,i,j,k,ii,ij,info
    integer,allocatable :: ipiv(:)
    real(wp) :: gammij,tsqrt2pi,r2,tmp
    real(wp),allocatable :: A (:,:),x (:)
    real(sp),allocatable :: A4(:,:),x4(:)
    parameter (tsqrt2pi = 0.797884560802866_wp)
-   logical :: exitRun
 
    ! # atoms + chrg constrain + frag constrain !
    m=n+topo%nfrag 
@@ -1871,23 +1869,25 @@ subroutine goed_gfnff(env,single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa,param,top
       A4=A
       x4=x
       deallocate(A,x)
-      call mctc_sytrf(env, a4, ipiv)
-      call mctc_sytrs(env, a4, x4, ipiv)
+      call mctc_sytrf(a4, ipiv, info=info)
+      if (info == 0) then
+         call mctc_sytrs(a4, x4, ipiv, info=info)
+      end if
       q(1:n)=x4(1:n)
       deallocate(A4,x4)
    
    else
       
-      call mctc_sytrf(env, a, ipiv)
-      call mctc_sytrs(env, a, x, ipiv)
+      call mctc_sytrf(a, ipiv, info=info)
+      if (info == 0) then
+         call mctc_sytrs(a, x, ipiv, info=info)
+      end if
       q(1:n)=x(1:n)
       deallocate(A,x)
    
    endif
 
-   call env%check(exitRun)
-   
-   if(exitRun) then
+   if(info /= 0) then
       call env%error('Solving linear equations failed', source)
       return
    end if
@@ -1942,7 +1942,7 @@ subroutine goed_pbc_gfnff(env,mol,single,n,at,r,chrg,eeqtmp,cn,q,es,&
    type(TBorn), allocatable, intent(in) :: gbsa
 
    ! local variables
-   integer  :: m,i,j,k,ii,ij
+   integer  :: m,i,j,k,ii,ij,info
    integer,allocatable :: ipiv(:)
    real(wp) :: gammij,tsqrt2pi,r2,tmp
    real(wp),allocatable :: A (:,:), x_right(:)
@@ -1961,7 +1961,6 @@ subroutine goed_pbc_gfnff(env,mol,single,n,at,r,chrg,eeqtmp,cn,q,es,&
 
    ! parameter
    parameter (tsqrt2pi = 0.797884560802866_wp)
-   logical :: exitRun
 
       m=n+topo%nfrag ! # atoms + chrg constrain + frag constrain
       
@@ -2047,21 +2046,24 @@ subroutine goed_pbc_gfnff(env,mol,single,n,at,r,chrg,eeqtmp,cn,q,es,&
          x4=x
          x_right(1:n)=x(1:n)
          deallocate(Amat)
-         call mctc_sytrf(env, a4, ipiv)
-         call mctc_sytrs(env, a4, x4, ipiv)
+         call mctc_sytrf(a4, ipiv, info=info)
+         if (info == 0) then
+            call mctc_sytrs(a4, x4, ipiv, info=info)
+         end if
          q(1:n)=x4(1:n)
          x = x4
          deallocate(A4,x4)
       else
          x_right(1:n)=x(1:n)
-         call mctc_sytrf(env, Amat, ipiv)
-         call mctc_sytrs(env, Amat, x, ipiv)
+         call mctc_sytrf(Amat, ipiv, info=info)
+         if (info == 0) then
+            call mctc_sytrs(Amat, x, ipiv, info=info)
+         end if
          q(1:n)=x(1:n)
          deallocate(Amat)
       endif
 
-      call env%check(exitRun)
-      if(exitRun) then
+      if(info /= 0) then
          call env%error('Solving linear equations failed', source)
          return
       end if

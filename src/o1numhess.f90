@@ -21,7 +21,7 @@ module xtb_o1numhess
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autoaa, autorcm
    use xtb_mctc_blas, only : mctc_gemm, mctc_dot
-   use xtb_mctc_lapack, only : lapack_syevx
+   use xtb_mctc_lapack, only : mctc_syevx
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_freq_project, only : trproj
@@ -459,9 +459,8 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    real(wp), parameter :: orth_tol = 1.0e-10_wp
    ! Thread-private work arrays for parallel region
    real(wp), allocatable :: submat_local(:, :), projmat_local(:, :)
-   real(wp), allocatable :: vec_subset_local(:, :), tmp_local(:, :), work_local(:)
+   real(wp), allocatable :: vec_subset_local(:, :), tmp_local(:, :)
    real(wp), allocatable :: eigvec_local(:, :)
-   integer, allocatable :: iwork_local(:), ifail_local(:)
 
    ! Initialize identity matrix
    allocate(eye(max_nb, max_nb))
@@ -484,16 +483,13 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
    !$omp shared(eps, eps2) &
    !$omp private(j, p, q, k, nnb, nb_idx, loceigs, locind, info, idx) &
    !$omp private(n_curr, qn, m_eig, norm_ev1, norm_ev2, v_norm, d_dot, u2, locev) &
-   !$omp private(submat_local, projmat_local, vec_subset_local, tmp_local, work_local) &
-   !$omp private(eigvec_local, iwork_local, ifail_local)
+   !$omp private(submat_local, projmat_local, vec_subset_local, tmp_local) &
+   !$omp private(eigvec_local)
 
    allocate(submat_local(max_nb, max_nb))
    allocate(projmat_local(max_nb, n))
    allocate(vec_subset_local(max_nb, n))
    allocate(tmp_local(max_nb, max_nb))
-   allocate(work_local(max(1, 200*max_nb)))
-   allocate(iwork_local(max(1, 5*max_nb)))
-   allocate(ifail_local(max(1, max_nb)))
    allocate(eigvec_local(max_nb, 1))
 
    ! Outer loop: generate new directions
@@ -581,9 +577,8 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
          projmat_local(:locind, :locind) = 0.5_wp * (projmat_local(:locind, :locind) + &
             & transpose(projmat_local(:locind, :locind)))
          ! 3. Largest-eigenpair diagonalization
-         call lapack_syevx("V", "I", "U", locind, projmat_local, max_nb, &
-            & 0.0_wp, 0.0_wp, locind, locind, 0.0_wp, m_eig, loceigs, eigvec_local, &
-            & max_nb, work_local, size(work_local), iwork_local, ifail_local, info)
+         call mctc_syevx(projmat_local, loceigs, uplo="U", z=eigvec_local, &
+            & il=locind, iu=locind, abstol=0.0_wp, m=m_eig, info=info, n=locind)
          if (info > 0) then
             !$omp critical
             if (ierr == 0) ierr = info
@@ -679,8 +674,8 @@ subroutine gen_displdir(n, ndispl0, h0, max_nb, nblist, nbcounts, &
       !$omp end single
    end do
 
-   deallocate(submat_local, projmat_local, vec_subset_local, tmp_local, work_local, &
-      & iwork_local, ifail_local, eigvec_local)
+   deallocate(submat_local, projmat_local, vec_subset_local, tmp_local, &
+      & eigvec_local)
    !$omp end parallel
 
    deallocate(eye, locev_store)
@@ -704,8 +699,7 @@ subroutine find_projected_imag_modes(env, mol, hess, linear, max_modes, sig_min_
 
    integer :: N, nat, i, j, k, ia, ic, ii, m_eig, info, ndiag
    real(wp), allocatable :: hpack(:), Hmw(:, :), inv_sqrt_m(:), v(:), &
-      & eigval(:), eigvec(:, :), work(:), dummy_mode(:, :)
-   integer, allocatable :: iwork(:), ifail(:)
+      & eigval(:), eigvec(:, :), dummy_mode(:, :)
    real(wp) :: freq
    character(len=128) :: msg
 
@@ -759,10 +753,9 @@ subroutine find_projected_imag_modes(env, mol, hess, linear, max_modes, sig_min_
 
    ! lowest eigenpairs only
    ndiag = min(max_modes, N)
-   allocate(eigval(N), eigvec(N, ndiag), ifail(N))
-   allocate(work(max(1, 200*N)), iwork(max(1, 5*N)))
-   call lapack_syevx("V", "I", "U", N, Hmw, N, 0.0_wp, 0.0_wp, 1, ndiag, 0.0_wp, &
-      & m_eig, eigval, eigvec, N, work, size(work), iwork, ifail, info)
+   allocate(eigval(N), eigvec(N, ndiag))
+   call mctc_syevx(Hmw, eigval, uplo="U", z=eigvec, il=1, iu=ndiag, &
+      & abstol=0.0_wp, m=m_eig, info=info)
    if (info /= 0) then
       if (info > 0) then
          write (msg, '(a, i0, a)') &

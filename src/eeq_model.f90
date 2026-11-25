@@ -20,7 +20,7 @@ module xtb_eeq
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_mctc_blas, only : mctc_gemv, mctc_gemm, mctc_symv, mctc_copy, mctc_dot
-   use xtb_mctc_lapack, only : lapack_sytrf, lapack_sytri
+   use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs, mctc_sytri
    use xtb_type_environment, only : TEnvironment
    use xtb_gfn0param, alp => alpg
    use xtb_coulomb_ewald, only : ewaldMatPBC3D, ewaldDerivPBC3D => ewaldDerivPBC3D_alp
@@ -393,16 +393,14 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
    real(wp),allocatable :: atmp(:,:)
    real(wp),allocatable :: Xfac(:)
    real(wp),allocatable :: Afac(:,:)
-
-!! ------------------------------------------------------------------------
-!  Lapack work variables
-!! ------------------------------------------------------------------------
-   integer, allocatable :: ipiv(:)
    real(wp),allocatable :: temp(:)
    real(wp),allocatable :: work(:)
-   integer  :: lwork
+
+!! ------------------------------------------------------------------------
+!  Linear solver variables
+!! ------------------------------------------------------------------------
+   integer, allocatable :: ipiv(:)
    integer  :: info
-   real(wp) :: test(1)
 
 !! ------------------------------------------------------------------------
 !  initial banner if verbose
@@ -478,13 +476,12 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
    allocate( Atmp(m,m), source = Amat )
    allocate( Xtmp(m),   source = Xvec )
 
-   ! assume work space query, set best value to test after first dsysv call
-   call dsysv('u', m, 1, Atmp, m, ipiv, Xtmp, m, test, -1, info)
-   lwork = int(test(1))
-   allocate( work(lwork), source = 0.0_wp )
-
-   call dsysv('u',m,1,Atmp,m,ipiv,Xtmp,m,work,lwork,info)
-   if(info > 0) call raise('E','(goedecker_solve) DSYSV failed')
+   allocate( work(m), source = 0.0_wp )
+   call mctc_sytrf(Atmp, ipiv, uplo='u', info=info)
+   if (info == 0) then
+      call mctc_sytrs(Atmp, Xtmp, ipiv, uplo='u', info=info)
+   end if
+   if(info /= 0) call raise('E','(goedecker_solve) SYTRF/SYTRS failed')
 
    q = Xtmp(:n)
    if(abs(sum(q)-chrg) > 1.e-6_wp) &
@@ -572,24 +569,16 @@ do_partial_charge_derivative: if (lcpq) then
       "A matrix inversion by Bunch-Kaufman factorization"
    allocate( Ainv(m,m), source = Amat )
 
-   ! assume work space query, set best value to test after first dsytrf call
-   call lapack_sytrf('L',m,Ainv,m,ipiv,test,-1,info)
-   if (int(test(1)) > lwork) then
-      deallocate(work)
-      lwork=int(test(1))
-      allocate( work(lwork), source = 0.0_wp )
-   endif
-
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call lapack_sytrf('L',m,Ainv,m,ipiv,work,lwork,info)
-   if(info > 0)then
+   call mctc_sytrf(Ainv, ipiv, uplo='L', info=info)
+   if(info /= 0)then
       call raise('E', '(goedecker_inversion) DSYTRF failed')
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
-   call lapack_sytri('L',m,Ainv,m,ipiv,work,info)
-   if (info > 0) then
+   call mctc_sytri(Ainv, ipiv, uplo='L', info=info)
+   if (info /= 0) then
       call raise('E', '(goedecker_inversion) DSYTRI failed')
    endif
 
@@ -765,16 +754,14 @@ subroutine eeq_chrgeq_core(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
    real(wp),allocatable :: atmp(:,:)
    real(wp),allocatable :: Xfac(:)
    real(wp),allocatable :: Afac(:,:)
-
-! ------------------------------------------------------------------------
-!  Lapack work variables
-! ------------------------------------------------------------------------
-   integer, allocatable :: ipiv(:)
    real(wp),allocatable :: temp(:)
    real(wp),allocatable :: work(:)
-   integer  :: lwork
+
+! ------------------------------------------------------------------------
+!  Linear solver variables
+! ------------------------------------------------------------------------
+   integer, allocatable :: ipiv(:)
    integer  :: info
-   real(wp) :: test(1)
 
 ! ------------------------------------------------------------------------
 !  initizialization
@@ -853,14 +840,13 @@ subroutine eeq_chrgeq_core(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
    ! generate temporary copy
    allocate( Atmp(m,m), source = Amat )
    allocate( Xtmp(m),   source = Xvec )
+   allocate( work(m),   source = 0.0_wp )
 
-   ! assume work space query, set best value to test after first dsysv call
-   call dsysv('u', m, 1, Atmp, m, ipiv, Xtmp, m, test, -1, info)
-   lwork = int(test(1))
-   allocate( work(lwork), source = 0.0_wp )
-
-   call dsysv('u',m,1,Atmp,m,ipiv,Xtmp,m,work,lwork,info)
-   if(info > 0) then
+   call mctc_sytrf(Atmp, ipiv, uplo='u', info=info)
+   if (info == 0) then
+      call mctc_sytrs(Atmp, Xtmp, ipiv, uplo='u', info=info)
+   end if
+   if(info /= 0) then
       call env%error("Coulomb matrix is singular, cannot solve lin. eq.", source)
       return
    end if
@@ -944,25 +930,17 @@ do_partial_charge_derivative: if (lcpq) then
       "A matrix inversion by Bunch-Kaufman factorization"
    allocate( Ainv(m,m), source = Amat )
 
-   ! assume work space query, set best value to test after first dsytrf call
-   call lapack_sytrf('L',m,Ainv,m,ipiv,test,-1,info)
-   if (int(test(1)) > lwork) then
-      deallocate(work)
-      lwork=int(test(1))
-      allocate( work(lwork), source = 0.0_wp )
-   endif
-
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call lapack_sytrf('L',m,Ainv,m,ipiv,work,lwork,info)
-   if(info > 0)then
+   call mctc_sytrf(Ainv, ipiv, uplo='L', info=info)
+   if(info /= 0)then
       call env%error("Could not factorize Coulomb matrix", source)
       return
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
-   call lapack_sytri('L',m,Ainv,m,ipiv,work,info)
-   if (info > 0) then
+   call mctc_sytri(Ainv, ipiv, uplo='L', info=info)
+   if (info /= 0) then
       call env%error("Coulomb Matrix is singular, cannot invert", source)
       return
    endif
@@ -1097,16 +1075,14 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
    real(wp),allocatable :: atmp(:,:)
    real(wp),allocatable :: Xfac(:)
    real(wp),allocatable :: Afac(:,:)
-
-! ------------------------------------------------------------------------
-!  Lapack work variables
-! ------------------------------------------------------------------------
-   integer, allocatable :: ipiv(:)
    real(wp),allocatable :: temp(:)
    real(wp),allocatable :: work(:)
-   integer  :: lwork
+
+! ------------------------------------------------------------------------
+!  Linear solver variables
+! ------------------------------------------------------------------------
+   integer, allocatable :: ipiv(:)
    integer  :: info
-   real(wp) :: test(1)
 
    real(wp) :: gborn, ghb, r3, erft
 
@@ -1167,14 +1143,13 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
    ! generate temporary copy
    allocate( Atmp(m,m), source = Amat )
    allocate( Xtmp(m),   source = Xvec )
+   allocate( work(m),   source = 0.0_wp )
 
-   ! assume work space query, set best value to test after first dsysv call
-   call dsysv('u', m, 1, Atmp, m, ipiv, Xtmp, m, test, -1, info)
-   lwork = int(test(1))
-   allocate( work(lwork), source = 0.0_wp )
-
-   call dsysv('u',m,1,Atmp,m,ipiv,Xtmp,m,work,lwork,info)
-   if(info > 0) then
+   call mctc_sytrf(Atmp, ipiv, uplo='u', info=info)
+   if (info == 0) then
+      call mctc_sytrs(Atmp, Xtmp, ipiv, uplo='u', info=info)
+   end if
+   if(info /= 0) then
       call env%error("Coulomb matrix is singular, cannot solve lin. eq.", source)
       return
    end if
@@ -1246,25 +1221,17 @@ do_partial_charge_derivative: if (lcpq) then
       "A matrix inversion by Bunch-Kaufman factorization"
    allocate( Ainv(m,m), source = Amat )
 
-   ! assume work space query, set best value to test after first dsytrf call
-   call lapack_sytrf('L',m,Ainv,m,ipiv,test,-1,info)
-   if (int(test(1)) > lwork) then
-      deallocate(work)
-      lwork=int(test(1))
-      allocate( work(lwork), source = 0.0_wp )
-   endif
-
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call lapack_sytrf('L',m,Ainv,m,ipiv,work,lwork,info)
-   if(info > 0)then
+   call mctc_sytrf(Ainv, ipiv, uplo='L', info=info)
+   if(info /= 0)then
       call env%error("Could not factorize Coulomb matrix", source)
       return
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
-   call lapack_sytri('L',m,Ainv,m,ipiv,work,info)
-   if (info > 0) then
+   call mctc_sytri(Ainv, ipiv, uplo='L', info=info)
+   if (info /= 0) then
       call env%error("Coulomb Matrix is singular, cannot invert", source)
       return
    endif
@@ -1286,8 +1253,7 @@ do_partial_charge_derivative: if (lcpq) then
       dAmatdr(:,i,i) = Afac(:,i) + dAmatdr(:,i,i)
    enddo
    !call dsymm('r','l',3*n,m,-1.0_wp,Ainv,m,dAmatdr,3*n,1.0_wp,dqdr,3*n)
-   call dgemm('n','n',3*mol%n,mol%n,m,-1.0_wp,dAmatdr,3*mol%n,Ainv,m, &
-      &       1.0_wp,dqdr,3*mol%n)
+   call mctc_gemm(dAmatdr, Ainv, dqdr, alpha=-1.0_wp, beta=1.0_wp)
    !print'(/,"analytical gradient")'
    !print'(3f20.14)',dqdr(:,:,:n)
 
