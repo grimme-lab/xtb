@@ -154,6 +154,7 @@ jobs:
             os: [ubuntu-26.04]
             fc: [gfortran-15]
             cc: [gcc-15]
+            meson_version: ['0.62.0', '1.9.*']
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -167,7 +168,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y ${{ matrix.cc }} ${{ matrix.fc }} libopenblas-dev
          - name: Install meson
-           run: pip3 install meson==0.62.0 ninja cmake
+           run: pip3 install "meson==${{ matrix.meson_version }}" ninja cmake
          - name: Configure build
            run: >
             meson setup ${{ env.BUILD_DIR }} --buildtype=debug --warnlevel=0 ${{ env.MESON_ARGS }}
