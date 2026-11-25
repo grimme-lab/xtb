@@ -50,7 +50,7 @@ c  .....................................................................
       implicit none
 
       external
-     ,     vecnorm,valijk
+     ,     vecnorm
 
       integer
      ,     ic,i,j,k,l,natoms
@@ -58,11 +58,9 @@ c  .....................................................................
       real*8
      ,     xyz(3,natoms),
      ,     eps,ra(3),rb(3),rc(3),na(3),nb(3),
-     ,     rab,rbc,thab,thbc,valijk,
-     ,     vecnorm,nan,nbn,rcn,snanb,deter,pi
+     ,     vecnorm,nan,nbn,snanb
 
       parameter (eps=1.0d-14)
-      data pi/3.1415926535897932384626433832795029d0/
 
 c ... get torsion coordinate
       do ic=1,3
@@ -71,13 +69,6 @@ c ... get torsion coordinate
         rc(ic)=xyz(ic,l)-xyz(ic,k)
       end do
 
-c ... determinante of rb,ra,rc
-      deter= ra(1)*(rb(2)*rc(3)-rb(3)*rc(2))
-     ,      -ra(2)*(rb(1)*rc(3)-rb(3)*rc(1))
-     ,      +ra(3)*(rb(1)*rc(2)-rb(2)*rc(1))
-
-      thab=valijk(natoms,xyz,i,k,j)
-      thbc=valijk(natoms,xyz,j,l,k)
       call crossprod(ra,rb,na)
       call crossprod(rb,rc,nb)
       nan=vecnorm(na,3,1)
@@ -101,20 +92,17 @@ c ... determinante of rb,ra,rc
       implicit none
 
       external
-     ,     vecnorm,valijkPBC
+     ,     vecnorm
 
       integer
      ,     ic,i,j,k,l,natoms,mo
 
       real*8
-     ,     xyz(3,natoms),vTrj(3),vTrk(3),vTrl(3),vDum(3),
+     ,     xyz(3,natoms),vTrj(3),vTrk(3),vTrl(3),
      ,     eps,ra(3),rb(3),rc(3),na(3),nb(3),
-     ,     rab,rbc,thab,thbc,valijkPBC,
-     ,     vecnorm,nan,nbn,rcn,snanb,deter,pi
+     ,     vecnorm,nan,nbn,snanb
 
       parameter (eps=1.0d-14)
-      data pi/3.1415926535897932384626433832795029d0/
-      vDum=0.0 ! Dummy vector for valijkPBC function
       
 c ... get torsion coordinate
       if(mo.eq.1)then ! egtors call -> j (=ii) in central cell
@@ -131,20 +119,6 @@ c ... get torsion coordinate
         enddo
       endif
 
-c ... determinante of rb,ra,rc  (triple product)
-      deter= ra(1)*(rb(2)*rc(3)-rb(3)*rc(2))
-     ,      -ra(2)*(rb(1)*rc(3)-rb(3)*rc(1))
-     ,      +ra(3)*(rb(1)*rc(2)-rb(2)*rc(1))
-   
-      if(mo.eq.1)then ! not used
-        thab=valijkPBC(1,natoms,xyz,i,k,j,vTrl,vTrj,vDum)
-        thbc=valijkPBC(2,natoms,xyz,j,l,k,vTrk,vTrj,vDum)
-      else
-        thab=valijkPBC(3,natoms,xyz,i,k,j,vTrj,vTrl,vTrk) !    i=R       k=C       j=B  
-                                                          ! vTrj=vTrR vTrl=vTrC vTrk=vTrB
-        thbc=valijkPBC(4,natoms,xyz,j,l,k,vTrk,vTrl,vDum) !    j=B    l=H    k=C
-                                                     ! vTrk=vTrB     vTrl=vTrC 
-      endif
       call crossprod(ra,rb,na)
       call crossprod(rb,rc,nb)
       nan=vecnorm(na,3,1)
