@@ -1,7 +1,7 @@
 = Building xtb with meson
 
 To build `xtb` from the source in this repository the https://mesonbuild.com[meson build system] can be used.
-Building `xtb` requires Meson version 0.62 or newer, excluding versions 1.8.0 and 1.8.1, and https://ninja-build.org/[Ninja] version 1.7 or newer.
+Building `xtb` requires Meson version 0.62 or newer, and https://ninja-build.org/[Ninja] version 1.7 or newer.
 
 == Getting meson
 

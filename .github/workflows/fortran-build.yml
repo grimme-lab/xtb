@@ -15,7 +15,7 @@ jobs:
          - name: Install LAPACK
            run: sudo apt-get install liblapack-dev
          - name: Install Meson
-           run: pip install meson==1.7.0 ninja
+           run: pip install meson ninja
          - name: Create source distribution
            run: |
             meson setup ${{ env.BUILD_DIR }} -Dlapack=netlib --wrap-mode=forcefallback
@@ -80,7 +80,7 @@ jobs:
               gfortran-${{ matrix.version }} \
               libopenblas-dev
          - name: Install meson
-           run: pip install meson==1.7.0 ninja
+           run: pip install meson ninja
          - name: Configure build
            run: >
             meson setup ${{ env.BUILD_DIR }} --buildtype=debug --warnlevel=0 -Db_coverage=true ${{ env.MESON_ARGS }}
@@ -154,6 +154,7 @@ jobs:
             os: [ubuntu-26.04]
             fc: [gfortran-15]
             cc: [gcc-15]
+            meson_version: ['0.62.0', '1.9.*']
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -167,7 +168,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y ${{ matrix.cc }} ${{ matrix.fc }} libopenblas-dev
          - name: Install meson
-           run: pip3 install meson==0.62.0 ninja cmake
+           run: pip3 install "meson==${{ matrix.meson_version }}" ninja cmake
          - name: Configure build
            run: >
             meson setup ${{ env.BUILD_DIR }} --buildtype=debug --warnlevel=0 ${{ env.MESON_ARGS }}
@@ -278,7 +279,7 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
-         - run: pip3 install meson==1.7.0 ninja --user
+         - run: pip3 install meson ninja --user
          - name: Add Intel repository
            if: contains(matrix.os, 'ubuntu')
            run: |
@@ -386,7 +387,7 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
-         - run: pip3 install meson==1.7.0 ninja --user
+         - run: pip3 install meson ninja --user
          - name: Install Intel oneAPI compiler and MKL
            run: |
             sudo apt-get update
@@ -588,7 +589,7 @@ jobs:
            run: |
             sudo apt-get update
             sudo apt-get install -y gcc-14 g++-14 gfortran-14 libopenblas-pthread-dev ninja-build asciidoctor
-            pip install meson==1.7.0
+            pip install meson
          - name: Configure fully static Release
            env:
             CC: gcc-14
