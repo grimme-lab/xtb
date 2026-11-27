@@ -349,6 +349,26 @@ GENERAL
 *-P, --parallel* 'INT'::
      number of parallel processes
 
+*--gpu* ['INT']::
+     offload the SCC and ANC eigensolvers to GPU 'INT' (cuSOLVER).  Without
+     'INT' the largest visible device is chosen, which is usually what you
+     want on a host that also has a small display adapter; an explicit 'INT'
+     follows CUDA's own device order, so export `CUDA_DEVICE_ORDER=PCI_BUS_ID`
+     if you mean PCI order.  The device in use is echoed in the calculation
+     setup block.  Requires an `xtb` built with `-Dgpu=true`; without it the
+     option is ignored with a warning.
+     The SCC eigensolve uses single precision while the Hamiltonian is still
+     changing and switches permanently to double precision on approach to
+     convergence, so with the default accuracy the final iterations are double
+     precision solves.  Results are therefore not bit reproducible between
+     runs.  Numerical Hessians evaluate their displacements in parallel and do
+     those eigensolves on the CPU.
+     Fine tuning through the environment: `XTB_GPU_NMIN` (smallest matrix sent
+     to the GPU, default 700), `XTB_GPU_FP32_TOL` (precision switch threshold
+     in eV, default 1e-2, larger is more accurate, 0 stays in double
+     precision), `XTB_GPU_EIG=0` (disable), `XTB_GPU_STATS=1` (timing
+     breakdown).
+
 *--define*::
      performs automatic check of input and terminate
 

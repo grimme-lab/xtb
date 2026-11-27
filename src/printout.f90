@@ -60,6 +60,7 @@ subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_global, only : persistentEnv
    use xtb_mctc_systools
+   use xtb_gpu_ctrl, only : gpuBanner
    use xtb_type_wavefunction
    use xtb_setparam
    !$ use omp_lib
@@ -105,6 +106,15 @@ subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc)
    !$omp end parallel
    ! initrand reduces even a processor-generated state to this replayable scalar.
    write(iunit,'(10x,a,":",6x,i16)') 'random seed                ',set%randseed
+   block
+      !> which device --gpu resolved to, and which paths it is carrying.  Worth
+      !> printing unconditionally: on a multi-GPU host a wrong device is a
+      !> silent slowdown rather than an error.
+      character(len=:), allocatable :: gpuLine
+      call gpuBanner(gpuLine)
+      if (len_trim(gpuLine) > 0) &
+         write(iunit,'(10x,a,":",1x,a)') 'gpu acceleration           ',trim(gpuLine)
+   end block
    ! ----------------------------------------------------------------------
    write(iunit,'(a)')
 

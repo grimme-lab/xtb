@@ -271,6 +271,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    use xtb_disp_dftd4,  only: disppot,edisp_scc
    use xtb_aespot, only : mmompop,aniso_electro,setvsdq
    use xtb_embedding, only : electro_pcem
+   use xtb_gpu_ctrl, only : gpuAcceptDensity
 
    character(len=*), parameter :: source = 'scc_core'
 
@@ -570,12 +571,17 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    ! end of SCC convergence part
    qconverged = rmsq < qconv
    if (econverged.and.qconverged) then
-      converged = .true.
-      qq=q
-      ! no mixing step in the converged iteration
-      if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
-      &  iter+jter,eel,eel-eold,rmsq,egap,0.0_wp,fulldiag
-      exit scc_iterator
+      ! With --gpu the density may come from an FP32 solve; then iterate once
+      ! more in FP64.  Its own if: .and. does not short-circuit in Fortran,
+      ! and the query switches the ramp.
+      if (gpuAcceptDensity()) then
+         converged = .true.
+         qq=q
+         ! no mixing step in the converged iteration
+         if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
+         &  iter+jter,eel,eel-eold,rmsq,egap,0.0_wp,fulldiag
+         exit scc_iterator
+      end if
    end if
    ! ------------------------------------------------------------------------
 
