@@ -84,7 +84,7 @@ subroutine detrotra_worker(linear, n, xyz, h, eig, rigid)
    real(wp), parameter :: low_mode_threshold = 0.05_wp
    integer :: i, j, ii, nn, n3, nend
    integer, allocatable :: ind(:)
-   real(wp), allocatable :: mode(:), tmpxyz(:, :), score(:)
+   real(wp), allocatable :: mode(:), tmpxyz(:, :), score(:), mode_score(:)
    real(wp) :: a0, b0, c0
    logical, allocatable :: candidate(:)
 
@@ -101,9 +101,14 @@ subroutine detrotra_worker(linear, n, xyz, h, eig, rigid)
       ii = minloc(eig, dim=1, mask=.not.candidate)
       candidate(ii) = .true.
    end do
-   allocate(mode(n3), tmpxyz(3, n), score(n3), ind(n3))
+   allocate(mode(n3), tmpxyz(3, n), score(n3), ind(n3), mode_score(n3))
 
-   nn = 0
+   ! The test of each candidate is independent and costs O(n^2); the model
+   ! Hessian of a protein has thousands of soft candidate modes, which made
+   ! this loop take ~30 s per ANC generation for 1900 atoms on one thread.
+   !$omp parallel do default(none) schedule(dynamic) &
+   !$omp shared(n, n3, candidate, h, xyz, eig, mode_score) &
+   !$omp private(ii, i, j, a0, b0, c0, mode, tmpxyz)
    do ii = 1, n3
       if (.not.candidate(ii)) cycle
 
@@ -131,9 +136,15 @@ subroutine detrotra_worker(linear, n, xyz, h, eig, rigid)
          end do
       end do
 
-      nn = nn + 1
       ! Weight the distance change by the Lindh eigenvalue.
-      score(nn) = sqrt(c0/n)*abs(eig(ii))
+      mode_score(ii) = sqrt(c0/n)*abs(eig(ii))
+   end do
+
+   nn = 0
+   do ii = 1, n3
+      if (.not.candidate(ii)) cycle
+      nn = nn + 1
+      score(nn) = mode_score(ii)
       ind(nn) = ii
    end do
 
